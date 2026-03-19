@@ -412,9 +412,143 @@ async function fetch_value_bets(sport) {
   return bets;
 }
 
+// ==================== TODAY'S GAMES ENDPOINT ====================
+
+const oddsCache = { data: null, ts: 0 };
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+async function getAllOdds() {
+  if (oddsCache.data && (Date.now() - oddsCache.ts) < CACHE_TTL) return oddsCache.data;
+  const sports = [
+    { key: 'basketball_nba', sport: 'NBA', model: nba, extra: { 'trail blazers': 'POR', 'blazers': 'POR', 'timberwolves': 'MIN', '76ers': 'PHI' } },
+    { key: 'baseball_mlb', sport: 'MLB', model: mlb, extra: { 'diamondbacks': 'ARI', 'd-backs': 'ARI', 'white sox': 'CWS', 'red sox': 'BOS', 'blue jays': 'TOR' } },
+    { key: 'icehockey_nhl', sport: 'NHL', model: nhl, extra: { 'utah hockey club': 'UTA', 'golden knights': 'VGK', 'blue jackets': 'CBJ', 'maple leafs': 'TOR', 'red wings': 'DET', 'blackhawks': 'CHI' } }
+  ];
+  const allGames = [];
+  for (const s of sports) {
+    try {
+      const odds = await fetchOdds(s.key);
+      const nameMap = buildNameMap(s.model.TEAMS, s.extra);
+      for (const game of odds) {
+        const awayAbbr = resolveTeam(nameMap, game.away_team);
+        const homeAbbr = resolveTeam(nameMap, game.home_team);
+        // Get model prediction
+        let pred = null;
+        try {
+          if (s.sport === 'NBA') pred = nba.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+          else if (s.sport === 'MLB') pred = mlb.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+          else if (s.sport === 'NHL') pred = nhl.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+        } catch (e) { /* skip */ }
+        if (pred && pred.error) pred = null;
+        // Extract all bookmaker lines
+        const books = {};
+        let bestHomeML = null, bestAwayML = null, bestHomeBook = '', bestAwayBook = '';
+        for (const bk of (game.bookmakers || [])) {
+          const line = extractBookLine(bk, game.home_team);
+          // Also extract away ML name
+          (bk.markets || []).forEach(mkt => {
+            if (mkt.key === 'h2h') {
+              mkt.outcomes.forEach(o => {
+                if (o.name !== game.home_team) line.awayML = o.price;
+              });
+            }
+          });
+          books[bk.title] = line;
+          // Track best lines
+          if (line.homeML && (bestHomeML === null || line.homeML > bestHomeML)) {
+            bestHomeML = line.homeML; bestHomeBook = bk.title;
+          }
+          if (line.awayML && (bestAwayML === null || line.awayML > bestAwayML)) {
+            bestAwayML = line.awayML; bestAwayBook = bk.title;
+          }
+        }
+        // Calculate edges
+        let homeEdge = null, awayEdge = null;
+        if (pred) {
+          const modelHomeProb = s.sport === 'NHL' ? (pred.home?.winProb || 50) / 100 : (pred.homeWinProb || pred.home?.winProb || 50) / 100;
+          const modelAwayProb = 1 - modelHomeProb;
+          if (bestHomeML !== null) {
+            const impliedHome = bestHomeML < 0 ? (-bestHomeML) / (-bestHomeML + 100) : 100 / (bestHomeML + 100);
+            homeEdge = +((modelHomeProb - impliedHome) * 100).toFixed(1);
+          }
+          if (bestAwayML !== null) {
+            const impliedAway = bestAwayML < 0 ? (-bestAwayML) / (-bestAwayML + 100) : 100 / (bestAwayML + 100);
+            awayEdge = +((modelAwayProb - impliedAway) * 100).toFixed(1);
+          }
+        }
+        allGames.push({
+          sport: s.sport,
+          away: awayAbbr || game.away_team,
+          home: homeAbbr || game.home_team,
+          awayFull: game.away_team,
+          homeFull: game.home_team,
+          commence: game.commence_time,
+          prediction: pred ? {
+            homeWinProb: +(pred.homeWinProb || pred.home?.winProb || 50).toFixed(1),
+            awayWinProb: +(pred.awayWinProb || pred.away?.winProb || 50).toFixed(1),
+            spread: pred.spread || pred.home?.spread || null,
+            total: pred.total || null
+          } : null,
+          books,
+          bestLine: {
+            home: { ml: bestHomeML, book: bestHomeBook },
+            away: { ml: bestAwayML, book: bestAwayBook }
+          },
+          edge: {
+            home: homeEdge,
+            away: awayEdge,
+            best: Math.max(homeEdge || 0, awayEdge || 0),
+            pick: (homeEdge || 0) > (awayEdge || 0) ? (homeAbbr || game.home_team) : (awayAbbr || game.away_team),
+            pickSide: (homeEdge || 0) > (awayEdge || 0) ? 'home' : 'away'
+          }
+        });
+      }
+    } catch (e) { console.error(`Error fetching ${s.sport}:`, e.message); }
+  }
+  allGames.sort((a, b) => (b.edge.best || 0) - (a.edge.best || 0));
+  oddsCache.data = allGames;
+  oddsCache.ts = Date.now();
+  return allGames;
+}
+
+app.get('/api/today', async (req, res) => {
+  try {
+    const games = await getAllOdds();
+    const sport = req.query.sport;
+    const filtered = sport && sport !== 'all' ? games.filter(g => g.sport.toLowerCase() === sport.toLowerCase()) : games;
+    res.json({
+      games: filtered,
+      count: filtered.length,
+      updated: new Date().toISOString(),
+      cacheAge: Date.now() - oddsCache.ts
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== SUMMARY ENDPOINT ====================
+
+app.get('/api/summary', async (req, res) => {
+  try {
+    const games = await getAllOdds();
+    const nbaBT = backtest.run();
+    const mlbBT = mlbBacktest.run();
+    const nhlBT = nhlBacktest.run();
+    res.json({
+      gamesTracked: games.length,
+      valueBets: games.filter(g => g.edge.best > 3).length,
+      sports: {
+        nba: { games: games.filter(g => g.sport === 'NBA').length, backtestROI: nbaBT.roi, backtestGames: nbaBT.totalGames },
+        mlb: { games: games.filter(g => g.sport === 'MLB').length, backtestROI: mlbBT.roi, backtestGames: mlbBT.totalGames },
+        nhl: { games: games.filter(g => g.sport === 'NHL').length, backtestROI: nhlBT.roi, backtestGames: nhlBT.totalGames }
+      },
+      updated: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v3.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v4.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.TEAMS).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.TEAMS).length}`);
