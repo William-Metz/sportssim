@@ -664,9 +664,9 @@ app.get('/api/today', async (req, res) => {
 app.get('/api/summary', async (req, res) => {
   try {
     const games = await getAllOdds();
-    const nbaBT = backtest.run();
-    const mlbBT = mlbBacktest.run();
-    const nhlBT = nhlBacktest.run();
+    const nbaBT = backtest.runBacktest();
+    const mlbBT = mlbBacktest.runBacktest();
+    const nhlBT = nhlBacktest.runBacktest();
     res.json({
       gamesTracked: games.length,
       valueBets: games.filter(g => g.edge.best > 3).length,
