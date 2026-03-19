@@ -7,6 +7,7 @@ const backtest = require('./models/backtest');
 const mlb = require('./models/mlb');
 const mlbPitchers = require('./models/mlb-pitchers');
 const mlbBacktest = require('./models/backtest-mlb');
+const mlbOpeningDay = require('./models/mlb-opening-day');
 const nhl = require('./models/nhl');
 const nhlBacktest = require('./models/backtest-nhl');
 
@@ -72,7 +73,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '4.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['pitcher-model','poisson-totals','matchup-analysis'] });
+  res.json({ status: 'ok', version: '5.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['pitcher-model','poisson-totals','matchup-analysis','opening-day'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -283,6 +284,77 @@ app.get('/api/value/mlb', async (req, res) => {
 app.get('/api/backtest/mlb', (req, res) => {
   try { res.json(mlbBacktest.runBacktest()); }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== MLB OPENING DAY ====================
+
+app.get('/api/model/mlb/opening-day', async (req, res) => {
+  try {
+    const projections = mlbOpeningDay.getProjections();
+    
+    // Try to fetch live MLB odds for edge comparison
+    let liveOdds = [];
+    try {
+      liveOdds = await fetchOdds('baseball_mlb');
+    } catch (e) { /* no odds available yet */ }
+    
+    // Match live odds to Opening Day games
+    if (liveOdds.length > 0) {
+      const nameMap = buildNameMap(mlb.TEAMS, {
+        'diamondbacks': 'ARI', 'd-backs': 'ARI', 'white sox': 'CWS', 'red sox': 'BOS', 'blue jays': 'TOR'
+      });
+      
+      for (const game of projections.games) {
+        // Find matching odds game
+        for (const oddsGame of liveOdds) {
+          const oddsAway = resolveTeam(nameMap, oddsGame.away_team);
+          const oddsHome = resolveTeam(nameMap, oddsGame.home_team);
+          if (oddsAway === game.away && oddsHome === game.home) {
+            // Extract best lines
+            const books = {};
+            let bestHomeML = null, bestAwayML = null, bestTotal = null;
+            let bestHomeBook = '', bestAwayBook = '', bestTotalBook = '';
+            
+            for (const bk of (oddsGame.bookmakers || [])) {
+              const line = extractBookLine(bk, oddsGame.home_team);
+              books[bk.title] = line;
+              
+              if (line.homeML && (bestHomeML === null || line.homeML > bestHomeML)) {
+                bestHomeML = line.homeML; bestHomeBook = bk.title;
+              }
+              if (line.awayML && (bestAwayML === null || line.awayML > bestAwayML)) {
+                bestAwayML = line.awayML; bestAwayBook = bk.title;
+              }
+              if (line.total && !bestTotal) {
+                bestTotal = line.total; bestTotalBook = bk.title;
+              }
+            }
+            
+            // Calculate edges
+            game.liveOdds = {
+              books,
+              bestHome: { ml: bestHomeML, book: bestHomeBook },
+              bestAway: { ml: bestAwayML, book: bestAwayBook },
+              bestTotal: { total: bestTotal, book: bestTotalBook }
+            };
+            
+            if (bestHomeML) {
+              const impliedHome = bestHomeML < 0 ? (-bestHomeML) / (-bestHomeML + 100) : 100 / (bestHomeML + 100);
+              game.liveOdds.homeEdge = +(game.prediction.homeWinProb - impliedHome).toFixed(3);
+            }
+            if (bestAwayML) {
+              const impliedAway = bestAwayML < 0 ? (-bestAwayML) / (-bestAwayML + 100) : 100 / (bestAwayML + 100);
+              game.liveOdds.awayEdge = +(game.prediction.awayWinProb - impliedAway).toFixed(3);
+            }
+            
+            break;
+          }
+        }
+      }
+    }
+    
+    res.json(projections);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==================== NHL ENDPOINTS ====================
@@ -610,11 +682,12 @@ app.get('/api/summary', async (req, res) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v4.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v5.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.TEAMS).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.TEAMS).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
+  console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.TEAMS).length}`);
-  console.log(`   Features: pitcher model, Poisson totals, matchup analysis`);
+  console.log(`   Features: pitcher model, Poisson totals, matchup analysis, Opening Day`);
 });
