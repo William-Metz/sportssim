@@ -29,7 +29,7 @@
 | 020 | Player props framework | ⏳ QUEUED | P2 | Points, rebounds, Ks, hits |
 | 021 | Live data feeds (replace static) | ⏳ QUEUED | P1 | NBA API, MLB Statcast, NHL API |
 | 022 | NHL backtest expansion | ⏳ QUEUED | P2 | Add more games for validation |
-| 023 | MLB Opening Day projections | ⏳ QUEUED | P1 | March 27 matchup picks with pitcher analysis |
+| 023 | MLB Opening Day projections | ✅ DONE | P1 | March 26-27 matchup picks with pitcher analysis |
 
 ## Completed
 | ID | Task | Completed | Result |
@@ -46,6 +46,8 @@
 | 015 | Totals model (Poisson) | 2026-03-19 | Full Poisson score distribution, O/U probs for all lines |
 | 016 | MLB starting pitcher model | 2026-03-19 | 150 pitchers, composite ratings, tier system, matchup analysis |
 | 017 | MLB park factors | 2026-03-19 | 30 parks with run multipliers |
+
+| 023 | MLB Opening Day projections | 2026-03-19 | 19 games projected, best bets engine, deployed v5.0 |
 
 ## Backlog
 - NFL win totals futures model
@@ -73,6 +75,7 @@
 | #1 | 2026-03-19 06:33 | Project created, PLAN.md, TASKS.md, initial structure |
 | #2 | 2026-03-19 07:00 | Multi-sport dashboard v3.0 — NBA+MLB+NHL models, backtests, value detection, predictors, deployed to Fly.io. All endpoints tested and passing. |
 | #3 | 2026-03-19 18:00 | MLB Starting Pitcher Model + Poisson Totals v4.0 — 150 pitchers across 30 teams, composite rating system, pitcher-aware predictions, Poisson totals with score distributions, matchup analysis API, dashboard with pitcher dropdowns and rotations tab. Deployed to Fly.io. |
+| #4 | 2026-03-19 20:45 | MLB Opening Day Projections v5.0 — Full 19-game schedule (March 26-27), Opening Day model with pitcher matchups, best bets engine (top 5 picks), dedicated dashboard tab with hero countdown + game cards + totals table, deployed to Fly.io v5.0. |
 
 ---
 
@@ -93,5 +96,5 @@
 
 ---
 *Last updated: 2026-03-19*
-*MLB OPENING DAY: 8 DAYS*
-*Next priorities: Live data feeds (Task 021), MLB Opening Day projections (Task 023), Kelly Criterion (Task 011)*
+*MLB OPENING DAY: 7 DAYS*
+*Next priorities: Live data feeds (Task 021), Kelly Criterion (Task 011), Rolling stats (Task 012)*
