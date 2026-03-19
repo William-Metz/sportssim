@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SportsSim 🎯 — Find the Edge</title>
+<title>SportsSim 🎯 — Multi-Sport Edge Finder</title>
 <style>
-:root{--bg:#0a0e17;--bg2:#111827;--bg3:#1f2937;--bg4:#374151;--accent:#3b82f6;--accent2:#60a5fa;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#f0f0f0;--text2:#9ca3af;--text3:#6b7280;--border:#1e293b;--radius:10px}
+:root{--bg:#0a0e17;--bg2:#111827;--bg3:#1f2937;--bg4:#374151;--accent:#3b82f6;--accent2:#60a5fa;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--orange:#f97316;--purple:#a855f7;--teal:#14b8a6;--text:#f0f0f0;--text2:#9ca3af;--text3:#6b7280;--border:#1e293b;--radius:10px}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 a{color:var(--accent);text-decoration:none}
@@ -13,353 +13,554 @@ button{cursor:pointer;border:none;font-family:inherit;font-size:14px}
 select,input{font-family:inherit;font-size:14px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px 14px;outline:none}
 select:focus,input:focus{border-color:var(--accent)}
 .container{max-width:1200px;margin:0 auto;padding:20px}
-.header{text-align:center;padding:40px 20px 20px;border-bottom:1px solid var(--border);margin-bottom:24px}
+.header{text-align:center;padding:30px 20px 16px;border-bottom:1px solid var(--border);margin-bottom:20px}
 .header h1{font-size:32px;font-weight:800;letter-spacing:-0.5px}
 .header h1 span{color:var(--accent)}
-.header p{color:var(--text2);margin-top:8px;font-size:15px}
-.tabs{display:flex;gap:4px;background:var(--bg2);padding:6px;border-radius:10px;margin-bottom:24px;overflow-x:auto}
-.tab{padding:10px 20px;border-radius:8px;font-weight:500;color:var(--text2);background:transparent;transition:all .2s;white-space:nowrap;font-size:14px}
+.header p{color:var(--text2);margin-top:6px;font-size:14px}
+
+/* Sport Switcher */
+.sport-switcher{display:flex;justify-content:center;gap:6px;margin-bottom:16px}
+.sport-btn{padding:10px 24px;border-radius:10px;font-weight:600;color:var(--text2);background:var(--bg2);border:2px solid transparent;transition:all .2s;font-size:15px}
+.sport-btn:hover{color:var(--text);background:var(--bg3)}
+.sport-btn.active{color:#fff;border-color:var(--accent);background:var(--bg3)}
+.sport-btn.active[data-sport="nba"]{border-color:#f97316}
+.sport-btn.active[data-sport="mlb"]{border-color:#22c55e}
+.sport-btn.active[data-sport="nhl"]{border-color:#3b82f6}
+.sport-btn.active[data-sport="all"]{border-color:#a855f7}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--bg2);padding:5px;border-radius:10px;margin-bottom:20px;overflow-x:auto}
+.tab{padding:9px 18px;border-radius:8px;font-weight:500;color:var(--text2);background:transparent;transition:all .2s;white-space:nowrap;font-size:13px}
 .tab:hover{color:var(--text);background:var(--bg3)}
 .tab.active{color:#fff;background:var(--accent)}
+
+/* Cards & Layout */
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
-.card h2{font-size:18px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
-.stat .val{font-size:28px;font-weight:700;color:var(--accent)}
-.stat .label{font-size:12px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:10px 12px;color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)}
-td{padding:10px 12px;border-bottom:1px solid var(--border)}
+.card h2{font-size:17px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+.stat .val{font-size:26px;font-weight:700;color:var(--accent)}
+.stat .label{font-size:11px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 10px;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid var(--border)}
 tr:hover td{background:var(--bg3)}
 .positive{color:var(--green);font-weight:600}
 .negative{color:var(--red);font-weight:600}
 .neutral{color:var(--yellow)}
-.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
 .badge-high{background:rgba(34,197,94,.15);color:var(--green)}
 .badge-med{background:rgba(234,179,8,.15);color:var(--yellow)}
 .badge-low{background:rgba(59,130,246,.15);color:var(--accent2)}
 .badge-elite{background:rgba(168,85,247,.15);color:#a855f7}
-.predictor{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:end;margin-bottom:20px}
-.predictor select{width:100%;padding:12px}
+.badge-nba{background:rgba(249,115,22,.15);color:var(--orange)}
+.badge-mlb{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-nhl{background:rgba(59,130,246,.15);color:var(--accent2)}
+
+/* Predictor */
+.predictor{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:end;margin-bottom:16px}
 .vs{font-size:20px;font-weight:700;color:var(--text3);text-align:center;padding-bottom:12px}
 .pred-result{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.pred-card{text-align:center;padding:24px;border-radius:var(--radius)}
+.pred-card{text-align:center;padding:20px;border-radius:var(--radius)}
 .pred-card.winner{border:2px solid var(--green)}
-.pred-card .team-name{font-size:20px;font-weight:700;margin-bottom:8px}
-.pred-card .prob{font-size:36px;font-weight:800}
-.pred-card .spread{font-size:14px;color:var(--text2);margin-top:8px}
-.chart-area{width:100%;height:200px;position:relative;margin-top:16px}
+.pred-card .team-name{font-size:20px;font-weight:700;margin-bottom:6px}
+.pred-card .prob{font-size:32px;font-weight:800}
+.pred-card .spread{font-size:13px;color:var(--text2);margin-top:6px}
+
+/* Pitcher inputs */
+.pitcher-inputs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;padding:12px;background:var(--bg3);border-radius:8px}
+.pitcher-inputs label{font-size:11px;color:var(--text3);display:block;margin-bottom:4px}
+.pitcher-inputs input{width:100%;padding:8px}
+
+/* Chart */
+.chart-area{width:100%;height:180px;position:relative;margin-top:12px}
+
+/* Tier grid */
 .tier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
-.tier-card{text-align:center;padding:16px;border-radius:var(--radius);background:var(--bg3)}
-.tier-card .tier-name{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.tier-card .tier-val{font-size:24px;font-weight:700}
-.tier-card .tier-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.tier-card{text-align:center;padding:14px;border-radius:var(--radius);background:var(--bg3)}
+.tier-card .tier-name{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.tier-card .tier-val{font-size:22px;font-weight:700}
+.tier-card .tier-sub{font-size:11px;color:var(--text3);margin-top:4px}
 .hidden{display:none}
-@media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr)}.predictor{grid-template-columns:1fr}.vs{padding:8px 0}.pred-result{grid-template-columns:1fr}.tier-grid{grid-template-columns:1fr}}
+
+/* Countdown */
+.countdown{text-align:center;padding:12px;background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(59,130,246,.1));border:1px solid rgba(34,197,94,.3);border-radius:10px;margin-bottom:20px}
+.countdown .days{font-size:28px;font-weight:800;color:var(--green)}
+.countdown .label{font-size:12px;color:var(--text2)}
+
+/* Loading */
+.loading{color:var(--text2);text-align:center;padding:40px}
+
+@media(max-width:768px){
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .predictor{grid-template-columns:1fr}
+  .vs{padding:8px 0}
+  .pred-result{grid-template-columns:1fr}
+  .tier-grid{grid-template-columns:1fr}
+  .sport-switcher{flex-wrap:wrap}
+  .pitcher-inputs{grid-template-columns:1fr}
+}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
 </style>
 </head>
 <body>
 <div class="header">
   <h1>🎯 <span>SportsSim</span></h1>
-  <p>AI-powered sports betting edge finder — Pythagorean ratings, live odds scanning, +EV detection</p>
+  <p>AI-powered multi-sport betting edge finder — NBA · MLB · NHL</p>
 </div>
+
 <div class="container">
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('value')">💰 Value Bets</button>
-    <button class="tab" onclick="showTab('ratings')">📊 Power Ratings</button>
-    <button class="tab" onclick="showTab('predict')">🎯 Predictor</button>
-    <button class="tab" onclick="showTab('backtest')">📈 Backtest</button>
-    <button class="tab" onclick="showTab('odds')">📡 Live Odds</button>
+  <!-- MLB Opening Day Countdown -->
+  <div class="countdown" id="mlb-countdown"></div>
+
+  <!-- Sport Switcher -->
+  <div class="sport-switcher">
+    <button class="sport-btn active" data-sport="all" onclick="switchSport('all')">🏆 All Sports</button>
+    <button class="sport-btn" data-sport="nba" onclick="switchSport('nba')">🏀 NBA</button>
+    <button class="sport-btn" data-sport="mlb" onclick="switchSport('mlb')">⚾ MLB</button>
+    <button class="sport-btn" data-sport="nhl" onclick="switchSport('nhl')">🏒 NHL</button>
   </div>
 
-  <!-- VALUE BETS TAB -->
-  <div id="tab-value" class="tab-content">
-    <div class="stats-grid" id="value-stats">
-      <div class="stat"><div class="val" id="v-total">—</div><div class="label">Value Bets Found</div></div>
-      <div class="stat"><div class="val" id="v-high">—</div><div class="label">High Confidence</div></div>
-      <div class="stat"><div class="val" id="v-best">—</div><div class="label">Best Edge</div></div>
-      <div class="stat"><div class="val" id="v-updated">—</div><div class="label">Last Updated</div></div>
-    </div>
-    <div class="card">
-      <h2>💰 Today's +EV Opportunities</h2>
-      <div id="value-table-wrap">
-        <p style="color:var(--text2);text-align:center;padding:40px">Loading value bets...</p>
-      </div>
-    </div>
-  </div>
+  <!-- Tabs (change per sport) -->
+  <div class="tabs" id="main-tabs"></div>
 
-  <!-- RATINGS TAB -->
-  <div id="tab-ratings" class="tab-content hidden">
-    <div class="card">
-      <h2>📊 NBA Power Ratings</h2>
-      <p style="color:var(--text2);font-size:13px;margin-bottom:16px">Pythagorean-based with luck adjustment and L10 momentum. Teams whose records exceed their point differential are flagged as "lucky" — fade them.</p>
-      <div id="ratings-table-wrap">
-        <p style="color:var(--text2);text-align:center;padding:40px">Loading ratings...</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- PREDICTOR TAB -->
-  <div id="tab-predict" class="tab-content hidden">
-    <div class="card">
-      <h2>🎯 Game Predictor</h2>
-      <div class="predictor">
-        <div>
-          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">Away Team</label>
-          <select id="away-team"></select>
-          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-top:8px">
-            <input type="checkbox" id="away-b2b"> Back-to-back
-          </label>
-        </div>
-        <div class="vs">@</div>
-        <div>
-          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px">Home Team</label>
-          <select id="home-team"></select>
-          <label style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-top:8px">
-            <input type="checkbox" id="home-b2b"> Back-to-back
-          </label>
-        </div>
-      </div>
-      <button class="tab active" style="width:100%;padding:14px;font-size:16px;border-radius:8px;margin-bottom:20px" onclick="runPredict()">Predict Game</button>
-      <div id="pred-result"></div>
-    </div>
-  </div>
-
-  <!-- BACKTEST TAB -->
-  <div id="tab-backtest" class="tab-content hidden">
-    <div class="stats-grid" id="bt-stats"></div>
-    <div class="card">
-      <h2>📈 Edge Tier Performance</h2>
-      <div class="tier-grid" id="bt-tiers"></div>
-    </div>
-    <div class="card">
-      <h2>📊 Profit Curve</h2>
-      <div class="chart-area"><svg id="profit-chart" width="100%" height="200"></svg></div>
-    </div>
-    <div class="card">
-      <h2>🎯 Calibration</h2>
-      <div id="calibration-wrap"></div>
-    </div>
-    <div class="card">
-      <h2>📋 Game-by-Game Results</h2>
-      <div id="bt-games-wrap" style="max-height:400px;overflow-y:auto"></div>
-    </div>
-  </div>
-
-  <!-- LIVE ODDS TAB -->
-  <div id="tab-odds" class="tab-content hidden">
-    <div class="card">
-      <h2>📡 Live NBA Odds</h2>
-      <div id="odds-table-wrap">
-        <p style="color:var(--text2);text-align:center;padding:40px">Loading live odds...</p>
-      </div>
-    </div>
-  </div>
+  <!-- Tab Content Container -->
+  <div id="tab-content"></div>
 </div>
 
 <script>
 const API = '';
-let ratingsCache = null;
-let backtestCache = null;
+let currentSport = 'all';
+let currentTab = 'value';
+let cache = {};
 
-// TAB SWITCHING
+// ==================== MLB COUNTDOWN ====================
+function updateCountdown() {
+  const target = new Date('2025-03-27T00:00:00');
+  const now = new Date();
+  const diff = target - now;
+  const el = document.getElementById('mlb-countdown');
+  if (diff <= 0) { el.innerHTML = '<div class="days">⚾ MLB SEASON IS LIVE!</div>'; return; }
+  const days = Math.ceil(diff / (1000*60*60*24));
+  el.innerHTML = `<div class="days">⚾ ${days} DAYS</div><div class="label">until MLB Opening Day — March 27</div>`;
+}
+updateCountdown();
+
+// ==================== SPORT & TAB SWITCHING ====================
+function switchSport(sport) {
+  currentSport = sport;
+  document.querySelectorAll('.sport-btn').forEach(b => b.classList.toggle('active', b.dataset.sport === sport));
+  buildTabs();
+  showTab(currentTab);
+}
+
+function buildTabs() {
+  const tabsEl = document.getElementById('main-tabs');
+  let tabs = [];
+  if (currentSport === 'all') {
+    tabs = [
+      { id: 'value', label: '💰 Value Bets', icon: '' },
+      { id: 'ratings', label: '📊 Ratings', icon: '' },
+    ];
+  } else {
+    tabs = [
+      { id: 'value', label: '💰 Value Bets' },
+      { id: 'ratings', label: '📊 Power Ratings' },
+      { id: 'predict', label: '🎯 Predictor' },
+      { id: 'backtest', label: '📈 Backtest' },
+    ];
+  }
+  tabsEl.innerHTML = tabs.map(t =>
+    `<button class="tab ${t.id === currentTab ? 'active' : ''}" onclick="showTab('${t.id}')">${t.label}</button>`
+  ).join('');
+  // If current tab not available, default to value
+  if (!tabs.find(t => t.id === currentTab)) { currentTab = 'value'; buildTabs(); }
+}
+
 function showTab(id) {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  document.getElementById('tab-' + id).classList.remove('hidden');
-  event.target.classList.add('active');
-  if (id === 'ratings' && !ratingsCache) loadRatings();
-  if (id === 'backtest' && !backtestCache) loadBacktest();
-  if (id === 'odds') loadOdds();
+  currentTab = id;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.textContent.includes(id === 'value' ? 'Value' : id === 'ratings' ? 'Rating' : id === 'predict' ? 'Predict' : 'Backtest')));
+  buildTabs();
+
   if (id === 'value') loadValue();
+  else if (id === 'ratings') loadRatings();
+  else if (id === 'predict') loadPredictor();
+  else if (id === 'backtest') loadBacktest();
 }
 
-// FETCH HELPER
-async function api(url) {
-  const res = await fetch(API + url);
-  return res.json();
-}
+async function api(url) { const r = await fetch(API + url); return r.json(); }
 
-// RATINGS
-async function loadRatings() {
-  const data = await api('/api/model/nba/ratings');
-  ratingsCache = data.ratings;
-  const wrap = document.getElementById('ratings-table-wrap');
-  
-  // Populate team selectors
-  const awSel = document.getElementById('away-team');
-  const hmSel = document.getElementById('home-team');
-  awSel.innerHTML = ''; hmSel.innerHTML = '';
-  data.ratings.forEach(r => {
-    awSel.innerHTML += `<option value="${r.abbr}">${r.abbr} — ${r.name}</option>`;
-    hmSel.innerHTML += `<option value="${r.abbr}">${r.abbr} — ${r.name}</option>`;
-  });
-  hmSel.selectedIndex = 1;
-  
-  let html = '<table><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Diff</th><th>Pyth W%</th><th>Actual W%</th><th>Luck</th><th>L10</th><th>Power</th><th>Tier</th></tr></thead><tbody>';
-  data.ratings.forEach(r => {
-    const luckClass = r.luck > 3 ? 'positive' : r.luck < -3 ? 'negative' : '';
-    const luckWarn = r.luck > 5 ? ' ⚠️' : r.luck < -5 ? ' 💎' : '';
-    const tierClass = r.tier === 'ELITE' ? 'badge-elite' : r.tier === 'GOOD' ? 'badge-high' : r.tier === 'AVERAGE' ? 'badge-med' : 'badge-low';
-    html += `<tr>
-      <td>${r.rank}</td>
-      <td><strong>${r.abbr}</strong> ${r.name}</td>
-      <td>${r.w}-${r.l}</td>
-      <td class="${r.diff>0?'positive':'negative'}">${r.diff>0?'+':''}${r.diff}</td>
-      <td>${r.pythWpct}%</td>
-      <td>${r.actualWpct}%</td>
-      <td class="${luckClass}">${r.luck>0?'+':''}${r.luck}%${luckWarn}</td>
-      <td>${r.l10}</td>
-      <td style="font-weight:700">${r.power>0?'+':''}${r.power}</td>
-      <td><span class="badge ${tierClass}">${r.tier}</span></td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
+// ==================== VALUE BETS ====================
+async function loadValue() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading">Loading value bets across all sports...</div>';
+
+  let allBets = [];
+  const sports = currentSport === 'all' ? ['nba', 'mlb', 'nhl'] : [currentSport];
+  const promises = sports.map(s => api(`/api/value/${s}`).catch(() => ({ valueBets: [] })));
+  const results = await Promise.all(promises);
+  results.forEach(r => { if (r.valueBets) allBets.push(...r.valueBets); });
+  allBets.sort((a, b) => (b.edge || 0) - (a.edge || 0));
+
+  const high = allBets.filter(v => v.confidence === 'HIGH').length;
+  const best = allBets[0] ? allBets[0].edge + '%' : '—';
+  const sportCounts = {};
+  allBets.forEach(b => { sportCounts[b.sport] = (sportCounts[b.sport] || 0) + 1; });
+
+  let html = `<div class="stats-grid">
+    <div class="stat"><div class="val">${allBets.length}</div><div class="label">Value Bets Found</div></div>
+    <div class="stat"><div class="val">${high}</div><div class="label">High Confidence</div></div>
+    <div class="stat"><div class="val">${best}</div><div class="label">Best Edge</div></div>
+    <div class="stat"><div class="val">${new Date().toLocaleTimeString()}</div><div class="label">Last Updated</div></div>
+  </div>`;
+
+  html += `<div class="card"><h2>💰 ${currentSport === 'all' ? 'All Sports' : currentSport.toUpperCase()} +EV Opportunities</h2>`;
+  if (allBets.length === 0) {
+    html += `<div class="loading">No value bets found right now. ${ODDS_API_KEY ? '' : 'Set ODDS_API_KEY for live scanning.'}</div>`;
+  } else {
+    html += `<table><thead><tr><th>Sport</th><th>Game</th><th>Book</th><th>Pick</th><th>Type</th><th>Edge</th><th>Conf</th></tr></thead><tbody>`;
+    allBets.forEach(v => {
+      const sportBadge = `<span class="badge badge-${(v.sport||'').toLowerCase()}">${v.sport||'?'}</span>`;
+      const confClass = v.confidence === 'HIGH' ? 'badge-high' : v.confidence === 'MEDIUM' ? 'badge-med' : 'badge-low';
+      html += `<tr><td>${sportBadge}</td><td>${v.game||''}</td><td>${v.book||''}</td><td><strong>${v.pick||''}</strong></td><td>${v.type||v.market||''}</td><td class="positive">${v.edge}%</td><td><span class="badge ${confClass}">${v.confidence||'—'}</span></td></tr>`;
+    });
+    html += `</tbody></table>`;
+  }
+  html += `</div>`;
   wrap.innerHTML = html;
 }
 
-// PREDICTOR
-async function runPredict() {
+// ==================== RATINGS ====================
+async function loadRatings() {
+  const wrap = document.getElementById('tab-content');
+  if (currentSport === 'all') {
+    wrap.innerHTML = '<div class="loading">Loading ratings for all sports...</div>';
+    const [nbaData, mlbData, nhlData] = await Promise.all([
+      api('/api/model/nba/ratings').catch(()=>({ratings:[]})),
+      api('/api/model/mlb/ratings').catch(()=>({ratings:[]})),
+      api('/api/model/nhl/ratings').catch(()=>({ratings:[]}))
+    ]);
+    let html = renderNBARatings(nbaData.ratings || [], true);
+    html += renderMLBRatings(mlbData.ratings || [], true);
+    html += renderNHLRatings(nhlData.ratings || [], true);
+    wrap.innerHTML = html;
+    return;
+  }
+  wrap.innerHTML = '<div class="loading">Loading ratings...</div>';
+  if (currentSport === 'nba') {
+    const data = await api('/api/model/nba/ratings');
+    wrap.innerHTML = renderNBARatings(data.ratings || []);
+  } else if (currentSport === 'mlb') {
+    const data = await api('/api/model/mlb/ratings');
+    wrap.innerHTML = renderMLBRatings(data.ratings || []);
+  } else if (currentSport === 'nhl') {
+    const data = await api('/api/model/nhl/ratings');
+    wrap.innerHTML = renderNHLRatings(data.ratings || []);
+  }
+}
+
+function renderNBARatings(ratings, compact) {
+  cache.nbaRatings = ratings;
+  let html = `<div class="card"><h2>🏀 NBA Power Ratings</h2>`;
+  if (!compact) html += `<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Pythagorean-based with luck adjustment and L10 momentum</p>`;
+  html += `<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Diff</th><th>Pyth W%</th><th>Luck</th><th>L10</th><th>Power</th><th>Tier</th></tr></thead><tbody>`;
+  (compact ? ratings.slice(0, 10) : ratings).forEach(r => {
+    const luckClass = r.luck > 3 ? 'positive' : r.luck < -3 ? 'negative' : '';
+    const tierClass = r.tier === 'ELITE' ? 'badge-elite' : r.tier === 'GOOD' ? 'badge-high' : r.tier === 'AVERAGE' ? 'badge-med' : 'badge-low';
+    html += `<tr><td>${r.rank}</td><td><strong>${r.abbr}</strong></td><td>${r.w}-${r.l}</td><td class="${r.diff>0?'positive':'negative'}">${r.diff>0?'+':''}${r.diff}</td><td>${r.pythWpct}%</td><td class="${luckClass}">${r.luck>0?'+':''}${r.luck}%</td><td>${r.l10}</td><td style="font-weight:700">${r.power>0?'+':''}${r.power}</td><td><span class="badge ${tierClass}">${r.tier}</span></td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  if (compact && ratings.length > 10) html += `<p style="color:var(--text3);font-size:11px;margin-top:8px;text-align:center">Showing top 10 — switch to NBA for full list</p>`;
+  html += `</div>`;
+  return html;
+}
+
+function renderMLBRatings(ratings, compact) {
+  cache.mlbRatings = ratings;
+  let html = `<div class="card"><h2>⚾ MLB Power Ratings</h2>`;
+  if (!compact) html += `<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Pythagorean with park factors, pitcher quality, and bullpen adjustments</p>`;
+  html += `<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Team</th><th>W-L</th><th>RS/G</th><th>RA/G</th><th>ERA</th><th>FIP</th><th>OPS</th><th>Pyth</th><th>Luck</th><th>Park</th><th>Power</th></tr></thead><tbody>`;
+  let rank = 0;
+  (compact ? ratings.slice(0, 10) : ratings).forEach(r => {
+    rank++;
+    const luckPct = (r.luck * 100).toFixed(1);
+    const luckClass = r.luck > 0.03 ? 'positive' : r.luck < -0.03 ? 'negative' : '';
+    const runDiffClass = r.runDiff > 0 ? 'positive' : 'negative';
+    html += `<tr><td>${rank}</td><td><strong>${r.abbr}</strong></td><td>${r.w}-${r.l}</td><td>${r.rsG}</td><td>${r.raG}</td><td>${r.era}</td><td>${r.fip}</td><td>${r.ops}</td><td>${(r.pythWpct*100).toFixed(1)}%</td><td class="${luckClass}">${luckPct>0?'+':''}${luckPct}%</td><td>${r.parkFactor}x</td><td style="font-weight:700">${r.power>0?'+':''}${r.power}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  if (compact && ratings.length > 10) html += `<p style="color:var(--text3);font-size:11px;margin-top:8px;text-align:center">Showing top 10 — switch to MLB for full list</p>`;
+  html += `</div>`;
+  return html;
+}
+
+function renderNHLRatings(ratings, compact) {
+  cache.nhlRatings = ratings;
+  let html = `<div class="card"><h2>🏒 NHL Power Ratings</h2>`;
+  if (!compact) html += `<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Pythagorean with goalie adjustments and special teams</p>`;
+  html += `<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Team</th><th>Record</th><th>GF</th><th>GA</th><th>PP%</th><th>PK%</th><th>SV%</th><th>Pyth</th><th>Luck</th><th>Starter</th><th>Power</th></tr></thead><tbody>`;
+  let rank = 0;
+  (compact ? ratings.slice(0, 10) : ratings).forEach(r => {
+    rank++;
+    const luckClass = r.luck > 3 ? 'positive' : r.luck < -3 ? 'negative' : '';
+    html += `<tr><td>${rank}</td><td><strong>${r.code}</strong></td><td>${r.w}-${r.l}-${r.otl}</td><td>${r.gf}</td><td>${r.ga}</td><td>${r.pp}%</td><td>${r.pk}%</td><td>${r.sv}</td><td>${r.pythWPct}%</td><td class="${luckClass}">${r.luck>0?'+':''}${r.luck}%</td><td>${r.starter}</td><td style="font-weight:700">${r.power>0?'+':''}${r.power.toFixed(2)}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  if (compact && ratings.length > 10) html += `<p style="color:var(--text3);font-size:11px;margin-top:8px;text-align:center">Showing top 10 — switch to NHL for full list</p>`;
+  html += `</div>`;
+  return html;
+}
+
+// ==================== PREDICTOR ====================
+function loadPredictor() {
+  const wrap = document.getElementById('tab-content');
+  if (currentSport === 'nba') wrap.innerHTML = buildNBAPredictor();
+  else if (currentSport === 'mlb') wrap.innerHTML = buildMLBPredictor();
+  else if (currentSport === 'nhl') wrap.innerHTML = buildNHLPredictor();
+  populateTeamSelectors();
+}
+
+function buildNBAPredictor() {
+  return `<div class="card"><h2>🏀 NBA Game Predictor</h2>
+    <div class="predictor">
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Away Team</label><select id="away-team" style="width:100%"></select>
+        <label style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="away-b2b"> Back-to-back</label></div>
+      <div class="vs">@</div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Home Team</label><select id="home-team" style="width:100%"></select>
+        <label style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-top:6px"><input type="checkbox" id="home-b2b"> Back-to-back</label></div>
+    </div>
+    <button class="tab active" style="width:100%;padding:12px;font-size:15px;border-radius:8px;margin-bottom:16px" onclick="runNBAPredict()">Predict Game</button>
+    <div id="pred-result"></div></div>`;
+}
+
+function buildMLBPredictor() {
+  return `<div class="card"><h2>⚾ MLB Game Predictor</h2>
+    <div class="predictor">
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Away Team</label><select id="away-team" style="width:100%"></select></div>
+      <div class="vs">@</div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Home Team</label><select id="home-team" style="width:100%"></select></div>
+    </div>
+    <div class="pitcher-inputs">
+      <div><label>Away Pitcher ERA (optional)</label><input type="number" step="0.01" id="away-era" placeholder="e.g. 3.25"></div>
+      <div><label>Away Pitcher FIP (optional)</label><input type="number" step="0.01" id="away-fip" placeholder="e.g. 3.40"></div>
+      <div><label>Home Pitcher ERA (optional)</label><input type="number" step="0.01" id="home-era" placeholder="e.g. 2.85"></div>
+      <div><label>Home Pitcher FIP (optional)</label><input type="number" step="0.01" id="home-fip" placeholder="e.g. 3.10"></div>
+    </div>
+    <button class="tab active" style="width:100%;padding:12px;font-size:15px;border-radius:8px;margin:16px 0" onclick="runMLBPredict()">Predict Game</button>
+    <div id="pred-result"></div></div>`;
+}
+
+function buildNHLPredictor() {
+  return `<div class="card"><h2>🏒 NHL Game Predictor</h2>
+    <div class="predictor">
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Away Team</label><select id="away-team" style="width:100%"></select>
+        <label style="font-size:10px;color:var(--text3);display:block;margin-top:6px">Goalie: <select id="away-goalie" style="padding:4px 8px;font-size:11px"><option value="starter">Starter</option><option value="backup">Backup</option></select></label></div>
+      <div class="vs">@</div>
+      <div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Home Team</label><select id="home-team" style="width:100%"></select>
+        <label style="font-size:10px;color:var(--text3);display:block;margin-top:6px">Goalie: <select id="home-goalie" style="padding:4px 8px;font-size:11px"><option value="starter">Starter</option><option value="backup">Backup</option></select></label></div>
+    </div>
+    <button class="tab active" style="width:100%;padding:12px;font-size:15px;border-radius:8px;margin-bottom:16px" onclick="runNHLPredict()">Predict Game</button>
+    <div id="pred-result"></div></div>`;
+}
+
+async function populateTeamSelectors() {
+  const awSel = document.getElementById('away-team');
+  const hmSel = document.getElementById('home-team');
+  if (!awSel || !hmSel) return;
+  let data;
+  if (currentSport === 'nba') data = cache.nbaRatings || (await api('/api/model/nba/ratings')).ratings;
+  else if (currentSport === 'mlb') data = cache.mlbRatings || (await api('/api/model/mlb/ratings')).ratings;
+  else if (currentSport === 'nhl') data = cache.nhlRatings || (await api('/api/model/nhl/ratings')).ratings;
+  if (!data) return;
+  awSel.innerHTML = ''; hmSel.innerHTML = '';
+  data.forEach(r => {
+    const code = r.abbr || r.code;
+    const name = r.name;
+    awSel.innerHTML += `<option value="${code}">${code} — ${name}</option>`;
+    hmSel.innerHTML += `<option value="${code}">${code} — ${name}</option>`;
+  });
+  hmSel.selectedIndex = 1;
+}
+
+async function runNBAPredict() {
   const away = document.getElementById('away-team').value;
   const home = document.getElementById('home-team').value;
   const awayB2B = document.getElementById('away-b2b').checked;
   const homeB2B = document.getElementById('home-b2b').checked;
-  
   const data = await api(`/api/model/nba/predict?away=${away}&home=${home}&awayB2B=${awayB2B}&homeB2B=${homeB2B}`);
-  if (data.error) { document.getElementById('pred-result').innerHTML = `<p style="color:var(--red)">${data.error}</p>`; return; }
-  
+  if (data.error) { document.getElementById('pred-result').innerHTML = `<p class="negative">${data.error}</p>`; return; }
   const homeWin = data.homeWinProb > 50;
   document.getElementById('pred-result').innerHTML = `
     <div class="pred-result">
-      <div class="pred-card card ${!homeWin?'winner':''}">
-        <div class="team-name">${data.away.abbr}</div>
-        <div class="prob" style="color:${!homeWin?'var(--green)':'var(--text2)'}">${data.awayWinProb}%</div>
-        <div class="spread">ML: ${data.modelML.away}</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:4px">Rank #${data.away.rank} | Power: ${data.away.power}</div>
-      </div>
-      <div class="pred-card card ${homeWin?'winner':''}">
-        <div class="team-name">${data.home.abbr}</div>
-        <div class="prob" style="color:${homeWin?'var(--green)':'var(--text2)'}">${data.homeWinProb}%</div>
-        <div class="spread">ML: ${data.modelML.home}</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:4px">Rank #${data.home.rank} | Power: ${data.home.power}</div>
-      </div>
+      <div class="pred-card card ${!homeWin?'winner':''}"><div class="team-name">${data.away.abbr}</div><div class="prob" style="color:${!homeWin?'var(--green)':'var(--text2)'}">${data.awayWinProb}%</div><div class="spread">ML: ${data.modelML.away}</div></div>
+      <div class="pred-card card ${homeWin?'winner':''}"><div class="team-name">${data.home.abbr}</div><div class="prob" style="color:${homeWin?'var(--green)':'var(--text2)'}">${data.homeWinProb}%</div><div class="spread">ML: ${data.modelML.home}</div></div>
     </div>
-    <div class="card" style="margin-top:16px">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
-        <div><div style="font-size:11px;color:var(--text3)">SPREAD</div><div style="font-size:20px;font-weight:700">${data.spread>0?'+':''}${data.spread}</div></div>
-        <div><div style="font-size:11px;color:var(--text3)">TOTAL</div><div style="font-size:20px;font-weight:700">${data.predictedTotal}</div></div>
-        <div><div style="font-size:11px;color:var(--text3)">SCORE</div><div style="font-size:20px;font-weight:700">${data.predictedScore.away}-${data.predictedScore.home}</div></div>
-        <div><div style="font-size:11px;color:var(--text3)">HCA</div><div style="font-size:20px;font-weight:700">${data.factors.hca} pts</div></div>
-      </div>
-      <div style="margin-top:12px;font-size:12px;color:var(--text3);text-align:center">
-        Power diff: ${data.factors.powerDiff} | Away luck: ${data.factors.awayLuck}% | Home luck: ${data.factors.homeLuck}% | Rest adj: ${data.factors.restAdj}
-      </div>
-    </div>`;
+    <div class="card" style="margin-top:12px"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
+      <div><div style="font-size:10px;color:var(--text3)">SPREAD</div><div style="font-size:18px;font-weight:700">${data.spread>0?'+':''}${data.spread}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">TOTAL</div><div style="font-size:18px;font-weight:700">${data.predictedTotal}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">SCORE</div><div style="font-size:18px;font-weight:700">${data.predictedScore.away}-${data.predictedScore.home}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">HCA</div><div style="font-size:18px;font-weight:700">${data.factors.hca}pts</div></div>
+    </div></div>`;
 }
 
-// BACKTEST
+async function runMLBPredict() {
+  const away = document.getElementById('away-team').value;
+  const home = document.getElementById('home-team').value;
+  let url = `/api/model/mlb/predict?away=${away}&home=${home}`;
+  const ae = document.getElementById('away-era').value;
+  const af = document.getElementById('away-fip').value;
+  const he = document.getElementById('home-era').value;
+  const hf = document.getElementById('home-fip').value;
+  if (ae) url += `&awayPitcherEra=${ae}`;
+  if (af) url += `&awayPitcherFip=${af}`;
+  if (he) url += `&homePitcherEra=${he}`;
+  if (hf) url += `&homePitcherFip=${hf}`;
+  const data = await api(url);
+  if (data.error) { document.getElementById('pred-result').innerHTML = `<p class="negative">${data.error}</p>`; return; }
+  const homeWin = data.homeWinProb > 0.5;
+  document.getElementById('pred-result').innerHTML = `
+    <div class="pred-result">
+      <div class="pred-card card ${!homeWin?'winner':''}"><div class="team-name">${data.away}</div><div class="prob" style="color:${!homeWin?'var(--green)':'var(--text2)'}">${(data.awayWinProb*100).toFixed(1)}%</div><div class="spread">ML: ${data.awayML>0?'+':''}${data.awayML} | Exp: ${data.awayExpRuns} R</div></div>
+      <div class="pred-card card ${homeWin?'winner':''}"><div class="team-name">${data.home}</div><div class="prob" style="color:${homeWin?'var(--green)':'var(--text2)'}">${(data.homeWinProb*100).toFixed(1)}%</div><div class="spread">ML: ${data.homeML>0?'+':''}${data.homeML} | Exp: ${data.homeExpRuns} R</div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
+      <div><div style="font-size:10px;color:var(--text3)">TOTAL</div><div style="font-size:18px;font-weight:700">${data.totalRuns}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">F5 TOTAL</div><div style="font-size:18px;font-weight:700">${data.f5Total}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">RUN LINE</div><div style="font-size:18px;font-weight:700">${data.runDiff>0?'+':''}${data.runDiff}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">PARK</div><div style="font-size:18px;font-weight:700">${data.parkFactor}x</div></div>
+    </div></div>`;
+}
+
+async function runNHLPredict() {
+  const away = document.getElementById('away-team').value;
+  const home = document.getElementById('home-team').value;
+  const ag = document.getElementById('away-goalie').value;
+  const hg = document.getElementById('home-goalie').value;
+  const data = await api(`/api/model/nhl/predict?away=${away}&home=${home}&awayGoalie=${ag}&homeGoalie=${hg}`);
+  if (data.error) { document.getElementById('pred-result').innerHTML = `<p class="negative">${data.error}</p>`; return; }
+  const homeWin = data.home.winProb > 50;
+  document.getElementById('pred-result').innerHTML = `
+    <div class="pred-result">
+      <div class="pred-card card ${!homeWin?'winner':''}"><div class="team-name">${data.away.code}</div><div class="prob" style="color:${!homeWin?'var(--green)':'var(--text2)'}">${data.away.winProb}%</div><div class="spread">ML: ${data.away.ml>0?'+':''}${data.away.ml}</div></div>
+      <div class="pred-card card ${homeWin?'winner':''}"><div class="team-name">${data.home.code}</div><div class="prob" style="color:${homeWin?'var(--green)':'var(--text2)'}">${data.home.winProb}%</div><div class="spread">ML: ${data.home.ml>0?'+':''}${data.home.ml}</div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
+      <div><div style="font-size:10px;color:var(--text3)">SPREAD</div><div style="font-size:18px;font-weight:700">${data.spread>0?'+':''}${data.spread}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">TOTAL</div><div style="font-size:18px;font-weight:700">${data.projTotal}</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">PUCK LINE</div><div style="font-size:18px;font-weight:700">H ${data.puckLine.home.prob}%</div></div>
+      <div><div style="font-size:10px;color:var(--text3)">GOALIE ADJ</div><div style="font-size:18px;font-weight:700">${data.goalieAdj.home>0?'+':''}${data.goalieAdj.home}</div></div>
+    </div></div>`;
+}
+
+// ==================== BACKTEST ====================
 async function loadBacktest() {
-  const data = await api('/api/backtest/nba');
-  backtestCache = data;
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading">Running backtest...</div>';
+  if (currentSport === 'nba') {
+    const data = await api('/api/backtest/nba');
+    wrap.innerHTML = renderNBABacktest(data);
+  } else if (currentSport === 'mlb') {
+    const data = await api('/api/backtest/mlb');
+    wrap.innerHTML = renderMLBacktest(data, 'MLB');
+  } else if (currentSport === 'nhl') {
+    const data = await api('/api/backtest/nhl');
+    wrap.innerHTML = renderMLBacktest(data, 'NHL');
+  }
+}
+
+function renderNBABacktest(data) {
   const s = data.summary;
-  
-  document.getElementById('bt-stats').innerHTML = `
+  let html = `<div class="stats-grid">
     <div class="stat"><div class="val">${s.totalGames}</div><div class="label">Games Tested</div></div>
     <div class="stat"><div class="val">${s.ats.record}</div><div class="label">ATS Record</div></div>
     <div class="stat"><div class="val ${s.ats.roi>0?'positive':'negative'}">${s.ats.roi>0?'+':''}${s.ats.roi}%</div><div class="label">ATS ROI</div></div>
-    <div class="stat"><div class="val">${s.ml.winPct}%</div><div class="label">ML Accuracy</div></div>`;
-  
-  document.getElementById('bt-tiers').innerHTML = s.edgeTiers.map(t => `
-    <div class="tier-card">
-      <div class="tier-name">${t.label}</div>
-      <div class="tier-val ${t.roi>0?'positive':'negative'}">${t.roi>0?'+':''}${t.roi}%</div>
-      <div class="tier-sub">${t.wins}-${t.losses} (${t.winPct}% win) | ${t.profit>0?'+$':'$'}${t.profit}</div>
-    </div>`).join('');
-  
-  // Profit curve SVG
-  if (s.profitCurve.length > 0) {
-    const svg = document.getElementById('profit-chart');
-    const w = svg.clientWidth || 800, h = 200;
-    const maxP = Math.max(...s.profitCurve.map(p=>p.profit), 100);
-    const minP = Math.min(...s.profitCurve.map(p=>p.profit), -100);
-    const range = maxP - minP || 1;
-    const pts = s.profitCurve.map((p,i) => {
-      const x = (i / (s.profitCurve.length - 1)) * w;
-      const y = h - ((p.profit - minP) / range) * (h - 20) - 10;
-      return `${x},${y}`;
-    }).join(' ');
-    const zeroY = h - ((0 - minP) / range) * (h - 20) - 10;
-    svg.innerHTML = `<line x1="0" y1="${zeroY}" x2="${w}" y2="${zeroY}" stroke="#374151" stroke-dasharray="4"/><polyline points="${pts}" fill="none" stroke="#3b82f6" stroke-width="2"/><text x="4" y="14" fill="#9ca3af" font-size="11">$${maxP}</text><text x="4" y="${h-4}" fill="#9ca3af" font-size="11">$${minP}</text>`;
+    <div class="stat"><div class="val">${s.ml.winPct}%</div><div class="label">ML Accuracy</div></div>
+  </div>`;
+  html += `<div class="card"><h2>📈 Edge Tier Performance</h2><div class="tier-grid">`;
+  s.edgeTiers.forEach(t => {
+    html += `<div class="tier-card"><div class="tier-name">${t.label}</div><div class="tier-val ${t.roi>0?'positive':'negative'}">${t.roi>0?'+':''}${t.roi}%</div><div class="tier-sub">${t.wins}-${t.losses} (${t.winPct}%) | $${t.profit}</div></div>`;
+  });
+  html += `</div></div>`;
+  // Profit curve
+  if (s.profitCurve && s.profitCurve.length > 0) {
+    html += `<div class="card"><h2>📊 Profit Curve</h2><div class="chart-area"><svg id="profit-chart" width="100%" height="180"></svg></div></div>`;
+    setTimeout(() => drawProfitCurve(s.profitCurve, 'profit-chart'), 50);
   }
-  
   // Calibration
-  const calHtml = '<table><thead><tr><th>Predicted</th><th>Actual</th><th>Games</th><th>Diff</th></tr></thead><tbody>' +
-    s.calibration.map(c => {
+  if (s.calibration) {
+    html += `<div class="card"><h2>🎯 Calibration</h2><table><thead><tr><th>Predicted</th><th>Actual</th><th>Games</th><th>Diff</th></tr></thead><tbody>`;
+    s.calibration.forEach(c => {
       const diff = (c.actual - c.predicted).toFixed(1);
-      const cls = Math.abs(diff) <= 5 ? 'positive' : 'negative';
-      return `<tr><td>${c.predicted}%</td><td>${c.actual}%</td><td>${c.games}</td><td class="${cls}">${diff>0?'+':''}${diff}%</td></tr>`;
-    }).join('') + '</tbody></table>';
-  document.getElementById('calibration-wrap').innerHTML = calHtml;
-  
-  // Game-by-game
-  let gHtml = '<table><thead><tr><th>Game</th><th>Score</th><th>Close</th><th>Model</th><th>Edge</th><th>ATS</th><th>ML</th></tr></thead><tbody>';
-  data.games.slice(0, 100).forEach(g => {
-    const atsClass = g.atsResult === 'win' ? 'positive' : g.atsResult === 'loss' ? 'negative' : '';
-    const mlClass = g.mlResult === 'win' ? 'positive' : 'negative';
-    gHtml += `<tr><td>${g.away}@${g.home}</td><td>${g.awayScore}-${g.homeScore}</td><td>${g.closingSpread}</td><td>${g.modelSpread}</td><td>${g.spreadEdge}</td><td class="${atsClass}">${g.atsResult||'-'}</td><td class="${mlClass}">${g.mlResult}</td></tr>`;
-  });
-  gHtml += '</tbody></table>';
-  document.getElementById('bt-games-wrap').innerHTML = gHtml;
-}
-
-// VALUE BETS
-async function loadValue() {
-  const data = await api('/api/value/nba');
-  const wrap = document.getElementById('value-table-wrap');
-  
-  document.getElementById('v-total').textContent = data.count || 0;
-  document.getElementById('v-high').textContent = (data.valueBets || []).filter(v => v.confidence === 'HIGH').length;
-  document.getElementById('v-best').textContent = data.valueBets && data.valueBets[0] ? data.valueBets[0].edge + '%' : '—';
-  document.getElementById('v-updated').textContent = data.updated ? new Date(data.updated).toLocaleTimeString() : '—';
-  
-  if (!data.valueBets || data.valueBets.length === 0) {
-    wrap.innerHTML = '<p style="color:var(--text2);text-align:center;padding:40px">No value bets found. ' + (data.error || 'Set ODDS_API_KEY for live scanning.') + '</p>';
-    return;
-  }
-  
-  let html = '<table><thead><tr><th>Game</th><th>Book</th><th>Pick</th><th>Type</th><th>Edge</th><th>Conf</th><th>Kelly (half)</th></tr></thead><tbody>';
-  data.valueBets.forEach(v => {
-    const confClass = v.confidence === 'HIGH' ? 'badge-high' : v.confidence === 'MEDIUM' ? 'badge-med' : 'badge-low';
-    html += `<tr><td>${v.game}</td><td>${v.book}</td><td><strong>${v.pick}</strong></td><td>${v.type}</td><td class="positive">${v.edge}${v.type==='spread'?'pts':'%'}</td><td><span class="badge ${confClass}">${v.confidence}</span></td><td>${v.kelly ? v.kelly.half + '%' : '—'}</td></tr>`;
-  });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
-}
-
-// LIVE ODDS
-async function loadOdds() {
-  const data = await api('/api/odds/nba');
-  const wrap = document.getElementById('odds-table-wrap');
-  
-  if (!data.odds || data.odds.length === 0) {
-    wrap.innerHTML = '<p style="color:var(--text2);text-align:center;padding:40px">No live odds available. ' + (data.error || 'Set ODDS_API_KEY env var.') + '</p>';
-    return;
-  }
-  
-  let html = '<table><thead><tr><th>Game</th><th>Time</th><th>Book</th><th>Spread</th><th>Home ML</th><th>Away ML</th><th>Total</th></tr></thead><tbody>';
-  data.odds.forEach(g => {
-    const time = new Date(g.commence).toLocaleString();
-    Object.values(g.bookmakers).slice(0, 3).forEach((bk, i) => {
-      html += `<tr><td>${i === 0 ? g.away + ' @ ' + g.home : ''}</td><td>${i === 0 ? time : ''}</td><td>${bk.name}</td><td>${bk.spread||'—'}</td><td>${bk.homeML||'—'}</td><td>${bk.awayML||'—'}</td><td>${bk.total||'—'}</td></tr>`;
+      html += `<tr><td>${c.predicted}%</td><td>${c.actual}%</td><td>${c.games}</td><td class="${Math.abs(diff)<=5?'positive':'negative'}">${diff>0?'+':''}${diff}%</td></tr>`;
     });
+    html += `</tbody></table></div>`;
+  }
+  // Games
+  html += `<div class="card"><h2>📋 Game Results (first 50)</h2><div style="max-height:350px;overflow-y:auto"><table><thead><tr><th>Game</th><th>Score</th><th>Close</th><th>Model</th><th>Edge</th><th>ATS</th><th>ML</th></tr></thead><tbody>`;
+  data.games.slice(0, 50).forEach(g => {
+    html += `<tr><td>${g.away}@${g.home}</td><td>${g.awayScore}-${g.homeScore}</td><td>${g.closingSpread}</td><td>${g.modelSpread}</td><td>${g.spreadEdge}</td><td class="${g.atsResult==='win'?'positive':g.atsResult==='loss'?'negative':''}">${g.atsResult||'-'}</td><td class="${g.mlResult==='win'?'positive':'negative'}">${g.mlResult}</td></tr>`;
   });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
+  html += `</tbody></table></div></div>`;
+  return html;
 }
 
-// INIT
-loadRatings();
+function renderMLBacktest(data, sport) {
+  let html = `<div class="stats-grid">
+    <div class="stat"><div class="val">${data.totalGames}</div><div class="label">Games Tested</div></div>
+    <div class="stat"><div class="val">${data.totalBets}</div><div class="label">Bets Placed</div></div>
+    <div class="stat"><div class="val">${data.wins}-${data.losses}</div><div class="label">Record</div></div>
+    <div class="stat"><div class="val ${data.roi>0?'positive':'negative'}">${data.roi>0?'+':''}${data.roi}%</div><div class="label">ROI</div></div>
+  </div>`;
+  html += `<div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat"><div class="val">${data.winRate}%</div><div class="label">Win Rate</div></div>
+    <div class="stat"><div class="val ${data.profit>0?'positive':'negative'}">$${data.profit}</div><div class="label">Profit ($100/bet)</div></div>
+    <div class="stat"><div class="val">$${data.wagered}</div><div class="label">Wagered</div></div>
+  </div>`;
+  html += `<div class="card"><h2>📈 ${sport} Edge Tier Performance</h2><div class="tier-grid">`;
+  (data.edgeTiers || []).forEach(t => {
+    html += `<div class="tier-card"><div class="tier-name">${t.tier}</div><div class="tier-val ${t.roi>0?'positive':'negative'}">${t.roi>0?'+':''}${t.roi}%</div><div class="tier-sub">${t.wins}/${t.bets} (${t.winRate}%) | $${t.profit}</div></div>`;
+  });
+  html += `</div></div>`;
+  if (data.profitCurve && data.profitCurve.length > 0) {
+    const chartId = `profit-chart-${sport.toLowerCase()}`;
+    html += `<div class="card"><h2>📊 Profit Curve</h2><div class="chart-area"><svg id="${chartId}" width="100%" height="180"></svg></div></div>`;
+    setTimeout(() => drawProfitCurve(data.profitCurve, chartId), 50);
+  }
+  html += `<div class="card"><h2>📋 ${sport} Bet Results (first 50)</h2><div style="max-height:350px;overflow-y:auto"><table><thead><tr><th>Game</th><th>Score</th><th>Side</th><th>Edge</th><th>ML</th><th>Result</th><th>P/L</th></tr></thead><tbody>`;
+  (data.games || []).slice(0, 50).forEach(g => {
+    const score = g.awayScore !== undefined ? `${g.awayScore}-${g.homeScore}` : `${g.awayGoals}-${g.homeGoals}`;
+    html += `<tr><td>${g.away}@${g.home}</td><td>${score}</td><td>${g.betSide}</td><td>${(g.betEdge*100).toFixed(1)}%</td><td>${g.betML>0?'+':''}${g.betML}</td><td class="${g.won?'positive':'negative'}">${g.won?'WIN':'LOSS'}</td><td class="${g.profit>0?'positive':'negative'}">${g.profit>0?'+$':'$'}${g.profit}</td></tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+  return html;
+}
+
+function drawProfitCurve(curve, svgId) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const w = svg.clientWidth || 800, h = 180;
+  const profits = curve.map(p => p.profit);
+  const maxP = Math.max(...profits, 100);
+  const minP = Math.min(...profits, -100);
+  const range = maxP - minP || 1;
+  const pts = curve.map((p, i) => {
+    const x = curve.length > 1 ? (i / (curve.length - 1)) * w : w / 2;
+    const y = h - ((p.profit - minP) / range) * (h - 20) - 10;
+    return `${x},${y}`;
+  }).join(' ');
+  const zeroY = h - ((0 - minP) / range) * (h - 20) - 10;
+  svg.innerHTML = `<line x1="0" y1="${zeroY}" x2="${w}" y2="${zeroY}" stroke="#374151" stroke-dasharray="4"/>
+    <polyline points="${pts}" fill="none" stroke="#3b82f6" stroke-width="2"/>
+    <text x="4" y="14" fill="#9ca3af" font-size="11">$${maxP}</text>
+    <text x="4" y="${h-4}" fill="#9ca3af" font-size="11">$${minP}</text>`;
+}
+
+// ==================== INIT ====================
+buildTabs();
 loadValue();
 </script>
 </body>
