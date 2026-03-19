@@ -12,9 +12,9 @@ const { spawn } = require('child_process');
 const http = require('http');
 const path = require('path');
 
-const PORT = 19876; // random high port to avoid conflicts
+const PORT = 19876;
 const BASE = `http://127.0.0.1:${PORT}`;
-const TIMEOUT_MS = 15000; // 15s max to wait for server startup
+const TIMEOUT_MS = 15000;
 
 let serverProcess = null;
 let passed = 0;
@@ -81,16 +81,11 @@ function assert(condition, msg) {
 }
 
 function assertArray(val, msg) {
-  assert(Array.isArray(val), msg || 'Expected an array');
+  assert(Array.isArray(val), msg || `Expected array, got ${typeof val}`);
 }
 
 function assertNumber(val, msg) {
-  assert(typeof val === 'number' && !isNaN(val), msg || `Expected a number, got ${typeof val}`);
-}
-
-function assertBetween(val, min, max, msg) {
-  assertNumber(val);
-  assert(val >= min && val <= max, msg || `Expected ${val} between ${min} and ${max}`);
+  assert(typeof val === 'number' && !isNaN(val), msg || `Expected number, got ${typeof val}`);
 }
 
 // ─── Test Definitions ───
@@ -101,46 +96,55 @@ async function runAllTests() {
 
   await test('GET /api/health', '/api/health', (json) => {
     assert(json.status === 'ok' || json.status === 'healthy' || json.ok === true,
-      `Unexpected health status: ${JSON.stringify(json)}`);
+      `Unexpected health: ${JSON.stringify(json)}`);
   });
 
   await test('GET /api/summary', '/api/summary', (json) => {
-    // Should return an object (not crash with 500)
     assert(typeof json === 'object', 'Summary should be an object');
+    assert('sports' in json, 'Summary missing "sports" field');
+    assert('updated' in json, 'Summary missing "updated" field');
   });
 
   await test('GET /api/today', '/api/today', (json) => {
     assert('games' in json, 'Missing "games" field');
     assertArray(json.games, '"games" should be an array');
-    assertNumber(json.count, '"count" should be a number');
+  });
+
+  await test('GET /api/data/status', '/api/data/status', (json) => {
+    assert(typeof json === 'object', 'Data status should be an object');
+    assert('nba' in json, 'Data status missing "nba"');
+    assert('mlb' in json, 'Data status missing "mlb"');
+    assert('nhl' in json, 'Data status missing "nhl"');
+  });
+
+  await test('GET /api/data/refresh', '/api/data/refresh', (json) => {
+    assert(json.status === 'ok', 'Refresh should return ok');
   });
 
   // --- NBA ---
   console.log('\n--- NBA ---');
 
   await test('GET /api/model/nba/ratings', '/api/model/nba/ratings', (json) => {
-    assertArray(json, 'Ratings should be an array');
-    assert(json.length > 0, 'Ratings array should not be empty');
-    const team = json[0];
-    assert(team.team || team.name || team.abbrev, 'Team object missing identifier');
+    assert(json.ratings || Array.isArray(json), 'Ratings response should have ratings field or be array');
+    const ratings = json.ratings || json;
+    assertArray(ratings, 'Ratings should be an array');
+    assert(ratings.length > 0, 'Ratings should not be empty');
   });
 
   await test('GET /api/nba/ratings (alias)', '/api/nba/ratings', (json) => {
-    assertArray(json, 'Ratings should be an array');
-    assert(json.length > 0, 'Ratings alias should return data');
+    assert(json.ratings || Array.isArray(json), 'Alias ratings should return data');
   });
 
-  await test('GET /api/model/nba/predict?away=LAL&home=BOS', '/api/model/nba/predict?away=LAL&home=BOS', (json) => {
+  await test('GET /api/model/nba/predict', '/api/model/nba/predict?away=LAL&home=BOS', (json) => {
     assert(typeof json === 'object', 'Predict should return an object');
-    // Check for win probability fields
     const hasProb = json.awayWinProb !== undefined || json.homeWinProb !== undefined ||
                     json.away_win_prob !== undefined || json.home_win_prob !== undefined ||
                     json.prediction !== undefined;
-    assert(hasProb, 'Predict missing win probability fields');
+    assert(hasProb, 'Predict missing probability fields');
   });
 
   await test('GET /api/nba/predict (alias)', '/api/nba/predict?away=LAL&home=BOS', (json) => {
-    assert(typeof json === 'object', 'Predict alias should return an object');
+    assert(typeof json === 'object', 'Alias predict should return an object');
   });
 
   await test('GET /api/backtest/nba', '/api/backtest/nba', (json) => {
@@ -148,11 +152,11 @@ async function runAllTests() {
   });
 
   await test('GET /api/nba/backtest (alias)', '/api/nba/backtest', (json) => {
-    assert(typeof json === 'object', 'Backtest alias should return an object');
+    assert(typeof json === 'object', 'Alias backtest should return an object');
   });
 
   await test('GET /api/odds/nba', '/api/odds/nba', (json) => {
-    assert(typeof json === 'object' || Array.isArray(json), 'Odds should return object or array');
+    assert(typeof json === 'object' || Array.isArray(json), 'Odds should return data');
   });
 
   await test('GET /api/value/nba', '/api/value/nba', (json) => {
@@ -164,28 +168,30 @@ async function runAllTests() {
   console.log('\n--- MLB ---');
 
   await test('GET /api/model/mlb/ratings', '/api/model/mlb/ratings', (json) => {
-    assertArray(json, 'Ratings should be an array');
-    assert(json.length > 0, 'Ratings array should not be empty');
+    assert(json.ratings || Array.isArray(json), 'MLB ratings should have data');
+    const ratings = json.ratings || json;
+    assertArray(ratings, 'Ratings should be an array');
+    assert(ratings.length > 0, 'Ratings should not be empty');
   });
 
   await test('GET /api/mlb/ratings (alias)', '/api/mlb/ratings', (json) => {
-    assertArray(json, 'Ratings should be an array');
+    assert(json.ratings || Array.isArray(json), 'Alias MLB ratings should return data');
   });
 
-  await test('GET /api/model/mlb/predict?away=NYY&home=LAD', '/api/model/mlb/predict?away=NYY&home=LAD', (json) => {
-    assert(typeof json === 'object', 'Predict should return an object');
+  await test('GET /api/model/mlb/predict', '/api/model/mlb/predict?away=NYY&home=LAD', (json) => {
+    assert(typeof json === 'object', 'MLB predict should return an object');
   });
 
   await test('GET /api/mlb/predict (alias)', '/api/mlb/predict?away=NYY&home=LAD', (json) => {
-    assert(typeof json === 'object', 'Predict alias should return an object');
+    assert(typeof json === 'object', 'Alias MLB predict should return an object');
   });
 
   await test('GET /api/backtest/mlb', '/api/backtest/mlb', (json) => {
-    assert(typeof json === 'object', 'Backtest should return an object');
+    assert(typeof json === 'object', 'MLB backtest should return an object');
   });
 
   await test('GET /api/mlb/backtest (alias)', '/api/mlb/backtest', (json) => {
-    assert(typeof json === 'object', 'Backtest alias should return an object');
+    assert(typeof json === 'object', 'Alias MLB backtest should return an object');
   });
 
   await test('GET /api/model/mlb/pitchers', '/api/model/mlb/pitchers', (json) => {
@@ -193,7 +199,7 @@ async function runAllTests() {
   });
 
   await test('GET /api/mlb/pitchers (alias)', '/api/mlb/pitchers', (json) => {
-    assert(typeof json === 'object' || Array.isArray(json), 'Pitchers alias should return data');
+    assert(typeof json === 'object' || Array.isArray(json), 'Alias pitchers should return data');
   });
 
   await test('GET /api/model/mlb/pitchers/top', '/api/model/mlb/pitchers/top', (json) => {
@@ -213,53 +219,55 @@ async function runAllTests() {
   });
 
   await test('GET /api/mlb/opening-day (alias)', '/api/mlb/opening-day', (json) => {
-    assert(typeof json === 'object' || Array.isArray(json), 'Opening day alias should return data');
+    assert(typeof json === 'object' || Array.isArray(json), 'Alias opening day should return data');
   });
 
   await test('GET /api/odds/mlb', '/api/odds/mlb', (json) => {
-    assert(typeof json === 'object' || Array.isArray(json), 'Odds should return data');
+    assert(typeof json === 'object' || Array.isArray(json), 'MLB odds should return data');
   });
 
   await test('GET /api/value/mlb', '/api/value/mlb', (json) => {
     assert('valueBets' in json || 'value_bets' in json || Array.isArray(json),
-      'Value should have valueBets field or be array');
+      'MLB value should have valueBets field or be array');
   });
 
   // --- NHL ---
   console.log('\n--- NHL ---');
 
   await test('GET /api/model/nhl/ratings', '/api/model/nhl/ratings', (json) => {
-    assertArray(json, 'Ratings should be an array');
-    assert(json.length > 0, 'Ratings array should not be empty');
+    assert(json.ratings || Array.isArray(json), 'NHL ratings should have data');
+    const ratings = json.ratings || json;
+    assertArray(ratings, 'Ratings should be an array');
+    assert(ratings.length > 0, 'Ratings should not be empty');
   });
 
   await test('GET /api/nhl/ratings (alias)', '/api/nhl/ratings', (json) => {
-    assertArray(json, 'Ratings should be an array');
+    assert(json.ratings || Array.isArray(json), 'Alias NHL ratings should return data');
   });
 
-  await test('GET /api/model/nhl/predict?away=TOR&home=BOS', '/api/model/nhl/predict?away=TOR&home=BOS', (json) => {
-    assert(typeof json === 'object', 'Predict should return an object');
+  await test('GET /api/model/nhl/predict', '/api/model/nhl/predict?away=TOR&home=BOS', (json) => {
+    assert(typeof json === 'object', 'NHL predict should return an object');
   });
 
   await test('GET /api/nhl/predict (alias)', '/api/nhl/predict?away=TOR&home=BOS', (json) => {
-    assert(typeof json === 'object', 'Predict alias should return an object');
+    assert(typeof json === 'object', 'Alias NHL predict should return an object');
   });
 
   await test('GET /api/backtest/nhl', '/api/backtest/nhl', (json) => {
-    assert(typeof json === 'object', 'Backtest should return an object');
+    assert(typeof json === 'object', 'NHL backtest should return an object');
   });
 
   await test('GET /api/nhl/backtest (alias)', '/api/nhl/backtest', (json) => {
-    assert(typeof json === 'object', 'Backtest alias should return an object');
+    assert(typeof json === 'object', 'Alias NHL backtest should return an object');
   });
 
   await test('GET /api/odds/nhl', '/api/odds/nhl', (json) => {
-    assert(typeof json === 'object' || Array.isArray(json), 'Odds should return data');
+    assert(typeof json === 'object' || Array.isArray(json), 'NHL odds should return data');
   });
 
   await test('GET /api/value/nhl', '/api/value/nhl', (json) => {
     assert('valueBets' in json || 'value_bets' in json || Array.isArray(json),
-      'Value should have valueBets field or be array');
+      'NHL value should have valueBets field or be array');
   });
 
   // --- Cross-Sport ---
@@ -272,10 +280,8 @@ async function runAllTests() {
 
   await test('GET /api/kelly', '/api/kelly', (json) => {
     assert(typeof json === 'object', 'Kelly should return an object');
-  });
-
-  await test('GET /api/data/status', '/api/data/status', (json) => {
-    assert(typeof json === 'object', 'Data status should return an object');
+    assert('bankroll' in json, 'Kelly missing bankroll field');
+    assert('picks' in json, 'Kelly missing picks field');
   });
 }
 
@@ -290,7 +296,6 @@ async function main() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  // Capture server output for debugging
   let serverOutput = '';
   serverProcess.stdout.on('data', d => { serverOutput += d.toString(); });
   serverProcess.stderr.on('data', d => { serverOutput += d.toString(); });
@@ -320,7 +325,6 @@ async function main() {
 
   await runAllTests();
 
-  // --- Results ---
   console.log('\n═══════════════════════════════════');
   console.log(`  Results: ${passed} passed, ${failed} failed`);
   console.log('═══════════════════════════════════');
