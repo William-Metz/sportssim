@@ -1,5 +1,8 @@
-// models/mlb.js — MLB Baseball Model
-// Pythagorean win expectation, pitcher adjustments, park factors, value detection
+// models/mlb.js — MLB Baseball Model v2.0
+// Pythagorean win expectation, pitcher matchups, park factors, Poisson totals, value detection
+// Enhanced with starting pitcher database integration
+
+const pitchers = require('./mlb-pitchers');
 
 const PYTH_EXP = 1.83; // Baseball Pythagorean exponent
 
@@ -17,28 +20,24 @@ const TEAMS = {
   'DET': { name: 'Detroit Tigers', league: 'AL', division: 'Central', w: 82, l: 80, rsG: 4.2, raG: 4.1, ops: .715, era: 3.95, whip: 1.26, k9: 8.6, fip: 3.88, bullpenEra: 3.75, babip: .290, park: 'Comerica Park', l10: '5-5' },
   'MIN': { name: 'Minnesota Twins', league: 'AL', division: 'Central', w: 80, l: 82, rsG: 4.5, raG: 4.4, ops: .732, era: 4.22, whip: 1.31, k9: 8.4, fip: 4.15, bullpenEra: 3.85, babip: .294, park: 'Target Field', l10: '4-6' },
   'CWS': { name: 'Chicago White Sox', league: 'AL', division: 'Central', w: 58, l: 104, rsG: 3.6, raG: 5.2, ops: .680, era: 5.00, whip: 1.42, k9: 7.8, fip: 4.85, bullpenEra: 4.50, babip: .300, park: 'Guaranteed Rate Field', l10: '2-8' },
-
   // AL West
   'HOU': { name: 'Houston Astros', league: 'AL', division: 'West', w: 90, l: 72, rsG: 4.9, raG: 3.9, ops: .755, era: 3.75, whip: 1.23, k9: 9.1, fip: 3.72, bullpenEra: 3.50, babip: .292, park: 'Minute Maid Park', l10: '6-4' },
   'SEA': { name: 'Seattle Mariners', league: 'AL', division: 'West', w: 85, l: 77, rsG: 4.2, raG: 3.8, ops: .718, era: 3.68, whip: 1.22, k9: 9.3, fip: 3.62, bullpenEra: 3.40, babip: .286, park: 'T-Mobile Park', l10: '5-5' },
   'TEX': { name: 'Texas Rangers', league: 'AL', division: 'West', w: 82, l: 80, rsG: 4.7, raG: 4.3, ops: .742, era: 4.12, whip: 1.29, k9: 8.7, fip: 4.05, bullpenEra: 3.80, babip: .296, park: 'Globe Life Field', l10: '5-5' },
   'LAA': { name: 'Los Angeles Angels', league: 'AL', division: 'West', w: 73, l: 89, rsG: 4.3, raG: 4.7, ops: .722, era: 4.45, whip: 1.33, k9: 8.2, fip: 4.35, bullpenEra: 4.10, babip: .295, park: 'Angel Stadium', l10: '3-7' },
   'OAK': { name: 'Oakland Athletics', league: 'AL', division: 'West', w: 65, l: 97, rsG: 3.8, raG: 5.0, ops: .695, era: 4.80, whip: 1.38, k9: 8.0, fip: 4.65, bullpenEra: 4.35, babip: .298, park: 'Coliseum', l10: '3-7' },
-
   // NL East
   'ATL': { name: 'Atlanta Braves', league: 'NL', division: 'East', w: 93, l: 69, rsG: 5.0, raG: 3.8, ops: .758, era: 3.62, whip: 1.21, k9: 9.0, fip: 3.58, bullpenEra: 3.40, babip: .291, park: 'Truist Park', l10: '7-3' },
   'PHI': { name: 'Philadelphia Phillies', league: 'NL', division: 'East', w: 92, l: 70, rsG: 4.9, raG: 3.9, ops: .752, era: 3.72, whip: 1.23, k9: 9.1, fip: 3.68, bullpenEra: 3.50, babip: .293, park: 'Citizens Bank Park', l10: '6-4' },
   'NYM': { name: 'New York Mets', league: 'NL', division: 'East', w: 88, l: 74, rsG: 4.7, raG: 4.0, ops: .742, era: 3.85, whip: 1.25, k9: 8.8, fip: 3.80, bullpenEra: 3.55, babip: .290, park: 'Citi Field', l10: '6-4' },
   'MIA': { name: 'Miami Marlins', league: 'NL', division: 'East', w: 65, l: 97, rsG: 3.7, raG: 4.8, ops: .688, era: 4.62, whip: 1.36, k9: 8.1, fip: 4.50, bullpenEra: 4.20, babip: .296, park: 'LoanDepot Park', l10: '3-7' },
   'WSH': { name: 'Washington Nationals', league: 'NL', division: 'East', w: 71, l: 91, rsG: 4.0, raG: 4.7, ops: .708, era: 4.48, whip: 1.34, k9: 8.2, fip: 4.40, bullpenEra: 4.15, babip: .294, park: 'Nationals Park', l10: '3-7' },
-
   // NL Central
   'MIL': { name: 'Milwaukee Brewers', league: 'NL', division: 'Central', w: 91, l: 71, rsG: 4.6, raG: 3.8, ops: .738, era: 3.65, whip: 1.22, k9: 9.0, fip: 3.62, bullpenEra: 3.35, babip: .288, park: 'American Family Field', l10: '6-4' },
   'CHC': { name: 'Chicago Cubs', league: 'NL', division: 'Central', w: 83, l: 79, rsG: 4.5, raG: 4.2, ops: .732, era: 4.02, whip: 1.27, k9: 8.6, fip: 3.95, bullpenEra: 3.70, babip: .292, park: 'Wrigley Field', l10: '5-5' },
   'STL': { name: 'St. Louis Cardinals', league: 'NL', division: 'Central', w: 78, l: 84, rsG: 4.2, raG: 4.3, ops: .720, era: 4.12, whip: 1.28, k9: 8.5, fip: 4.05, bullpenEra: 3.80, babip: .291, park: 'Busch Stadium', l10: '4-6' },
   'PIT': { name: 'Pittsburgh Pirates', league: 'NL', division: 'Central', w: 75, l: 87, rsG: 4.0, raG: 4.4, ops: .710, era: 4.22, whip: 1.30, k9: 8.3, fip: 4.15, bullpenEra: 3.90, babip: .293, park: 'PNC Park', l10: '4-6' },
   'CIN': { name: 'Cincinnati Reds', league: 'NL', division: 'Central', w: 77, l: 85, rsG: 4.4, raG: 4.5, ops: .728, era: 4.30, whip: 1.31, k9: 8.7, fip: 4.20, bullpenEra: 4.00, babip: .297, park: 'Great American Ball Park', l10: '4-6' },
-
   // NL West
   'LAD': { name: 'Los Angeles Dodgers', league: 'NL', division: 'West', w: 98, l: 64, rsG: 5.3, raG: 3.6, ops: .775, era: 3.42, whip: 1.18, k9: 9.5, fip: 3.38, bullpenEra: 3.20, babip: .290, park: 'Dodger Stadium', l10: '8-2' },
   'SD':  { name: 'San Diego Padres', league: 'NL', division: 'West', w: 88, l: 74, rsG: 4.7, raG: 3.9, ops: .745, era: 3.75, whip: 1.23, k9: 9.2, fip: 3.70, bullpenEra: 3.45, babip: .289, park: 'Petco Park', l10: '6-4' },
@@ -81,29 +80,26 @@ function calculateRatings() {
     const luck = actualWpct - pythWpct;
     const runDiff = t.rsG - t.raG;
     
-    // Power rating: run differential adjusted for luck and park
     const parkFactor = PARK_FACTORS[t.park] || 1.0;
     const neutralRsG = t.rsG / parkFactor;
-    const neutralRaG = t.raG / (2 - parkFactor); // inverse adjustment
+    const neutralRaG = t.raG / (2 - parkFactor);
     const neutralRunDiff = neutralRsG - neutralRaG;
     
-    // Pitching quality score (lower ERA/FIP = better)
     const pitchScore = (LG_AVG.era - t.era) * 0.4 + (LG_AVG.fip - t.fip) * 0.35 + 
                        (LG_AVG.whip - t.whip) * 5 * 0.15 + (t.k9 - LG_AVG.k9) * 0.1;
-    
-    // Offense quality score
     const offScore = (t.rsG - LG_AVG.rsG) * 0.5 + (t.ops - 0.730) * 10 * 0.5;
-    
-    // Bullpen factor
     const bullpenScore = (LG_AVG.era - t.bullpenEra) * 0.5;
     
-    // Composite power rating
     const power = neutralRunDiff * 10 + pitchScore * 3 + offScore * 2 + bullpenScore * 2 - luck * 8;
     
-    // L10 momentum
     const l10parts = t.l10.split('-');
     const l10wpct = parseInt(l10parts[0]) / 10;
     const momentum = l10wpct - 0.5;
+
+    // Get rotation info
+    const rotation = pitchers.getTeamRotation(abbr);
+    const rotationRating = rotation ? +(rotation.reduce((s, p) => s + p.rating, 0) / rotation.length).toFixed(1) : null;
+    const ace = rotation ? rotation[0] : null;
     
     ratings[abbr] = {
       abbr, name: t.name, league: t.league, division: t.division,
@@ -116,32 +112,79 @@ function calculateRatings() {
       pitchScore: +(pitchScore.toFixed(2)), offScore: +(offScore.toFixed(2)),
       bullpenScore: +(bullpenScore.toFixed(2)),
       power: +(power.toFixed(1)), momentum: +(momentum.toFixed(2)),
-      l10: t.l10
+      l10: t.l10,
+      rotationRating,
+      aceName: ace ? ace.name : null,
+      aceRating: ace ? ace.rating : null
     };
   }
   return ratings;
 }
 
-// ==================== PITCHER ADJUSTMENT ====================
+// ==================== PITCHER-ENHANCED PREDICTION ====================
 
-// Starting pitcher modifies the team's expected runs allowed
-// pitcherERA replaces team ERA partially; pitcherFIP for predictive
-function pitcherAdjustment(teamRaG, pitcherEra, pitcherFip, pitcherWhip) {
-  if (!pitcherEra && !pitcherFip) return teamRaG;
+// Resolve pitcher — accepts name string or raw {era, fip, whip} object
+function resolvePitcher(pitcherInput, teamAbbr) {
+  if (!pitcherInput) return null;
   
-  const pEra = pitcherEra || pitcherFip || LG_AVG.era;
-  const pFip = pitcherFip || pitcherEra || LG_AVG.fip;
+  // If it's a string name, look up in DB
+  if (typeof pitcherInput === 'string') {
+    // Try exact lookup first
+    let p = pitchers.getPitcherByName(pitcherInput);
+    if (p) return p;
+    
+    // Try team-specific search
+    const rotation = pitchers.getTeamRotation(teamAbbr);
+    if (rotation) {
+      const lower = pitcherInput.toLowerCase().trim();
+      for (const rp of rotation) {
+        const rpLower = rp.name.toLowerCase();
+        if (rpLower.includes(lower) || lower.includes(rpLower.split(' ').pop())) return { ...rp };
+      }
+    }
+    return null;
+  }
   
-  // Pitcher handles ~6 innings out of 9, bullpen handles rest
-  // Weight: 60% pitcher impact, 40% team baseline (bullpen + late game)
-  const pitcherRaG = (pEra * 0.4 + pFip * 0.6) / 9 * 6; // pitcher's portion
-  const teamPortion = teamRaG / 9 * 3; // bullpen portion
-  const adjustedRaG = pitcherRaG + teamPortion;
-  
-  return adjustedRaG;
+  // If it's an object with raw stats
+  if (typeof pitcherInput === 'object') return pitcherInput;
+  return null;
 }
 
-// ==================== GAME PREDICTION ====================
+// Calculate pitcher's expected RA/9 based on their stats and opposing offense
+function pitcherExpectedRA(pitcher, opposingTeam, parkFactor) {
+  if (!pitcher) return null;
+  
+  const pFip = pitcher.fip || pitcher.era || LG_AVG.fip;
+  const pEra = pitcher.era || pitcher.fip || LG_AVG.era;
+  const pXfip = pitcher.xfip || pFip;
+  
+  // Predictive RA: weight FIP/xFIP more than ERA (more predictive)
+  const pitcherRA = pFip * 0.35 + pXfip * 0.35 + pEra * 0.30;
+  
+  // Opposing offense modifier: how much better/worse than average is the opposing offense
+  const offMod = opposingTeam ? (opposingTeam.rsG / LG_AVG.rsG) : 1.0;
+  
+  // Park-adjusted expected RA per 9 innings from this pitcher
+  const adjustedRA = pitcherRA * offMod * (parkFactor || 1.0);
+  
+  return adjustedRA;
+}
+
+// Pitcher adjustment: blend starter contribution with bullpen
+function pitcherAdjustment(teamRaG, teamBullpenEra, pitcher, opposingTeam, parkFactor) {
+  if (!pitcher) return teamRaG;
+  
+  const pitcherRA = pitcherExpectedRA(pitcher, opposingTeam, parkFactor) || teamRaG;
+  
+  // Starter covers ~5.5 innings, bullpen covers ~3.5
+  const starterFraction = 5.5 / 9;
+  const bullpenFraction = 3.5 / 9;
+  
+  const starterContrib = (pitcherRA / 9) * 5.5;
+  const bullpenContrib = ((teamBullpenEra || teamRaG) / 9) * 3.5;
+  
+  return starterContrib + bullpenContrib;
+}
 
 function predict(awayAbbr, homeAbbr, opts = {}) {
   const away = TEAMS[awayAbbr];
@@ -153,67 +196,121 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const awayR = ratings[awayAbbr];
   const homeR = ratings[homeAbbr];
   
-  // Park factor (home team's park)
   const pf = PARK_FACTORS[home.park] || 1.0;
   
-  // Pitcher adjustments
-  let awayRaG = away.raG, homeRaG = home.raG;
-  if (opts.awayPitcherEra || opts.awayPitcherFip) {
-    awayRaG = pitcherAdjustment(away.raG, opts.awayPitcherEra, opts.awayPitcherFip, opts.awayPitcherWhip);
-  }
-  if (opts.homePitcherEra || opts.homePitcherFip) {
-    homeRaG = pitcherAdjustment(home.raG, opts.homePitcherEra, opts.homePitcherFip, opts.homePitcherWhip);
+  // Resolve pitchers
+  const awayPitcher = resolvePitcher(opts.awayPitcher, awayAbbr) || 
+    (opts.awayPitcherEra || opts.awayPitcherFip ? { era: opts.awayPitcherEra, fip: opts.awayPitcherFip, xfip: opts.awayPitcherFip, whip: opts.awayPitcherWhip } : null);
+  const homePitcher = resolvePitcher(opts.homePitcher, homeAbbr) ||
+    (opts.homePitcherEra || opts.homePitcherFip ? { era: opts.homePitcherEra, fip: opts.homePitcherFip, xfip: opts.homePitcherFip, whip: opts.homePitcherWhip } : null);
+  
+  // Calculate expected runs
+  let awayRaG, homeRaG;
+  
+  if (homePitcher) {
+    // Home pitcher faces away offense — this determines away team expected runs... wait
+    // Actually: away team's expected runs = away offense vs home pitcher
+    // Adjusted RA from home pitcher = runs the away team scores
+    const homePitcherRA = pitcherExpectedRA(homePitcher, away, pf);
+    // Away team runs = blend of (away offense) * (home pitcher quality relative to avg)
+    const pitcherMod = homePitcherRA / LG_AVG.era;
+    awayRaG = away.rsG * pitcherMod * pf / (pf); // park already in pitcherRA
+    // Simpler: away team expected runs = away.rsG * (homePitcherRA / LG_AVG.era)
+    // But we need to separate starter and bullpen
+    const starterRuns = (homePitcherRA / 9) * 5.5;
+    const bullpenRuns = (home.bullpenEra / 9) * 3.5;
+    const adjustedHomeRaG = starterRuns + bullpenRuns;
+    // away expected runs = away offense quality * adjusted pitching
+    awayRaG = (away.rsG / LG_AVG.rsG) * adjustedHomeRaG * pf;
+  } else {
+    awayRaG = away.rsG * (home.raG / LG_AVG.raG) * pf;
   }
   
-  // Expected runs: team's offense vs opponent's pitching, adjusted for park
-  // Away team expected runs = away.rsG * (homeRaG / LG_AVG.raG) * pf
-  // Home team expected runs = home.rsG * (awayRaG / LG_AVG.raG) * pf
-  const awayExpRuns = away.rsG * (homeRaG / LG_AVG.raG) * pf;
-  const homeExpRuns = home.rsG * (awayRaG / LG_AVG.raG) * pf;
+  if (awayPitcher) {
+    const awayPitcherRA = pitcherExpectedRA(awayPitcher, home, pf);
+    const starterRuns = (awayPitcherRA / 9) * 5.5;
+    const bullpenRuns = (away.bullpenEra / 9) * 3.5;
+    const adjustedAwayRaG = starterRuns + bullpenRuns;
+    homeRaG = (home.rsG / LG_AVG.rsG) * adjustedAwayRaG * pf;
+  } else {
+    homeRaG = home.rsG * (away.raG / LG_AVG.raG) * pf;
+  }
+
+  // Ensure sane bounds
+  awayRaG = Math.max(1.5, Math.min(10, awayRaG));
+  homeRaG = Math.max(1.5, Math.min(10, homeRaG));
+
+  const awayExpRuns = awayRaG;
+  const homeExpRuns = homeRaG;
   
-  // F5 (first 5 innings) — roughly 55-58% of total runs
-  const f5Factor = 0.565;
+  // F5 (first 5 innings) — pitcher dominates this portion
+  let f5Factor = 0.565;
+  // If we have specific pitcher data, F5 is more pitcher-dependent
+  if (homePitcher && awayPitcher) {
+    // Better pitchers suppress runs more in F5 since they're still in the game
+    const avgPitcherFip = (homePitcher.fip + awayPitcher.fip) / 2;
+    const fipAdj = (LG_AVG.fip - avgPitcherFip) / LG_AVG.fip;
+    f5Factor = 0.565 - fipAdj * 0.03; // ace matchups = lower F5 total
+  }
   const awayExpF5 = awayExpRuns * f5Factor;
   const homeExpF5 = homeExpRuns * f5Factor;
   
   // Win probability using log5 method
-  const awayTrue = pythWinPct(away.rsG, awayRaG);
-  const homeTrue = pythWinPct(home.rsG, homeRaG);
+  let awayTruePct, homeTruePct;
+  if (awayPitcher && homePitcher) {
+    // Pitcher-adjusted Pythagorean
+    awayTruePct = pythWinPct(awayExpRuns, homeExpRuns);
+    homeTruePct = 1 - awayTruePct;
+  } else {
+    awayTruePct = pythWinPct(away.rsG, away.raG);
+    homeTruePct = pythWinPct(home.rsG, home.raG);
+  }
   
-  // Log5: P(A beats B) = (pA - pA*pB) / (pA + pB - 2*pA*pB)
-  let awayWinProb = (awayTrue - awayTrue * homeTrue) / (awayTrue + homeTrue - 2 * awayTrue * homeTrue);
+  // Log5
+  let awayWinProb = (awayTruePct - awayTruePct * homeTruePct) / (awayTruePct + homeTruePct - 2 * awayTruePct * homeTruePct);
   
   // Home advantage adjustment
   awayWinProb = awayWinProb * (1 - HOME_ADV) / (awayWinProb * (1 - HOME_ADV) + (1 - awayWinProb) * HOME_ADV);
   let homeWinProb = 1 - awayWinProb;
   
+  // Pitcher quality differential bonus
+  if (awayPitcher && homePitcher) {
+    const awayPRating = awayPitcher.rating || 50;
+    const homePRating = homePitcher.rating || 50;
+    const ratingDiff = (homePRating - awayPRating) / 100;
+    // Each 10 rating points ≈ 1.5% win prob shift
+    homeWinProb = Math.min(0.85, Math.max(0.15, homeWinProb + ratingDiff * 0.15));
+    awayWinProb = 1 - homeWinProb;
+  }
+  
   // Momentum nudge (small)
   const momAdj = (homeR.momentum - awayR.momentum) * 0.02;
-  homeWinProb = Math.min(0.95, Math.max(0.05, homeWinProb + momAdj));
+  homeWinProb = Math.min(0.90, Math.max(0.10, homeWinProb + momAdj));
   awayWinProb = 1 - homeWinProb;
   
   // Total runs
   const totalRuns = awayExpRuns + homeExpRuns;
   
-  // Run line probability (home -1.5 / away +1.5)
-  // Use normal approximation: mean = homeExpRuns - awayExpRuns, std ~= 3.8 runs
+  // Run line probability
   const runDiffMean = homeExpRuns - awayExpRuns;
   const runDiffStd = 3.8;
-  const homeRL = normalCDF(runDiffMean - 1.5, runDiffStd); // P(home wins by 2+)
-  const awayRL = 1 - normalCDF(runDiffMean + 1.5, runDiffStd); // P(away wins by 2+)
+  const homeRL = normalCDF(runDiffMean - 1.5, runDiffStd);
+  const awayRL = 1 - normalCDF(runDiffMean + 1.5, runDiffStd);
   
-  // Moneyline conversion
   const homeML = probToML(homeWinProb);
   const awayML = probToML(awayWinProb);
+
+  // Poisson totals
+  const poissonTotals = calculatePoissonTotals(awayExpRuns, homeExpRuns);
   
-  return {
+  const result = {
     away: awayAbbr, home: homeAbbr,
     awayName: away.name, homeName: home.name,
     homeWinProb: +(homeWinProb.toFixed(3)),
     awayWinProb: +(awayWinProb.toFixed(3)),
     homeML, awayML,
-    homeExpRuns: +(homeExpRuns.toFixed(1)),
-    awayExpRuns: +(awayExpRuns.toFixed(1)),
+    homeExpRuns: +(homeExpRuns.toFixed(2)),
+    awayExpRuns: +(awayExpRuns.toFixed(2)),
     totalRuns: +(totalRuns.toFixed(1)),
     f5Total: +((awayExpF5 + homeExpF5).toFixed(1)),
     runDiff: +(runDiffMean.toFixed(1)),
@@ -222,6 +319,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     parkFactor: pf,
     awayPower: awayR.power,
     homePower: homeR.power,
+    totals: poissonTotals,
     factors: {
       awayPythWpct: awayR.pythWpct,
       homePythWpct: homeR.pythWpct,
@@ -231,13 +329,195 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       homeAdv: HOME_ADV
     }
   };
+
+  // Add pitcher info if available
+  if (awayPitcher) {
+    result.awayPitcher = {
+      name: awayPitcher.name || 'Custom',
+      hand: awayPitcher.hand || '?',
+      era: awayPitcher.era,
+      fip: awayPitcher.fip,
+      xfip: awayPitcher.xfip,
+      whip: awayPitcher.whip,
+      k9: awayPitcher.k9,
+      rating: awayPitcher.rating || null,
+      tier: awayPitcher.rating ? pitchers.getPitcherTier(awayPitcher.rating) : null
+    };
+  }
+  if (homePitcher) {
+    result.homePitcher = {
+      name: homePitcher.name || 'Custom',
+      hand: homePitcher.hand || '?',
+      era: homePitcher.era,
+      fip: homePitcher.fip,
+      xfip: homePitcher.xfip,
+      whip: homePitcher.whip,
+      k9: homePitcher.k9,
+      rating: homePitcher.rating || null,
+      tier: homePitcher.rating ? pitchers.getPitcherTier(homePitcher.rating) : null
+    };
+  }
+  
+  return result;
+}
+
+// ==================== POISSON TOTALS MODEL ====================
+
+// Pre-compute factorials for Poisson
+const FACTORIALS = [1];
+for (let i = 1; i <= 25; i++) FACTORIALS[i] = FACTORIALS[i-1] * i;
+
+function poissonPMF(lambda, k) {
+  if (k < 0 || k > 25) return 0;
+  return Math.exp(-lambda) * Math.pow(lambda, k) / FACTORIALS[k];
+}
+
+// Calculate full score distribution and over/under probabilities
+function calculatePoissonTotals(awayExpRuns, homeExpRuns) {
+  const lambdaAway = Math.max(0.5, awayExpRuns);
+  const lambdaHome = Math.max(0.5, homeExpRuns);
+  const projTotal = lambdaAway + lambdaHome;
+  
+  // Build score probability matrix (0-15 runs each)
+  const maxRuns = 16;
+  const scoreMatrix = [];
+  for (let a = 0; a < maxRuns; a++) {
+    scoreMatrix[a] = [];
+    for (let h = 0; h < maxRuns; h++) {
+      scoreMatrix[a][h] = poissonPMF(lambdaAway, a) * poissonPMF(lambdaHome, h);
+    }
+  }
+  
+  // Calculate probabilities for common total lines
+  const lines = [6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11];
+  const totalProbs = {};
+  
+  for (const line of lines) {
+    let overProb = 0;
+    let underProb = 0;
+    
+    for (let a = 0; a < maxRuns; a++) {
+      for (let h = 0; h < maxRuns; h++) {
+        const total = a + h;
+        const prob = scoreMatrix[a][h];
+        if (total > line) overProb += prob;
+        else if (total < line) underProb += prob;
+        // Exact pushes (whole number lines) go to neither
+      }
+    }
+    
+    totalProbs[line] = {
+      over: +(overProb.toFixed(3)),
+      under: +(underProb.toFixed(3)),
+      overML: probToML(overProb),
+      underML: probToML(underProb)
+    };
+  }
+  
+  // Most likely final scores
+  const likelyScores = [];
+  for (let a = 0; a < 12; a++) {
+    for (let h = 0; h < 12; h++) {
+      likelyScores.push({ away: a, home: h, prob: scoreMatrix[a][h] });
+    }
+  }
+  likelyScores.sort((a, b) => b.prob - a.prob);
+  
+  return {
+    projTotal: +(projTotal.toFixed(1)),
+    awayLambda: +(lambdaAway.toFixed(2)),
+    homeLambda: +(lambdaHome.toFixed(2)),
+    lines: totalProbs,
+    likelyScores: likelyScores.slice(0, 10).map(s => ({
+      score: `${s.away}-${s.home}`,
+      prob: +(s.prob * 100).toFixed(1)
+    }))
+  };
+}
+
+// Standalone totals prediction
+function predictTotal(awayAbbr, homeAbbr, opts = {}) {
+  const pred = predict(awayAbbr, homeAbbr, opts);
+  if (pred.error) return pred;
+  
+  return {
+    away: awayAbbr, home: homeAbbr,
+    awayName: pred.awayName, homeName: pred.homeName,
+    awayExpRuns: pred.awayExpRuns,
+    homeExpRuns: pred.homeExpRuns,
+    ...pred.totals,
+    parkFactor: pred.parkFactor,
+    awayPitcher: pred.awayPitcher || null,
+    homePitcher: pred.homePitcher || null
+  };
+}
+
+// ==================== MATCHUP ANALYSIS ====================
+
+function analyzeMatchup(awayAbbr, homeAbbr, opts = {}) {
+  const pred = predict(awayAbbr, homeAbbr, opts);
+  if (pred.error) return pred;
+  
+  const away = TEAMS[awayAbbr];
+  const home = TEAMS[homeAbbr];
+  const ratings = calculateRatings();
+  
+  // Get rotations
+  const awayRotation = pitchers.getTeamRotation(awayAbbr) || [];
+  const homeRotation = pitchers.getTeamRotation(homeAbbr) || [];
+  
+  // Analyze specific pitcher matchup
+  let pitcherAdvantage = 'EVEN';
+  let pitcherSwing = 0;
+  if (pred.awayPitcher && pred.homePitcher) {
+    const diff = (pred.homePitcher.rating || 50) - (pred.awayPitcher.rating || 50);
+    pitcherSwing = diff;
+    if (diff > 10) pitcherAdvantage = `${homeAbbr} +${diff}`;
+    else if (diff < -10) pitcherAdvantage = `${awayAbbr} +${Math.abs(diff)}`;
+  }
+  
+  // Offense vs pitching matchup
+  const offensiveEdge = {
+    away: +(away.rsG - LG_AVG.rsG).toFixed(2),
+    home: +(home.rsG - LG_AVG.rsG).toFixed(2),
+    advantage: away.rsG > home.rsG ? awayAbbr : homeAbbr
+  };
+  
+  const bullpenEdge = {
+    away: +(LG_AVG.era - away.bullpenEra).toFixed(2),
+    home: +(LG_AVG.era - home.bullpenEra).toFixed(2),
+    advantage: away.bullpenEra < home.bullpenEra ? awayAbbr : homeAbbr
+  };
+  
+  // Key factors summary
+  const keyFactors = [];
+  if (pred.parkFactor > 1.03) keyFactors.push(`🏟️ Hitter-friendly park (${pred.parkFactor}x)`);
+  if (pred.parkFactor < 0.96) keyFactors.push(`🏟️ Pitcher-friendly park (${pred.parkFactor}x)`);
+  if (pred.awayPitcher && pred.awayPitcher.tier === 'ACE') keyFactors.push(`🔥 ${pred.awayPitcher.name} is an ACE (${pred.awayPitcher.rating})`);
+  if (pred.homePitcher && pred.homePitcher.tier === 'ACE') keyFactors.push(`🔥 ${pred.homePitcher.name} is an ACE (${pred.homePitcher.rating})`);
+  if (Math.abs(pred.awayPower - pred.homePower) > 15) keyFactors.push(`⚡ Big power rating gap: ${pred.awayPower} vs ${pred.homePower}`);
+  if (pred.totalRuns > 9.5) keyFactors.push(`💥 High-scoring projection: ${pred.totalRuns} runs`);
+  if (pred.totalRuns < 7) keyFactors.push(`🧊 Low-scoring projection: ${pred.totalRuns} runs`);
+  
+  return {
+    ...pred,
+    matchup: {
+      pitcherAdvantage,
+      pitcherSwing,
+      offensiveEdge,
+      bullpenEdge,
+      keyFactors,
+      awayRotation: awayRotation.map(p => ({ name: p.name, rating: p.rating, tier: pitchers.getPitcherTier(p.rating), era: p.era, fip: p.fip })),
+      homeRotation: homeRotation.map(p => ({ name: p.name, rating: p.rating, tier: pitchers.getPitcherTier(p.rating), era: p.era, fip: p.fip }))
+    }
+  };
 }
 
 // ==================== VALUE DETECTION ====================
 
 function findValue(prediction, bookLine) {
   const edges = [];
-  const minEdge = 0.02; // 2% minimum edge
+  const minEdge = 0.02;
   
   // Moneyline value
   if (bookLine.homeML) {
@@ -250,7 +530,8 @@ function findValue(prediction, bookLine) {
         modelProb: prediction.homeWinProb, bookProb: +bookHomeProb.toFixed(3),
         edge: +(homeEdge.toFixed(3)), ml: bookLine.homeML,
         ev: +(evPer100(prediction.homeWinProb, bookLine.homeML).toFixed(1)),
-        kelly: { full: +(kelly.toFixed(3)), half: +(kelly/2).toFixed(3) }
+        kelly: { full: +(kelly.toFixed(3)), half: +((kelly/2).toFixed(3)) },
+        pitcher: prediction.homePitcher ? prediction.homePitcher.name : null
       });
     }
   }
@@ -264,21 +545,53 @@ function findValue(prediction, bookLine) {
         modelProb: prediction.awayWinProb, bookProb: +bookAwayProb.toFixed(3),
         edge: +(awayEdge.toFixed(3)), ml: bookLine.awayML,
         ev: +(evPer100(prediction.awayWinProb, bookLine.awayML).toFixed(1)),
-        kelly: { full: +(kelly.toFixed(3)), half: +(kelly/2).toFixed(3) }
+        kelly: { full: +(kelly.toFixed(3)), half: +((kelly/2).toFixed(3)) },
+        pitcher: prediction.awayPitcher ? prediction.awayPitcher.name : null
       });
     }
   }
   
-  // Total value
-  if (bookLine.total && prediction.totalRuns) {
-    const diff = prediction.totalRuns - bookLine.total;
-    if (Math.abs(diff) > 0.5) {
-      const side = diff > 0 ? 'Over' : 'Under';
-      edges.push({
-        pick: `${side} ${bookLine.total}`, side: side.toLowerCase(), market: 'total',
-        modelTotal: prediction.totalRuns, bookTotal: bookLine.total,
-        edge: +(Math.abs(diff).toFixed(1)), diff: +(diff.toFixed(1))
-      });
+  // Total value (enhanced with Poisson)
+  if (bookLine.total && prediction.totals && prediction.totals.lines) {
+    const line = bookLine.total;
+    const poissonData = prediction.totals.lines[line];
+    
+    if (poissonData) {
+      // Over value
+      const overEdge = poissonData.over - 0.5; // vs -110 juice
+      if (overEdge > 0.03) {
+        edges.push({
+          pick: `Over ${line}`, side: 'over', market: 'total',
+          modelProb: poissonData.over, bookTotal: line,
+          modelTotal: prediction.totals.projTotal,
+          edge: +(overEdge.toFixed(3)),
+          diff: +(prediction.totals.projTotal - line).toFixed(1),
+          ml: poissonData.overML
+        });
+      }
+      // Under value
+      const underEdge = poissonData.under - 0.5;
+      if (underEdge > 0.03) {
+        edges.push({
+          pick: `Under ${line}`, side: 'under', market: 'total',
+          modelProb: poissonData.under, bookTotal: line,
+          modelTotal: prediction.totals.projTotal,
+          edge: +(underEdge.toFixed(3)),
+          diff: +(line - prediction.totals.projTotal).toFixed(1),
+          ml: poissonData.underML
+        });
+      }
+    } else {
+      // Fallback for non-standard lines
+      const diff = prediction.totalRuns - line;
+      if (Math.abs(diff) > 0.5) {
+        const side = diff > 0 ? 'Over' : 'Under';
+        edges.push({
+          pick: `${side} ${line}`, side: side.toLowerCase(), market: 'total',
+          modelTotal: prediction.totalRuns, bookTotal: line,
+          edge: +(Math.abs(diff / 10).toFixed(3)), diff: +(diff.toFixed(1))
+        });
+      }
     }
   }
   
@@ -288,7 +601,6 @@ function findValue(prediction, bookLine) {
 // ==================== MATH HELPERS ====================
 
 function normalCDF(x, std) {
-  // Approximate normal CDF for (x - 0) / std
   const z = x / std;
   const t = 1 / (1 + 0.2316419 * Math.abs(z));
   const d = 0.3989422804 * Math.exp(-z * z / 2);
@@ -318,4 +630,9 @@ function kellySize(modelProb, ml) {
   return Math.max(0, kelly);
 }
 
-module.exports = { TEAMS, PARK_FACTORS, calculateRatings, predict, findValue, pythWinPct };
+module.exports = { 
+  TEAMS, PARK_FACTORS, 
+  calculateRatings, predict, predictTotal, analyzeMatchup, findValue, 
+  pythWinPct, calculatePoissonTotals,
+  resolvePitcher
+};

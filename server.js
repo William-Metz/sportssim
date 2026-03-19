@@ -5,6 +5,7 @@ const path = require('path');
 const nba = require('./models/nba');
 const backtest = require('./models/backtest');
 const mlb = require('./models/mlb');
+const mlbPitchers = require('./models/mlb-pitchers');
 const mlbBacktest = require('./models/backtest-mlb');
 const nhl = require('./models/nhl');
 const nhlBacktest = require('./models/backtest-nhl');
@@ -71,7 +72,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '3.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'] });
+  res.json({ status: 'ok', version: '4.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['pitcher-model','poisson-totals','matchup-analysis'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -163,10 +164,14 @@ app.get('/api/model/mlb/ratings', (req, res) => {
 });
 
 app.get('/api/model/mlb/predict', (req, res) => {
-  const { away, home, awayPitcherEra, awayPitcherFip, homePitcherEra, homePitcherFip } = req.query;
+  const { away, home, awayPitcher, homePitcher, awayPitcherEra, awayPitcherFip, homePitcherEra, homePitcherFip } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
     const opts = {};
+    // New: pitcher name lookup
+    if (awayPitcher) opts.awayPitcher = awayPitcher;
+    if (homePitcher) opts.homePitcher = homePitcher;
+    // Legacy: raw ERA/FIP
     if (awayPitcherEra) opts.awayPitcherEra = parseFloat(awayPitcherEra);
     if (awayPitcherFip) opts.awayPitcherFip = parseFloat(awayPitcherFip);
     if (homePitcherEra) opts.homePitcherEra = parseFloat(homePitcherEra);
@@ -174,6 +179,63 @@ app.get('/api/model/mlb/predict', (req, res) => {
     const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
     if (!pred || pred.error) return res.status(400).json({ error: pred?.error || 'Invalid team code' });
     res.json(pred);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// MLB Pitcher Endpoints
+app.get('/api/model/mlb/pitchers', (req, res) => {
+  try {
+    const team = req.query.team;
+    if (team) {
+      const rotation = mlbPitchers.getTeamRotation(team.toUpperCase());
+      if (!rotation) return res.status(404).json({ error: `No rotation found for ${team}` });
+      return res.json({ team: team.toUpperCase(), rotation, count: rotation.length });
+    }
+    const all = mlbPitchers.getAllPitchers();
+    res.json({ pitchers: all, count: all.length, updated: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/model/mlb/pitchers/top', (req, res) => {
+  try {
+    const n = parseInt(req.query.n) || 30;
+    const top = mlbPitchers.getTopPitchers(n);
+    res.json({ pitchers: top, count: top.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/model/mlb/pitchers/:team', (req, res) => {
+  try {
+    const team = req.params.team.toUpperCase();
+    const rotation = mlbPitchers.getTeamRotation(team);
+    if (!rotation) return res.status(404).json({ error: `No rotation found for ${team}` });
+    res.json({ team, rotation, count: rotation.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/model/mlb/matchup', (req, res) => {
+  const { away, home, awayPitcher, homePitcher } = req.query;
+  if (!away || !home) return res.status(400).json({ error: 'away and home required' });
+  try {
+    const opts = {};
+    if (awayPitcher) opts.awayPitcher = awayPitcher;
+    if (homePitcher) opts.homePitcher = homePitcher;
+    const matchup = mlb.analyzeMatchup(away.toUpperCase(), home.toUpperCase(), opts);
+    if (!matchup || matchup.error) return res.status(400).json({ error: matchup?.error || 'Invalid team code' });
+    res.json(matchup);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/model/mlb/totals', (req, res) => {
+  const { away, home, awayPitcher, homePitcher } = req.query;
+  if (!away || !home) return res.status(400).json({ error: 'away and home required' });
+  try {
+    const opts = {};
+    if (awayPitcher) opts.awayPitcher = awayPitcher;
+    if (homePitcher) opts.homePitcher = homePitcher;
+    const totals = mlb.predictTotal(away.toUpperCase(), home.toUpperCase(), opts);
+    if (!totals || totals.error) return res.status(400).json({ error: totals?.error || 'Invalid team code' });
+    res.json(totals);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -552,5 +614,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.TEAMS).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.TEAMS).length}`);
+  console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.TEAMS).length}`);
+  console.log(`   Features: pitcher model, Poisson totals, matchup analysis`);
 });
