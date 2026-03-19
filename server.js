@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const nba = require('./models/nba');
 const backtest = require('./models/backtest');
+const mlb = require('./models/mlb');
+const mlbBacktest = require('./models/backtest-mlb');
+const nhl = require('./models/nhl');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -15,7 +18,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.0.0', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() });
 });
 
 // NBA Power Ratings
@@ -200,9 +203,127 @@ app.get('/api/backtest/nba', (req, res) => {
   }
 });
 
+// ==================== MLB ENDPOINTS ====================
+
+// MLB Power Ratings
+app.get('/api/model/mlb/ratings', (req, res) => {
+  try {
+    const ratings = mlb.calculateRatings();
+    const sorted = Object.values(ratings).sort((a, b) => b.power - a.power);
+    res.json({ ratings: sorted, updated: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// MLB Game Prediction
+app.get('/api/model/mlb/predict', (req, res) => {
+  const { away, home, awayPitcher, homePitcher } = req.query;
+  if (!away || !home) return res.status(400).json({ error: 'away and home required' });
+  try {
+    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), {
+      awayPitcher: awayPitcher || null,
+      homePitcher: homePitcher || null
+    });
+    if (!pred) return res.status(400).json({ error: 'Invalid team code' });
+    res.json(pred);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Live MLB Odds
+app.get('/api/odds/mlb', async (req, res) => {
+  if (!ODDS_API_KEY) return res.json({ error: 'No API key set', odds: [], mock: true });
+  try {
+    const fetch = require('node-fetch');
+    const url = `https://api.the-odds-api.com/v4/sports/baseball_mlb/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    res.json({ odds: data || [], count: (data || []).length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// MLB Value Detection
+app.get('/api/value/mlb', (req, res) => {
+  try {
+    const ratings = mlb.calculateRatings();
+    res.json({ valueBets: [], count: 0, message: 'Connect Odds API for live value detection', updated: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// MLB Backtest
+app.get('/api/backtest/mlb', (req, res) => {
+  try {
+    const results = mlbBacktest.runBacktest();
+    res.json(results);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== NHL ENDPOINTS ====================
+
+// NHL Power Ratings
+app.get('/api/model/nhl/ratings', (req, res) => {
+  try {
+    const ratings = nhl.calculateRatings();
+    const sorted = Object.values(ratings).sort((a, b) => b.power - a.power);
+    res.json({ ratings: sorted, updated: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// NHL Game Prediction
+app.get('/api/model/nhl/predict', (req, res) => {
+  const { away, home, awayGoalie, homeGoalie } = req.query;
+  if (!away || !home) return res.status(400).json({ error: 'away and home required' });
+  try {
+    const pred = nhl.predict(away.toUpperCase(), home.toUpperCase(), {
+      awayGoalie: awayGoalie || 'starter',
+      homeGoalie: homeGoalie || 'starter'
+    });
+    if (!pred) return res.status(400).json({ error: 'Invalid team code' });
+    res.json(pred);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Live NHL Odds
+app.get('/api/odds/nhl', async (req, res) => {
+  if (!ODDS_API_KEY) return res.json({ error: 'No API key set', odds: [], mock: true });
+  try {
+    const fetch = require('node-fetch');
+    const url = `https://api.the-odds-api.com/v4/sports/icehockey_nhl/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    res.json({ odds: data || [], count: (data || []).length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// NHL Value Detection
+app.get('/api/value/nhl', (req, res) => {
+  try {
+    const ratings = nhl.calculateRatings();
+    res.json({ valueBets: [], count: 0, message: 'Connect Odds API for live value detection', updated: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎯 SportsSim running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams loaded: ${Object.keys(nba.TEAMS).length}`);
+  console.log(`   MLB teams loaded: ${Object.keys(mlb.TEAMS).length}`);
+  console.log(`   NHL teams loaded: ${Object.keys(nhl.TEAMS).length}`);
 });
