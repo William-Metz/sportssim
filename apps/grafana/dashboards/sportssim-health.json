@@ -1,460 +1,613 @@
 {
-  "annotations": { "list": [] },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "id": null,
-  "links": [],
+  "uid": "sportssim-health",
+  "title": "SportsSim Health & Analytics",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "panels": [
     {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 200 },
-              { "color": "red", "value": 300 }
-            ]
-          },
-          "mappings": [
-            { "options": { "200": { "text": "✅ HEALTHY", "color": "green" } }, "type": "value" },
-            { "options": { "from": 400, "to": 599, "result": { "text": "❌ DOWN", "color": "red" } }, "type": "range" }
-          ]
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 0 },
       "id": 1,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "textMode": "auto"
-      },
-      "title": "SportsSim Status",
+      "title": "\ud83d\udcca Total Games Today",
       "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
       "targets": [
         {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
           "refId": "A",
-          "root_selector": "",
-          "source": "url",
           "type": "json",
+          "source": "url",
+          "format": "table",
           "url": "https://sportssim.fly.dev/api/summary",
-          "url_options": { "method": "GET" }
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "gamesTracked",
+              "text": "Games",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
         }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 200 },
-              { "color": "red", "value": 300 }
-            ]
-          },
-          "mappings": [
-            { "options": { "200": { "text": "✅ HEALTHY", "color": "green" } }, "type": "value" },
-            { "options": { "from": 400, "to": 599, "result": { "text": "❌ DOWN", "color": "red" } }, "type": "range" }
-          ]
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 0 },
-      "id": 2,
+      ],
       "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
         "colorMode": "background",
         "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
         "textMode": "auto"
-      },
-      "title": "Claw Hub Status",
-      "type": "stat",
-      "targets": [
-        {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "refId": "A",
-          "root_selector": "",
-          "source": "url",
-          "type": "json",
-          "url": "https://claw-hub.hatch.fun/",
-          "url_options": { "method": "GET" }
-        }
-      ]
+      }
     },
     {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "axisBorderShow": false,
-            "axisLabel": "Games",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "lineWidth": 1,
-            "scaleDistribution": { "type": "linear" },
-            "thresholdsStyle": { "mode": "off" }
-          },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
-        },
-        "overrides": []
+      "id": 2,
+      "title": "\ud83d\udcb0 Value Bets Found",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/summary",
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "valueBets",
+              "text": "Value Bets",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    },
+    {
       "id": 3,
-      "options": {
-        "barRadius": 0.1,
-        "barWidth": 0.6,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" },
-        "orientation": "horizontal",
-        "showValue": "always",
-        "stacking": "none",
-        "tooltip": { "mode": "single", "sort": "none" },
-        "xTickLabelRotation": 0
-      },
-      "title": "Today's Games by Sport",
-      "type": "barchart",
-      "targets": [
-        {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "refId": "A",
-          "root_selector": "",
-          "source": "url",
-          "type": "json",
-          "url": "https://sportssim.fly.dev/api/today",
-          "url_options": { "method": "GET" }
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false
-          },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "edge" },
-            "properties": [
-              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 3 }, { "color": "green", "value": 5 }] } },
-              { "id": "min", "value": 0 },
-              { "id": "max", "value": 15 }
-            ]
-          }
-        ]
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "id": 4,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "edge" }]
-      },
-      "title": "🔥 Value Bets (Best Edges)",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "refId": "A",
-          "root_selector": "valueBets",
-          "source": "url",
-          "type": "json",
-          "url": "https://sportssim.fly.dev/api/value/all",
-          "url_options": { "method": "GET" }
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
-        },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "rating" },
-            "properties": [
-              { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "gauge" } },
-              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 1500 }, { "color": "green", "value": 1600 }] } },
-              { "id": "min", "value": 1300 },
-              { "id": "max", "value": 1800 }
-            ]
-          }
-        ]
-      },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
-      "id": 5,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "rating" }]
-      },
-      "title": "🏀 NBA Power Ratings",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "refId": "A",
-          "root_selector": "ratings",
-          "source": "url",
-          "type": "json",
-          "url": "https://sportssim.fly.dev/api/model/nba/ratings",
-          "url_options": { "method": "GET" }
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
-      "id": 6,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "rating" }]
-      },
-      "title": "⚾ MLB Power Ratings",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "refId": "A",
-          "root_selector": "ratings",
-          "source": "url",
-          "type": "json",
-          "url": "https://sportssim.fly.dev/api/model/mlb/ratings",
-          "url_options": { "method": "GET" }
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
-      "id": 7,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "rating" }]
-      },
-      "title": "🏒 NHL Power Ratings",
-      "type": "table",
-      "targets": [
-        {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
-          "refId": "A",
-          "root_selector": "ratings",
-          "source": "url",
-          "type": "json",
-          "url": "https://sportssim.fly.dev/api/model/nhl/ratings",
-          "url_options": { "method": "GET" }
-        }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 50 },
-              { "color": "green", "value": 60 }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 20 },
-      "id": 8,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/accuracy/", "values": false },
-        "textMode": "auto"
-      },
-      "title": "🏀 NBA Backtest Accuracy",
+      "title": "\ud83c\udfc0 NBA Backtest ROI %",
       "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
       "targets": [
         {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
           "refId": "A",
-          "root_selector": "",
-          "source": "url",
           "type": "json",
+          "source": "url",
+          "format": "table",
           "url": "https://sportssim.fly.dev/api/backtest/nba",
-          "url_options": { "method": "GET" }
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "roi",
+              "text": "ROI %",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
         }
-      ]
-    },
-    {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "unit": "percent",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 50 },
-              { "color": "green", "value": 55 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
             ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 20 },
-      "id": 9,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/accuracy/", "values": false },
-        "textMode": "auto"
-      },
-      "title": "⚾ MLB Backtest Accuracy",
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "\u26be MLB Backtest ROI %",
       "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
       "targets": [
         {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
           "refId": "A",
-          "root_selector": "",
-          "source": "url",
           "type": "json",
+          "source": "url",
+          "format": "table",
           "url": "https://sportssim.fly.dev/api/backtest/mlb",
-          "url_options": { "method": "GET" }
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "roi",
+              "text": "ROI %",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "\ud83c\udfd2 NHL Backtest ROI %",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/backtest/nhl",
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "roi",
+              "text": "ROI %",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "\u23f1 Last Update",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/summary",
+          "root_selector": "",
+          "columns": [
+            {
+              "selector": "updated",
+              "text": "Updated",
+              "type": "string"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "\ud83c\udfc0 NBA Power Ratings",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/model/nba/ratings",
+          "root_selector": "ratings",
+          "columns": [
+            {
+              "selector": "abbr",
+              "text": "Team",
+              "type": "string"
+            },
+            {
+              "selector": "w",
+              "text": "W",
+              "type": "number"
+            },
+            {
+              "selector": "l",
+              "text": "L",
+              "type": "number"
+            },
+            {
+              "selector": "diff",
+              "text": "+/-",
+              "type": "number"
+            },
+            {
+              "selector": "pythWpct",
+              "text": "Pyth%",
+              "type": "number"
+            },
+            {
+              "selector": "power",
+              "text": "Power",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
         }
       ]
     },
     {
-      "datasource": { "type": "yesoreyeram-infinity-datasource", "uid": "infinity" },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 50 },
-              { "color": "green", "value": 55 }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
+      "id": 7,
+      "title": "\u26be MLB Power Ratings",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 8,
+        "y": 4
       },
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 20 },
-      "id": 10,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/accuracy/", "values": false },
-        "textMode": "auto"
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
       },
-      "title": "🏒 NHL Backtest Accuracy",
-      "type": "stat",
       "targets": [
         {
-          "columns": [],
-          "filters": [],
-          "format": "table",
-          "global_query_id": "",
           "refId": "A",
-          "root_selector": "",
-          "source": "url",
           "type": "json",
-          "url": "https://sportssim.fly.dev/api/backtest/nhl",
-          "url_options": { "method": "GET" }
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/model/mlb/ratings",
+          "root_selector": "ratings",
+          "columns": [
+            {
+              "selector": "abbr",
+              "text": "Team",
+              "type": "string"
+            },
+            {
+              "selector": "w",
+              "text": "W",
+              "type": "number"
+            },
+            {
+              "selector": "l",
+              "text": "L",
+              "type": "number"
+            },
+            {
+              "selector": "runDiff",
+              "text": "RunDiff",
+              "type": "number"
+            },
+            {
+              "selector": "pythWpct",
+              "text": "Pyth%",
+              "type": "number"
+            },
+            {
+              "selector": "power",
+              "text": "Power",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "\ud83c\udfd2 NHL Power Ratings",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 4
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/model/nhl/ratings",
+          "root_selector": "ratings",
+          "columns": [
+            {
+              "selector": "abbr",
+              "text": "Team",
+              "type": "string"
+            },
+            {
+              "selector": "w",
+              "text": "W",
+              "type": "number"
+            },
+            {
+              "selector": "l",
+              "text": "L",
+              "type": "number"
+            },
+            {
+              "selector": "goalDiff",
+              "text": "GoalDiff",
+              "type": "number"
+            },
+            {
+              "selector": "pythWpct",
+              "text": "Pyth%",
+              "type": "number"
+            },
+            {
+              "selector": "power",
+              "text": "Power",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "\ud83d\udd25 Value Bets \u2014 Best Edges",
+      "type": "table",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "https://sportssim.fly.dev/api/value/all",
+          "root_selector": "valueBets",
+          "columns": [
+            {
+              "selector": "sport",
+              "text": "Sport",
+              "type": "string"
+            },
+            {
+              "selector": "game",
+              "text": "Game",
+              "type": "string"
+            },
+            {
+              "selector": "bet",
+              "text": "Bet",
+              "type": "string"
+            },
+            {
+              "selector": "edge",
+              "text": "Edge %",
+              "type": "number"
+            },
+            {
+              "selector": "book",
+              "text": "Book",
+              "type": "string"
+            },
+            {
+              "selector": "odds",
+              "text": "Odds",
+              "type": "string"
+            },
+            {
+              "selector": "modelProb",
+              "text": "Model Prob",
+              "type": "number"
+            }
+          ],
+          "filters": [],
+          "url_options": {
+            "method": "GET"
+          }
         }
       ]
     }
   ],
-  "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["sportssim", "health", "betting"],
-  "templating": { "list": [] },
-  "time": { "from": "now-6h", "to": "now" },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "SportsSim Health & Analytics",
-  "uid": "sportssim-health",
-  "version": 1
+  "version": 2
 }
