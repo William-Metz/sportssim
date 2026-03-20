@@ -11,6 +11,7 @@ const mlbOpeningDay = require('./models/mlb-opening-day');
 const nhl = require('./models/nhl');
 const nhlBacktest = require('./models/backtest-nhl');
 const liveData = require('./services/live-data');
+const kelly = require('./services/kelly');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -784,39 +785,65 @@ app.get('/api/nhl/backtest', (req, res) => {
 
 // ─── Missing endpoints ───
 
-// Kelly Criterion calculator
+// Kelly Criterion portfolio optimizer
 app.get('/api/kelly', async (req, res) => {
   try {
     const bankroll = parseFloat(req.query.bankroll) || 1000;
-    const fraction = parseFloat(req.query.fraction) || 0.5; // half-Kelly default
+    const fractionParam = req.query.fraction || 'half';
+    const minEdge = parseFloat(req.query.minEdge) || 2;
+    const maxBetPct = parseFloat(req.query.maxBetPct) || 0.05;
+    
+    // Map fraction param
+    const fractionMap = { full: 1.0, half: 0.5, quarter: 0.25, third: 0.33 };
+    const fraction = fractionMap[fractionParam] || parseFloat(fractionParam) || 0.5;
 
     // Get all value bets across sports
     const games = await getAllOdds();
-    const valueBets = games.filter(g => g.edge && g.edge.best > 2);
+    
+    // Convert to Kelly-compatible format
+    const valueBets = [];
+    for (const g of games) {
+      if (!g.edge || !g.prediction) continue;
+      
+      // Home side bet
+      if (g.edge.home > minEdge && g.bestLine?.home?.ml) {
+        valueBets.push({
+          sport: g.sport,
+          game: `${g.away} @ ${g.home}`,
+          pick: `${g.home} ML (${g.bestLine.home.ml > 0 ? '+' : ''}${g.bestLine.home.ml})`,
+          book: g.bestLine.home.book || 'best',
+          modelProb: g.prediction.homeWinProb / 100,
+          bookML: g.bestLine.home.ml,
+          edge: g.edge.home,
+          confidence: g.edge.home >= 8 ? 'HIGH' : g.edge.home >= 5 ? 'MEDIUM' : 'LOW'
+        });
+      }
+      
+      // Away side bet
+      if (g.edge.away > minEdge && g.bestLine?.away?.ml) {
+        valueBets.push({
+          sport: g.sport,
+          game: `${g.away} @ ${g.home}`,
+          pick: `${g.away} ML (${g.bestLine.away.ml > 0 ? '+' : ''}${g.bestLine.away.ml})`,
+          book: g.bestLine.away.book || 'best',
+          modelProb: g.prediction.awayWinProb / 100,
+          bookML: g.bestLine.away.ml,
+          edge: g.edge.away,
+          confidence: g.edge.away >= 8 ? 'HIGH' : g.edge.away >= 5 ? 'MEDIUM' : 'LOW'
+        });
+      }
+    }
 
-    const picks = valueBets.map(g => {
-      const edge = g.edge.best / 100;
-      const odds = g.bestOdds || 2.0;
-      const kellyPct = Math.max(0, (edge * (odds - 1) - (1 - edge)) / (odds - 1));
-      const adjKelly = kellyPct * fraction;
-      const wager = Math.min(bankroll * adjKelly, bankroll * 0.05); // max 5% of bankroll
-
-      return {
-        game: g.game || g.matchup || 'Unknown',
-        sport: g.sport,
-        edge: g.edge.best,
-        kellyFull: +(kellyPct * 100).toFixed(2),
-        kellyAdj: +(adjKelly * 100).toFixed(2),
-        wager: +wager.toFixed(2),
-        book: g.bestBook || 'Unknown'
-      };
+    const portfolio = kelly.optimizePortfolio({
+      bankroll,
+      fraction,
+      maxBetPct,
+      minEdge,
+      bets: valueBets
     });
 
     res.json({
-      bankroll,
-      fraction,
-      picks: picks.sort((a, b) => b.edge - a.edge),
-      totalWager: +picks.reduce((s, p) => s + p.wager, 0).toFixed(2),
+      ...portfolio,
       updated: new Date().toISOString()
     });
   } catch (e) { res.status(500).json({ error: e.message }); }
