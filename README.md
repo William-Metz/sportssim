@@ -28,5 +28,5 @@ flyctl deploy --remote-only -a sportssim
 ```
 
 ## License
-Private — Will Metz / MetaClaw 🦞
+Private — Will Metz
 # CI/CD trigger 2026-03-19T17:09:22Z
