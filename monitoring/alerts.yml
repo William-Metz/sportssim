@@ -1,0 +1,50 @@
+groups:
+  - name: app_health
+    rules:
+      - alert: AppDown
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} is DOWN"
+          description: "{{ $labels.instance }} has been unreachable for > 2 minutes"
+
+      - alert: SlowResponse
+        expr: probe_duration_seconds > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} is slow ({{ $value }}s)"
+          description: "{{ $labels.instance }} response time > 5s for 5 minutes"
+
+      - alert: SSLExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 7 * 24 * 3600
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSL cert for {{ $labels.instance }} expires in < 7 days"
+
+  - name: slo
+    rules:
+      # 30-day rolling availability
+      - record: job:probe_success:avg30d
+        expr: avg_over_time(probe_success[30d])
+
+      - alert: SLOBudgetLow
+        expr: avg_over_time(probe_success[30d]) < 0.999
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} SLO below 99.9% ({{ $value | humanizePercentage }})"
+
+      - alert: SLOBudgetCritical
+        expr: avg_over_time(probe_success[30d]) < 0.99
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} SLO below 99% — CRITICAL"

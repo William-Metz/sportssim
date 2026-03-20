@@ -1,6 +1,7 @@
 name: Deploy NBA Model
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
