@@ -10,6 +10,7 @@ const mlbBacktest = require('./models/backtest-mlb');
 const mlbOpeningDay = require('./models/mlb-opening-day');
 const nhl = require('./models/nhl');
 const nhlBacktest = require('./models/backtest-nhl');
+const liveData = require('./services/live-data');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -73,7 +74,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '5.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['pitcher-model','poisson-totals','matchup-analysis','opening-day'] });
+  res.json({ status: 'ok', version: '6.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -821,34 +822,82 @@ app.get('/api/kelly', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Data status
+// Data status — now shows live data info
 app.get('/api/data/status', (req, res) => {
+  const status = liveData.getDataStatus();
+  const nbaTeams = nba.getTeams();
+  const nhlTeams = nhl.getTeams();
+  const mlbTeams = mlb.getTeams();
+  
   res.json({
-    nba: { teams: Object.keys(nba.TEAMS).length, source: 'static', lastUpdate: new Date().toISOString() },
-    mlb: { teams: Object.keys(mlb.TEAMS).length, pitchers: mlbPitchers.getAllPitchers().length, source: 'static', lastUpdate: new Date().toISOString() },
-    nhl: { teams: Object.keys(nhl.TEAMS).length, source: 'static', lastUpdate: new Date().toISOString() },
+    nba: {
+      teams: Object.keys(nbaTeams).length,
+      ...status.nba,
+      sampleTeam: nbaTeams['OKC'] ? { name: nbaTeams['OKC'].name, w: nbaTeams['OKC'].w, l: nbaTeams['OKC'].l } : null
+    },
+    mlb: {
+      teams: Object.keys(mlbTeams).length,
+      pitchers: mlbPitchers.getAllPitchers().length,
+      ...status.mlb,
+    },
+    nhl: {
+      teams: Object.keys(nhlTeams).length,
+      ...status.nhl,
+      sampleTeam: nhlTeams['COL'] ? { name: nhlTeams['COL'].name, w: nhlTeams['COL'].w, l: nhlTeams['COL'].l } : null
+    },
     odds: { configured: !!ODDS_API_KEY, source: 'the-odds-api', cacheMinutes: 5 },
     updated: new Date().toISOString()
   });
 });
 
-// Data refresh (placeholder — will connect to live APIs)
-app.post('/api/data/refresh', (req, res) => {
-  res.json({ status: 'ok', message: 'Data refresh triggered (live feeds not yet connected)', updated: new Date().toISOString() });
+// Data refresh — actually triggers live data pull now
+app.post('/api/data/refresh', async (req, res) => {
+  try {
+    const results = await liveData.refreshAll(true);
+    res.json({ 
+      status: 'ok', 
+      message: 'Live data refresh completed',
+      results,
+      updated: new Date().toISOString() 
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
-app.get('/api/data/refresh', (req, res) => {
-  res.json({ status: 'ok', message: 'Data refresh triggered (live feeds not yet connected)', updated: new Date().toISOString() });
+app.get('/api/data/refresh', async (req, res) => {
+  try {
+    const results = await liveData.refreshAll(true);
+    res.json({ 
+      status: 'ok', 
+      message: 'Live data refresh completed',
+      results,
+      updated: new Date().toISOString() 
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v5.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v6.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
-  console.log(`   NBA teams: ${Object.keys(nba.TEAMS).length}`);
-  console.log(`   MLB teams: ${Object.keys(mlb.TEAMS).length}`);
+  console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
+  console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
-  console.log(`   NHL teams: ${Object.keys(nhl.TEAMS).length}`);
-  console.log(`   Features: pitcher model, Poisson totals, matchup analysis, Opening Day`);
+  console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
+  console.log(`   Features: LIVE DATA, pitcher model, Poisson totals, matchup analysis, Opening Day`);
+  
+  // Auto-refresh live data on startup
+  console.log('   📡 Fetching live data...');
+  liveData.refreshAll().then(results => {
+    console.log('   ✅ Live data refresh:', JSON.stringify(results));
+    console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
+    console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
+  }).catch(e => {
+    console.error('   ⚠️ Live data refresh failed:', e.message);
+    console.log('   Using static fallback data');
+  });
 });

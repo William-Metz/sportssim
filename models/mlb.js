@@ -6,8 +6,55 @@ const pitchers = require('./mlb-pitchers');
 
 const PYTH_EXP = 1.83; // Baseball Pythagorean exponent
 
+// Live data integration
+let liveData = null;
+try { liveData = require('../services/live-data'); } catch (e) { /* fallback to static */ }
+
+/**
+ * Get current team data — live if available, static fallback
+ * For MLB: during regular season, merge live W/L/runs with static pitching/advanced stats
+ * During preseason: use projected stats (static) as primary
+ */
+function getTeams() {
+  if (liveData) {
+    const live = liveData.getMLBData();
+    if (live && Object.keys(live).length >= 25) {
+      // Check if it's real regular season data (not spring training)
+      const anyRealGames = Object.values(live).some(t => !t.isSpringTraining && t.gp > 10);
+      
+      if (anyRealGames) {
+        // Regular season: merge live runs data with static pitching metrics
+        const merged = {};
+        for (const [abbr, staticTeam] of Object.entries(STATIC_TEAMS)) {
+          const liveTeam = live[abbr];
+          if (liveTeam && !liveTeam.isSpringTraining) {
+            merged[abbr] = {
+              ...staticTeam,
+              w: liveTeam.w,
+              l: liveTeam.l,
+              rsG: liveTeam.rsG,
+              raG: liveTeam.raG,
+              l10: liveTeam.l10 || staticTeam.l10
+            };
+          } else {
+            merged[abbr] = staticTeam;
+          }
+        }
+        return merged;
+      }
+    }
+  }
+  return STATIC_TEAMS;
+}
+
+async function refreshData() {
+  if (liveData) {
+    await liveData.refreshAll(true);
+  }
+}
+
 // All 30 MLB teams — 2025 projected stats
-const TEAMS = {
+const STATIC_TEAMS = {
   // AL East
   'NYY': { name: 'New York Yankees', league: 'AL', division: 'East', w: 95, l: 67, rsG: 5.1, raG: 3.8, ops: .763, era: 3.65, whip: 1.22, k9: 9.2, fip: 3.70, bullpenEra: 3.45, babip: .295, park: 'Yankee Stadium', l10: '7-3' },
   'BAL': { name: 'Baltimore Orioles', league: 'AL', division: 'East', w: 91, l: 71, rsG: 4.8, raG: 3.9, ops: .745, era: 3.78, whip: 1.24, k9: 8.9, fip: 3.82, bullpenEra: 3.55, babip: .290, park: 'Camden Yards', l10: '6-4' },
@@ -45,6 +92,18 @@ const TEAMS = {
   'SF':  { name: 'San Francisco Giants', league: 'NL', division: 'West', w: 78, l: 84, rsG: 4.2, raG: 4.3, ops: .718, era: 4.10, whip: 1.28, k9: 8.5, fip: 4.02, bullpenEra: 3.75, babip: .287, park: 'Oracle Park', l10: '4-6' },
   'COL': { name: 'Colorado Rockies', league: 'NL', division: 'West', w: 62, l: 100, rsG: 4.5, raG: 5.5, ops: .725, era: 5.25, whip: 1.45, k9: 7.5, fip: 5.10, bullpenEra: 4.60, babip: .310, park: 'Coors Field', l10: '2-8' }
 };
+
+// TEAMS is a dynamic getter — returns live data when available
+const TEAMS = new Proxy({}, {
+  get(target, prop) { return getTeams()[prop]; },
+  ownKeys() { return Object.keys(getTeams()); },
+  has(target, prop) { return prop in getTeams(); },
+  getOwnPropertyDescriptor(target, prop) {
+    const teams = getTeams();
+    if (prop in teams) return { configurable: true, enumerable: true, value: teams[prop] };
+    return undefined;
+  }
+});
 
 // Park factors — multiplier for runs scored (1.0 = neutral)
 const PARK_FACTORS = {
@@ -631,8 +690,8 @@ function kellySize(modelProb, ml) {
 }
 
 module.exports = { 
-  TEAMS, PARK_FACTORS, 
+  TEAMS, PARK_FACTORS, getTeams,
   calculateRatings, predict, predictTotal, analyzeMatchup, findValue, 
   pythWinPct, calculatePoissonTotals,
-  resolvePitcher
+  resolvePitcher, refreshData
 };

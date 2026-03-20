@@ -15,7 +15,87 @@ const LUCK_PENALTY = 0.5;
 const MOMENTUM_WEIGHT = 0.15;
 const SPREAD_FACTOR = 4.5;
 
-const TEAMS = {
+// Live data integration
+let liveData = null;
+try { liveData = require('../services/live-data'); } catch (e) { /* fallback to static */ }
+
+// Static goalie data (not available from standings APIs)
+const GOALIE_DATA = {
+  'BOS': { starter: 'Swayman', starterSv: 0.918, backupSv: 0.895 },
+  'FLA': { starter: 'Bobrovsky', starterSv: 0.915, backupSv: 0.89 },
+  'TOR': { starter: 'Stolarz', starterSv: 0.914, backupSv: 0.898 },
+  'TBL': { starter: 'Vasilevskiy', starterSv: 0.916, backupSv: 0.892 },
+  'CAR': { starter: 'Andersen', starterSv: 0.919, backupSv: 0.9 },
+  'NJD': { starter: 'Markstrom', starterSv: 0.91, backupSv: 0.888 },
+  'NYR': { starter: 'Shesterkin', starterSv: 0.92, backupSv: 0.885 },
+  'OTT': { starter: 'Ullmark', starterSv: 0.912, backupSv: 0.89 },
+  'DET': { starter: 'Lyon', starterSv: 0.908, backupSv: 0.892 },
+  'MTL': { starter: 'Montembeault', starterSv: 0.905, backupSv: 0.888 },
+  'BUF': { starter: 'Luukkonen', starterSv: 0.902, backupSv: 0.885 },
+  'PIT': { starter: 'Nedeljkovic', starterSv: 0.906, backupSv: 0.89 },
+  'PHI': { starter: 'Fedotov', starterSv: 0.905, backupSv: 0.888 },
+  'WSH': { starter: 'Lindgren', starterSv: 0.916, backupSv: 0.895 },
+  'CBJ': { starter: 'Merzlikins', starterSv: 0.898, backupSv: 0.882 },
+  'NYI': { starter: 'Sorokin', starterSv: 0.914, backupSv: 0.89 },
+  'WPG': { starter: 'Hellebuyck', starterSv: 0.924, backupSv: 0.895 },
+  'DAL': { starter: 'Oettinger', starterSv: 0.918, backupSv: 0.898 },
+  'COL': { starter: 'Georgiev', starterSv: 0.905, backupSv: 0.89 },
+  'MIN': { starter: 'Gustavsson', starterSv: 0.917, backupSv: 0.9 },
+  'VGK': { starter: 'Hill', starterSv: 0.913, backupSv: 0.895 },
+  'EDM': { starter: 'Skinner', starterSv: 0.91, backupSv: 0.892 },
+  'LAK': { starter: 'Kuemper', starterSv: 0.912, backupSv: 0.895 },
+  'VAN': { starter: 'Demko', starterSv: 0.916, backupSv: 0.888 },
+  'CGY': { starter: 'Wolf', starterSv: 0.912, backupSv: 0.892 },
+  'STL': { starter: 'Binnington', starterSv: 0.905, backupSv: 0.888 },
+  'SEA': { starter: 'Daccord', starterSv: 0.908, backupSv: 0.89 },
+  'NSH': { starter: 'Saros', starterSv: 0.915, backupSv: 0.885 },
+  'ARI': { starter: 'Vejmelka', starterSv: 0.9, backupSv: 0.882 },
+  'ANA': { starter: 'Gibson', starterSv: 0.898, backupSv: 0.88 },
+  'CHI': { starter: 'Brossoit', starterSv: 0.895, backupSv: 0.878 },
+  'SJS': { starter: 'Blackwood', starterSv: 0.892, backupSv: 0.875 },
+};
+
+/**
+ * Get current team data — live if available, static fallback
+ */
+function getTeams() {
+  if (liveData) {
+    const live = liveData.getNHLData();
+    if (live && Object.keys(live).length >= 25) {
+      const merged = {};
+      for (const [abbr, t] of Object.entries(live)) {
+        const goalie = GOALIE_DATA[abbr] || { starter: 'Unknown', starterSv: 0.905, backupSv: 0.888 };
+        const staticTeam = STATIC_TEAMS[abbr] || {};
+        merged[abbr] = {
+          name: t.name,
+          w: t.w,
+          l: t.l,
+          otl: t.otl,
+          gf: t.gf,
+          ga: t.ga,
+          pp: staticTeam.pp || 20.0, // Power play % not in standings API
+          pk: staticTeam.pk || 80.0, // Penalty kill % not in standings API
+          sv: staticTeam.sv || 0.905,
+          l10w: t.l10w,
+          l10l: t.l10l,
+          starter: goalie.starter,
+          starterSv: goalie.starterSv,
+          backupSv: goalie.backupSv
+        };
+      }
+      return merged;
+    }
+  }
+  return STATIC_TEAMS;
+}
+
+async function refreshData() {
+  if (liveData) {
+    await liveData.refreshAll(true);
+  }
+}
+
+const STATIC_TEAMS = {
 // Team data entries
   "BOS": {"name": "Boston Bruins", "w": 45, "l": 22, "otl": 5, "gf": 3.28, "ga": 2.65, "pp": 24.1, "pk": 82.3, "sv": 0.912, "l10w": 7, "l10l": 3, "starter": "Swayman", "starterSv": 0.918, "backupSv": 0.895},
   "FLA": {"name": "Florida Panthers", "w": 44, "l": 23, "otl": 5, "gf": 3.35, "ga": 2.72, "pp": 23.8, "pk": 83.1, "sv": 0.91, "l10w": 6, "l10l": 4, "starter": "Bobrovsky", "starterSv": 0.915, "backupSv": 0.89},
@@ -50,6 +130,18 @@ const TEAMS = {
   "CHI": {"name": "Chicago Blackhawks", "w": 25, "l": 39, "otl": 8, "gf": 2.55, "ga": 3.35, "pp": 17.2, "pk": 76.2, "sv": 0.888, "l10w": 2, "l10l": 8, "starter": "Brossoit", "starterSv": 0.895, "backupSv": 0.878},
   "SJS": {"name": "San Jose Sharks", "w": 23, "l": 40, "otl": 9, "gf": 2.48, "ga": 3.42, "pp": 16.8, "pk": 75.5, "sv": 0.885, "l10w": 1, "l10l": 8, "starter": "Blackwood", "starterSv": 0.892, "backupSv": 0.875},
 };
+
+// TEAMS is a dynamic getter — returns live data when available
+const TEAMS = new Proxy({}, {
+  get(target, prop) { return getTeams()[prop]; },
+  ownKeys() { return Object.keys(getTeams()); },
+  has(target, prop) { return prop in getTeams(); },
+  getOwnPropertyDescriptor(target, prop) {
+    const teams = getTeams();
+    if (prop in teams) return { configurable: true, enumerable: true, value: teams[prop] };
+    return undefined;
+  }
+});
 
 function pythWinPct(gf, ga) {
   const gfExp = Math.pow(gf, PYTH_EXP);
@@ -210,4 +302,4 @@ function kellyBet(prob, ml) {
   return Math.max(0, kelly);
 }
 
-module.exports = { TEAMS, calculateRatings, predict, findValue, pythWinPct };
+module.exports = { TEAMS, getTeams, calculateRatings, predict, findValue, pythWinPct, refreshData };

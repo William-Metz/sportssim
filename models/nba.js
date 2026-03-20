@@ -18,8 +18,50 @@ const LUCK_PENALTY_FACTOR = 0.6; // how much to discount lucky teams
 const MOMENTUM_WEIGHT = 0.15; // weight for L10 momentum
 const SPREAD_TO_PROB_FACTOR = 7.5; // logistic scaling
 
-// Real 2025-26 NBA stats (as of ~March 2026)
-const TEAMS = {
+// Live data integration
+let liveData = null;
+try { liveData = require('../services/live-data'); } catch (e) { /* fallback to static */ }
+
+/**
+ * Get current team data — live if available, static fallback
+ */
+function getTeams() {
+  if (liveData) {
+    const live = liveData.getNBAData();
+    if (live && Object.keys(live).length >= 25) {
+      // Merge live data into static format
+      const merged = {};
+      for (const [abbr, t] of Object.entries(live)) {
+        if (STATIC_TEAMS[abbr]) {
+          merged[abbr] = {
+            ...STATIC_TEAMS[abbr], // keep any static-only fields
+            name: t.name,
+            w: t.w,
+            l: t.l,
+            ppg: t.ppg,
+            oppg: t.oppg,
+            diff: t.diff,
+            l10: t.l10
+          };
+        } else {
+          // New team not in static data
+          merged[abbr] = { name: t.name, w: t.w, l: t.l, ppg: t.ppg, oppg: t.oppg, diff: t.diff, l10: t.l10 };
+        }
+      }
+      return merged;
+    }
+  }
+  return STATIC_TEAMS;
+}
+
+async function refreshData() {
+  if (liveData) {
+    await liveData.refreshAll(true);
+  }
+}
+
+// Static fallback data (2025-26 NBA stats, snapshot)
+const STATIC_TEAMS = {
   ATL: { name:'Atlanta Hawks', w:35, l:34, ppg:117.8, oppg:117.3, diff:0.5, l10:'6-4' },
   BOS: { name:'Boston Celtics', w:45, l:23, ppg:114.3, oppg:107.1, diff:7.2, l10:'7-3' },
   BKN: { name:'Brooklyn Nets', w:17, l:51, ppg:106.6, oppg:115.2, diff:-8.6, l10:'2-8' },
@@ -51,6 +93,18 @@ const TEAMS = {
   UTA: { name:'Utah Jazz', w:24, l:44, ppg:110.5, oppg:115.0, diff:-4.5, l10:'3-7' },
   WAS: { name:'Washington Wizards', w:15, l:54, ppg:107.2, oppg:118.5, diff:-11.3, l10:'1-9' }
 };
+
+// TEAMS is a dynamic getter — returns live data when available
+const TEAMS = new Proxy({}, {
+  get(target, prop) { return getTeams()[prop]; },
+  ownKeys() { return Object.keys(getTeams()); },
+  has(target, prop) { return prop in getTeams(); },
+  getOwnPropertyDescriptor(target, prop) {
+    const teams = getTeams();
+    if (prop in teams) return { configurable: true, enumerable: true, value: teams[prop] };
+    return undefined;
+  }
+});
 
 /**
  * Pythagorean Win Expectation
@@ -299,4 +353,4 @@ function kellySize(trueProb, ml) {
   };
 }
 
-module.exports = { TEAMS, calculateRatings, predict, findValue, mlToProb, calcEV, kellySize, pythWinPct, HCA, PYTH_EXP };
+module.exports = { TEAMS, getTeams, calculateRatings, predict, findValue, mlToProb, calcEV, kellySize, pythWinPct, HCA, PYTH_EXP, refreshData };
