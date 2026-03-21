@@ -3,35 +3,21 @@
 ## 🚨 URGENT
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| 001 | Project structure + backend | ✅ DONE | P0 | Express + SQLite + multi-sport API |
-| 002 | NBA power rating model | ✅ DONE | P0 | Pythagorean + luck + rolling |
-| 003 | MLB model — Opening Day March 27! | ✅ DONE | P0 | Pitching matchups + park factors |
-| 004 | The Odds API — all sports | ✅ DONE | P0 | NBA, MLB, NHL live odds |
-| 005 | Value detection engine | ✅ DONE | P0 | Universal: model vs book, all 3 sports |
+| 026 | **CRITICAL: Fix NBA totals bug** | ✅ DONE | P0 | Was dividing expectedTotal by 2 → model said 117 instead of 233 |
+| 027 | **NBA spread compression** | ✅ DONE | P0 | Capped at ±18, added rolling/injury rebalance |
+| 028 | Deploy NBA model fixes | ⏳ QUEUED | P0 | Commit + push + redeploy to Fly.io |
+| 029 | Backtest NBA with fixed model | ⏳ QUEUED | P1 | Verify ROI improvement after totals fix |
+| 030 | MLB Opening Day ready-check | ⏳ QUEUED | P0 | 6 days away — verify all MLB endpoints working |
 
 ## Active Sprint
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| 006 | Dashboard MVP (all sports) | ✅ DONE | P1 | Multi-sport with switcher: NBA/MLB/NHL |
+| 031 | NBA playoff series pricing model | ⏳ QUEUED | P1 | Playoffs April 12 — series prices historically inefficient |
+| 032 | pybaseball Statcast integration | ⏳ QUEUED | P1 | Pitch-level data for MLB — spin rate, exit velo, xBA, xERA |
+| 033 | CLV tracking pipeline | ⏳ QUEUED | P1 | Record opening lines, compare vs closing — ultimate model quality metric |
+| 034 | Model calibration audit | ⏳ QUEUED | P2 | Are model probabilities matching real outcomes? |
 | 007 | NBA backtest (500+ games) | 🔄 PARTIAL | P1 | 176 games done, need more data |
-| 008 | MLB season projections | ✅ DONE | P1 | All 30 teams rated for 2025 |
-| 009 | Deploy sportssim.hatch.fun | ✅ DONE | P1 | Live at sportssim.fly.dev v6.0 |
-| 010 | NHL model | ✅ DONE | P1 | Pythagorean + goalie adj + 32 teams |
-| 011 | Kelly Criterion multi-sport | ✅ DONE | P2 | Portfolio optimizer with correlation detection |
-| 012 | Rolling stats (all sports) | ✅ DONE | P2 | L10 windows, wired into all 3 models |
-| 013 | Injury scraper (all leagues) | ✅ DONE | P2 | ESPN APIs, star impact, wired into predictions |
-| 014 | Line movement tracker | ✅ DONE | P2 | Snapshot every 30 min, steam/RLM/stale detection |
-| 015 | Totals model (Poisson) | ✅ DONE | P2 | Poisson-based, integrated into MLB model |
-| 016 | MLB: starting pitcher model | ✅ DONE | P2 | 150 pitchers, composite ratings, matchup analysis |
-| 017 | MLB: park factors | ✅ DONE | P2 | 30 parks with run multipliers |
-| 018 | MLB: weather integration | ✅ DONE | P3 | Wind, temp, humidity — wired into predictions + value detection |
-| 019 | Kalshi scanner | ✅ DONE | P2 | Team totals, futures, value detection |
-| 020 | Player props framework | ✅ DONE | P2 | Points, rebounds, Ks, hits — APIs + dashboard |
-| 021 | Live data feeds (replace static) | ✅ DONE | P1 | ESPN + NHL API, auto-refresh, 30min cache |
 | 022 | NHL backtest expansion | ⏳ QUEUED | P2 | Add more games for validation |
-| 023 | MLB Opening Day projections | ✅ DONE | P1 | March 26-27 matchup picks with pitcher analysis |
-| 024 | Unified Signal Engine | ✅ DONE | P1 | All signals (umpire, weather, MC, calibration, rest/travel) into daily picks + value detection |
-| 025 | Alt Lines Value Scanner | ✅ DONE | P1 | Alt totals, alt spreads, team totals, F5 lines — Poisson-powered value scanning |
 
 ## Completed
 | ID | Task | Completed | Result |
@@ -59,6 +45,8 @@
 | 020 | Player props framework | 2026-03-21 | NBA/MLB/NHL player projections, value scanning, live stats integration |
 | 024 | Unified Signal Engine | 2026-03-21 | Umpire+weather+MC+calibration+rest/travel all wired into daily picks & value detection |
 | 025 | Alt Lines Value Scanner | 2026-03-21 | Alt totals, alt spreads, team totals, F5 lines, Poisson math, live odds scanning, dashboard tab |
+| 026 | Fix NBA totals bug | 2026-03-21 | Was dividing expectedTotal by 2 → totals showed ~117 instead of ~233. Every NBA total bet was garbage. |
+| 027 | NBA spread compression + rebalance | 2026-03-21 | Capped spreads at ±18, reduced rolling double-count (50%), capped injury adj at 4pts/team |
 
 ## Backlog
 - NFL win totals futures model
@@ -91,6 +79,7 @@
 | #6 | 2026-03-21 14:20 | **Rolling Stats + Injuries → Models + Kalshi Scanner v9.0** — Wired rolling stats (L10 form) and injury data (star player impact) into MLB prediction engine (was already in NBA/NHL). MLB predict() now adjusts expected runs based on recent form and missing stars. Enhanced dashboard: new "Trends & Injuries" tab with sortable rolling form table and detailed injury reports. Factor Breakdown UI shows rolling cards + injury detail. Built full Kalshi prediction market scanner — scans 1800+ NBA team total contracts + championship futures for +EV opportunities. First scan found 119 value bets (90 HIGH confidence). Tasks 012, 013, 014, 019 all completed. |
 | #7 | 2026-03-21 19:40 | **Unified Signal Engine v19.0** — CRITICAL UPGRADE: Wired ALL signals into the money-printing daily picks engine. Previously, daily picks used basic `predict()` (no rest/travel, no Monte Carlo, no umpire, no calibration). Now uses `asyncPredict` for MLB (rest/travel + MC), umpire zone data for totals, probability calibration, and blended probs (analytical + MC). Also: umpire data wired into MLB value detection (`/api/value/mlb` + `/api/value/all`), MC-enhanced totals in combined endpoint, new `/api/signal-check/:sport/:away/:home` unified pre-bet signal aggregator. Dashboard shows umpire + MC info in picks. Confidence scoring expanded (0-15 situational with umpire support). Tasks 018, 020, 024 completed. |
 | #8 | 2026-03-21 20:00 | **Alt Lines Value Scanner v20.0** — NEW FEATURE: Full alt lines scanner (`services/alt-lines.js`). Uses Poisson score matrix to calculate exact probabilities for ANY line — alt totals (4.5-14.5), alt run lines (-4.5 to +4.5), team totals (0.5-8.5), F5 totals (2.5-8.5), F5 spreads. Live odds scanning via The Odds API to find +EV alt market opportunities. Dashboard "📐 Alt Lines" tab with matchup analyzer (pick any two teams, see all alt line probabilities + sweet spots) and live scan button. Alt markets are less efficiently priced = more edge. API endpoints: `/api/alt-lines/:sport/:away/:home`, `/api/alt-lines/scan/:sport`, `/api/alt-lines/scan`. Task 025 completed. |
+| #9 | 2026-03-21 22:00 | **CRITICAL NBA Model Fix v21.0** — Planning session discovered NBA total calculation bug: `adjTotal = expectedTotal / 2 + paceAdj` was dividing the full game total by 2, outputting ~117 instead of ~233. This caused EVERY NBA total value bet to show as "UNDER" with fake 130+ point edges — completely polluting the value detection API. Fixed formula to `adjTotal = expectedTotal + paceAdj`. Also: added spread compression (cap at ±18 with soft taper beyond), reduced rolling stats double-counting (L10 momentum already in power rating, now 50% weight), capped injury adjustment at 4 pts/team max. MIL without Giannis now shows realistic -16 spread vs PHX instead of absurd -25. Tasks 026, 027 completed. |
 
 ---
 
@@ -132,4 +121,5 @@
 ---
 *Last updated: 2026-03-21*
 *MLB OPENING DAY: 6 DAYS*
-*Next priorities: NHL backtest expansion (Task 022), Telegram/WhatsApp alerts, Bet tracker auto-grading, CLV tracking, ML ensemble, Python ML engine*
+*NBA PLAYOFFS: 22 DAYS*
+*Next priorities: Deploy NBA fix (Task 028), NBA backtest validation (029), MLB ready-check (030), Statcast integration (032), CLV pipeline (033), Playoff series model (031)*

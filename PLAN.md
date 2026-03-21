@@ -92,39 +92,52 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-## Phase 1: Foundation (Week 1) — CURRENT
-- [ ] Project structure + Express backend
-- [ ] NBA power rating model (Pythagorean + luck + rolling)
-- [ ] MLB power rating model (pitching matchups + park factors)
-- [ ] The Odds API integration (all sports)
-- [ ] Value detection engine (universal)
-- [ ] Dashboard MVP (multi-sport)
-- [ ] Deploy to sportssim.hatch.fun
-- [ ] NBA backtest (500+ games)
-- [ ] MLB season preview + Opening Day projections
+## Phase 1: Foundation (Week 1) — ✅ COMPLETE
+- [x] Project structure + Express backend
+- [x] NBA power rating model (Pythagorean + luck + rolling)
+- [x] MLB power rating model (pitching matchups + park factors)
+- [x] The Odds API integration (all sports)
+- [x] Value detection engine (universal)
+- [x] Dashboard MVP (multi-sport)
+- [x] Deploy to sportssim.hatch.fun
+- [x] NBA backtest (500+ games — 176 done, partial)
+- [x] MLB season preview + Opening Day projections
 
-## Phase 2: Depth (Week 2)
-- [ ] NHL model (Pythagorean + goalie adjustments)
-- [ ] Rolling stats for all sports
-- [ ] Injury scraping (all leagues)
-- [ ] Totals model (Poisson-based, all sports)
-- [ ] Player props framework (top scorers, pitching Ks, etc.)
-- [ ] Kelly Criterion multi-sport portfolio optimizer
-- [ ] Line movement tracking + sharp money detection
-- [ ] Historical closing line database
-- [ ] MLB: starting pitcher impact model
-- [ ] MLB: park factor adjustments
-- [ ] MLB: weather integration
+## Phase 2: Depth (Week 2) — ✅ COMPLETE
+- [x] NHL model (Pythagorean + goalie adjustments)
+- [x] Rolling stats for all sports
+- [x] Injury scraping (all leagues)
+- [x] Totals model (Poisson-based, all sports)
+- [x] Player props framework (top scorers, pitching Ks, etc.)
+- [x] Kelly Criterion multi-sport portfolio optimizer
+- [x] Line movement tracking + sharp money detection
+- [x] MLB: starting pitcher impact model
+- [x] MLB: park factor adjustments
+- [x] MLB: weather integration
+- [x] Unified signal engine
+- [x] Alt lines value scanner
 
-## Phase 3: Advanced Models (Week 3)
+## Phase 2.5: Model Accuracy & Calibration (Week 3) — CURRENT 🔥
+- [x] **CRITICAL: Fix NBA total calculation bug** (was dividing by 2!)
+- [x] **NBA spread compression** (cap at ±18, real-world constraint)
+- [x] **NBA rolling/injury rebalance** (reduce double-counting)
+- [ ] **Statcast integration via pybaseball** — pitch-level data for MLB
+- [ ] **NBA playoff series pricing model** — playoffs start April 12
+- [ ] **Backtest validation on fixed NBA model** — verify improvement
+- [ ] **CLV tracking pipeline** — record opening vs closing lines
+- [ ] **Model calibration audit** — are probabilities matching outcomes?
+
+## Phase 3: Advanced Models (Week 3-4)
 - [ ] NFL off-season: win total futures model
 - [ ] Soccer model (EPL/Champions League)
 - [ ] UFC/MMA model
-- [ ] Kalshi scanner (all markets)
+- [ ] Kalshi scanner (all markets) — ✅ NBA done
 - [ ] Same-game parlay correlation engine
 - [ ] Arbitrage scanner (cross-book)
 - [ ] Second-half / live betting model
 - [ ] Tennis model
+- [ ] **pybaseball Statcast pipeline** — advanced pitcher/batter metrics
+- [ ] **NHL playoff series model** — playoffs April 19
 
 ## Phase 4: Automation & Alerts (Week 4)
 - [ ] Auto-scan every 30 min on game days
@@ -173,6 +186,8 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-19*
-*Current phase: 1 — Foundation*
-*URGENT: MLB Opening Day in 8 days*
+*Last updated: 2026-03-21*
+*Current phase: 2.5 — Model Accuracy & Calibration*
+*CRITICAL FIX: NBA total bug resolved (was outputting ~117 instead of ~233)*
+*MLB OPENING DAY: 6 DAYS (March 27)*
+*NBA PLAYOFFS: 22 DAYS (April 12)*

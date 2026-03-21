@@ -196,8 +196,9 @@ function predict(away, home, opts = {}) {
   if (rollingStats) {
     awayRolling = rollingStats.getRollingAdjustment('nba', away);
     homeRolling = rollingStats.getRollingAdjustment('nba', home);
-    awayRollingAdj = awayRolling.adjFactor || 0;
-    homeRollingAdj = homeRolling.adjFactor || 0;
+    // Reduce rolling weight since L10 momentum is already in power rating
+    awayRollingAdj = (awayRolling.adjFactor || 0) * 0.5;
+    homeRollingAdj = (homeRolling.adjFactor || 0) * 0.5;
   }
   
   // Injury adjustment — star players out = penalty
@@ -206,8 +207,9 @@ function predict(away, home, opts = {}) {
   if (injuries) {
     awayInjuries = injuries.getInjuryAdjustment('nba', away);
     homeInjuries = injuries.getInjuryAdjustment('nba', home);
-    awayInjuryAdj = awayInjuries.adjFactor || 0;
-    homeInjuryAdj = homeInjuries.adjFactor || 0;
+    // Cap injury impact at 4 pts max per team (real-world constraint)
+    awayInjuryAdj = Math.max(-4, Math.min(0, awayInjuries.adjFactor || 0));
+    homeInjuryAdj = Math.max(-4, Math.min(0, homeInjuries.adjFactor || 0));
   }
   
   // Adjusted power ratings
@@ -217,7 +219,11 @@ function predict(away, home, opts = {}) {
   // Predicted spread (negative = home favored)
   // spread = away_adj_power - home_adj_power - HCA + restAdj
   const rawSpread = awayAdjPower - homeAdjPower - HCA + restAdj;
-  const spread = +rawSpread.toFixed(1);
+  // Compress extreme spreads — real NBA spreads rarely exceed 18
+  const compressedSpread = rawSpread > 0 
+    ? Math.min(rawSpread, 18 + (rawSpread - 18) * 0.2)
+    : Math.max(rawSpread, -18 + (rawSpread + 18) * 0.2);
+  const spread = +((Math.abs(rawSpread) > 18 ? compressedSpread : rawSpread)).toFixed(1);
   
   // Win probability via logistic function
   // P(home) = 1 / (1 + 10^(spread / SPREAD_TO_PROB_FACTOR))
@@ -228,7 +234,7 @@ function predict(away, home, opts = {}) {
   const expectedTotal = +((aw.ppg + hm.ppg) / 2 + (aw.oppg + hm.oppg) / 2).toFixed(1);
   // Adjust: if both teams are offensive, boost; if defensive, lower
   const paceAdj = ((aw.ppg - 112) + (hm.ppg - 112)) * 0.3;
-  const adjTotal = +(expectedTotal / 2 + paceAdj).toFixed(1);
+  const adjTotal = +(expectedTotal + paceAdj).toFixed(1);
   
   // Predicted scores
   const homeScore = +((adjTotal / 2) + (-spread / 2)).toFixed(1);
