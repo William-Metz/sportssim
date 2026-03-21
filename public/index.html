@@ -140,11 +140,12 @@ function buildTabs() {
     { id: 'today', label: '📡 Today\'s Games' },
     { id: 'value', label: '💰 Value Bets' },
     { id: 'ratings', label: '📊 Power Ratings' },
+    { id: 'lines', label: '📈 Lines' },
     { id: 'predict', label: '🎯 Predictor' },
-    { id: 'backtest', label: '📈 Backtest' }
+    { id: 'backtest', label: '🧪 Backtest' }
   ];
   if (currentSport === 'mlb' || currentSport === 'all') {
-    tabs.splice(3, 0, { id: 'rotations', label: '⚾ Rotations' });
+    tabs.splice(4, 0, { id: 'rotations', label: '⚾ Rotations' });
   }
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
@@ -159,6 +160,7 @@ function showTab(id) {
   if (id === 'today') loadToday();
   else if (id === 'value') loadValue();
   else if (id === 'ratings') loadRatings();
+  else if (id === 'lines') loadLines();
   else if (id === 'rotations') loadRotationsTab();
   else if (id === 'predict') loadPredictor();
   else if (id === 'backtest') loadBacktest();
@@ -758,6 +760,85 @@ async function loadRotationsTab() {
 }
 
 // ==================== BACKTEST ====================
+
+// ==================== LINE MOVEMENT TAB ====================
+
+async function loadLines() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const sportParam = currentSport === 'all' ? 'all' : currentSport;
+    const [movementRes, sharpRes, statusRes] = await Promise.all([
+      fetch(`/api/lines/${sportParam}`).then(r => r.json()),
+      fetch('/api/lines/sharp?sport=' + sportParam).then(r => r.json()),
+      fetch('/api/lines/status').then(r => r.json())
+    ]);
+
+    let html = '<div class="section">';
+    html += '<h2>📈 Line Movement Tracker</h2>';
+
+    // Status bar
+    html += `<div class="card" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;padding:12px 16px">
+      <span>🎯 <strong>${statusRes.gamesTracked || 0}</strong> games tracked</span>
+      <span>📸 <strong>${statusRes.totalSnapshots || 0}</strong> snapshots</span>
+      <span>⚡ <strong>${statusRes.signalBreakdown?.steam || 0}</strong> steam</span>
+      <span>🔥 <strong>${statusRes.signalBreakdown?.rlm || 0}</strong> RLM</span>
+      <span>🐌 <strong>${statusRes.signalBreakdown?.stale || 0}</strong> stale</span>
+      <button onclick="fetch('/api/lines/snapshot').then(()=>loadLines())" style="margin-left:auto;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer">📸 Take Snapshot</button>
+    </div>`;
+
+    // Sharp money signals
+    if (sharpRes.signals && sharpRes.signals.length > 0) {
+      html += '<h3 style="margin-top:16px">🦈 Sharp Money Signals</h3>';
+      html += '<table><thead><tr><th>Badge</th><th>Type</th><th>Sport</th><th>Game</th><th>Signal</th></tr></thead><tbody>';
+      for (const s of sharpRes.signals) {
+        const rowClass = s.type === 'STEAM' ? 'style="background:rgba(255,165,0,0.1)"' : s.type === 'RLM' ? 'style="background:rgba(255,50,50,0.1)"' : '';
+        html += `<tr ${rowClass}>
+          <td style="font-size:20px;text-align:center">${s.badge}</td>
+          <td><strong>${s.type}</strong></td>
+          <td>${s.sport}</td>
+          <td>${s.game}</td>
+          <td>${s.description}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+    } else {
+      html += '<div class="card" style="padding:20px;text-align:center;color:var(--text2)">No sharp money signals detected yet. Signals appear after multiple snapshots when lines move significantly.</div>';
+    }
+
+    // Line movement table
+    if (movementRes.games && movementRes.games.length > 0) {
+      html += '<h3 style="margin-top:16px">📊 Line Movement</h3>';
+      html += '<table><thead><tr><th>Sport</th><th>Game</th><th>Open Spread</th><th>Curr Spread</th><th>Move</th><th>Open Total</th><th>Curr Total</th><th>Move</th><th>Signals</th><th>Snaps</th></tr></thead><tbody>';
+      for (const g of movementRes.games) {
+        const spreadArrow = g.movement.spread > 0 ? '↑' : g.movement.spread < 0 ? '↓' : '—';
+        const totalArrow = g.movement.total > 0 ? '↑' : g.movement.total < 0 ? '↓' : '—';
+        const spreadColor = Math.abs(g.movement.spread || 0) >= 1 ? 'color:#ff6b6b' : '';
+        const totalColor = Math.abs(g.movement.total || 0) >= 1 ? 'color:#ff6b6b' : '';
+        const badges = (g.signals || []).map(s => s.badge).join(' ');
+        html += `<tr>
+          <td>${g.sport}</td>
+          <td><strong>${g.game}</strong></td>
+          <td>${g.opening.spread ?? '—'}</td>
+          <td>${g.current.spread ?? '—'}</td>
+          <td style="${spreadColor};font-weight:600">${spreadArrow} ${g.movement.spread != null ? (g.movement.spread > 0 ? '+' : '') + g.movement.spread : '—'}</td>
+          <td>${g.opening.total ?? '—'}</td>
+          <td>${g.current.total ?? '—'}</td>
+          <td style="${totalColor};font-weight:600">${totalArrow} ${g.movement.total != null ? (g.movement.total > 0 ? '+' : '') + g.movement.total : '—'}</td>
+          <td>${badges || '—'}</td>
+          <td>${g.snapshots}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+    } else {
+      html += '<div class="card" style="padding:20px;text-align:center;color:var(--text2)">No line movement data yet. Click "Take Snapshot" to start tracking, or wait for automatic snapshots every 30 minutes.</div>';
+    }
+
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card" style="padding:20px;color:#ff6b6b">Error loading line movement data: ${e.message}</div>`;
+  }
+}
 
 async function loadBacktest() {
   const wrap = document.getElementById('tab-content');

@@ -14,6 +14,7 @@ const liveData = require('./services/live-data');
 const kelly = require('./services/kelly');
 const rollingStats = require('./services/rolling-stats');
 const injuries = require('./services/injuries');
+const lineMovement = require('./services/line-movement');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -1000,16 +1001,79 @@ app.get('/api/data/refresh', async (req, res) => {
   }
 });
 
+// ==================== LINE MOVEMENT TRACKER ====================
+
+app.get('/api/lines/sharp', (req, res) => {
+  try {
+    const sport = req.query.sport || 'all';
+    const sharpSignals = lineMovement.getSharpSignals(sport);
+    res.json({
+      signals: sharpSignals,
+      count: sharpSignals.length,
+      breakdown: {
+        steam: sharpSignals.filter(s => s.type === 'STEAM').length,
+        rlm: sharpSignals.filter(s => s.type === 'RLM').length,
+        stale: sharpSignals.filter(s => s.type === 'STALE').length
+      },
+      updated: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/lines/snapshot', async (req, res) => {
+  try {
+    const games = await getAllOdds();
+    const result = lineMovement.takeSnapshot(games);
+    res.json({
+      status: 'ok',
+      message: 'Snapshot taken',
+      ...result,
+      updated: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/lines/status', (req, res) => {
+  try {
+    const status = lineMovement.getStatus();
+    res.json(status);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/lines/history/:gameId', (req, res) => {
+  try {
+    const history = lineMovement.getGameHistory(req.params.gameId);
+    res.json({
+      gameId: req.params.gameId,
+      snapshots: history.length,
+      history
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/lines/:sport', (req, res) => {
+  try {
+    const sport = req.params.sport;
+    const movement = lineMovement.getMovement(sport);
+    res.json({
+      sport,
+      games: movement,
+      count: movement.length,
+      updated: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v7.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v8.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, pitcher model, Poisson totals, Kelly optimizer`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, pitcher model, Poisson totals, Kelly optimizer`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries...');
@@ -1017,14 +1081,34 @@ app.listen(PORT, '0.0.0.0', () => {
     liveData.refreshAll(),
     rollingStats.refreshAll(),
     injuries.refreshAll()
-  ]).then(([liveResults, rollingResults, injuryResults]) => {
+  ]).then(async ([liveResults, rollingResults, injuryResults]) => {
     console.log('   ✅ Live data:', JSON.stringify(liveResults));
     console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
     console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
     console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
     console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
+    
+    // Take initial line movement snapshot
+    try {
+      const games = await getAllOdds();
+      const snapResult = lineMovement.takeSnapshot(games);
+      console.log('   ✅ Line movement: initial snapshot —', JSON.stringify(snapResult));
+    } catch (e) {
+      console.log('   ⚠️ Line movement snapshot failed:', e.message);
+    }
   }).catch(e => {
     console.error('   ⚠️ Data refresh failed:', e.message);
     console.log('   Using static fallback data');
   });
+
+  // Periodic line movement snapshots every 30 min
+  setInterval(async () => {
+    try {
+      const games = await getAllOdds();
+      const result = lineMovement.takeSnapshot(games);
+      console.log(`📈 Line snapshot: ${result.stored} games tracked, ${lineMovement.getSharpSignals().length} signals`);
+    } catch (e) {
+      console.error('⚠️ Line snapshot failed:', e.message);
+    }
+  }, lineMovement.SNAPSHOT_INTERVAL);
 });

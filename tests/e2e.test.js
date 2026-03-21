@@ -283,6 +283,48 @@ async function runAllTests() {
     assert('bankroll' in json, 'Kelly missing bankroll field');
     assert('picks' in json, 'Kelly missing picks field');
   });
+
+  // ─── Line Movement Tracker ───
+
+  await test('GET /api/lines/status', '/api/lines/status', (json) => {
+    assert(typeof json === 'object', 'Lines status should return an object');
+    assert('gamesTracked' in json, 'Lines status missing gamesTracked');
+    assert('activeSignals' in json, 'Lines status missing activeSignals');
+    assert('signalBreakdown' in json, 'Lines status missing signalBreakdown');
+  });
+
+  await test('GET /api/lines/sharp', '/api/lines/sharp', (json) => {
+    assert(typeof json === 'object', 'Sharp signals should return an object');
+    assert('signals' in json, 'Sharp missing signals array');
+    assert('count' in json, 'Sharp missing count');
+    assert('breakdown' in json, 'Sharp missing breakdown');
+    assert(Array.isArray(json.signals), 'signals should be an array');
+  });
+
+  await test('GET /api/lines/snapshot', '/api/lines/snapshot', (json) => {
+    assert(typeof json === 'object', 'Snapshot should return an object');
+    assert(json.status === 'ok', 'Snapshot status should be ok');
+    assert('stored' in json, 'Snapshot missing stored count');
+  });
+
+  await test('GET /api/lines/nba', '/api/lines/nba', (json) => {
+    assert(typeof json === 'object', 'Lines NBA should return an object');
+    assert('games' in json, 'Lines NBA missing games');
+    assert('count' in json, 'Lines NBA missing count');
+    assert(Array.isArray(json.games), 'games should be an array');
+  });
+
+  await test('GET /api/lines/mlb', '/api/lines/mlb', (json) => {
+    assert(typeof json === 'object', 'Lines MLB should return an object');
+    assert('games' in json, 'Lines MLB missing games');
+    assert(Array.isArray(json.games), 'games should be an array');
+  });
+
+  await test('GET /api/lines/all', '/api/lines/all', (json) => {
+    assert(typeof json === 'object', 'Lines all should return an object');
+    assert('games' in json, 'Lines all missing games');
+    assert(Array.isArray(json.games), 'games should be an array');
+  });
 }
 
 // ─── Runner ───
