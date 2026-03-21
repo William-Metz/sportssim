@@ -1,5 +1,24 @@
 {
   "nba": {
+    "ATL": {
+      "team": "Atlanta Hawks",
+      "injuries": [
+        {
+          "player": "Jalen Johnson",
+          "position": "F",
+          "status": "Out",
+          "detail": "Johnson (shoulder) has been ruled out for Saturday's game against the Warriors.",
+          "returnDate": "2026-03-21T22:19Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        }
+      ],
+      "totalImpact": 0,
+      "outCount": 1,
+      "dtdCount": 0,
+      "starPlayersOut": []
+    },
     "BOS": {
       "team": "Boston Celtics",
       "injuries": [
@@ -182,22 +201,12 @@
         {
           "player": "Jaylon Tyson",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Tyson (toe) has been downgraded from questionable to doubtful for Saturday's game against the Pelicans.",
-          "returnDate": "2026-03-21T16:53Z",
+          "status": "Out",
+          "detail": "Tyson (toe) is out for Saturday's game against the Pelicans, Spencer Davies of ClutchPoints.com reports.",
+          "returnDate": "2026-03-21T22:14Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Donovan Mitchell",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Mitchell (eye) is questionable for Saturday's game in New Orleans.",
-          "returnDate": "2026-03-20T22:04Z",
-          "impact": 3.5,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Olivier Sarr",
@@ -240,18 +249,10 @@
           "isDayToDay": false
         }
       ],
-      "totalImpact": 3.55,
-      "outCount": 3,
-      "dtdCount": 3,
+      "totalImpact": 2.5,
+      "outCount": 4,
+      "dtdCount": 1,
       "starPlayersOut": [
-        {
-          "player": "Donovan Mitchell",
-          "impact": 3.5,
-          "status": "Day-To-Day",
-          "detail": "Mitchell (eye) is questionable for Saturday's game in New Orleans.",
-          "isOut": false,
-          "isDayToDay": true
-        },
         {
           "player": "Jarrett Allen",
           "impact": 2.5,
@@ -327,8 +328,8 @@
           "player": "Peyton Watson",
           "position": "G",
           "status": "Out",
-          "detail": "Watson (hamstring) is expected to be available for Sunday's game against the Trail Blazers, Shams Charania of ESPN reports.",
-          "returnDate": "2026-03-21T18:24Z",
+          "detail": "Watson (hamstring) is questionable for Sunday's game against Portland.",
+          "returnDate": "2026-03-21T21:42Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -411,6 +412,16 @@
       "team": "Golden State Warriors",
       "injuries": [
         {
+          "player": "Gary Payton II",
+          "position": "G",
+          "status": "Out",
+          "detail": "Payton (knee) has been ruled out for Saturday's game against the Hawks.",
+          "returnDate": "2026-03-21T22:10Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Stephen Curry",
           "position": "G",
           "status": "Out",
@@ -431,51 +442,11 @@
           "isDayToDay": false
         },
         {
-          "player": "Malevy Leons",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Leons (wrist) is questionable for Saturday's game versus Atlanta.",
-          "returnDate": "2026-03-21T17:58Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Gary Payton II",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Payton (knee) is questionable for Saturday's game against Atlanta.",
-          "returnDate": "2026-03-21T17:45Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "De'Anthony Melton",
           "position": "G",
           "status": "Day-To-Day",
           "detail": "Melton (knee) is questionable for Saturday's game against Atlanta.",
           "returnDate": "2026-03-21T17:39Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Draymond Green",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Green (back) is questionable for Saturday's game against Atlanta.",
-          "returnDate": "2026-03-21T17:29Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Quinten Post",
-          "position": "C",
-          "status": "Day-To-Day",
-          "detail": "Post (foot) is questionable for Saturday's game against Atlanta.",
-          "returnDate": "2026-03-21T17:23Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -522,8 +493,8 @@
         }
       ],
       "totalImpact": 8,
-      "outCount": 6,
-      "dtdCount": 5,
+      "outCount": 7,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Stephen Curry",
@@ -547,26 +518,6 @@
       "team": "Houston Rockets",
       "injuries": [
         {
-          "player": "Alperen Sengun",
-          "position": "C",
-          "status": "Day-To-Day",
-          "detail": "Sengun is listed as questionable for Saturday's game against Miami due to back tightness.",
-          "returnDate": "2026-03-21T18:49Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Jae'Sean Tate",
-          "position": "F",
-          "status": "Out",
-          "detail": "Tate (knee) has been upgraded to probable for Saturday's game against Miami.",
-          "returnDate": "2026-03-21T18:20Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Steven Adams",
           "position": "C",
           "status": "Out",
@@ -588,8 +539,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 1,
+      "outCount": 2,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "IND": {
@@ -727,8 +678,8 @@
           "player": "Kawhi Leonard",
           "position": "F",
           "status": "Day-To-Day",
-          "detail": "Leonard (ankle) is listed as questionable for Saturday's game against the Mavericks.",
-          "returnDate": "2026-03-20T21:51Z",
+          "detail": "Leonard (ankle) was observed warming up ahead of Saturday's game against Dallas, per Tomer Azarly of ClutchPoints.com.",
+          "returnDate": "2026-03-21T22:52Z",
           "impact": 4,
           "isOut": false,
           "isDayToDay": true
@@ -772,7 +723,7 @@
           "player": "Kawhi Leonard",
           "impact": 4,
           "status": "Day-To-Day",
-          "detail": "Leonard (ankle) is listed as questionable for Saturday's game against the Mavericks.",
+          "detail": "Leonard (ankle) was observed warming up ahead of Saturday's game against Dallas, per Tomer Azarly of ClutchPoints.com.",
           "isOut": false,
           "isDayToDay": true
         }
@@ -781,16 +732,6 @@
     "LAL": {
       "team": "Los Angeles Lakers",
       "injuries": [
-        {
-          "player": "Kobe Bufkin",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "The Lakers recalled Bufkin from the G League's South Bay Lakers on Saturday.",
-          "returnDate": "2026-03-21T19:24Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
         {
           "player": "Maxi Kleber",
           "position": "F",
@@ -804,21 +745,21 @@
       ],
       "totalImpact": 0,
       "outCount": 1,
-      "dtdCount": 1,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "MEM": {
       "team": "Memphis Grizzlies",
       "injuries": [
         {
-          "player": "DeJon Jarreau",
+          "player": "Ty Jerome",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Jarreau is listed as questionable for Saturday's game against the Hornets due to right ankle soreness.",
-          "returnDate": "2026-03-21T17:41Z",
+          "status": "Out",
+          "detail": "Jerome (calf) is listed as out for Saturday's game against Charlotte.",
+          "returnDate": "2026-03-21T22:04Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Jahmai Mashack",
@@ -839,26 +780,6 @@
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
-        },
-        {
-          "player": "GG Jackson",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Jackson (knee) is listed as questionable for Saturday's game against the Hornets.",
-          "returnDate": "2026-03-21T17:29Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Ty Jerome",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Jerome (calf) is listed as doubtful for Saturday's game against the Hornets.",
-          "returnDate": "2026-03-21T17:25Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
         },
         {
           "player": "Ja Morant",
@@ -922,8 +843,8 @@
         }
       ],
       "totalImpact": 4,
-      "outCount": 8,
-      "dtdCount": 3,
+      "outCount": 9,
+      "dtdCount": 0,
       "starPlayersOut": [
         {
           "player": "Ja Morant",
@@ -941,12 +862,12 @@
         {
           "player": "Norman Powell",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Powell is listed as questionable for Saturday's game against the Rockets due to left calf tightness.",
-          "returnDate": "2026-03-21T16:22Z",
+          "status": "Out",
+          "detail": "Powell (calf) is out for Saturday's game against the Rockets.",
+          "returnDate": "2026-03-21T22:35Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Jaime Jaquez Jr.",
@@ -980,8 +901,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 1,
+      "outCount": 4,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "MIL": {
@@ -2537,12 +2458,12 @@
         {
           "player": "Maxim Shabanov",
           "position": "RW",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-20T13:24Z",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-21T22:44Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Alexander Romanov",
@@ -2586,8 +2507,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 1,
+      "outCount": 5,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "NYR": {
@@ -2920,17 +2841,17 @@
         {
           "player": "Tyler Tucker",
           "position": "D",
-          "status": "Day-To-Day",
-          "detail": "Tucker sustained an apparent lower-body injury in Wednesday's 2-1 shootout loss to the Flames, Jeremy Rutherford of The Athletic reports.",
-          "returnDate": "2026-03-19T05:26Z",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-21T22:02Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         }
       ],
       "totalImpact": 0,
-      "outCount": 0,
-      "dtdCount": 1,
+      "outCount": 1,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "TBL": {
@@ -3679,12 +3600,12 @@
         {
           "player": "Seiya Suzuki",
           "position": "RF",
-          "status": "Day-To-Day",
-          "detail": "Suzuki (knee) has resumed light throwing and hitting as the Cubs determine if an IL stint will be necessary to start the regular season, MLB.com reports.",
-          "returnDate": "2026-03-21T13:40Z",
+          "status": "Out",
+          "detail": "Manager Craig Counsell said Saturday that Suzuki (knee) will not be ready in time for Opening Day, Patrick Mooney of The Athletic reports.",
+          "returnDate": "2026-03-21T22:45Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Justin Steele",
@@ -3758,8 +3679,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 6,
-      "dtdCount": 2,
+      "outCount": 7,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CWS": {
@@ -5070,6 +4991,16 @@
       "team": "Philadelphia Phillies",
       "injuries": [
         {
+          "player": "Dylan Moore",
+          "position": "2B",
+          "status": "Day-To-Day",
+          "detail": "Moore (foot) signed a major-league contract with the Phillies on Saturday, Will Sammon of The Athletic reports.",
+          "returnDate": "2026-03-21T22:16Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Zack Wheeler",
           "position": "SP",
           "status": "Out",
@@ -5078,16 +5009,6 @@
           "impact": 0.4,
           "isOut": true,
           "isDayToDay": false
-        },
-        {
-          "player": "Dylan Moore",
-          "position": "2B",
-          "status": "Day-To-Day",
-          "detail": "Moore (foot) exercised the opt-out clause in his minor-league contract Thursday, Will Sammon of The Athletic reports.",
-          "returnDate": "2026-03-19T15:45Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
         },
         {
           "player": "Aidan Miller",
@@ -5906,8 +5827,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774129748659,
-    "nhl": 1774129749078,
-    "mlb": 1774129749234
+    "nba": 1774134396125,
+    "nhl": 1774134396253,
+    "mlb": 1774134396460
   }
 }

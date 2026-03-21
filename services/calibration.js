@@ -43,22 +43,28 @@ const CALIBRATION_CURVES = {
   ],
   
   nba: [
-    // NBA model is moderately compressed but better than MLB
-    { raw: 0.15, cal: 0.05 },
-    { raw: 0.20, cal: 0.10 },
-    { raw: 0.25, cal: 0.15 },
-    { raw: 0.30, cal: 0.22 },
-    { raw: 0.35, cal: 0.28 },
-    { raw: 0.40, cal: 0.35 },
-    { raw: 0.45, cal: 0.42 },
-    { raw: 0.50, cal: 0.50 },
-    { raw: 0.55, cal: 0.58 },
-    { raw: 0.60, cal: 0.67 },
-    { raw: 0.65, cal: 0.75 },
-    { raw: 0.70, cal: 0.82 },
-    { raw: 0.75, cal: 0.88 },
-    { raw: 0.80, cal: 0.93 },
-    { raw: 0.85, cal: 0.96 },
+    // NBA calibration curve — fitted from 176-game 2024-25 backtest (v2.0)
+    // Model is over-confident in mid-range (60% pred → 50% actual)
+    // Well-calibrated at extremes (80-90% range)
+    { raw: 0.05, cal: 0.01 },
+    { raw: 0.10, cal: 0.02 },
+    { raw: 0.15, cal: 0.03 },
+    { raw: 0.20, cal: 0.04 },   // backtest: 20% pred → ~0% actual (small n)
+    { raw: 0.25, cal: 0.06 },
+    { raw: 0.30, cal: 0.10 },   // backtest: 30% pred → 9.5% actual (21 games)
+    { raw: 0.35, cal: 0.20 },
+    { raw: 0.40, cal: 0.29 },   // backtest: 40% pred → 29% actual (31 games)
+    { raw: 0.45, cal: 0.36 },
+    { raw: 0.50, cal: 0.43 },   // backtest: 50% pred → 42.9% actual (28 games)
+    { raw: 0.55, cal: 0.47 },
+    { raw: 0.60, cal: 0.50 },   // backtest: 60% pred → 50% actual (28 games)
+    { raw: 0.65, cal: 0.55 },
+    { raw: 0.70, cal: 0.60 },   // backtest: 70% pred → 60% actual (20 games)
+    { raw: 0.75, cal: 0.74 },
+    { raw: 0.80, cal: 0.87 },   // backtest: 80% pred → 87% actual (23 games)
+    { raw: 0.85, cal: 0.90 },
+    { raw: 0.90, cal: 0.93 },   // backtest: 90% pred → 92.9% actual (14 games)
+    { raw: 0.95, cal: 0.97 },
   ],
   
   nhl: [

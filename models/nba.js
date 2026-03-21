@@ -12,11 +12,12 @@
  *   Spread = (away_power - home_power) + HCA
  */
 
-const HCA = 3.2; // home court advantage in points
+const HCA = 2.5; // home court advantage in points — optimized via 176-game 2024-25 backtest (was 3.2)
 const PYTH_EXP = 13.91; // Morey exponent for NBA
-const LUCK_PENALTY_FACTOR = 0.6; // how much to discount lucky teams
+const LUCK_PENALTY_FACTOR = 0.3; // how much to discount lucky teams — optimized via backtest (was 0.6)
 const MOMENTUM_WEIGHT = 0.15; // weight for L10 momentum
 const SPREAD_TO_PROB_FACTOR = 15; // logistic scaling — calibrated to real NBA spread-to-win% data
+const MIN_SPREAD_EDGE = 3.0; // minimum spread edge (pts) to trigger a bet — optimized via backtest
 
 // Live data integration
 let liveData = null;
@@ -288,7 +289,7 @@ function findValue(prediction, bookLine) {
     const bookSpread = bookLine.spread; // negative = home favored
     const spreadEdge = Math.abs(modelSpread - bookSpread);
     
-    if (spreadEdge >= 1.5) {
+    if (spreadEdge >= MIN_SPREAD_EDGE) {
       const side = modelSpread < bookSpread ? prediction.home.abbr : prediction.away.abbr;
       const sideLabel = modelSpread < bookSpread 
         ? `${prediction.home.abbr} ${bookSpread > 0 ? '+' : ''}${bookSpread}`
@@ -299,7 +300,7 @@ function findValue(prediction, bookLine) {
         modelLine: modelSpread,
         bookLine: bookSpread,
         edge: +spreadEdge.toFixed(1),
-        confidence: spreadEdge >= 5 ? 'HIGH' : spreadEdge >= 3 ? 'MEDIUM' : 'LOW'
+        confidence: spreadEdge >= 7 ? 'HIGH' : spreadEdge >= 5 ? 'MEDIUM' : 'LOW'
       });
     }
   }
@@ -394,4 +395,4 @@ function kellySize(trueProb, ml) {
   };
 }
 
-module.exports = { TEAMS, getTeams, calculateRatings, predict, findValue, mlToProb, calcEV, kellySize, pythWinPct, HCA, PYTH_EXP, refreshData };
+module.exports = { TEAMS, getTeams, calculateRatings, predict, findValue, mlToProb, calcEV, kellySize, pythWinPct, HCA, PYTH_EXP, MIN_SPREAD_EDGE, refreshData };

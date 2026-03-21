@@ -15,6 +15,7 @@ const kelly = require('./services/kelly');
 const rollingStats = require('./services/rolling-stats');
 const injuries = require('./services/injuries');
 const lineMovement = require('./services/line-movement');
+const clvTracker = require('./services/clv-tracker');
 const kalshi = require('./services/kalshi');
 const playerProps = require('./services/player-props');
 const weather = require('./services/weather');
@@ -94,7 +95,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '23.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration'] });
+  res.json({ status: 'ok', version: '24.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','backtest-v2-point-in-time'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -170,13 +171,85 @@ app.get('/api/value/nba', async (req, res) => {
       }
     }
     valueBets.sort((a, b) => b.edge - a.edge);
+    // Auto-record to CLV tracker
+    try {
+      const clvBets = valueBets.map(b => ({
+        away: b.game.split(' @ ')[0],
+        home: b.game.split(' @ ')[1],
+        type: b.type,
+        side: b.type === 'total' ? (b.pick.includes('OVER') ? 'over' : 'under') : (b.pick.includes(b.game.split(' @ ')[1]) ? 'home' : 'away'),
+        modelLine: b.modelLine || b.modelTotal,
+        bookLine: b.bookLine || b.bookTotal,
+        modelProb: b.modelProb ? b.modelProb / 100 : null,
+        bookProb: b.bookProb ? b.bookProb / 100 : null,
+        confidence: b.confidence
+      }));
+      clvTracker.recordFromValueDetection('NBA', clvBets);
+    } catch (e) { /* CLV recording is best-effort */ }
     res.json({ valueBets, count: valueBets.length, updated: new Date().toISOString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/backtest/nba', (req, res) => {
-  try { res.json(backtest.runBacktest()); }
+  try {
+    const opts = {};
+    if (req.query.spreadFactor) opts.spreadFactor = parseFloat(req.query.spreadFactor);
+    if (req.query.hca) opts.hca = parseFloat(req.query.hca);
+    if (req.query.luckFactor) opts.luckFactor = parseFloat(req.query.luckFactor);
+    if (req.query.minEdge) opts.minEdge = parseFloat(req.query.minEdge);
+    if (req.query.useLiveModel) opts.useLiveModel = req.query.useLiveModel === 'true';
+    res.json(backtest.runBacktest(opts));
+  }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/backtest/nba/optimize', (req, res) => {
+  try { res.json(backtest.optimizeParameters()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== CLV TRACKING ====================
+
+app.get('/api/clv', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    res.json(clvTracker.getReport(limit));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/clv/status', (req, res) => {
+  try { res.json(clvTracker.getStatus()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/clv/record', (req, res) => {
+  try {
+    const pick = req.body;
+    if (!pick.sport || !pick.away || !pick.home || !pick.type) {
+      return res.status(400).json({ error: 'sport, away, home, type required' });
+    }
+    res.json(clvTracker.recordPick(pick));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/clv/close', (req, res) => {
+  try {
+    const { sport, away, home, closingLine } = req.body;
+    if (!sport || !away || !home || !closingLine) {
+      return res.status(400).json({ error: 'sport, away, home, closingLine required' });
+    }
+    res.json(clvTracker.recordClosingLine(sport, away, home, closingLine));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/clv/grade', (req, res) => {
+  try {
+    const { results } = req.body;
+    if (!results || !Array.isArray(results)) {
+      return res.status(400).json({ error: 'results array required' });
+    }
+    res.json(clvTracker.autoGrade(results));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ==================== MLB ENDPOINTS ====================
@@ -2603,7 +2676,7 @@ app.get('/api/arb/calc', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v23.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v24.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
