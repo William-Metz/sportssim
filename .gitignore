@@ -2,3 +2,9 @@ node_modules/
 .env
 *.db
 .DS_Store
+services/ml-models/*.pkl
+services/*-cache.json
+.venv/
+ml-env/
+data/
+__pycache__/

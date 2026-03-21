@@ -153,8 +153,10 @@ function buildTabs() {
     tabs.splice(7, 0, { id: 'umpires', label: '👨‍⚖️ Umpires' });
   }
   tabs.push({ id: 'alt-lines', label: '📐 Alt Lines' });
+  tabs.push({ id: 'arb', label: '🔀 Arb Scanner' });
   tabs.push({ id: 'sgp', label: '🎲 SGP Builder' });
   tabs.push({ id: 'polymarket', label: '🔮 Polymarket' });
+  tabs.push({ id: 'ml', label: '🧠 ML Engine' });
   tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
@@ -182,6 +184,8 @@ function showTab(id) {
   else if (id === 'polymarket') loadPolymarket();
   else if (id === 'sgp') loadSGPTab();
   else if (id === 'alt-lines') loadAltLinesTab();
+  else if (id === 'arb') loadArbTab();
+  else if (id === 'ml') loadMLTab();
   else if (id === 'tracker') loadTracker();
 }
 
@@ -1378,11 +1382,142 @@ async function loadBacktest() {
       html += renderBacktest('⚾ MLB Backtest', d);
     }
     if (currentSport === 'all' || currentSport === 'nhl') {
-      const d = await api('/api/backtest/nhl');
-      html += renderBacktest('🏒 NHL Backtest', d);
+      const d = await api('/api/backtest/nhl?types=ml,total,puckline');
+      html += renderBacktestV2('🏒 NHL Backtest v2.0', d);
     }
     wrap.innerHTML = html || '<div class="empty">No backtest data.</div>';
   } catch (e) { wrap.innerHTML = `<div class="empty">Error: ${e.message}</div>`; }
+}
+
+function renderBacktestV2(title, data) {
+  if (!data || data.error) return `<div class="card"><h2>${title}</h2><p class="empty">${data?.error || 'No data'}</p></div>`;
+  
+  let html = `<div class="card"><h2>${title}</h2>`;
+  html += `<p style="color:var(--text2);margin-bottom:12px;font-size:12px">📊 ${data.dataSource || 'Unknown'} — ${data.totalGames} games analyzed</p>`;
+  
+  // Main stats
+  html += `<div class="stats-grid">
+    <div class="stat"><div class="val">${data.totalGames}</div><div class="label">Total Games</div></div>
+    <div class="stat"><div class="val">${data.totalBets}</div><div class="label">ML Bets</div></div>
+    <div class="stat"><div class="val" style="color:${(data.roi||0)>0?'var(--green)':'var(--red)'}">${data.roi>0?'+':''}${data.roi?.toFixed(1)}%</div><div class="label">ML ROI</div></div>
+    <div class="stat"><div class="val">${data.wins}-${data.losses}</div><div class="label">Record</div></div>
+    <div class="stat"><div class="val">${data.winRate?.toFixed(1)}%</div><div class="label">Win Rate</div></div>
+    <div class="stat"><div class="val" style="color:${(data.profit||0)>0?'var(--green)':'var(--red)'}">${data.profit>0?'+':''}$${data.profit}</div><div class="label">Profit ($100 flat)</div></div>
+  </div>`;
+  
+  // Totals + Puck Line results
+  if (data.totals || data.puckline) {
+    html += `<h3 style="margin:16px 0 8px;font-size:14px">📈 Multi-Market Results</h3>`;
+    html += `<table><thead><tr><th>Market</th><th>Bets</th><th>Win%</th><th>ROI</th><th>Profit</th></tr></thead><tbody>`;
+    html += `<tr><td>Moneyline</td><td>${data.totalBets}</td><td>${data.winRate?.toFixed(1)}%</td><td style="color:${(data.roi||0)>0?'var(--green)':'var(--red)'}">${data.roi>0?'+':''}${data.roi?.toFixed(1)}%</td><td style="color:${(data.profit||0)>0?'var(--green)':'var(--red)'}">${data.profit>0?'+':''}$${data.profit}</td></tr>`;
+    if (data.totals && data.totals.bets > 0) {
+      html += `<tr><td>Totals (O/U)</td><td>${data.totals.bets}</td><td>${data.totals.winRate}%</td><td style="color:${data.totals.roi>0?'var(--green)':'var(--red)'}">${data.totals.roi>0?'+':''}${data.totals.roi}%</td><td style="color:${data.totals.profit>0?'var(--green)':'var(--red)'}">${data.totals.profit>0?'+':''}$${data.totals.profit}</td></tr>`;
+    }
+    if (data.puckline && data.puckline.bets > 0) {
+      html += `<tr><td>Puck Line (±1.5)</td><td>${data.puckline.bets}</td><td>${data.puckline.winRate}%</td><td style="color:${data.puckline.roi>0?'var(--green)':'var(--red)'}">${data.puckline.roi>0?'+':''}${data.puckline.roi}%</td><td style="color:${data.puckline.profit>0?'var(--green)':'var(--red)'}">${data.puckline.profit>0?'+':''}$${data.puckline.profit}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  
+  // Edge Tiers
+  if (data.edgeTiers && data.edgeTiers.length) {
+    html += `<h3 style="margin:16px 0 8px;font-size:14px">🎯 Edge Tier Analysis</h3>`;
+    html += `<table><thead><tr><th>Tier</th><th>Bets</th><th>Win%</th><th>ROI</th><th>Profit</th></tr></thead><tbody>`;
+    for (const t of data.edgeTiers) {
+      if (t.bets === 0) continue;
+      html += `<tr><td>${t.tier}</td><td>${t.bets}</td><td>${t.winRate}%</td><td style="color:${t.roi>0?'var(--green)':'var(--red)'}">${t.roi>0?'+':''}${t.roi}%</td><td style="color:${t.profit>0?'var(--green)':'var(--red)'}">${t.profit>0?'+':''}$${t.profit}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  
+  // Monthly Breakdown
+  if (data.monthly && data.monthly.length) {
+    html += `<h3 style="margin:16px 0 8px;font-size:14px">📅 Monthly Breakdown</h3>`;
+    html += `<table><thead><tr><th>Month</th><th>Bets</th><th>Win%</th><th>ROI</th><th>Profit</th></tr></thead><tbody>`;
+    for (const m of data.monthly) {
+      html += `<tr><td>${m.month}</td><td>${m.bets}</td><td>${m.winRate}%</td><td style="color:${m.roi>0?'var(--green)':'var(--red)'}">${m.roi>0?'+':''}${m.roi}%</td><td style="color:${m.profit>0?'var(--green)':'var(--red)'}">${m.profit>0?'+':''}$${m.profit}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  }
+  
+  // Streaks & Drawdown
+  if (data.streaks) {
+    html += `<div class="stats-grid" style="margin-top:12px">
+      <div class="stat"><div class="val positive">${data.streaks.maxWinStreak}</div><div class="label">Max Win Streak</div></div>
+      <div class="stat"><div class="val negative">${data.streaks.maxLossStreak}</div><div class="label">Max Loss Streak</div></div>
+      <div class="stat"><div class="val negative">$${data.maxDrawdown}</div><div class="label">Max Drawdown</div></div>
+    </div>`;
+  }
+  
+  // Team Breakdown (top 5 and bottom 5)
+  if (data.teamBreakdown && data.teamBreakdown.length) {
+    html += `<h3 style="margin:16px 0 8px;font-size:14px">🏆 Best/Worst Teams</h3>`;
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+    
+    html += `<div><h4 style="color:var(--green);font-size:12px;margin-bottom:4px">💰 Most Profitable</h4><table><thead><tr><th>Team</th><th>Bets</th><th>ROI</th><th>P/L</th></tr></thead><tbody>`;
+    for (const t of data.teamBreakdown.filter(t => t.profit > 0).slice(0, 8)) {
+      html += `<tr><td>${t.team}</td><td>${t.bets}</td><td class="positive">+${t.roi}%</td><td class="positive">+$${t.profit}</td></tr>`;
+    }
+    html += `</tbody></table></div>`;
+    
+    html += `<div><h4 style="color:var(--red);font-size:12px;margin-bottom:4px">💸 Least Profitable</h4><table><thead><tr><th>Team</th><th>Bets</th><th>ROI</th><th>P/L</th></tr></thead><tbody>`;
+    for (const t of data.teamBreakdown.filter(t => t.profit < 0).slice(-8).reverse()) {
+      html += `<tr><td>${t.team}</td><td>${t.bets}</td><td class="negative">${t.roi}%</td><td class="negative">-$${Math.abs(t.profit)}</td></tr>`;
+    }
+    html += `</tbody></table></div></div>`;
+  }
+  
+  // Profit Curve (ASCII sparkline)
+  if (data.profitCurve && data.profitCurve.length > 0) {
+    html += `<h3 style="margin:16px 0 8px;font-size:14px">📈 Profit Curve</h3>`;
+    const profits = data.profitCurve.map(p => p.profit);
+    const min = Math.min(...profits, 0);
+    const max = Math.max(...profits);
+    const range = max - min || 1;
+    const width = Math.min(profits.length, 80);
+    const step = Math.max(1, Math.floor(profits.length / width));
+    
+    html += `<div style="background:var(--bg2);padding:12px;border-radius:8px;font-family:monospace;font-size:11px;line-height:1.5">`;
+    // Simple bar chart
+    const bars = [];
+    for (let i = 0; i < profits.length; i += step) {
+      const p = profits[i];
+      const pct = ((p - min) / range * 100).toFixed(0);
+      bars.push({ profit: p, pct });
+    }
+    html += `<div style="display:flex;align-items:end;height:80px;gap:1px">`;
+    for (const b of bars) {
+      const color = b.profit >= 0 ? 'var(--green)' : 'var(--red)';
+      html += `<div style="flex:1;background:${color};height:${Math.max(2, b.pct)}%;border-radius:1px 1px 0 0;min-width:2px" title="$${b.profit}"></div>`;
+    }
+    html += `</div>`;
+    html += `<div style="display:flex;justify-content:space-between;color:var(--text2);margin-top:4px"><span>Bet 1</span><span>Final: ${profits[profits.length-1] > 0 ? '+' : ''}$${profits[profits.length-1]}</span><span>Bet ${profits.length}</span></div>`;
+    html += `</div>`;
+  }
+  
+  // Game-by-game results (recent bets only)
+  const mlGames = (data.games || []).filter(g => g.type === 'ml');
+  if (mlGames.length > 0) {
+    html += `<h3 style="margin:16px 0 8px;font-size:14px">🎲 Recent Bets (${mlGames.length} total)</h3>`;
+    html += `<div style="max-height:400px;overflow-y:auto"><table><thead><tr><th>Date</th><th>Game</th><th>Score</th><th>Pick</th><th>Edge</th><th>ML</th><th>Result</th><th>P/L</th></tr></thead><tbody>`;
+    for (const b of mlGames.slice(-50).reverse()) {
+      const score = `${b.awayGoals}-${b.homeGoals}${b.periodType !== 'REG' ? ' ('+b.periodType+')' : ''}`;
+      html += `<tr>
+        <td>${b.date || '—'}</td>
+        <td style="font-weight:600">${b.away} @ ${b.home}</td>
+        <td>${score}</td>
+        <td>${b.betSide === 'home' ? b.home : b.away}</td>
+        <td class="positive">+${(b.betEdge*100).toFixed(1)}%</td>
+        <td>${b.betML > 0 ? '+' : ''}${b.betML}</td>
+        <td class="${b.won ? 'positive' : 'negative'}">${b.won ? '✅' : '❌'}</td>
+        <td class="${b.profit >= 0 ? 'positive' : 'negative'}">${b.profit > 0 ? '+' : ''}$${b.profit}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+  }
+  
+  html += `</div>`;
+  return html;
 }
 
 function renderBacktest(title, data) {
@@ -2701,6 +2836,359 @@ async function scanAltLines(sport) {
     result.innerHTML = html;
   } catch (e) {
     result.innerHTML = `<p style="color:#e74c3c">Error: ${e.message}</p>`;
+  }
+}
+
+// ==================== ARBITRAGE SCANNER TAB ====================
+
+let arbScanData = null;
+let arbView = 'overview';
+
+async function loadArbTab() {
+  const wrap = document.getElementById('tab-content');
+  let html = '<div class="section">';
+  html += '<h2>🔀 Arbitrage + Low-Hold Scanner</h2>';
+  html += '<p style="color:var(--text2);margin-bottom:12px">Cross-book arbitrage, low-hold markets, middle opportunities, and stale line detection across all sports.</p>';
+  
+  // Sub-tabs
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+  html += `<button class="tab ${arbView==='overview'?'active':''}" onclick="arbView='overview';loadArbTab()">📊 Overview</button>`;
+  html += `<button class="tab ${arbView==='arbs'?'active':''}" onclick="arbView='arbs';loadArbTab()">💰 Arbitrages</button>`;
+  html += `<button class="tab ${arbView==='lowhold'?'active':''}" onclick="arbView='lowhold';loadArbTab()">📉 Low Hold</button>`;
+  html += `<button class="tab ${arbView==='middles'?'active':''}" onclick="arbView='middles';loadArbTab()">🎯 Middles</button>`;
+  html += `<button class="tab ${arbView==='stale'?'active':''}" onclick="arbView='stale';loadArbTab()">⚡ Stale Lines</button>`;
+  html += `<button class="tab ${arbView==='calc'?'active':''}" onclick="arbView='calc';loadArbTab()">🧮 Calculator</button>`;
+  html += '</div>';
+  
+  if (arbView === 'calc') {
+    html += renderArbCalculator();
+    html += '</div>';
+    wrap.innerHTML = html;
+    return;
+  }
+  
+  // Scan button
+  html += `<button onclick="runArbScan(true)" style="padding:8px 20px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;margin-bottom:16px">🔍 Scan All Books (Live)</button>`;
+  if (arbScanData) {
+    html += `<span style="color:var(--text2);font-size:12px;margin-left:12px">${arbScanData.cached ? '📋 Cached' : '⚡ Live'} scan — ${arbScanData.totalGames} games scanned at ${new Date(arbScanData.timestamp).toLocaleTimeString()}</span>`;
+  }
+  
+  if (!arbScanData) {
+    html += '<div style="text-align:center;padding:40px">';
+    html += '<p style="color:var(--text2);font-size:16px">Click "Scan All Books" to search for opportunities</p>';
+    html += '<p style="color:var(--text2);font-size:13px;margin-top:8px">Scans NBA, MLB, NHL odds across 20+ sportsbooks</p>';
+    html += '</div>';
+    html += '</div>';
+    wrap.innerHTML = html;
+    // Auto-load cached data
+    runArbScan(false);
+    return;
+  }
+  
+  if (arbView === 'overview') html += renderArbOverview(arbScanData);
+  else if (arbView === 'arbs') html += renderArbList(arbScanData);
+  else if (arbView === 'lowhold') html += renderLowHoldList(arbScanData);
+  else if (arbView === 'middles') html += renderMiddlesList(arbScanData);
+  else if (arbView === 'stale') html += renderStaleList(arbScanData);
+  
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+async function runArbScan(force) {
+  try {
+    const url = `/api/arb/scan${force ? '?force=true' : ''}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data.error) {
+      arbScanData = data;
+      loadArbTab();
+    }
+  } catch (e) { console.error('Arb scan failed:', e); }
+}
+
+function renderArbOverview(data) {
+  let html = '';
+  
+  // Summary cards
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">';
+  
+  // Arbs card
+  const arbColor = data.arbs.length > 0 ? '#22c55e' : 'var(--text2)';
+  html += `<div class="card" style="text-align:center;border:${data.arbs.length > 0 ? '2px solid #22c55e' : '1px solid var(--bg3)'}">
+    <div style="font-size:28px;font-weight:700;color:${arbColor}">${data.arbs.length}</div>
+    <div style="font-size:12px;color:var(--text2)">💰 Arbitrages</div>
+    ${data.arbs.length > 0 ? '<div style="font-size:11px;color:#22c55e;margin-top:4px">FREE MONEY</div>' : ''}
+  </div>`;
+  
+  html += `<div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#3b82f6">${data.lowHolds.length}</div>
+    <div style="font-size:12px;color:var(--text2)">📉 Low-Hold Markets</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">< 3% vig</div>
+  </div>`;
+  
+  const actionableMiddles = data.middles.filter(m => m.rating !== 'NEGATIVE').length;
+  html += `<div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#f59e0b">${actionableMiddles}</div>
+    <div style="font-size:12px;color:var(--text2)">🎯 Middle Opps</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">+EV middles</div>
+  </div>`;
+  
+  const actionableStale = data.staleLines.filter(s => s.actionable).length;
+  html += `<div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:700;color:#ef4444">${actionableStale}</div>
+    <div style="font-size:12px;color:var(--text2)">⚡ Stale Lines</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">Plus-value spots</div>
+  </div>`;
+  
+  html += `<div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:700;color:var(--text)">${data.totalGames}</div>
+    <div style="font-size:12px;color:var(--text2)">📡 Games Scanned</div>
+  </div>`;
+  
+  html += '</div>';
+  
+  // Sport breakdown
+  html += '<div class="card" style="margin-bottom:16px"><h3 style="margin:0 0 12px 0">Sport Breakdown</h3>';
+  html += '<table><thead><tr><th>Sport</th><th>Games</th><th>Arbs</th><th>Low Hold</th><th>Middles</th><th>Stale</th></tr></thead><tbody>';
+  for (const [sport, stats] of Object.entries(data.sports || {})) {
+    if (stats.error) {
+      html += `<tr><td>${sport}</td><td colspan="5" style="color:#ef4444">${stats.error}</td></tr>`;
+      continue;
+    }
+    html += `<tr>
+      <td><strong>${sport}</strong></td>
+      <td>${stats.scanned}</td>
+      <td style="color:${stats.arbs > 0 ? '#22c55e' : 'var(--text2)'};font-weight:${stats.arbs > 0 ? '700' : '400'}">${stats.arbs}</td>
+      <td>${stats.lowHolds}</td>
+      <td>${stats.middles}</td>
+      <td>${stats.staleLines}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  
+  // Top opportunities quick view
+  if (data.arbs.length > 0) {
+    html += '<div class="card" style="margin-bottom:16px;border:2px solid #22c55e">';
+    html += '<h3 style="margin:0 0 12px 0;color:#22c55e">💰 Active Arbitrages</h3>';
+    for (const arb of data.arbs.slice(0, 5)) {
+      html += renderArbCard(arb);
+    }
+    html += '</div>';
+  }
+  
+  // Top low holds
+  if (data.lowHolds.length > 0) {
+    html += '<div class="card" style="margin-bottom:16px">';
+    html += '<h3 style="margin:0 0 12px 0">📉 Best Low-Hold Lines (Top 5)</h3>';
+    html += '<table><thead><tr><th>Game</th><th>Market</th><th>Side 1</th><th>Side 2</th><th>Hold</th><th>Tier</th></tr></thead><tbody>';
+    for (const lh of data.lowHolds.slice(0, 5)) {
+      const tierColor = lh.tier === 'EXCELLENT' ? '#22c55e' : lh.tier === 'GREAT' ? '#3b82f6' : '#f59e0b';
+      html += `<tr>
+        <td><strong>${lh.sport || ''}</strong> ${lh.game || ''}</td>
+        <td>${lh.market}</td>
+        <td>${lh.side1.label} @ ${lh.side1.odds > 0 ? '+' : ''}${lh.side1.odds}<br><small style="color:var(--text2)">${lh.side1.book}</small></td>
+        <td>${lh.side2.label} @ ${lh.side2.odds > 0 ? '+' : ''}${lh.side2.odds}<br><small style="color:var(--text2)">${lh.side2.book}</small></td>
+        <td style="font-weight:700">${lh.hold.toFixed(1)}%</td>
+        <td style="color:${tierColor};font-weight:600">${lh.tier}</td>
+      </tr>`;
+    }
+    html += '</tbody></table></div>';
+  }
+  
+  return html;
+}
+
+function renderArbCard(arb) {
+  let html = '<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px">';
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">`;
+  html += `<span style="font-weight:600">${arb.sport || ''} — ${arb.game || ''}</span>`;
+  html += `<span style="color:#22c55e;font-weight:700;font-size:16px">+${arb.profit}% PROFIT</span>`;
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  html += `<div style="background:var(--bg3);padding:8px;border-radius:6px">
+    <div style="font-weight:600">${arb.side1.label}</div>
+    <div style="font-size:18px;font-weight:700;color:#3b82f6">${arb.side1.odds > 0 ? '+' : ''}${arb.side1.odds}</div>
+    <div style="font-size:11px;color:var(--text2)">${arb.side1.book}</div>
+  </div>`;
+  html += `<div style="background:var(--bg3);padding:8px;border-radius:6px">
+    <div style="font-weight:600">${arb.side2.label}</div>
+    <div style="font-size:18px;font-weight:700;color:#3b82f6">${arb.side2.odds > 0 ? '+' : ''}${arb.side2.odds}</div>
+    <div style="font-size:11px;color:var(--text2)">${arb.side2.book}</div>
+  </div>`;
+  html += '</div>';
+  if (arb.exampleStakes) {
+    html += `<div style="margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:12px">
+      <strong>$1,000 play:</strong> $${arb.exampleStakes.stake1.toFixed(2)} on ${arb.side1.label} / $${arb.exampleStakes.stake2.toFixed(2)} on ${arb.side2.label} → <strong style="color:#22c55e">$${arb.exampleStakes.guaranteedProfit.toFixed(2)} guaranteed profit</strong>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderArbList(data) {
+  let html = '';
+  if (data.arbs.length === 0) {
+    html += '<div class="card" style="text-align:center;padding:40px">';
+    html += '<div style="font-size:48px;margin-bottom:12px">🔍</div>';
+    html += '<h3>No Active Arbitrages</h3>';
+    html += '<p style="color:var(--text2)">True cross-book arbs are rare — books are fast at adjusting. Keep scanning!</p>';
+    html += '<p style="color:var(--text2);font-size:13px;margin-top:8px">Check <strong>Low-Hold</strong> and <strong>Stale Lines</strong> tabs for near-arb opportunities.</p>';
+    html += '</div>';
+    return html;
+  }
+  
+  html += `<div class="card"><h3>💰 ${data.arbs.length} Active Arbitrages</h3>`;
+  for (const arb of data.arbs) {
+    html += renderArbCard(arb);
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderLowHoldList(data) {
+  let html = '<div class="card">';
+  html += `<h3>📉 ${data.lowHolds.length} Low-Hold Markets (< 3% combined vig)</h3>`;
+  html += '<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Low-hold markets = less vig to overcome. Combined with our model edge, these are prime betting spots.</p>';
+  
+  if (data.lowHolds.length === 0) {
+    html += '<p style="text-align:center;padding:20px;color:var(--text2)">No low-hold markets found in current scan.</p>';
+    html += '</div>';
+    return html;
+  }
+  
+  html += '<table><thead><tr><th>Sport</th><th>Game</th><th>Market</th><th>Side 1</th><th>Side 2</th><th>Hold %</th><th>Tier</th></tr></thead><tbody>';
+  for (const lh of data.lowHolds.slice(0, 50)) {
+    const tierColor = lh.tier === 'EXCELLENT' ? '#22c55e' : lh.tier === 'GREAT' ? '#3b82f6' : '#f59e0b';
+    html += `<tr>
+      <td><strong>${lh.sport || ''}</strong></td>
+      <td>${lh.game || ''}</td>
+      <td>${lh.market}</td>
+      <td>${lh.side1.label} @ ${lh.side1.odds > 0 ? '+' : ''}${lh.side1.odds}<br><small style="color:var(--text2)">${lh.side1.book}</small></td>
+      <td>${lh.side2.label} @ ${lh.side2.odds > 0 ? '+' : ''}${lh.side2.odds}<br><small style="color:var(--text2)">${lh.side2.book}</small></td>
+      <td style="font-weight:700;color:${lh.hold < 1.0 ? '#22c55e' : lh.hold < 2.0 ? '#3b82f6' : 'var(--text)'}">${lh.hold.toFixed(2)}%</td>
+      <td style="color:${tierColor};font-weight:600">${lh.tier}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderMiddlesList(data) {
+  const actionable = data.middles.filter(m => m.rating !== 'NEGATIVE');
+  let html = '<div class="card">';
+  html += `<h3>🎯 ${actionable.length} Middle Opportunities</h3>`;
+  html += '<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Middles let you bet both sides and potentially win BOTH bets when the final score lands in the gap. Hit rate ~5-15% but payoffs are 6:1+.</p>';
+  
+  if (actionable.length === 0) {
+    html += '<p style="text-align:center;padding:20px;color:var(--text2)">No actionable middle opportunities found.</p>';
+    html += '</div>';
+    return html;
+  }
+  
+  html += '<table><thead><tr><th>Sport</th><th>Game</th><th>Side 1</th><th>Side 2</th><th>Gap</th><th>Middle #s</th><th>Hit %</th><th>EV</th><th>Rating</th></tr></thead><tbody>';
+  for (const m of actionable.slice(0, 30)) {
+    const ratingColor = m.rating === 'STRONG' ? '#22c55e' : '#f59e0b';
+    html += `<tr>
+      <td><strong>${m.sport || ''}</strong></td>
+      <td>${m.game || ''}</td>
+      <td>${m.side1.label} @ ${m.side1.odds > 0 ? '+' : ''}${m.side1.odds}<br><small style="color:var(--text2)">${m.side1.book}</small></td>
+      <td>${m.side2.label} @ ${m.side2.odds > 0 ? '+' : ''}${m.side2.odds}<br><small style="color:var(--text2)">${m.side2.book}</small></td>
+      <td style="font-weight:700">${m.gap}</td>
+      <td style="color:#3b82f6">${m.middleNumbers}</td>
+      <td>${m.middleProbability}%</td>
+      <td style="color:${m.ev > 0 ? '#22c55e' : '#ef4444'};font-weight:600">${m.ev > 0 ? '+' : ''}${m.ev}%</td>
+      <td style="color:${ratingColor};font-weight:600">${m.rating}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderStaleList(data) {
+  const actionable = data.staleLines.filter(s => s.actionable);
+  let html = '<div class="card">';
+  html += `<h3>⚡ ${actionable.length} Stale / Plus-Value Lines</h3>`;
+  html += '<p style="color:var(--text2);font-size:12px;margin-bottom:12px">When one book\'s line differs significantly from the market consensus, it\'s either stale (slow to update) or the book has a different opinion. Either way, it\'s plus-value.</p>';
+  
+  if (actionable.length === 0) {
+    html += '<p style="text-align:center;padding:20px;color:var(--text2)">No stale lines detected. Books are in sync.</p>';
+    html += '</div>';
+    return html;
+  }
+  
+  html += '<table><thead><tr><th>Sport</th><th>Game</th><th>Outcome</th><th>Book</th><th>Book Odds</th><th>Market Median</th><th>Diff</th><th># Books</th></tr></thead><tbody>';
+  for (const s of actionable.slice(0, 30)) {
+    html += `<tr>
+      <td><strong>${s.sport || ''}</strong></td>
+      <td>${s.game || ''}</td>
+      <td>${s.outcome}${s.point ? ' ' + s.point : ''} (${s.market})</td>
+      <td style="font-weight:600">${s.book}</td>
+      <td style="color:#22c55e;font-weight:700">${s.bookOdds > 0 ? '+' : ''}${s.bookOdds}</td>
+      <td>${s.medianOdds > 0 ? '+' : ''}${s.medianOdds}</td>
+      <td style="color:#ef4444;font-weight:600">${s.diffPct}%</td>
+      <td>${s.numBooks}</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderArbCalculator() {
+  let html = '<div class="card">';
+  html += '<h3>🧮 Arb / Hold Calculator</h3>';
+  html += '<p style="color:var(--text2);font-size:12px;margin-bottom:16px">Enter two American odds to check if it\'s an arb, and calculate optimal stake split.</p>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;margin-bottom:20px">';
+  html += '<div><label style="font-size:12px;color:var(--text2)">Side 1 Odds</label><input id="arb-odds1" type="number" value="+150" style="width:100%;padding:8px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px" /></div>';
+  html += '<div><label style="font-size:12px;color:var(--text2)">Side 2 Odds</label><input id="arb-odds2" type="number" value="-160" style="width:100%;padding:8px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px" /></div>';
+  html += '<div><label style="font-size:12px;color:var(--text2)">Total Stake ($)</label><input id="arb-stake" type="number" value="1000" style="width:100%;padding:8px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px" /></div>';
+  html += '<button onclick="calcArb()" style="padding:8px 20px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;height:38px">Calculate</button>';
+  html += '</div>';
+  
+  html += '<div id="arb-result" style="min-height:100px"></div>';
+  html += '</div>';
+  return html;
+}
+
+async function calcArb() {
+  const odds1 = document.getElementById('arb-odds1').value;
+  const odds2 = document.getElementById('arb-odds2').value;
+  const stake = document.getElementById('arb-stake').value;
+  const resultDiv = document.getElementById('arb-result');
+  
+  try {
+    const resp = await fetch(`/api/arb/calc?odds1=${odds1}&odds2=${odds2}&stake=${stake}`);
+    const data = await resp.json();
+    
+    let html = '';
+    if (data.isArb) {
+      html += '<div style="background:rgba(34,197,94,0.15);border:2px solid #22c55e;border-radius:8px;padding:16px;margin-bottom:12px">';
+      html += '<div style="font-size:20px;font-weight:700;color:#22c55e;margin-bottom:8px">💰 ARBITRAGE DETECTED!</div>';
+      html += `<div>Profit: <strong style="color:#22c55e">${data.arb.profitPct}%</strong></div>`;
+    } else {
+      html += '<div style="background:var(--bg2);border-radius:8px;padding:16px;margin-bottom:12px">';
+      html += '<div style="font-size:16px;font-weight:600;margin-bottom:8px">No Arb — Standard Market</div>';
+    }
+    
+    html += `<div style="margin-top:8px">Hold: <strong>${data.hold ? data.hold.holdPct.toFixed(2) + '%' : 'N/A'}</strong></div>`;
+    html += `<div>Combined implied: <strong>${data.hold ? (data.hold.combined * 100).toFixed(2) + '%' : 'N/A'}</strong></div>`;
+    html += `<div>Side 1 implied: ${data.hold ? (data.hold.implied1 * 100).toFixed(1) + '%' : 'N/A'}</div>`;
+    html += `<div>Side 2 implied: ${data.hold ? (data.hold.implied2 * 100).toFixed(1) + '%' : 'N/A'}</div>`;
+    html += '</div>';
+    
+    if (data.stakes) {
+      html += '<div style="background:var(--bg2);border-radius:8px;padding:16px">';
+      html += '<div style="font-weight:600;margin-bottom:8px">Optimal Stakes</div>';
+      html += `<div>Side 1: <strong>$${data.stakes.stake1.toFixed(2)}</strong> at ${odds1} → payout $${data.stakes.payout1.toFixed(2)}</div>`;
+      html += `<div>Side 2: <strong>$${data.stakes.stake2.toFixed(2)}</strong> at ${odds2} → payout $${data.stakes.payout2.toFixed(2)}</div>`;
+      html += `<div style="margin-top:8px;font-weight:700;color:#22c55e">Guaranteed profit: $${data.stakes.guaranteedProfit.toFixed(2)} (${data.stakes.profitPct}%)</div>`;
+      html += '</div>';
+    }
+    
+    resultDiv.innerHTML = html;
+  } catch (e) {
+    resultDiv.innerHTML = '<div style="color:#ef4444">Calculation failed: ' + e.message + '</div>';
   }
 }
 

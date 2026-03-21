@@ -29,6 +29,8 @@ const mlbSchedule = require('./services/mlb-schedule');
 const calibration = require('./services/calibration');
 const sgpEngine = require('./services/sgp-engine');
 const altLines = require('./services/alt-lines');
+const mlBridge = require('./services/ml-bridge');
+const arbitrage = require('./services/arbitrage');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -92,7 +94,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '20.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner'] });
+  res.json({ status: 'ok', version: '22.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -568,7 +570,12 @@ app.get('/api/value/nhl', async (req, res) => {
 });
 
 app.get('/api/backtest/nhl', (req, res) => {
-  try { res.json(nhlBacktest.runBacktest()); }
+  try {
+    const betTypes = req.query.types ? req.query.types.split(',') : ['ml'];
+    const minEdge = req.query.minEdge ? parseFloat(req.query.minEdge) : 0.02;
+    const regOnly = req.query.regOnly === 'true';
+    res.json(nhlBacktest.runBacktest({ betTypes, minEdge, regOnly }));
+  }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -968,7 +975,10 @@ app.get('/api/nhl/predict', (req, res) => {
 
 app.get('/api/nhl/backtest', (req, res) => {
   try {
-    const result = nhlBacktest.runBacktest();
+    const betTypes = req.query.types ? req.query.types.split(',') : ['ml'];
+    const minEdge = req.query.minEdge ? parseFloat(req.query.minEdge) : 0.02;
+    const regOnly = req.query.regOnly === 'true';
+    const result = nhlBacktest.runBacktest({ betTypes, minEdge, regOnly });
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -2437,8 +2447,163 @@ app.get('/api/alt-lines/scan', async (req, res) => {
 });
 
 // Start server
+
+// ==================== ML ENGINE ENDPOINTS ====================
+
+app.get('/api/ml/status', async (req, res) => {
+  try {
+    const bridgeStatus = mlBridge.getStatus();
+    let engineStatus;
+    try { engineStatus = await mlBridge.status(req.query.sport || 'mlb'); } catch (e) { engineStatus = { error: e.message }; }
+    res.json({ bridge: bridgeStatus, engine: engineStatus });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/ml/train', async (req, res) => {
+  try {
+    const sport = req.query.sport || 'mlb';
+    const result = await mlBridge.train(sport);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ml/train', async (req, res) => {
+  try {
+    const sport = req.query.sport || 'mlb';
+    const result = await mlBridge.train(sport);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ml/predict', async (req, res) => {
+  try {
+    const { away, home, awayPitcher, homePitcher, sport } = req.query;
+    if (!away || !home) return res.status(400).json({ error: 'Need away and home team abbreviations' });
+    const result = await mlBridge.enhancedPredict(away.toUpperCase(), home.toUpperCase(), {
+      awayPitcher, homePitcher,
+    });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ml/backtest', async (req, res) => {
+  try {
+    const sport = req.query.sport || 'mlb';
+    const result = await mlBridge.backtest(sport);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ml/compare/:away/:home', async (req, res) => {
+  try {
+    const { away, home } = req.params;
+    const awayUpper = away.toUpperCase();
+    const homeUpper = home.toUpperCase();
+    
+    // Get all prediction methods
+    const analyticalSync = mlb.predict(awayUpper, homeUpper);
+    let analyticalAsync, mlEnhanced;
+    try { analyticalAsync = await mlb.asyncPredict(awayUpper, homeUpper); } catch (e) { analyticalAsync = { error: e.message }; }
+    try { mlEnhanced = await mlBridge.enhancedPredict(awayUpper, homeUpper); } catch (e) { mlEnhanced = { error: e.message }; }
+    
+    res.json({
+      game: `${awayUpper} @ ${homeUpper}`,
+      comparison: {
+        analytical_sync: {
+          homeWinProb: analyticalSync.homeWinProb,
+          awayWinProb: analyticalSync.awayWinProb,
+          totalRuns: analyticalSync.totalRuns,
+          source: 'Pythagorean + Log5 + pitcher adj',
+        },
+        analytical_async: {
+          homeWinProb: analyticalAsync.homeWinProb || analyticalAsync.error,
+          awayWinProb: analyticalAsync.awayWinProb,
+          totalRuns: analyticalAsync.totalRuns,
+          source: 'Analytical + rest/travel + Monte Carlo',
+        },
+        ml_enhanced: {
+          homeWinProb: mlEnhanced.blendedHomeWinProb || mlEnhanced.homeWinProb || mlEnhanced.error,
+          awayWinProb: mlEnhanced.blendedAwayWinProb || mlEnhanced.awayWinProb,
+          mlRaw: mlEnhanced.ml,
+          totalRuns: mlEnhanced.totalRuns,
+          predictedTotal: mlEnhanced.ml?.predictedTotal,
+          source: 'ML Ensemble (LR+GB+RF) blended with analytical',
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== ARBITRAGE / LOW-HOLD SCANNER ====================
+
+app.get('/api/arb/scan', async (req, res) => {
+  try {
+    // Check cache first
+    const cached = arbitrage.getCachedScan();
+    if (cached && !req.query.force) {
+      return res.json({ ...cached, source: 'cache' });
+    }
+    
+    const results = await arbitrage.scanAll(fetchOdds);
+    res.json({ ...results, source: 'live' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/arb/scan/:sport', async (req, res) => {
+  try {
+    const sportMap = {
+      'nba': 'basketball_nba',
+      'mlb': 'baseball_mlb',
+      'nhl': 'icehockey_nhl'
+    };
+    const sportKey = sportMap[req.params.sport.toLowerCase()];
+    if (!sportKey) return res.status(400).json({ error: 'Sport must be nba, mlb, or nhl' });
+    
+    const odds = await fetchOdds(sportKey);
+    const results = await arbitrage.scanSport(sportKey, odds);
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/arb/report', async (req, res) => {
+  try {
+    const cached = arbitrage.getCachedScan();
+    let results;
+    if (cached && !req.query.force) {
+      results = cached;
+    } else {
+      results = await arbitrage.scanAll(fetchOdds);
+    }
+    const report = arbitrage.generateReport(results);
+    res.type('text').send(report);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/arb/calc', (req, res) => {
+  const { odds1, odds2, stake } = req.query;
+  if (!odds1 || !odds2) return res.status(400).json({ error: 'odds1 and odds2 required' });
+  
+  const o1 = parseInt(odds1);
+  const o2 = parseInt(odds2);
+  const totalStake = parseFloat(stake) || 1000;
+  
+  const hold = arbitrage.calculateHold(o1, o2);
+  const arbProfit = arbitrage.calculateArbProfit(o1, o2);
+  const stakes = arbitrage.calculateArbStakes(o1, o2, totalStake);
+  
+  res.json({
+    odds: { side1: o1, side2: o2 },
+    hold,
+    arb: arbProfit,
+    stakes,
+    isArb: hold && hold.hold < 0,
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v20.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v22.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -2456,7 +2621,9 @@ app.listen(PORT, '0.0.0.0', () => {
   const sgpStatus = sgpEngine.getStatus();
   console.log(`   SGP engine: ${sgpStatus.correlationsModeled} correlations modeled, ${sgpStatus.comboTypes.join('/')} combos`);
   console.log(`   Alt lines scanner: alt totals, alt spreads, team totals, F5 lines — Poisson-powered`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER`);
+  console.log(`   Arbitrage scanner: cross-book arbs, low-hold, middles, stale lines`);
+  console.log(`   🧠 ML Engine: Python sklearn ensemble (LR + GradientBoosting + RandomForest)`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE, ARBITRAGE SCANNER`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats...');
@@ -2483,6 +2650,9 @@ app.listen(PORT, '0.0.0.0', () => {
     } catch (e) {
       console.log('   ⚠️ Line movement snapshot failed:', e.message);
     }
+    
+    // Auto-train ML model
+    mlBridge.autoTrain().catch(e => console.error('   ⚠️ ML auto-train failed:', e.message));
   }).catch(e => {
     console.error('   ⚠️ Data refresh failed:', e.message);
     console.log('   Using static fallback data');
