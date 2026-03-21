@@ -301,6 +301,42 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     homeRaG = home.rsG * (away.raG / LG_AVG.raG) * pf;
   }
 
+  // ==================== ROLLING STATS ADJUSTMENT ====================
+  // Recent form (L10) modifies expected run production
+  let awayRollingAdj = 0, homeRollingAdj = 0;
+  let awayRolling = null, homeRolling = null;
+  if (rollingStats) {
+    awayRolling = rollingStats.getRollingAdjustment('mlb', awayAbbr);
+    homeRolling = rollingStats.getRollingAdjustment('mlb', homeAbbr);
+    // Rolling adj is in runs — positive = team is hot (scoring more / allowing less)
+    // Apply to expected runs: hot team scores more, cold team scores less
+    awayRollingAdj = awayRolling.adjFactor || 0;
+    homeRollingAdj = homeRolling.adjFactor || 0;
+  }
+
+  // ==================== INJURY ADJUSTMENT ====================
+  // Star players out = fewer runs scored / more runs allowed
+  let awayInjuryAdj = 0, homeInjuryAdj = 0;
+  let awayInjuries = null, homeInjuries = null;
+  if (injuryService) {
+    awayInjuries = injuryService.getInjuryAdjustment('mlb', awayAbbr);
+    homeInjuries = injuryService.getInjuryAdjustment('mlb', homeAbbr);
+    // Injury adj is negative (penalty) — star hitters out = fewer runs, star pitchers out = more runs allowed
+    awayInjuryAdj = awayInjuries.adjFactor || 0;
+    homeInjuryAdj = homeInjuries.adjFactor || 0;
+  }
+
+  // Apply rolling + injury adjustments to expected runs
+  // For offense: rolling adj modifies a team's run-scoring ability
+  // awayRaG = runs the away team scores (based on their offense vs home pitching)
+  // Positive rolling = team is hot, scores more
+  // Negative injury = team lost a star, scores less
+  awayRaG += awayRollingAdj * 0.3 + awayInjuryAdj * 0.5; // scale down — these are partial game adjustments
+  homeRaG += homeRollingAdj * 0.3 + homeInjuryAdj * 0.5;
+  
+  // Defensive adjustments: if a team is injured on the pitching side, the OTHER team scores more
+  // This is implicit in the injury adj for pitchers (their totalImpact counts pitcher injuries)
+
   // Ensure sane bounds
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
   homeRaG = Math.max(1.5, Math.min(10, homeRaG));
@@ -348,8 +384,13 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     awayWinProb = 1 - homeWinProb;
   }
   
-  // Momentum nudge (small)
-  const momAdj = (homeR.momentum - awayR.momentum) * 0.02;
+  // Momentum nudge (small) — enhanced with rolling stats
+  let momAdj = (homeR.momentum - awayR.momentum) * 0.02;
+  // If rolling stats are available, also factor in recent trend
+  if (awayRolling && homeRolling) {
+    const rollingMom = ((homeRolling.momentum || 0) - (awayRolling.momentum || 0)) * 0.01;
+    momAdj += rollingMom;
+  }
   homeWinProb = Math.min(0.90, Math.max(0.10, homeWinProb + momAdj));
   awayWinProb = 1 - homeWinProb;
   
@@ -391,7 +432,11 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       awayLuck: awayR.luck,
       homeLuck: homeR.luck,
       parkEffect: pf,
-      homeAdv: HOME_ADV
+      homeAdv: HOME_ADV,
+      awayRolling: awayRolling ? { adj: +awayRollingAdj.toFixed(2), trend: awayRolling.trend, streak: awayRolling.streak, l5: awayRolling.l5Record, l10: awayRolling.l10Record, confidence: awayRolling.confidence } : null,
+      homeRolling: homeRolling ? { adj: +homeRollingAdj.toFixed(2), trend: homeRolling.trend, streak: homeRolling.streak, l5: homeRolling.l5Record, l10: homeRolling.l10Record, confidence: homeRolling.confidence } : null,
+      awayInjuries: awayInjuries && awayInjuries.starPlayersOut.length > 0 ? { adj: +awayInjuryAdj.toFixed(2), out: awayInjuries.starPlayersOut } : null,
+      homeInjuries: homeInjuries && homeInjuries.starPlayersOut.length > 0 ? { adj: +homeInjuryAdj.toFixed(2), out: homeInjuries.starPlayersOut } : null
     }
   };
 
@@ -563,6 +608,14 @@ function analyzeMatchup(awayAbbr, homeAbbr, opts = {}) {
   if (Math.abs(pred.awayPower - pred.homePower) > 15) keyFactors.push(`⚡ Big power rating gap: ${pred.awayPower} vs ${pred.homePower}`);
   if (pred.totalRuns > 9.5) keyFactors.push(`💥 High-scoring projection: ${pred.totalRuns} runs`);
   if (pred.totalRuns < 7) keyFactors.push(`🧊 Low-scoring projection: ${pred.totalRuns} runs`);
+  // Rolling stats factors
+  if (pred.factors.awayRolling && pred.factors.awayRolling.trend === '🔥🔥') keyFactors.push(`🔥🔥 ${awayAbbr} on fire (L5: ${pred.factors.awayRolling.l5}, ${pred.factors.awayRolling.streak})`);
+  if (pred.factors.homeRolling && pred.factors.homeRolling.trend === '🔥🔥') keyFactors.push(`🔥🔥 ${homeAbbr} on fire (L5: ${pred.factors.homeRolling.l5}, ${pred.factors.homeRolling.streak})`);
+  if (pred.factors.awayRolling && pred.factors.awayRolling.trend === '🧊🧊') keyFactors.push(`🧊🧊 ${awayAbbr} ice cold (L5: ${pred.factors.awayRolling.l5}, ${pred.factors.awayRolling.streak})`);
+  if (pred.factors.homeRolling && pred.factors.homeRolling.trend === '🧊🧊') keyFactors.push(`🧊🧊 ${homeAbbr} ice cold (L5: ${pred.factors.homeRolling.l5}, ${pred.factors.homeRolling.streak})`);
+  // Injury factors
+  if (pred.factors.awayInjuries) keyFactors.push(`🏥 ${awayAbbr} missing: ${pred.factors.awayInjuries.out.map(p => p.player).join(', ')} (${pred.factors.awayInjuries.adj.toFixed(1)} adj)`);
+  if (pred.factors.homeInjuries) keyFactors.push(`🏥 ${homeAbbr} missing: ${pred.factors.homeInjuries.out.map(p => p.player).join(', ')} (${pred.factors.homeInjuries.adj.toFixed(1)} adj)`);
   
   return {
     ...pred,

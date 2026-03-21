@@ -140,6 +140,7 @@ function buildTabs() {
     { id: 'today', label: '📡 Today\'s Games' },
     { id: 'value', label: '💰 Value Bets' },
     { id: 'ratings', label: '📊 Power Ratings' },
+    { id: 'trends', label: '🔥 Trends & Injuries' },
     { id: 'lines', label: '📈 Lines' },
     { id: 'predict', label: '🎯 Predictor' },
     { id: 'backtest', label: '🧪 Backtest' }
@@ -163,6 +164,7 @@ function showTab(id) {
   else if (id === 'lines') loadLines();
   else if (id === 'rotations') loadRotationsTab();
   else if (id === 'predict') loadPredictor();
+  else if (id === 'trends') loadTrends();
   else if (id === 'backtest') loadBacktest();
   else if (id === 'opening-day') loadOpeningDay();
 }
@@ -666,10 +668,57 @@ async function runPredict(sport) {
       }
     }
 
-    // Factor breakdown (all sports)
+    // Factor breakdown (all sports) — enhanced with rolling/injury display
     if (pred.factors) {
-      html += `<div class="card" style="margin-top:12px"><h2>🔍 Factor Breakdown</h2><div style="overflow-x:auto"><table><thead><tr><th>Factor</th><th>Value</th></tr></thead><tbody>`;
+      html += `<div class="card" style="margin-top:12px"><h2>🔍 Factor Breakdown</h2>`;
+      
+      // Rolling stats section
+      const awayR = pred.factors.awayRolling;
+      const homeR = pred.factors.homeRolling;
+      if (awayR || homeR) {
+        html += `<div style="margin:12px 0"><h3 style="font-size:14px;color:var(--text2);margin-bottom:8px">📊 Recent Form</h3>`;
+        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+        if (awayR) {
+          html += `<div style="padding:8px;background:var(--card2);border-radius:8px">
+            <div style="font-weight:600;color:var(--text1)">${pred.away || pred.away?.abbr || 'Away'} ${awayR.trend || ''}</div>
+            <div style="font-size:12px;color:var(--text3)">L5: ${awayR.l5 || '?'} | L10: ${awayR.l10 || '?'}</div>
+            <div style="font-size:12px;color:var(--text3)">Streak: ${awayR.streak || '?'} | Adj: ${awayR.adj > 0 ? '+' : ''}${awayR.adj}</div>
+          </div>`;
+        }
+        if (homeR) {
+          html += `<div style="padding:8px;background:var(--card2);border-radius:8px">
+            <div style="font-weight:600;color:var(--text1)">${pred.home || pred.home?.abbr || 'Home'} ${homeR.trend || ''}</div>
+            <div style="font-size:12px;color:var(--text3)">L5: ${homeR.l5 || '?'} | L10: ${homeR.l10 || '?'}</div>
+            <div style="font-size:12px;color:var(--text3)">Streak: ${homeR.streak || '?'} | Adj: ${homeR.adj > 0 ? '+' : ''}${homeR.adj}</div>
+          </div>`;
+        }
+        html += `</div></div>`;
+      }
+      
+      // Injury section
+      const awayInj = pred.factors.awayInjuries;
+      const homeInj = pred.factors.homeInjuries;
+      if (awayInj || homeInj) {
+        html += `<div style="margin:12px 0"><h3 style="font-size:14px;color:var(--text2);margin-bottom:8px">🏥 Injuries</h3>`;
+        if (awayInj && awayInj.out) {
+          html += `<div style="padding:8px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:8px">`;
+          html += `<div style="font-weight:600;color:#ef4444">${pred.away || 'Away'} (${awayInj.adj} adj)</div>`;
+          awayInj.out.forEach(p => { html += `<div style="font-size:12px;color:var(--text3)">• ${p.player} — ${p.status}${p.detail ? ': ' + p.detail.substring(0, 80) : ''}</div>`; });
+          html += `</div>`;
+        }
+        if (homeInj && homeInj.out) {
+          html += `<div style="padding:8px;background:rgba(239,68,68,0.1);border-radius:8px">`;
+          html += `<div style="font-weight:600;color:#ef4444">${pred.home || 'Home'} (${homeInj.adj} adj)</div>`;
+          homeInj.out.forEach(p => { html += `<div style="font-size:12px;color:var(--text3)">• ${p.player} — ${p.status}${p.detail ? ': ' + p.detail.substring(0, 80) : ''}</div>`; });
+          html += `</div>`;
+        }
+        html += `</div>`;
+      }
+      
+      // Core factors table (filter out rolling/injury objects)
+      html += `<div style="overflow-x:auto"><table><thead><tr><th>Factor</th><th>Value</th></tr></thead><tbody>`;
       for (const [k,v] of Object.entries(pred.factors)) {
+        if (typeof v === 'object' && v !== null) continue; // skip rolling/injury objects, already rendered above
         html += `<tr><td>${k}</td><td>${typeof v === 'number' ? v.toFixed(3) : v}</td></tr>`;
       }
       html += `</tbody></table></div></div>`;
@@ -888,6 +937,116 @@ function renderBacktest(title, data) {
 }
 
 // ==================== OPENING DAY ====================
+
+// ==================== TRENDS & INJURIES TAB ====================
+
+async function loadTrends() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const sport = currentSport === 'all' ? 'nba' : currentSport;
+    const [rolling, injData] = await Promise.all([
+      api(`/api/rolling/${sport}`),
+      api(`/api/injuries/${sport}`)
+    ]);
+
+    let html = '';
+
+    // Rolling stats section
+    html += `<div class="card"><h2>🔥 Rolling Form — ${sport.toUpperCase()} (L10)</h2>`;
+    html += `<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Recent performance trends sorted by net rating. Rolling stats are blended into model predictions.</p>`;
+
+    const teams = rolling.teams || rolling.data || [];
+    if (teams.length > 0) {
+      html += `<div style="overflow-x:auto"><table><thead><tr>
+        <th>Team</th><th>Trend</th><th>Streak</th><th>L5</th><th>L10</th><th>Avg Scored</th><th>Avg Allowed</th><th>Net Rating</th><th>Model Adj</th>
+      </tr></thead><tbody>`;
+
+      for (const t of teams) {
+        const data = t.data || t;
+        const team = t.team || t.abbr || '';
+        const l10 = data.l10 || {};
+        const l5 = data.l5 || {};
+        const trendEmoji = data.trend || '➡️';
+        const streak = data.streak || '—';
+        const netRating = data.rollingNetRating || 0;
+        const netColor = netRating > 0 ? '#22c55e' : netRating < 0 ? '#ef4444' : 'var(--text2)';
+
+        // Get the model adjustment
+        const adjResp = data.adjustment || {};
+        const adj = adjResp.adjFactor || (data.rollingNetRating ? (data.rollingNetRating * 0.35).toFixed(2) : '0');
+
+        html += `<tr>
+          <td style="font-weight:700">${team}</td>
+          <td style="font-size:16px">${trendEmoji}</td>
+          <td style="font-weight:600">${streak}</td>
+          <td>${l5.record || '—'}</td>
+          <td>${l10.record || '—'}</td>
+          <td>${l10.avgScored || '—'}</td>
+          <td>${l10.avgAllowed || '—'}</td>
+          <td style="color:${netColor};font-weight:700">${netRating > 0 ? '+' : ''}${netRating}</td>
+          <td style="color:${netColor}">${typeof adj === 'number' ? (adj > 0 ? '+' : '') + adj : adj}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    } else {
+      html += `<div class="empty">No rolling stats available. Try refreshing data.</div>`;
+    }
+    html += `</div>`;
+
+    // Injuries section
+    html += `<div class="card" style="margin-top:16px"><h2>🏥 Injury Report — ${sport.toUpperCase()}</h2>`;
+    html += `<p style="color:var(--text2);font-size:12px;margin-bottom:12px">Star player injuries factored into model predictions. Impact values adjust team ratings.</p>`;
+
+    const injTeams = Object.entries(injData || {}).filter(([k,v]) => v && v.starPlayersOut && v.starPlayersOut.length > 0);
+    if (injTeams.length > 0) {
+      html += `<div style="display:grid;gap:12px">`;
+      for (const [team, data] of injTeams) {
+        const impact = data.totalImpact || 0;
+        const impactColor = impact >= 3 ? '#ef4444' : impact >= 1 ? '#eab308' : 'var(--text3)';
+        html += `<div style="background:var(--bg3);border-radius:12px;padding:14px;border-left:4px solid ${impactColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:700;font-size:16px">${team}</div>
+            <div style="color:${impactColor};font-weight:700;font-size:13px">Impact: -${impact.toFixed(1)}</div>
+          </div>`;
+        for (const p of (data.starPlayersOut || [])) {
+          const statusColor = p.isOut ? '#ef4444' : '#eab308';
+          html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+            <span style="color:${statusColor};font-size:11px;font-weight:600;min-width:60px">${p.isOut ? '❌ OUT' : '❓ DTD'}</span>
+            <span style="font-weight:600;font-size:13px">${p.player}</span>
+            <span style="color:var(--text3);font-size:11px">Impact: ${p.impact}</span>
+            ${p.detail ? `<span style="color:var(--text3);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.detail.substring(0, 100)}</span>` : ''}
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div class="empty">No significant injuries reported or data not yet loaded.</div>`;
+    }
+    html += `</div>`;
+
+    // Refresh button
+    html += `<div style="text-align:center;margin-top:16px">
+      <button onclick="refreshTrends()" style="background:var(--accent);color:white;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600">🔄 Refresh Rolling Stats & Injuries</button>
+    </div>`;
+
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="empty">Error loading trends: ${e.message}</div>`;
+  }
+}
+
+async function refreshTrends() {
+  try {
+    await Promise.all([
+      fetch('/api/rolling/refresh', { method: 'POST' }),
+      fetch('/api/injuries/refresh', { method: 'POST' })
+    ]);
+    loadTrends();
+  } catch (e) {
+    alert('Refresh failed: ' + e.message);
+  }
+}
 
 async function loadOpeningDay() {
   const wrap = document.getElementById('tab-content');
