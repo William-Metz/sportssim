@@ -19,6 +19,12 @@ const SPREAD_FACTOR = 4.5;
 let liveData = null;
 try { liveData = require('../services/live-data'); } catch (e) { /* fallback to static */ }
 
+// Rolling stats & injury integration
+let rollingStats = null;
+let injuryService = null;
+try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
+try { injuryService = require('../services/injuries'); } catch (e) { /* no injury data */ }
+
 // Static goalie data (not available from standings APIs)
 const GOALIE_DATA = {
   'BOS': { starter: 'Swayman', starterSv: 0.918, backupSv: 0.895 },
@@ -207,9 +213,33 @@ function predict(awayCode, homeCode, options = {}) {
     awayGoalieAdj = (TEAMS[awayCode].starterSv - leagueAvgSv) * 15;
   }
 
-  // Spread = power diff + HIA (in goal terms) + goalie adj
+  // Rolling stats adjustment — recent form
+  let awayRollingAdj = 0, homeRollingAdj = 0;
+  let awayRolling = null, homeRolling = null;
+  if (rollingStats) {
+    awayRolling = rollingStats.getRollingAdjustment('nhl', awayCode);
+    homeRolling = rollingStats.getRollingAdjustment('nhl', homeCode);
+    awayRollingAdj = awayRolling.adjFactor || 0;
+    homeRollingAdj = homeRolling.adjFactor || 0;
+  }
+
+  // Injury adjustment
+  let awayInjuryAdj = 0, homeInjuryAdj = 0;
+  let awayInjuries = null, homeInjuries = null;
+  if (injuryService) {
+    awayInjuries = injuryService.getInjuryAdjustment('nhl', awayCode);
+    homeInjuries = injuryService.getInjuryAdjustment('nhl', homeCode);
+    awayInjuryAdj = awayInjuries.adjFactor || 0;
+    homeInjuryAdj = homeInjuries.adjFactor || 0;
+  }
+
+  // Adjusted power
+  const awayAdjPower = away.power + awayRollingAdj + awayInjuryAdj;
+  const homeAdjPower = home.power + homeRollingAdj + homeInjuryAdj;
+
+  // Spread = adj power diff + HIA (in goal terms) + goalie adj
   const hiaGoals = HIA * SPREAD_FACTOR * 2; // ~0.225 goals
-  const rawSpread = (home.power - away.power) + hiaGoals + homeGoalieAdj - awayGoalieAdj;
+  const rawSpread = (homeAdjPower - awayAdjPower) + hiaGoals + homeGoalieAdj - awayGoalieAdj;
   const spread = +rawSpread.toFixed(2);
 
   // Win probability via logistic
@@ -217,7 +247,6 @@ function predict(awayCode, homeCode, options = {}) {
   const awayWinProb = 1 - homeWinProb;
 
   // Puck line (+/- 1.5) probability
-  // Approx: shift spread by 1.5 goals
   const puckLineHomeProb = 1 / (1 + Math.pow(10, -(spread - 1.5) / SPREAD_FACTOR));
   const puckLineAwayProb = 1 / (1 + Math.pow(10, -(-spread - 1.5) / SPREAD_FACTOR));
 
@@ -232,15 +261,23 @@ function predict(awayCode, homeCode, options = {}) {
   }
 
   return {
-    away: { code: awayCode, name: away.name, power: away.power, winProb: +(awayWinProb * 100).toFixed(1), ml: probToML(awayWinProb) },
-    home: { code: homeCode, name: home.name, power: home.power, winProb: +(homeWinProb * 100).toFixed(1), ml: probToML(homeWinProb) },
+    away: { code: awayCode, name: away.name, power: away.power, adjPower: +awayAdjPower.toFixed(2), winProb: +(awayWinProb * 100).toFixed(1), ml: probToML(awayWinProb) },
+    home: { code: homeCode, name: home.name, power: home.power, adjPower: +homeAdjPower.toFixed(2), winProb: +(homeWinProb * 100).toFixed(1), ml: probToML(homeWinProb) },
     spread: spread,
     projTotal,
     puckLine: {
       home: { line: "-1.5", prob: +(puckLineHomeProb * 100).toFixed(1) },
       away: { line: "+1.5", prob: +((1 - puckLineHomeProb) * 100).toFixed(1) }
     },
-    goalieAdj: { home: +homeGoalieAdj.toFixed(2), away: +awayGoalieAdj.toFixed(2) }
+    goalieAdj: { home: +homeGoalieAdj.toFixed(2), away: +awayGoalieAdj.toFixed(2) },
+    rollingAdj: {
+      away: awayRolling ? { adj: +awayRollingAdj.toFixed(2), trend: awayRolling.trend, streak: awayRolling.streak, l5: awayRolling.l5Record, l10: awayRolling.l10Record } : null,
+      home: homeRolling ? { adj: +homeRollingAdj.toFixed(2), trend: homeRolling.trend, streak: homeRolling.streak, l5: homeRolling.l5Record, l10: homeRolling.l10Record } : null
+    },
+    injuryAdj: {
+      away: awayInjuries && awayInjuries.starPlayersOut.length > 0 ? { adj: +awayInjuryAdj.toFixed(2), out: awayInjuries.starPlayersOut } : null,
+      home: homeInjuries && homeInjuries.starPlayersOut.length > 0 ? { adj: +homeInjuryAdj.toFixed(2), out: homeInjuries.starPlayersOut } : null
+    }
   };
 }
 

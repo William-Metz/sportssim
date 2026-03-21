@@ -22,6 +22,12 @@ const SPREAD_TO_PROB_FACTOR = 7.5; // logistic scaling
 let liveData = null;
 try { liveData = require('../services/live-data'); } catch (e) { /* fallback to static */ }
 
+// Rolling stats & injury integration
+let rollingStats = null;
+let injuries = null;
+try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
+try { injuries = require('../services/injuries'); } catch (e) { /* no injury data */ }
+
 /**
  * Get current team data — live if available, static fallback
  */
@@ -184,9 +190,33 @@ function predict(away, home, opts = {}) {
   if (opts.awayRest === '3in4') restAdj += 1.0;
   if (opts.homeRest === '3in4') restAdj -= 1.0;
   
+  // Rolling stats adjustment — recent form (L10) modifies power
+  let awayRollingAdj = 0, homeRollingAdj = 0;
+  let awayRolling = null, homeRolling = null;
+  if (rollingStats) {
+    awayRolling = rollingStats.getRollingAdjustment('nba', away);
+    homeRolling = rollingStats.getRollingAdjustment('nba', home);
+    awayRollingAdj = awayRolling.adjFactor || 0;
+    homeRollingAdj = homeRolling.adjFactor || 0;
+  }
+  
+  // Injury adjustment — star players out = penalty
+  let awayInjuryAdj = 0, homeInjuryAdj = 0;
+  let awayInjuries = null, homeInjuries = null;
+  if (injuries) {
+    awayInjuries = injuries.getInjuryAdjustment('nba', away);
+    homeInjuries = injuries.getInjuryAdjustment('nba', home);
+    awayInjuryAdj = awayInjuries.adjFactor || 0;
+    homeInjuryAdj = homeInjuries.adjFactor || 0;
+  }
+  
+  // Adjusted power ratings
+  const awayAdjPower = aw.power + awayRollingAdj + awayInjuryAdj;
+  const homeAdjPower = hm.power + homeRollingAdj + homeInjuryAdj;
+  
   // Predicted spread (negative = home favored)
-  // spread = away_power - home_power - HCA + restAdj
-  const rawSpread = aw.power - hm.power - HCA + restAdj;
+  // spread = away_adj_power - home_adj_power - HCA + restAdj
+  const rawSpread = awayAdjPower - homeAdjPower - HCA + restAdj;
   const spread = +rawSpread.toFixed(1);
   
   // Win probability via logistic function
@@ -213,8 +243,8 @@ function predict(away, home, opts = {}) {
     : Math.round(100 * (1 - awayWinProb) / awayWinProb);
   
   return {
-    away: { abbr: away, name: aw.name, power: aw.power, rank: aw.rank },
-    home: { abbr: home, name: hm.name, power: hm.power, rank: hm.rank },
+    away: { abbr: away, name: aw.name, power: aw.power, adjPower: +awayAdjPower.toFixed(2), rank: aw.rank },
+    home: { abbr: home, name: hm.name, power: hm.power, adjPower: +homeAdjPower.toFixed(2), rank: hm.rank },
     spread,
     homeWinProb: +(homeWinProb * 100).toFixed(1),
     awayWinProb: +(awayWinProb * 100).toFixed(1),
@@ -223,10 +253,15 @@ function predict(away, home, opts = {}) {
     modelML: { away: awayML > 0 ? '+' + awayML : '' + awayML, home: homeML > 0 ? '+' + homeML : '' + homeML },
     factors: {
       powerDiff: +(aw.power - hm.power).toFixed(2),
+      adjPowerDiff: +(awayAdjPower - homeAdjPower).toFixed(2),
       hca: HCA,
       restAdj,
       awayLuck: aw.luck,
-      homeLuck: hm.luck
+      homeLuck: hm.luck,
+      awayRolling: awayRolling ? { adj: awayRollingAdj, trend: awayRolling.trend, streak: awayRolling.streak, l5: awayRolling.l5Record, l10: awayRolling.l10Record } : null,
+      homeRolling: homeRolling ? { adj: homeRollingAdj, trend: homeRolling.trend, streak: homeRolling.streak, l5: homeRolling.l5Record, l10: homeRolling.l10Record } : null,
+      awayInjuries: awayInjuries && awayInjuries.starPlayersOut.length > 0 ? { adj: awayInjuryAdj, out: awayInjuries.starPlayersOut } : null,
+      homeInjuries: homeInjuries && homeInjuries.starPlayersOut.length > 0 ? { adj: homeInjuryAdj, out: homeInjuries.starPlayersOut } : null
     }
   };
 }

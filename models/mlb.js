@@ -10,6 +10,12 @@ const PYTH_EXP = 1.83; // Baseball Pythagorean exponent
 let liveData = null;
 try { liveData = require('../services/live-data'); } catch (e) { /* fallback to static */ }
 
+// Rolling stats & injury integration
+let rollingStats = null;
+let injuryService = null;
+try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
+try { injuryService = require('../services/injuries'); } catch (e) { /* no injury data */ }
+
 /**
  * Get current team data — live if available, static fallback
  * For MLB: during regular season, merge live W/L/runs with static pitching/advanced stats

@@ -12,6 +12,8 @@ const nhl = require('./models/nhl');
 const nhlBacktest = require('./models/backtest-nhl');
 const liveData = require('./services/live-data');
 const kelly = require('./services/kelly');
+const rollingStats = require('./services/rolling-stats');
+const injuries = require('./services/injuries');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -850,6 +852,88 @@ app.get('/api/kelly', async (req, res) => {
 });
 
 // Data status — now shows live data info
+// ==================== ROLLING STATS API ====================
+
+app.get('/api/rolling/status', (req, res) => {
+  res.json(rollingStats.getStatus());
+});
+
+app.get('/api/rolling/:sport', (req, res) => {
+  const sport = req.params.sport.toLowerCase();
+  let data;
+  if (sport === 'nba') data = rollingStats.getNBARolling();
+  else if (sport === 'nhl') data = rollingStats.getNHLRolling();
+  else if (sport === 'mlb') data = rollingStats.getMLBRolling();
+  else return res.status(400).json({ error: 'Invalid sport. Use nba, nhl, or mlb' });
+  
+  if (!data) return res.json({ note: `No rolling stats available for ${sport}. Try refreshing.`, data: {} });
+  
+  // Sort by rolling net rating
+  const sorted = Object.entries(data)
+    .map(([abbr, stats]) => ({ abbr, ...stats }))
+    .sort((a, b) => (b.rollingNetRating || 0) - (a.rollingNetRating || 0));
+  
+  res.json({ sport, teams: sorted.length, data: sorted });
+});
+
+app.get('/api/rolling/:sport/:team', (req, res) => {
+  const { sport, team } = req.params;
+  const data = rollingStats.getTeamRolling(sport, team.toUpperCase());
+  if (!data) return res.json({ note: `No rolling data for ${team} in ${sport}` });
+  const adj = rollingStats.getRollingAdjustment(sport, team.toUpperCase());
+  res.json({ team: team.toUpperCase(), sport, rolling: data, adjustment: adj });
+});
+
+app.post('/api/rolling/refresh', async (req, res) => {
+  try {
+    const results = await rollingStats.refreshAll(true);
+    res.json({ status: 'ok', results, updated: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== INJURIES API ====================
+
+app.get('/api/injuries/status', (req, res) => {
+  res.json(injuries.getStatus());
+});
+
+app.get('/api/injuries/:sport', (req, res) => {
+  const sport = req.params.sport.toLowerCase();
+  let data;
+  if (sport === 'nba') data = injuries.getNBAInjuries();
+  else if (sport === 'nhl') data = injuries.getNHLInjuries();
+  else if (sport === 'mlb') data = injuries.getMLBInjuries();
+  else return res.status(400).json({ error: 'Invalid sport. Use nba, nhl, or mlb' });
+  
+  // Sort by total impact (most affected teams first)
+  const sorted = Object.entries(data)
+    .map(([abbr, info]) => ({ abbr, ...info }))
+    .sort((a, b) => (b.totalImpact || 0) - (a.totalImpact || 0));
+  
+  res.json({ sport, teams: sorted.length, data: sorted });
+});
+
+app.get('/api/injuries/:sport/:team', (req, res) => {
+  const { sport, team } = req.params;
+  const data = injuries.getTeamInjuries(sport.toLowerCase(), team.toUpperCase());
+  if (!data) return res.json({ note: `No injury data for ${team} in ${sport}` });
+  const adj = injuries.getInjuryAdjustment(sport.toLowerCase(), team.toUpperCase());
+  res.json({ team: team.toUpperCase(), sport, injuries: data, adjustment: adj });
+});
+
+app.post('/api/injuries/refresh', async (req, res) => {
+  try {
+    const results = await injuries.refreshAll(true);
+    res.json({ status: 'ok', results, updated: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== DATA STATUS ====================
+
 app.get('/api/data/status', (req, res) => {
   const status = liveData.getDataStatus();
   const nbaTeams = nba.getTeams();
@@ -873,18 +957,24 @@ app.get('/api/data/status', (req, res) => {
       sampleTeam: nhlTeams['COL'] ? { name: nhlTeams['COL'].name, w: nhlTeams['COL'].w, l: nhlTeams['COL'].l } : null
     },
     odds: { configured: !!ODDS_API_KEY, source: 'the-odds-api', cacheMinutes: 5 },
+    rollingStats: rollingStats.getStatus(),
+    injuries: injuries.getStatus(),
     updated: new Date().toISOString()
   });
 });
 
-// Data refresh — actually triggers live data pull now
+// Data refresh — triggers live data, rolling stats, and injuries pull
 app.post('/api/data/refresh', async (req, res) => {
   try {
-    const results = await liveData.refreshAll(true);
+    const [liveResults, rollingResults, injuryResults] = await Promise.all([
+      liveData.refreshAll(true),
+      rollingStats.refreshAll(true),
+      injuries.refreshAll(true)
+    ]);
     res.json({ 
       status: 'ok', 
-      message: 'Live data refresh completed',
-      results,
+      message: 'Full data refresh completed',
+      results: { live: liveResults, rolling: rollingResults, injuries: injuryResults },
       updated: new Date().toISOString() 
     });
   } catch (e) {
@@ -894,11 +984,15 @@ app.post('/api/data/refresh', async (req, res) => {
 
 app.get('/api/data/refresh', async (req, res) => {
   try {
-    const results = await liveData.refreshAll(true);
+    const [liveResults, rollingResults, injuryResults] = await Promise.all([
+      liveData.refreshAll(true),
+      rollingStats.refreshAll(true),
+      injuries.refreshAll(true)
+    ]);
     res.json({ 
       status: 'ok', 
-      message: 'Live data refresh completed',
-      results,
+      message: 'Full data refresh completed',
+      results: { live: liveResults, rolling: rollingResults, injuries: injuryResults },
       updated: new Date().toISOString() 
     });
   } catch (e) {
@@ -908,23 +1002,29 @@ app.get('/api/data/refresh', async (req, res) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v6.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v7.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
-  console.log(`   Features: LIVE DATA, pitcher model, Poisson totals, matchup analysis, Opening Day`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, pitcher model, Poisson totals, Kelly optimizer`);
   
-  // Auto-refresh live data on startup
-  console.log('   📡 Fetching live data...');
-  liveData.refreshAll().then(results => {
-    console.log('   ✅ Live data refresh:', JSON.stringify(results));
+  // Auto-refresh all data on startup
+  console.log('   📡 Fetching live data + rolling stats + injuries...');
+  Promise.all([
+    liveData.refreshAll(),
+    rollingStats.refreshAll(),
+    injuries.refreshAll()
+  ]).then(([liveResults, rollingResults, injuryResults]) => {
+    console.log('   ✅ Live data:', JSON.stringify(liveResults));
+    console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
+    console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
     console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
     console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
   }).catch(e => {
-    console.error('   ⚠️ Live data refresh failed:', e.message);
+    console.error('   ⚠️ Data refresh failed:', e.message);
     console.log('   Using static fallback data');
   });
 });

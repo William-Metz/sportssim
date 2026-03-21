@@ -959,11 +959,22 @@
     "CHW": {
       "name": "Chicago White Sox",
       "w": 15,
-      "l": 12,
-      "gp": 27,
-      "rsG": 5.59,
-      "raG": 4.81,
-      "diff": 0.78,
+      "l": 13,
+      "gp": 28,
+      "rsG": 5.5,
+      "raG": 4.79,
+      "diff": 0.71,
+      "isSpringTraining": true,
+      "source": "espn-live"
+    },
+    "LAA": {
+      "name": "Los Angeles Angels",
+      "w": 16,
+      "l": 14,
+      "gp": 30,
+      "rsG": 4.53,
+      "raG": 5.53,
+      "diff": -1,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -975,17 +986,6 @@
       "rsG": 5.84,
       "raG": 5.24,
       "diff": 0.6,
-      "isSpringTraining": true,
-      "source": "espn-live"
-    },
-    "LAA": {
-      "name": "Los Angeles Angels",
-      "w": 15,
-      "l": 14,
-      "gp": 29,
-      "rsG": 4.55,
-      "raG": 5.62,
-      "diff": -1.07,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -1088,6 +1088,17 @@
       "isSpringTraining": true,
       "source": "espn-live"
     },
+    "STL": {
+      "name": "St. Louis Cardinals",
+      "w": 15,
+      "l": 9,
+      "gp": 24,
+      "rsG": 4.54,
+      "raG": 4.17,
+      "diff": 0.38,
+      "isSpringTraining": true,
+      "source": "espn-live"
+    },
     "NYY": {
       "name": "New York Yankees",
       "w": 16,
@@ -1121,25 +1132,14 @@
       "isSpringTraining": true,
       "source": "espn-live"
     },
-    "STL": {
-      "name": "St. Louis Cardinals",
-      "w": 14,
-      "l": 9,
-      "gp": 23,
-      "rsG": 4.57,
-      "raG": 4.22,
-      "diff": 0.35,
-      "isSpringTraining": true,
-      "source": "espn-live"
-    },
     "NYM": {
       "name": "New York Mets",
       "w": 12,
-      "l": 9,
-      "gp": 21,
-      "rsG": 5.24,
+      "l": 10,
+      "gp": 22,
+      "rsG": 5.14,
       "raG": 3.86,
-      "diff": 1.38,
+      "diff": 1.27,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -1151,6 +1151,17 @@
       "rsG": 4.88,
       "raG": 5.96,
       "diff": -1.08,
+      "isSpringTraining": true,
+      "source": "espn-live"
+    },
+    "TOR": {
+      "name": "Toronto Blue Jays",
+      "w": 11,
+      "l": 13,
+      "gp": 24,
+      "rsG": 4.96,
+      "raG": 4.67,
+      "diff": 0.29,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -1173,17 +1184,6 @@
       "rsG": 4.45,
       "raG": 4.05,
       "diff": 0.41,
-      "isSpringTraining": true,
-      "source": "espn-live"
-    },
-    "TOR": {
-      "name": "Toronto Blue Jays",
-      "w": 10,
-      "l": 13,
-      "gp": 23,
-      "rsG": 5.09,
-      "raG": 4.83,
-      "diff": 0.26,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -1234,18 +1234,18 @@
     "MIN": {
       "name": "Minnesota Twins",
       "w": 8,
-      "l": 16,
-      "gp": 24,
-      "rsG": 4.54,
-      "raG": 5.83,
-      "diff": -1.29,
+      "l": 17,
+      "gp": 25,
+      "rsG": 4.4,
+      "raG": 5.68,
+      "diff": -1.28,
       "isSpringTraining": true,
       "source": "espn-live"
     }
   },
   "timestamps": {
-    "nba": 1774035004440,
-    "nhl": 1774035004606,
-    "mlb": 1774035004929
+    "nba": 1774052529430,
+    "nhl": 1774052529760,
+    "mlb": 1774052530217
   }
 }
