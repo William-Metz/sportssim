@@ -751,6 +751,16 @@
       "team": "Los Angeles Lakers",
       "injuries": [
         {
+          "player": "Maxi Kleber",
+          "position": "F",
+          "status": "Out",
+          "detail": "Kleber (back) has been ruled out for Saturday's game against the Magic.",
+          "returnDate": "2026-03-21T14:39Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Austin Reaves",
           "position": "G",
           "status": "Day-To-Day",
@@ -759,16 +769,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Maxi Kleber",
-          "position": "F",
-          "status": "Out",
-          "detail": "Kleber (back) took part in practice Thursday with the G League's South Bay Lakers, Khobi Price of The California Post reports.",
-          "returnDate": "2026-03-20T15:22Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         }
       ],
       "totalImpact": 0,
@@ -1646,6 +1646,16 @@
       "team": "Washington Wizards",
       "injuries": [
         {
+          "player": "Trae Young",
+          "position": "G",
+          "status": "Out",
+          "detail": "The Wizards announced Saturday that Young (quadriceps) is also working throw lower-back irritation, Josh Robbins of The Athletic reports.",
+          "returnDate": "2026-03-21T15:12Z",
+          "impact": 3.5,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Will Riley",
           "position": "G",
           "status": "Day-To-Day",
@@ -1674,16 +1684,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Trae Young",
-          "position": "G",
-          "status": "Out",
-          "detail": "Young (quadriceps) is out for Saturday's game against the Thunder.",
-          "returnDate": "2026-03-20T20:48Z",
-          "impact": 3.5,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Anthony Davis",
@@ -1734,7 +1734,7 @@
           "player": "Trae Young",
           "impact": 3.5,
           "status": "Out",
-          "detail": "Young (quadriceps) is out for Saturday's game against the Thunder.",
+          "detail": "The Wizards announced Saturday that Young (quadriceps) is also working throw lower-back irritation, Josh Robbins of The Athletic reports.",
           "isOut": true,
           "isDayToDay": false
         },
@@ -2109,18 +2109,8 @@
           "player": "Michael Brandsegg-Nygard",
           "position": "RW",
           "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-20T13:24Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Mason Appleton",
-          "position": "C",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-20T05:03Z",
+          "detail": "Brandsegg-Nygard (undisclosed) will be a game-time decision Saturday versus Boston, Ansar Khan of MLive.com reports.",
+          "returnDate": "2026-03-21T15:27Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -2148,7 +2138,7 @@
       ],
       "totalImpact": 0,
       "outCount": 2,
-      "dtdCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "EDM": {
@@ -2583,21 +2573,21 @@
       "team": "New York Rangers",
       "injuries": [
         {
+          "player": "Noah Laba",
+          "position": "C",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-21T15:39Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Urho Vaakanainen",
           "position": "D",
           "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-20T13:24Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Noah Laba",
-          "position": "C",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-20T13:24Z",
+          "detail": "Vaakanainen (upper body) is week-to-week, according to Vince Z. Mercogliano of The Athletic on Saturday.",
+          "returnDate": "2026-03-21T15:32Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -2614,29 +2604,29 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 1,
-      "dtdCount": 2,
+      "outCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "OTT": {
       "team": "Ottawa Senators",
       "injuries": [
         {
-          "player": "Nick Jensen",
+          "player": "Jake Sanderson",
           "position": "D",
           "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-17T15:40Z",
+          "detail": "Per Claire Hanna of TSN, Sanderson (upper body) has returned to the ice and could be back in action in 7-10 days, according to head coach Travis Green.",
+          "returnDate": "2026-03-21T15:20Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
         },
         {
-          "player": "Jake Sanderson",
+          "player": "Nick Jensen",
           "position": "D",
           "status": "Out",
-          "detail": "Sanderson (upper body) is week-to-week, Jackson Starr of the Senators' official site reports Monday.",
-          "returnDate": "2026-03-09T18:02Z",
+          "detail": "out",
+          "returnDate": "2026-03-17T15:40Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -2710,16 +2700,6 @@
       "team": "Pittsburgh Penguins",
       "injuries": [
         {
-          "player": "Ryan Graves",
-          "position": "D",
-          "status": "Injured Reserve",
-          "detail": "Graves (undisclosed) was recalled from a conditioning assignment with AHL Wilkes-Barre/Scranton on Thursday.",
-          "returnDate": "2026-03-19T16:49Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Samuel Girard",
           "position": "D",
           "status": "Day-To-Day",
@@ -2781,7 +2761,7 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
+      "outCount": 4,
       "dtdCount": 2,
       "starPlayersOut": []
     },
@@ -3111,16 +3091,6 @@
       "team": "Winnipeg Jets",
       "injuries": [
         {
-          "player": "Neal Pionk",
-          "position": "D",
-          "status": "Injured Reserve",
-          "detail": "PIonk (undisclosed) was skating in a regular jersey ahead of Thursday's clash with Boston, Mitchell Clinton of the Jets' official site reports.",
-          "returnDate": "2026-03-19T15:31Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Colin Miller",
           "position": "D",
           "status": "Injured Reserve",
@@ -3152,7 +3122,7 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
+      "outCount": 3,
       "dtdCount": 0,
       "starPlayersOut": []
     }
@@ -3458,14 +3428,34 @@
       "team": "Baltimore Orioles",
       "injuries": [
         {
-          "player": "Dylan Beavers",
-          "position": "RF",
+          "player": "Heston Kjerstad",
+          "position": "LF",
           "status": "Day-To-Day",
-          "detail": "Beavers went 2-for-3 with a two-run home run in Saturday's Grapefruit League game against the Pirates.",
-          "returnDate": "2026-03-20T21:26Z",
+          "detail": "Kjerstad went 1-for-3 with a solo home run in Sunday's Grapefruit League game against the Tigers.",
+          "returnDate": "2026-03-21T15:00Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
+        },
+        {
+          "player": "Dylan Beavers",
+          "position": "RF",
+          "status": "Day-To-Day",
+          "detail": "Beavers said Saturday that he felt tightness in his quad while running Friday, Jacob Calvin Meyer of The Baltimore Sun reports.",
+          "returnDate": "2026-03-21T14:36Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Andrew Kittredge",
+          "position": "RP",
+          "status": "Out",
+          "detail": "Kittredge (shoulder) said Saturday that he expects to begin a rehab assignment at Triple-A Norfolk once the regular season starts, Andy Kostka of TheBaltimoreBanner.com reports.",
+          "returnDate": "2026-03-21T14:25Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Jackson Holliday",
@@ -3483,16 +3473,6 @@
           "status": "Out",
           "detail": "Westburg (elbow) said Monday that he remains without a timeline to increase his participation in baseball activities, Roch Kubatko of MASNSports.com reports.",
           "returnDate": "2026-03-16T17:33Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Andrew Kittredge",
-          "position": "RP",
-          "status": "Out",
-          "detail": "Orioles manager Craig Albernaz said Wednesday that Kittredge is battling right shoulder inflammation and is \"a low probability\" to be ready for Opening Day, Jake Rill of MLB.com reports.",
-          "returnDate": "2026-03-04T15:00Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -3540,7 +3520,7 @@
       ],
       "totalImpact": 0,
       "outCount": 6,
-      "dtdCount": 2,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "BOS": {
@@ -5453,21 +5433,21 @@
       "team": "St. Louis Cardinals",
       "injuries": [
         {
-          "player": "Hunter Dobbins",
-          "position": "SP",
+          "player": "Lars Nootbaar",
+          "position": "LF",
           "status": "Out",
-          "detail": "Cardinals manager Oliver Marmol said Sunday that Dobbins (knee) will begin the season on the injured list, Derrick Goold of the St. Louis Post-Dispatch reports.",
-          "returnDate": "2026-03-15T15:35Z",
+          "detail": "Nootbaar (heel) will start the 2026 regular season on the Cardinals' injured list, William Ladson of MLB.com reports.",
+          "returnDate": "2026-03-21T14:54Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
         },
         {
-          "player": "Lars Nootbaar",
-          "position": "LF",
+          "player": "Hunter Dobbins",
+          "position": "SP",
           "status": "Out",
-          "detail": "Nootbaar (heels) has been increasing his agility drills and is soon slated to ramp up his running program, Derrick Goold of the St. Louis Post-Dispatch reports.",
-          "returnDate": "2026-03-12T19:17Z",
+          "detail": "Cardinals manager Oliver Marmol said Sunday that Dobbins (knee) will begin the season on the injured list, Derrick Goold of the St. Louis Post-Dispatch reports.",
+          "returnDate": "2026-03-15T15:35Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -5845,8 +5825,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774103053287,
-    "nhl": 1774103053653,
-    "mlb": 1774103053802
+    "nba": 1774108053775,
+    "nhl": 1774108053938,
+    "mlb": 1774108054134
   }
 }

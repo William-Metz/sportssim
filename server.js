@@ -18,6 +18,8 @@ const lineMovement = require('./services/line-movement');
 const kalshi = require('./services/kalshi');
 const playerProps = require('./services/player-props');
 const weather = require('./services/weather');
+const polymarket = require('./services/polymarket');
+const playerStatsService = require('./services/player-stats');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -81,7 +83,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '11.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props'] });
+  res.json({ status: 'ok', version: '12.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -1260,6 +1262,28 @@ app.get('/api/props/calc', (req, res) => {
   res.json(result);
 });
 
+// ==================== LIVE PLAYER STATS ====================
+
+app.get('/api/players/status', (req, res) => {
+  res.json(playerStatsService.getStatus());
+});
+
+app.get('/api/players/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    const stats = await playerStatsService.getPlayerStats(sport);
+    const players = Object.values(stats).filter(p => typeof p === 'object' && p.name);
+    res.json({ sport, count: players.length, players, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/players/refresh', async (req, res) => {
+  try {
+    const result = await playerStatsService.refreshAll();
+    res.json({ refreshed: true, ...result, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== WEATHER ====================
 
 app.get('/api/weather/status', (req, res) => {
@@ -1375,9 +1399,54 @@ app.get('/api/mlb/weather-games', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== POLYMARKET SCANNER ====================
+
+app.get('/api/polymarket/status', (req, res) => {
+  res.json(polymarket.getStatus());
+});
+
+app.get('/api/polymarket/scan', async (req, res) => {
+  try {
+    const sport = req.query.sport || null;
+    const result = await polymarket.fullScan({ sport });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/polymarket/featured', async (req, res) => {
+  try {
+    const result = await polymarket.getFeaturedSportsMarkets();
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/polymarket/movers', async (req, res) => {
+  try {
+    const sport = req.query.sport || null;
+    const result = await polymarket.findMovers(sport);
+    res.json({ movers: result, count: result.length, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/polymarket/games', async (req, res) => {
+  try {
+    const sport = req.query.sport || null;
+    const result = await polymarket.scanDailyGames(sport);
+    res.json({ games: result, count: result.length, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/polymarket/futures/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport;
+    const result = await polymarket.scanChampionshipFutures(sport);
+    res.json({ futures: result, count: result.length, sport, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v11.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v12.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -1385,20 +1454,23 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER`);
+  console.log(`   Polymarket: scanner active`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET`);
   
   // Auto-refresh all data on startup
-  console.log('   📡 Fetching live data + rolling stats + injuries + weather...');
+  console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats...');
   Promise.all([
     liveData.refreshAll(),
     rollingStats.refreshAll(),
     injuries.refreshAll(),
-    weather.getAllWeather().catch(() => ({}))
-  ]).then(async ([liveResults, rollingResults, injuryResults, weatherResults]) => {
+    weather.getAllWeather().catch(() => ({})),
+    playerStatsService.refreshAll().catch(() => ({ nba: 0, mlb: 0, nhl: 0 }))
+  ]).then(async ([liveResults, rollingResults, injuryResults, weatherResults, playerResults]) => {
     console.log('   ✅ Live data:', JSON.stringify(liveResults));
     console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
     console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
     console.log(`   ✅ Weather: ${Object.keys(weatherResults).length} parks cached`);
+    console.log(`   ✅ Player stats: NBA ${playerResults.nba}, MLB ${playerResults.mlb}, NHL ${playerResults.nhl}`);
     console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
     console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
     
