@@ -16,7 +16,7 @@ const HCA = 3.2; // home court advantage in points
 const PYTH_EXP = 13.91; // Morey exponent for NBA
 const LUCK_PENALTY_FACTOR = 0.6; // how much to discount lucky teams
 const MOMENTUM_WEIGHT = 0.15; // weight for L10 momentum
-const SPREAD_TO_PROB_FACTOR = 7.5; // logistic scaling
+const SPREAD_TO_PROB_FACTOR = 15; // logistic scaling — calibrated to real NBA spread-to-win% data
 
 // Live data integration
 let liveData = null;

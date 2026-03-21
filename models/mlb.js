@@ -46,7 +46,8 @@ function getTeams() {
               l: liveTeam.l,
               rsG: liveTeam.rsG,
               raG: liveTeam.raG,
-              l10: liveTeam.l10 || staticTeam.l10
+              l10: liveTeam.l10 || staticTeam.l10,
+              _isLiveData: true
             };
           } else {
             merged[abbr] = staticTeam;
@@ -141,9 +142,21 @@ const HOME_ADV = 0.540; // 54% historical home win rate in MLB
 // real data we have. After ~40 games, the regression disappears.
 // This prevents overconfident bets on Opening Day.
 function getEarlySeasonRegression(teamData) {
+  // Check if this is real regular season data vs preseason projections
+  // Preseason projected teams have round W/L numbers (e.g., 93-69, 86-76)
+  // and rsG/raG from projections, not actual games
   const gp = (teamData.w || 0) + (teamData.l || 0);
-  if (gp >= 40) return 0; // full confidence after 40 games
-  if (gp === 0) return 0.35; // Opening Day: 35% regression to mean
+  
+  // If the team has played a full 162-game season worth of projected data,
+  // check if it's actually a projection by seeing if we're near Opening Day
+  // Heuristic: if W + L > 130 and it's clearly not mid-season data (no l10 pattern from real games),
+  // treat as projections with ~20% regression (less certain than in-season data)
+  const isProjection = gp >= 130 && !teamData._isLiveData;
+  
+  if (isProjection) return 0.20; // 20% regression for preseason projections
+  
+  if (gp >= 40) return 0; // full confidence after 40 real games
+  if (gp === 0) return 0.35; // truly no data: 35% regression
   // Linear ramp: 35% at 0 games → 0% at 40 games
   return Math.max(0, 0.35 * (1 - gp / 40));
 }
@@ -274,7 +287,8 @@ function resolvePitcher(pitcherInput, teamAbbr) {
   return null;
 }
 
-// Calculate pitcher's expected RA/9 based on their stats and opposing offense
+// Calculate pitcher's raw expected RA/9 (NEUTRAL — no offense or park adjustments)
+// Offense and park adjustments are applied ONCE in predict() to avoid double-counting
 function pitcherExpectedRA(pitcher, opposingTeam, parkFactor) {
   if (!pitcher) return null;
   
@@ -283,15 +297,10 @@ function pitcherExpectedRA(pitcher, opposingTeam, parkFactor) {
   const pXfip = pitcher.xfip || pFip;
   
   // Predictive RA: weight FIP/xFIP more than ERA (more predictive)
+  // This is the pitcher's neutral expected RA/9 — NOT adjusted for opponent or park
   const pitcherRA = pFip * 0.35 + pXfip * 0.35 + pEra * 0.30;
   
-  // Opposing offense modifier: how much better/worse than average is the opposing offense
-  const offMod = opposingTeam ? (opposingTeam.rsG / LG_AVG.rsG) : 1.0;
-  
-  // Park-adjusted expected RA per 9 innings from this pitcher
-  const adjustedRA = pitcherRA * offMod * (parkFactor || 1.0);
-  
-  return adjustedRA;
+  return pitcherRA;
 }
 
 // Pitcher adjustment: blend starter contribution with bullpen
@@ -332,20 +341,16 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   let awayRaG, homeRaG;
   
   if (homePitcher) {
-    // Home pitcher faces away offense — this determines away team expected runs... wait
-    // Actually: away team's expected runs = away offense vs home pitcher
-    // Adjusted RA from home pitcher = runs the away team scores
+    // Home pitcher faces away offense — how many runs does the away team score?
+    // pitcherExpectedRA returns NEUTRAL pitcher RA/9 (no offense/park adjustments)
     const homePitcherRA = pitcherExpectedRA(homePitcher, away, pf);
-    // Away team runs = blend of (away offense) * (home pitcher quality relative to avg)
-    const pitcherMod = homePitcherRA / LG_AVG.era;
-    awayRaG = away.rsG * pitcherMod * pf / (pf); // park already in pitcherRA
-    // Simpler: away team expected runs = away.rsG * (homePitcherRA / LG_AVG.era)
-    // But we need to separate starter and bullpen
+    // Blend: starter covers ~5.5 innings, bullpen covers ~3.5
     const starterRuns = (homePitcherRA / 9) * 5.5;
     const bullpenRuns = (home.bullpenEra / 9) * 3.5;
-    const adjustedHomeRaG = starterRuns + bullpenRuns;
-    // away expected runs = away offense quality * adjusted pitching
-    awayRaG = (away.rsG / LG_AVG.rsG) * adjustedHomeRaG * pf;
+    const blendedRaG = starterRuns + bullpenRuns;
+    // Apply offense quality modifier ONCE and park factor ONCE
+    const offMod = away.rsG / LG_AVG.rsG;
+    awayRaG = blendedRaG * offMod * pf;
   } else {
     awayRaG = away.rsG * (home.raG / LG_AVG.raG) * pf;
   }
@@ -354,8 +359,9 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     const awayPitcherRA = pitcherExpectedRA(awayPitcher, home, pf);
     const starterRuns = (awayPitcherRA / 9) * 5.5;
     const bullpenRuns = (away.bullpenEra / 9) * 3.5;
-    const adjustedAwayRaG = starterRuns + bullpenRuns;
-    homeRaG = (home.rsG / LG_AVG.rsG) * adjustedAwayRaG * pf;
+    const blendedRaG = starterRuns + bullpenRuns;
+    const offMod = home.rsG / LG_AVG.rsG;
+    homeRaG = blendedRaG * offMod * pf;
   } else {
     homeRaG = home.rsG * (away.raG / LG_AVG.raG) * pf;
   }
@@ -434,16 +440,16 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     homeInjuryAdj = homeInjuries.adjFactor || 0;
   }
 
-  // Apply rolling + injury adjustments to expected runs
-  // For offense: rolling adj modifies a team's run-scoring ability
-  // awayRaG = runs the away team scores (based on their offense vs home pitching)
-  // Positive rolling = team is hot, scores more
-  // Negative injury = team lost a star, scores less
-  awayRaG += awayRollingAdj * 0.3 + awayInjuryAdj * 0.5; // scale down — these are partial game adjustments
-  homeRaG += homeRollingAdj * 0.3 + homeInjuryAdj * 0.5;
+  // Scale rolling + injury adjustments based on data quality
+  // During preseason/spring training, rolling stats are noise (rest starters, use minor leaguers)
+  // and injury reports are mixed with "resting" vs real injuries
+  const isPreseason = awayRegression > 0 || homeRegression > 0;
+  const rollingWeight = isPreseason ? 0.05 : 0.3; // almost zero for preseason, full for regular season
+  const injuryWeight = isPreseason ? 0.25 : 0.5;  // reduced for preseason
   
-  // Defensive adjustments: if a team is injured on the pitching side, the OTHER team scores more
-  // This is implicit in the injury adj for pitchers (their totalImpact counts pitcher injuries)
+  // Apply rolling + injury adjustments to expected runs
+  awayRaG += awayRollingAdj * rollingWeight + awayInjuryAdj * injuryWeight;
+  homeRaG += homeRollingAdj * rollingWeight + homeInjuryAdj * injuryWeight;
 
   // ==================== WEATHER ADJUSTMENT ====================
   // Weather impacts run scoring at outdoor parks
@@ -542,31 +548,30 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const awayExpF5 = awayExpRuns * f5Factor;
   const homeExpF5 = homeExpRuns * f5Factor;
   
-  // Win probability using log5 method
-  let awayTruePct, homeTruePct;
-  if (awayPitcher && homePitcher) {
-    // Pitcher-adjusted Pythagorean
-    awayTruePct = pythWinPct(awayExpRuns, homeExpRuns);
-    homeTruePct = 1 - awayTruePct;
-  } else {
-    awayTruePct = pythWinPct(away.rsG, away.raG);
-    homeTruePct = pythWinPct(home.rsG, home.raG);
-  }
+  // Win probability: Poisson-based (more accurate for single game predictions)
+  // Poisson directly models the scoring distribution from expected runs
+  const poissonProbs = poissonWinProb(awayExpRuns, homeExpRuns);
   
-  // Log5
-  let awayWinProb = (awayTruePct - awayTruePct * homeTruePct) / (awayTruePct + homeTruePct - 2 * awayTruePct * homeTruePct);
-  
-  // Home advantage adjustment
-  awayWinProb = awayWinProb * (1 - HOME_ADV) / (awayWinProb * (1 - HOME_ADV) + (1 - awayWinProb) * HOME_ADV);
-  let homeWinProb = 1 - awayWinProb;
+  // Apply home advantage as a probability shift
+  // In MLB, home teams win ~54% overall. Our expected runs already include park factors,
+  // so home advantage here is just the residual (batting last, familiarity, etc.)
+  // Typical residual HCA beyond park factors is ~1-2% 
+  const HCA_SHIFT = 0.018; // ~1.8% home advantage beyond park factors
+  let homeWinProb = Math.min(0.75, Math.max(0.25, poissonProbs.home + HCA_SHIFT));
+  let awayWinProb = 1 - homeWinProb;
   
   // Pitcher quality differential bonus
+  // NOTE: Expected runs already incorporate pitcher quality through ERA/FIP adjustments.
+  // This additional bonus is for SMALL factors not captured by run expectancy:
+  // - Strikeout pitchers suppress variance (fewer baserunners = fewer big innings)
+  // - Elite pitchers go deeper into games (less bullpen exposure)
+  // Scale is SMALL to avoid double-counting: ~0.5% per 10 rating points
   if (awayPitcher && homePitcher) {
     const awayPRating = awayPitcher.rating || 50;
     const homePRating = homePitcher.rating || 50;
     const ratingDiff = (homePRating - awayPRating) / 100;
-    // Each 10 rating points ≈ 1.5% win prob shift
-    homeWinProb = Math.min(0.85, Math.max(0.15, homeWinProb + ratingDiff * 0.15));
+    // Reduced from 0.15 to 0.05 — pitchers already in expected runs
+    homeWinProb = Math.min(0.78, Math.max(0.22, homeWinProb + ratingDiff * 0.05));
     awayWinProb = 1 - homeWinProb;
   }
   
@@ -577,7 +582,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     const rollingMom = ((homeRolling.momentum || 0) - (awayRolling.momentum || 0)) * 0.01;
     momAdj += rollingMom;
   }
-  homeWinProb = Math.min(0.90, Math.max(0.10, homeWinProb + momAdj));
+  homeWinProb = Math.min(0.78, Math.max(0.22, homeWinProb + momAdj));
   awayWinProb = 1 - homeWinProb;
   
   // Total runs
@@ -712,6 +717,31 @@ for (let i = 1; i <= 25; i++) FACTORIALS[i] = FACTORIALS[i-1] * i;
 function poissonPMF(lambda, k) {
   if (k < 0 || k > 25) return 0;
   return Math.exp(-lambda) * Math.pow(lambda, k) / FACTORIALS[k];
+}
+
+// Calculate win probability directly from Poisson score distribution
+// More accurate than Pythagorean for single-game predictions with known pitchers
+function poissonWinProb(awayLambda, homeLambda) {
+  const maxRuns = 16;
+  let awayWin = 0, homeWin = 0, tie = 0;
+  
+  for (let a = 0; a < maxRuns; a++) {
+    for (let h = 0; h < maxRuns; h++) {
+      const prob = poissonPMF(awayLambda, a) * poissonPMF(homeLambda, h);
+      if (a > h) awayWin += prob;
+      else if (h > a) homeWin += prob;
+      else tie += prob;
+    }
+  }
+  
+  // Split ties proportionally (baseball has extra innings)
+  const total = awayWin + homeWin;
+  if (total === 0) return { away: 0.5, home: 0.5 };
+  
+  return {
+    away: +(((awayWin + tie * awayWin / total)).toFixed(4)),
+    home: +(((homeWin + tie * homeWin / total)).toFixed(4))
+  };
 }
 
 // Calculate full score distribution and over/under probabilities

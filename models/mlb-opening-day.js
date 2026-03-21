@@ -1,6 +1,6 @@
-// models/mlb-opening-day.js — MLB 2026 Opening Day Projections v3.0
+// models/mlb-opening-day.js — MLB 2026 Opening Day Projections v3.1
 // UPDATED: Real ESPN confirmed starters + DraftKings opening lines
-// Updated 2026-03-21 with confirmed data from ESPN schedule
+// Updated 2026-03-21 with confirmed data from ESPN schedule (refreshed 22:40 UTC)
 //
 // Opening Day = MONEY TIME. Every edge counts.
 
@@ -34,7 +34,7 @@ const OPENING_DAY_GAMES = [
   },
   { 
     date: '2026-03-26', day: 1, away: 'CWS', home: 'MIL', time: '2:10 PM ET',
-    confirmedStarters: { away: 'Shane Smith', home: null },
+    confirmedStarters: { away: 'Shane Smith', home: 'Jacob Misiorowski' },
     dkLine: { homeML: -197, awayML: 165 }, // MIL -197
     broadcast: null,
   },
@@ -81,15 +81,15 @@ const OPENING_DAY_GAMES = [
     broadcast: null,
   },
   { 
-    date: '2026-03-26', day: 1, away: 'ARI', home: 'LAD', time: '8:08 PM ET',
-    confirmedStarters: { away: null, home: null },
-    dkLine: null, // Lines not yet posted
-    broadcast: null,
+    date: '2026-03-26', day: 1, away: 'ARI', home: 'LAD', time: '8:30 PM ET',
+    confirmedStarters: { away: 'Zac Gallen', home: 'Yoshinobu Yamamoto' },
+    dkLine: { homeML: -238, awayML: 198 }, // LAD -238
+    broadcast: 'NBC/Peacock',
   },
   { 
-    date: '2026-03-26', day: 1, away: 'CLE', home: 'SEA', time: '9:40 PM ET',
-    confirmedStarters: { away: null, home: null },
-    dkLine: null,
+    date: '2026-03-26', day: 1, away: 'CLE', home: 'SEA', time: '10:10 PM ET',
+    confirmedStarters: { away: 'Tanner Bibee', home: 'Logan Gilbert' },
+    dkLine: { homeML: -177, awayML: 150 }, // SEA -177
     broadcast: null,
   },
 
@@ -107,13 +107,13 @@ const OPENING_DAY_GAMES = [
     broadcast: null,
   },
   { 
-    date: '2026-03-27', day: 2, away: 'COL', home: 'MIA', time: '4:10 PM ET',
+    date: '2026-03-27', day: 2, away: 'COL', home: 'MIA', time: '7:10 PM ET',
     confirmedStarters: { away: 'Kyle Freeland', home: 'Sandy Alcantara' },
     dkLine: { homeML: -177, awayML: 150 }, // MIA -177
     broadcast: null,
   },
   { 
-    date: '2026-03-27', day: 2, away: 'KC', home: 'ATL', time: '4:10 PM ET',
+    date: '2026-03-27', day: 2, away: 'KC', home: 'ATL', time: '7:15 PM ET',
     confirmedStarters: { away: 'Cole Ragans', home: 'Chris Sale' },
     dkLine: { homeML: -152, awayML: 128 }, // ATL -152
     broadcast: null,
@@ -128,21 +128,21 @@ const OPENING_DAY_GAMES = [
   },
   { 
     date: '2026-03-27', day: 2, away: 'LAA', home: 'HOU', time: '8:10 PM ET',
-    confirmedStarters: { away: null, home: null },
+    confirmedStarters: { away: 'Yusei Kikuchi', home: null },
     dkLine: null,
     broadcast: 'Apple TV',
     isGame2: true,
   },
   { 
-    date: '2026-03-27', day: 2, away: 'DET', home: 'SD', time: '8:40 PM ET',
-    confirmedStarters: { away: null, home: null },
+    date: '2026-03-27', day: 2, away: 'DET', home: 'SD', time: '9:40 PM ET',
+    confirmedStarters: { away: 'Framber Valdez', home: null },
     dkLine: null,
     broadcast: null,
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'ARI', home: 'LAD', time: '10:10 PM ET',
-    confirmedStarters: { away: null, home: null },
+    confirmedStarters: { away: 'Ryne Nelson', home: null },
     dkLine: null,
     broadcast: null,
     isGame2: true,

@@ -100,6 +100,7 @@ const PITCHERS = {
     { name: 'Kumar Rocker', team: 'TEX', hand: 'R', era: 4.55, fip: 4.35, xfip: 4.42, whip: 1.30, k9: 9.0, bb9: 3.2, hr9: 1.2, ip: 130, war: 1.2 },
   ],
   'LAA': [
+    { name: 'Yusei Kikuchi', team: 'LAA', hand: 'L', era: 4.05, fip: 3.85, xfip: 3.92, whip: 1.22, k9: 9.5, bb9: 2.8, hr9: 1.1, ip: 167, war: 2.5 }, // Signed w/ LAA offseason
     { name: 'Tyler Anderson', team: 'LAA', hand: 'L', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 7.5, bb9: 2.2, hr9: 1.2, ip: 170, war: 1.8 },
     { name: 'Reid Detmers', team: 'LAA', hand: 'L', era: 4.55, fip: 4.35, xfip: 4.42, whip: 1.28, k9: 9.0, bb9: 3.0, hr9: 1.2, ip: 150, war: 1.2 },
     { name: 'Griffin Canning', team: 'LAA', hand: 'R', era: 4.65, fip: 4.42, xfip: 4.50, whip: 1.30, k9: 8.5, bb9: 2.8, hr9: 1.3, ip: 140, war: 1.0 },
@@ -156,6 +157,7 @@ const PITCHERS = {
     { name: 'Freddy Peralta', team: 'NYM', hand: 'R', era: 3.42, fip: 3.28, xfip: 3.35, whip: 1.10, k9: 10.5, bb9: 2.5, hr9: 0.9, ip: 180, war: 4.2 }, // TRADED to NYM offseason 2025-26
     { name: 'Colin Rea', team: 'MIL', hand: 'R', era: 3.78, fip: 3.65, xfip: 3.72, whip: 1.15, k9: 8.0, bb9: 2.0, hr9: 0.9, ip: 170, war: 2.8 },
     { name: 'Tobias Myers', team: 'MIL', hand: 'R', era: 3.92, fip: 3.78, xfip: 3.85, whip: 1.18, k9: 8.2, bb9: 2.2, hr9: 1.0, ip: 155, war: 2.2 },
+    { name: 'Jacob Misiorowski', team: 'MIL', hand: 'R', era: 4.10, fip: 3.85, xfip: 3.90, whip: 1.28, k9: 10.8, bb9: 4.0, hr9: 0.8, ip: 80, war: 1.0 }, // Top prospect — elite stuff, control issues
     { name: 'Frankie Montas', team: 'MIL', hand: 'R', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 8.5, bb9: 2.5, hr9: 1.2, ip: 145, war: 1.5 },
     { name: 'Aaron Ashby', team: 'MIL', hand: 'L', era: 4.55, fip: 4.35, xfip: 4.42, whip: 1.30, k9: 9.0, bb9: 3.5, hr9: 1.0, ip: 120, war: 1.0 },
   ],
