@@ -20,6 +20,7 @@ const playerProps = require('./services/player-props');
 const weather = require('./services/weather');
 const polymarket = require('./services/polymarket');
 const playerStatsService = require('./services/player-stats');
+const betTracker = require('./services/bet-tracker');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -83,7 +84,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '12.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner'] });
+  res.json({ status: 'ok', version: '13.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -1444,9 +1445,116 @@ app.get('/api/polymarket/futures/:sport', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== BET TRACKER API ====================
+
+// Status
+app.get('/api/bets/status', (req, res) => {
+  res.json(betTracker.getStatus());
+});
+
+// Get analytics (MUST be before /api/bets/:id to avoid conflict)
+app.get('/api/bets/analytics', (req, res) => {
+  const filters = {};
+  if (req.query.sport) filters.sport = req.query.sport;
+  if (req.query.market) filters.market = req.query.market;
+  if (req.query.since) filters.since = req.query.since;
+  if (req.query.until) filters.until = req.query.until;
+  if (req.query.confidence) filters.confidence = req.query.confidence;
+  if (req.query.minEdge) filters.minEdge = parseFloat(req.query.minEdge);
+  
+  res.json(betTracker.getAnalytics(filters));
+});
+
+// Get all bets (with optional filters)
+app.get('/api/bets', (req, res) => {
+  const filters = {};
+  if (req.query.sport) filters.sport = req.query.sport;
+  if (req.query.market) filters.market = req.query.market;
+  if (req.query.result) filters.result = req.query.result;
+  if (req.query.date) filters.date = req.query.date;
+  if (req.query.pending === 'true') filters.pending = true;
+  if (req.query.source) filters.source = req.query.source;
+  if (req.query.limit) filters.limit = parseInt(req.query.limit);
+  
+  const bets = betTracker.getBets(filters);
+  res.json({ bets, count: bets.length, timestamp: new Date().toISOString() });
+});
+
+// Get single bet
+app.get('/api/bets/:id', (req, res) => {
+  const bet = betTracker.getBet(parseInt(req.params.id));
+  if (!bet) return res.status(404).json({ error: 'Bet not found' });
+  res.json(bet);
+});
+
+// Add a bet
+app.post('/api/bets', (req, res) => {
+  try {
+    const bet = betTracker.addBet(req.body);
+    res.json({ success: true, bet });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Grade a bet
+app.post('/api/bets/:id/grade', (req, res) => {
+  const { result, closingOdds, score, notes } = req.body;
+  const bet = betTracker.gradeBet(parseInt(req.params.id), result, { closingOdds, score, notes });
+  if (bet.error) return res.status(404).json(bet);
+  res.json({ success: true, bet });
+});
+
+// Update closing odds (for CLV)
+app.post('/api/bets/:id/closing', (req, res) => {
+  const { closingOdds } = req.body;
+  const bet = betTracker.updateClosingOdds(parseInt(req.params.id), closingOdds);
+  if (bet.error) return res.status(404).json(bet);
+  res.json({ success: true, bet });
+});
+
+// Delete a bet
+app.delete('/api/bets/:id', (req, res) => {
+  const result = betTracker.deleteBet(parseInt(req.params.id));
+  if (result.error) return res.status(404).json(result);
+  res.json({ success: true, ...result });
+});
+
+// Auto-grade bets for a date
+app.post('/api/bets/autograde', async (req, res) => {
+  try {
+    const date = req.body.date || new Date().toISOString().split('T')[0];
+    const result = await betTracker.autoGrade(date);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Set bankroll
+app.post('/api/bets/bankroll', (req, res) => {
+  const { bankroll } = req.body;
+  if (!bankroll || bankroll <= 0) return res.status(400).json({ error: 'Invalid bankroll amount' });
+  res.json(betTracker.setBankroll(bankroll));
+});
+
+// Log a bet from model prediction
+app.post('/api/bets/from-model', (req, res) => {
+  try {
+    const { prediction, odds, sport, stake, gameDate } = req.body;
+    const bets = betTracker.logModelBet(prediction, odds, { sport, stake, gameDate });
+    res.json({ success: true, bets, count: bets.length });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Fetch scores (for manual inspection)
+app.get('/api/scores/:sport', async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const scores = await betTracker.fetchScores(req.params.sport, date);
+    res.json({ scores, count: scores.length, date, sport: req.params.sport });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v12.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v13.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -1455,7 +1563,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
   console.log(`   Polymarket: scanner active`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET`);
+  console.log(`   Bet tracker: ${betTracker.getStatus().totalBets} bets tracked, ${betTracker.getStatus().pending} pending`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats...');

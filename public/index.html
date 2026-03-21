@@ -151,6 +151,7 @@ function buildTabs() {
     tabs.splice(6, 0, { id: 'weather', label: '⛅ Weather' });
   }
   tabs.push({ id: 'polymarket', label: '🔮 Polymarket' });
+  tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -173,6 +174,7 @@ function showTab(id) {
   else if (id === 'backtest') loadBacktest();
   else if (id === 'opening-day') loadOpeningDay();
   else if (id === 'polymarket') loadPolymarket();
+  else if (id === 'tracker') loadTracker();
 }
 
 // ==================== TODAY'S GAMES ====================
@@ -1934,6 +1936,392 @@ function formatNumber(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
   return Math.round(n).toString();
+}
+
+// ==================== BET TRACKER TAB ====================
+
+let trackerView = 'dashboard'; // 'dashboard', 'log', 'history', 'grade'
+
+async function loadTracker() {
+  const wrap = document.getElementById('tab-content');
+  let html = '<div class="section">';
+  html += '<h2>📋 Bet Tracker + CLV</h2>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+  html += `<button class="tab ${trackerView==='dashboard'?'active':''}" onclick="trackerView='dashboard';loadTracker()">📊 Dashboard</button>`;
+  html += `<button class="tab ${trackerView==='log'?'active':''}" onclick="trackerView='log';loadTracker()">➕ Log Bet</button>`;
+  html += `<button class="tab ${trackerView==='history'?'active':''}" onclick="trackerView='history';loadTracker()">📜 History</button>`;
+  html += `<button class="tab ${trackerView==='grade'?'active':''}" onclick="trackerView='grade';loadTracker()">✅ Auto-Grade</button>`;
+  html += '</div>';
+
+  try {
+    if (trackerView === 'dashboard') {
+      html += await renderTrackerDashboard();
+    } else if (trackerView === 'log') {
+      html += renderBetForm();
+    } else if (trackerView === 'history') {
+      html += await renderBetHistory();
+    } else if (trackerView === 'grade') {
+      html += await renderAutoGrade();
+    }
+  } catch (e) {
+    html += `<div class="card" style="border-left:3px solid #ff4444">Error: ${e.message}</div>`;
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+async function renderTrackerDashboard() {
+  let html = '';
+  try {
+    const data = await api('/bets/analytics');
+    const s = data.summary;
+
+    // Hero stats
+    html += '<div class="grid-3">';
+    html += `<div class="card" style="text-align:center">
+      <div style="font-size:32px;font-weight:700;color:${s.totalProfit >= 0 ? '#4ade80' : '#ff4444'}">${s.totalProfit >= 0 ? '+' : ''}$${s.totalProfit.toFixed(2)}</div>
+      <div style="color:#aaa;font-size:13px">Total P&L</div>
+      <div style="margin-top:8px;font-size:14px">${s.record} | ${s.winRate}% Win Rate</div>
+    </div>`;
+    html += `<div class="card" style="text-align:center">
+      <div style="font-size:32px;font-weight:700;color:${s.roi >= 0 ? '#4ade80' : '#ff4444'}">${s.roi >= 0 ? '+' : ''}${s.roi}%</div>
+      <div style="color:#aaa;font-size:13px">ROI</div>
+      <div style="margin-top:8px;font-size:14px">$${s.totalStaked.toFixed(0)} staked | ${s.totalBets} bets</div>
+    </div>`;
+    html += `<div class="card" style="text-align:center">
+      <div style="font-size:32px;font-weight:700">$${s.currentBankroll.toFixed(0)}</div>
+      <div style="color:#aaa;font-size:13px">Bankroll</div>
+      <div style="margin-top:8px;font-size:14px">${s.streak.emoji || '—'} ${s.streak.type !== 'none' ? s.streak.count + ' ' + s.streak.type : 'No streak'}</div>
+    </div>`;
+    html += '</div>';
+
+    // CLV card
+    if (s.clv) {
+      html += `<div class="card" style="border-left:3px solid ${s.clv.avgCents > 0 ? '#4ade80' : '#ff4444'}">
+        <h3>📏 Closing Line Value</h3>
+        <div style="display:flex;gap:24px;flex-wrap:wrap">
+          <div><strong>Avg CLV:</strong> ${s.clv.avgCents > 0 ? '+' : ''}${s.clv.avgCents}¢</div>
+          <div><strong>+CLV Rate:</strong> ${s.clv.positivePct}%</div>
+          <div><strong>Tracked:</strong> ${s.clv.tracked} bets</div>
+        </div>
+        <div style="margin-top:8px;color:#aaa;font-size:13px">${s.clv.interpretation}</div>
+      </div>`;
+    }
+
+    // By sport
+    if (Object.keys(data.bySport).length > 0) {
+      html += '<div class="card"><h3>By Sport</h3>';
+      html += '<table><thead><tr><th>Sport</th><th>Bets</th><th>W-L</th><th>Win%</th><th>Profit</th><th>ROI</th></tr></thead><tbody>';
+      for (const [sport, d] of Object.entries(data.bySport)) {
+        const color = d.profit >= 0 ? '#4ade80' : '#ff4444';
+        html += `<tr>
+          <td>${sport.toUpperCase()}</td><td>${d.bets}</td>
+          <td>${d.wins}-${d.losses}</td><td>${d.winRate}%</td>
+          <td style="color:${color}">${d.profit >= 0 ? '+' : ''}$${d.profit.toFixed(2)}</td>
+          <td style="color:${color}">${d.roi >= 0 ? '+' : ''}${d.roi}%</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+
+    // By market
+    if (Object.keys(data.byMarket).length > 0) {
+      html += '<div class="card"><h3>By Market</h3>';
+      html += '<table><thead><tr><th>Market</th><th>Bets</th><th>W-L</th><th>Win%</th><th>Profit</th><th>ROI</th></tr></thead><tbody>';
+      for (const [market, d] of Object.entries(data.byMarket)) {
+        const color = d.profit >= 0 ? '#4ade80' : '#ff4444';
+        html += `<tr>
+          <td>${market}</td><td>${d.bets}</td>
+          <td>${d.wins}-${d.losses}</td><td>${d.winRate}%</td>
+          <td style="color:${color}">${d.profit >= 0 ? '+' : ''}$${d.profit.toFixed(2)}</td>
+          <td style="color:${color}">${d.roi >= 0 ? '+' : ''}${d.roi}%</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+
+    // By edge tier
+    if (Object.keys(data.byEdge).length > 0) {
+      html += '<div class="card"><h3>By Model Edge Tier</h3>';
+      html += '<table><thead><tr><th>Edge Tier</th><th>Bets</th><th>Win%</th><th>Profit</th><th>ROI</th></tr></thead><tbody>';
+      for (const [tier, d] of Object.entries(data.byEdge)) {
+        const color = d.profit >= 0 ? '#4ade80' : '#ff4444';
+        html += `<tr>
+          <td>${tier}</td><td>${d.bets}</td>
+          <td>${d.winRate}%</td>
+          <td style="color:${color}">${d.profit >= 0 ? '+' : ''}$${d.profit.toFixed(2)}</td>
+          <td style="color:${color}">${d.roi >= 0 ? '+' : ''}${d.roi}%</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+
+    // Bankroll curve
+    if (data.bankrollCurve.length > 0) {
+      html += '<div class="card"><h3>📈 Bankroll Curve</h3>';
+      const maxBR = Math.max(...data.bankrollCurve.map(d => d.bankroll));
+      const minBR = Math.min(...data.bankrollCurve.map(d => d.bankroll));
+      const range = maxBR - minBR || 1;
+      html += '<div style="display:flex;gap:2px;align-items:flex-end;height:120px;padding:8px 0">';
+      for (const d of data.bankrollCurve) {
+        const pct = ((d.bankroll - minBR) / range) * 100;
+        const color = d.dayProfit >= 0 ? '#4ade80' : '#ff4444';
+        html += `<div style="flex:1;background:${color};min-height:4px;height:${Math.max(4, pct)}%;border-radius:2px" title="${d.date}: $${d.bankroll.toFixed(0)} (${d.dayProfit >= 0 ? '+' : ''}$${d.dayProfit.toFixed(0)})"></div>`;
+      }
+      html += '</div>';
+      html += `<div style="display:flex;justify-content:space-between;font-size:11px;color:#888">
+        <span>${data.bankrollCurve[0]?.date || ''}</span>
+        <span>${data.bankrollCurve[data.bankrollCurve.length - 1]?.date || ''}</span>
+      </div></div>`;
+    }
+
+    // Recent bets
+    if (data.recentBets.length > 0) {
+      html += '<div class="card"><h3>Recent Bets</h3>';
+      html += renderBetTable(data.recentBets);
+      html += '</div>';
+    }
+
+    if (s.totalBets === 0) {
+      html += '<div class="card" style="text-align:center;padding:40px">';
+      html += '<div style="font-size:48px;margin-bottom:16px">📋</div>';
+      html += '<h3>No bets tracked yet</h3>';
+      html += '<p style="color:#aaa">Log your first bet to start tracking P&L, ROI, and CLV.</p>';
+      html += '<button onclick="trackerView=\'log\';loadTracker()" style="margin-top:12px;padding:8px 24px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">➕ Log First Bet</button>';
+      html += '</div>';
+    }
+
+  } catch (e) {
+    html += `<div class="card" style="text-align:center;padding:40px">
+      <div style="font-size:48px;margin-bottom:16px">📋</div>
+      <h3>Bet Tracker Ready</h3>
+      <p style="color:#aaa">Start logging bets to track your edge.</p>
+      <button onclick="trackerView='log';loadTracker()" style="margin-top:12px;padding:8px 24px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">➕ Log First Bet</button>
+    </div>`;
+  }
+  return html;
+}
+
+function renderBetForm() {
+  let html = '<div class="card">';
+  html += '<h3>➕ Log a Bet</h3>';
+  html += '<form id="bet-form" onsubmit="submitBet(event)" style="display:grid;gap:12px;max-width:500px">';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  html += '<div><label style="font-size:12px;color:#aaa">Sport</label><select id="bet-sport" required style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px"><option value="nba">NBA</option><option value="mlb">MLB</option><option value="nhl">NHL</option></select></div>';
+  html += '<div><label style="font-size:12px;color:#aaa">Market</label><select id="bet-market" required style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px"><option value="moneyline">Moneyline</option><option value="spread">Spread</option><option value="total">Total (O/U)</option><option value="runline">Run Line</option><option value="prop">Player Prop</option><option value="futures">Futures</option></select></div>';
+  html += '</div>';
+  
+  html += '<div><label style="font-size:12px;color:#aaa">Pick (e.g. "LAD ML", "Over 8.5", "NYY -1.5")</label><input id="bet-pick" type="text" required placeholder="LAD ML" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  
+  html += '<div><label style="font-size:12px;color:#aaa">Game (e.g. "NYY @ BOS")</label><input id="bet-game" type="text" placeholder="NYY @ BOS" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">';
+  html += '<div><label style="font-size:12px;color:#aaa">Odds (American)</label><input id="bet-odds" type="number" required placeholder="-150" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  html += '<div><label style="font-size:12px;color:#aaa">Stake ($)</label><input id="bet-stake" type="number" step="0.01" required placeholder="25" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  html += '<div><label style="font-size:12px;color:#aaa">Game Date</label><input id="bet-date" type="date" value="' + new Date().toISOString().split('T')[0] + '" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  html += '</div>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  html += '<div><label style="font-size:12px;color:#aaa">Model Prob (0-1)</label><input id="bet-modelprob" type="number" step="0.001" min="0" max="1" placeholder="0.580" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  html += '<div><label style="font-size:12px;color:#aaa">Model Edge (%)</label><input id="bet-edge" type="number" step="0.001" placeholder="0.05" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  html += '</div>';
+  
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  html += '<div><label style="font-size:12px;color:#aaa">Sportsbook</label><input id="bet-book" type="text" placeholder="DraftKings" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  html += '<div><label style="font-size:12px;color:#aaa">Confidence</label><select id="bet-conf" style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px"><option value="">—</option><option value="HIGH">🔥 HIGH</option><option value="MEDIUM">✅ MEDIUM</option><option value="LOW">⚠️ LOW</option></select></div>';
+  html += '</div>';
+  
+  html += '<div><label style="font-size:12px;color:#aaa">Notes</label><input id="bet-notes" type="text" placeholder="Optional notes..." style="width:100%;padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;box-sizing:border-box"></div>';
+  
+  html += '<button type="submit" style="padding:12px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:15px;font-weight:600">📋 Log Bet</button>';
+  html += '</form>';
+  html += '<div id="bet-result" style="margin-top:12px"></div>';
+  html += '</div>';
+  
+  // Quick bet from model — bankroll setting
+  html += '<div class="card">';
+  html += '<h3>💰 Set Bankroll</h3>';
+  html += '<form onsubmit="setBankroll(event)" style="display:flex;gap:8px;align-items:end">';
+  html += '<div><label style="font-size:12px;color:#aaa">Bankroll ($)</label><input id="bankroll-input" type="number" step="1" min="1" placeholder="1000" style="padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px;width:150px"></div>';
+  html += '<button type="submit" style="padding:8px 16px;background:#334155;color:white;border:none;border-radius:6px;cursor:pointer">Set</button>';
+  html += '</form></div>';
+  
+  return html;
+}
+
+async function submitBet(e) {
+  e.preventDefault();
+  const body = {
+    sport: document.getElementById('bet-sport').value,
+    market: document.getElementById('bet-market').value,
+    pick: document.getElementById('bet-pick').value,
+    game: document.getElementById('bet-game').value || null,
+    odds: parseInt(document.getElementById('bet-odds').value),
+    stake: parseFloat(document.getElementById('bet-stake').value),
+    gameDate: document.getElementById('bet-date').value,
+    modelProb: document.getElementById('bet-modelprob').value ? parseFloat(document.getElementById('bet-modelprob').value) : null,
+    modelEdge: document.getElementById('bet-edge').value ? parseFloat(document.getElementById('bet-edge').value) : null,
+    book: document.getElementById('bet-book').value || null,
+    confidence: document.getElementById('bet-conf').value || null,
+    notes: document.getElementById('bet-notes').value || null,
+  };
+  
+  try {
+    const resp = await fetch(API + '/bets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await resp.json();
+    if (data.success) {
+      document.getElementById('bet-result').innerHTML = '<div style="color:#4ade80;padding:12px;background:#1a2e1a;border-radius:6px">✅ Bet #' + data.bet.id + ' logged: ' + data.bet.pick + ' @ ' + data.bet.odds + ' ($' + data.bet.stake + ')</div>';
+      document.getElementById('bet-form').reset();
+      document.getElementById('bet-date').value = new Date().toISOString().split('T')[0];
+    } else {
+      document.getElementById('bet-result').innerHTML = '<div style="color:#ff4444">Error: ' + (data.error || 'Unknown') + '</div>';
+    }
+  } catch (err) {
+    document.getElementById('bet-result').innerHTML = '<div style="color:#ff4444">Error: ' + err.message + '</div>';
+  }
+}
+
+async function setBankroll(e) {
+  e.preventDefault();
+  const val = parseFloat(document.getElementById('bankroll-input').value);
+  if (!val || val <= 0) return;
+  await fetch(API + '/bets/bankroll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bankroll: val }) });
+  loadTracker();
+}
+
+async function renderBetHistory() {
+  let html = '';
+  const data = await api('/bets?limit=50');
+  
+  if (data.bets.length === 0) {
+    html += '<div class="card" style="text-align:center;padding:30px"><p style="color:#aaa">No bets logged yet.</p></div>';
+    return html;
+  }
+  
+  html += '<div class="card">';
+  html += `<h3>📜 Bet History (${data.count} bets)</h3>`;
+  html += renderBetTable(data.bets);
+  html += '</div>';
+  return html;
+}
+
+function renderBetTable(bets) {
+  let html = '<div style="overflow-x:auto">';
+  html += '<table style="font-size:13px"><thead><tr><th>#</th><th>Date</th><th>Sport</th><th>Pick</th><th>Odds</th><th>Stake</th><th>Edge</th><th>Result</th><th>P&L</th><th>CLV</th><th>Actions</th></tr></thead><tbody>';
+  
+  for (const b of bets) {
+    const resultColor = b.result === 'win' ? '#4ade80' : b.result === 'loss' ? '#ff4444' : b.result === 'push' ? '#fbbf24' : '#888';
+    const resultIcon = b.result === 'win' ? '✅' : b.result === 'loss' ? '❌' : b.result === 'push' ? '➖' : '⏳';
+    const plColor = (b.profit || 0) >= 0 ? '#4ade80' : '#ff4444';
+    const clvDisplay = b.clv ? (b.clv.cents > 0 ? '+' : '') + b.clv.cents + '¢' : '—';
+    const clvColor = b.clv ? (b.clv.cents > 0 ? '#4ade80' : b.clv.cents < 0 ? '#ff4444' : '#888') : '#888';
+    
+    html += `<tr>
+      <td>${b.id}</td>
+      <td style="white-space:nowrap">${b.gameDate || '—'}</td>
+      <td>${b.sport?.toUpperCase() || '—'}</td>
+      <td><strong>${b.pick}</strong>${b.game ? '<br><span style="color:#888;font-size:11px">' + b.game + '</span>' : ''}</td>
+      <td>${b.odds > 0 ? '+' : ''}${b.odds}</td>
+      <td>$${b.stake}</td>
+      <td>${b.modelEdge ? (b.modelEdge * 100).toFixed(1) + '%' : '—'}</td>
+      <td style="color:${resultColor}">${resultIcon} ${b.result || 'pending'}</td>
+      <td style="color:${b.result ? plColor : '#888'}">${b.result ? (b.profit >= 0 ? '+' : '') + '$' + (b.profit || 0).toFixed(2) : '—'}</td>
+      <td style="color:${clvColor}">${clvDisplay}</td>
+      <td>
+        ${!b.result ? `<button onclick="quickGrade(${b.id},'win')" style="padding:2px 6px;background:#1a2e1a;color:#4ade80;border:1px solid #4ade80;border-radius:4px;cursor:pointer;font-size:11px" title="Grade as Win">W</button>
+        <button onclick="quickGrade(${b.id},'loss')" style="padding:2px 6px;background:#2e1a1a;color:#ff4444;border:1px solid #ff4444;border-radius:4px;cursor:pointer;font-size:11px" title="Grade as Loss">L</button>
+        <button onclick="quickGrade(${b.id},'push')" style="padding:2px 6px;background:#2e2e1a;color:#fbbf24;border:1px solid #fbbf24;border-radius:4px;cursor:pointer;font-size:11px" title="Grade as Push">P</button>` : ''}
+        <button onclick="deleteBetConfirm(${b.id})" style="padding:2px 6px;background:#1e293b;color:#888;border:1px solid #334155;border-radius:4px;cursor:pointer;font-size:11px" title="Delete">🗑️</button>
+      </td>
+    </tr>`;
+  }
+  
+  html += '</tbody></table></div>';
+  return html;
+}
+
+async function quickGrade(betId, result) {
+  const closingOdds = prompt('Closing odds (optional, for CLV tracking):');
+  const opts = { result };
+  if (closingOdds && !isNaN(parseInt(closingOdds))) {
+    opts.closingOdds = parseInt(closingOdds);
+  }
+  
+  await fetch(API + '/bets/' + betId + '/grade', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify(opts) 
+  });
+  loadTracker();
+}
+
+async function deleteBetConfirm(betId) {
+  if (!confirm('Delete bet #' + betId + '?')) return;
+  await fetch(API + '/bets/' + betId, { method: 'DELETE' });
+  loadTracker();
+}
+
+async function renderAutoGrade() {
+  let html = '<div class="card">';
+  html += '<h3>✅ Auto-Grade Bets</h3>';
+  html += '<p style="color:#aaa;font-size:13px">Fetch final scores from ESPN and auto-grade your pending bets.</p>';
+  
+  html += '<form onsubmit="runAutoGrade(event)" style="display:flex;gap:8px;align-items:end;margin-top:12px">';
+  html += '<div><label style="font-size:12px;color:#aaa">Date to Grade</label><input id="grade-date" type="date" value="' + new Date().toISOString().split('T')[0] + '" style="padding:8px;background:#1e293b;color:white;border:1px solid #334155;border-radius:6px"></div>';
+  html += '<button type="submit" style="padding:8px 20px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">🔄 Auto-Grade</button>';
+  html += '</form>';
+  html += '<div id="grade-results" style="margin-top:16px"></div>';
+  html += '</div>';
+  
+  // Show pending bets
+  try {
+    const data = await api('/bets?pending=true');
+    if (data.bets.length > 0) {
+      html += '<div class="card">';
+      html += `<h3>⏳ Pending Bets (${data.count})</h3>`;
+      html += renderBetTable(data.bets);
+      html += '</div>';
+    }
+  } catch (e) { /* ignore */ }
+  
+  return html;
+}
+
+async function runAutoGrade(e) {
+  e.preventDefault();
+  const date = document.getElementById('grade-date').value;
+  const el = document.getElementById('grade-results');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    const resp = await fetch(API + '/bets/autograde', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date }) });
+    const data = await resp.json();
+    
+    let html = `<div style="padding:12px;background:#1e293b;border-radius:8px">`;
+    html += `<div style="font-weight:600;margin-bottom:8px">📊 Auto-Grade Results for ${date}</div>`;
+    html += `<div>Graded: ${data.graded} | Skipped: ${data.skipped} | Total pending: ${data.total}</div>`;
+    
+    if (data.results && data.results.length > 0) {
+      html += '<div style="margin-top:12px">';
+      for (const r of data.results) {
+        const icon = r.status === 'graded' ? (r.result === 'win' ? '✅' : r.result === 'loss' ? '❌' : '➖') :
+                     r.status === 'in-progress' ? '⏳' : r.status === 'no-match' ? '❓' : '⚠️';
+        const color = r.status === 'graded' ? (r.result === 'win' ? '#4ade80' : '#ff4444') : '#888';
+        html += `<div style="padding:4px 0;color:${color}">${icon} Bet #${r.id}: ${r.pick} — ${r.status}${r.profit !== undefined ? ' (' + (r.profit >= 0 ? '+' : '') + '$' + r.profit.toFixed(2) + ')' : ''}${r.reason ? ' (' + r.reason + ')' : ''}</div>`;
+      }
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    el.innerHTML = html;
+    
+    // Refresh the page after a delay
+    setTimeout(() => loadTracker(), 3000);
+  } catch (err) {
+    el.innerHTML = '<div style="color:#ff4444">Error: ' + err.message + '</div>';
+  }
 }
 
 // ==================== HELPERS ====================
