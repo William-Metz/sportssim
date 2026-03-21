@@ -5,9 +5,9 @@
 |----|------|--------|----------|-------|
 | 026 | **CRITICAL: Fix NBA totals bug** | ✅ DONE | P0 | Was dividing expectedTotal by 2 → model said 117 instead of 233 |
 | 027 | **NBA spread compression** | ✅ DONE | P0 | Capped at ±18, added rolling/injury rebalance |
-| 028 | Deploy NBA model fixes | ⏳ QUEUED | P0 | Commit + push + redeploy to Fly.io |
-| 029 | Backtest NBA with fixed model | ⏳ QUEUED | P1 | Verify ROI improvement after totals fix |
-| 030 | MLB Opening Day ready-check | ⏳ QUEUED | P0 | 6 days away — verify all MLB endpoints working |
+| 028 | Deploy NBA model fixes | ✅ DONE | P0 | Committed + pushed v23.0 — auto-deploys via GH Actions |
+| 029 | Backtest NBA with fixed model | ⏳ QUEUED | P1 | Verify ROI improvement after totals fix + spread calibration |
+| 030 | MLB Opening Day ready-check | ✅ DONE | P0 | All Day 1 starters confirmed, DK lines updated, Poisson win prob, pitcher fix |
 
 ## Active Sprint
 | ID | Task | Status | Priority | Notes |
@@ -47,6 +47,8 @@
 | 025 | Alt Lines Value Scanner | 2026-03-21 | Alt totals, alt spreads, team totals, F5 lines, Poisson math, live odds scanning, dashboard tab |
 | 026 | Fix NBA totals bug | 2026-03-21 | Was dividing expectedTotal by 2 → totals showed ~117 instead of ~233. Every NBA total bet was garbage. |
 | 027 | NBA spread compression + rebalance | 2026-03-21 | Capped spreads at ±18, reduced rolling double-count (50%), capped injury adj at 4pts/team |
+| 028 | Deploy NBA model fixes + v23.0 | 2026-03-21 | Pushed to GH, auto-deploy. NBA spread calibration (k=7.5→15), MLB Poisson win prob |
+| 030 | MLB Opening Day ready-check | 2026-03-21 | All 11 Day 1 starters confirmed, DK lines for all games, Poisson win prob, pitcher RA fix |
 
 ## Backlog
 - NFL win totals futures model
@@ -80,6 +82,7 @@
 | #7 | 2026-03-21 19:40 | **Unified Signal Engine v19.0** — CRITICAL UPGRADE: Wired ALL signals into the money-printing daily picks engine. Previously, daily picks used basic `predict()` (no rest/travel, no Monte Carlo, no umpire, no calibration). Now uses `asyncPredict` for MLB (rest/travel + MC), umpire zone data for totals, probability calibration, and blended probs (analytical + MC). Also: umpire data wired into MLB value detection (`/api/value/mlb` + `/api/value/all`), MC-enhanced totals in combined endpoint, new `/api/signal-check/:sport/:away/:home` unified pre-bet signal aggregator. Dashboard shows umpire + MC info in picks. Confidence scoring expanded (0-15 situational with umpire support). Tasks 018, 020, 024 completed. |
 | #8 | 2026-03-21 20:00 | **Alt Lines Value Scanner v20.0** — NEW FEATURE: Full alt lines scanner (`services/alt-lines.js`). Uses Poisson score matrix to calculate exact probabilities for ANY line — alt totals (4.5-14.5), alt run lines (-4.5 to +4.5), team totals (0.5-8.5), F5 totals (2.5-8.5), F5 spreads. Live odds scanning via The Odds API to find +EV alt market opportunities. Dashboard "📐 Alt Lines" tab with matchup analyzer (pick any two teams, see all alt line probabilities + sweet spots) and live scan button. Alt markets are less efficiently priced = more edge. API endpoints: `/api/alt-lines/:sport/:away/:home`, `/api/alt-lines/scan/:sport`, `/api/alt-lines/scan`. Task 025 completed. |
 | #9 | 2026-03-21 22:00 | **CRITICAL NBA Model Fix v21.0** — Planning session discovered NBA total calculation bug: `adjTotal = expectedTotal / 2 + paceAdj` was dividing the full game total by 2, outputting ~117 instead of ~233. This caused EVERY NBA total value bet to show as "UNDER" with fake 130+ point edges — completely polluting the value detection API. Fixed formula to `adjTotal = expectedTotal + paceAdj`. Also: added spread compression (cap at ±18 with soft taper beyond), reduced rolling stats double-counting (L10 momentum already in power rating, now 50% weight), capped injury adjustment at 4 pts/team max. MIL without Giannis now shows realistic -16 spread vs PHX instead of absurd -25. Tasks 026, 027 completed. |
+| #10 | 2026-03-21 22:40 | **MLB Poisson + NBA Calibration v23.0** — TWO CRITICAL MODEL FIXES: (1) MLB predict() now uses Poisson-based win probability instead of Log5 — directly models score distributions from expected runs, more accurate for single games. Fixed pitcher RA double-counting: pitcherExpectedRA() returns neutral RA/9, then offense+park applied ONCE. Preseason regression awareness. Tighter probability caps (22-78%). (2) NBA SPREAD_TO_PROB_FACTOR fixed from 7.5→15 — was mapping 16pt spreads to 99.3% instead of real-world 92%. Every NBA value bet was inflated. Also: Opening Day starters fully updated from ESPN (all 11 Day 1 games confirmed), added Misiorowski+Kikuchi to pitcher DB, DK lines for ARI@LAD & CLE@SEA. Tasks 028, 030 completed. |
 
 ---
 
@@ -120,6 +123,6 @@
 
 ---
 *Last updated: 2026-03-21*
-*MLB OPENING DAY: 6 DAYS*
+*MLB OPENING DAY: 5 DAYS*
 *NBA PLAYOFFS: 22 DAYS*
-*Next priorities: Deploy NBA fix (Task 028), NBA backtest validation (029), MLB ready-check (030), Statcast integration (032), CLV pipeline (033), Playoff series model (031)*
+*Next priorities: NBA backtest validation (029), Statcast integration (032), CLV pipeline (033), Playoff series model (031), Model calibration audit (034)*
