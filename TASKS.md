@@ -18,14 +18,14 @@
 | 009 | Deploy sportssim.hatch.fun | ✅ DONE | P1 | Live at sportssim.fly.dev v6.0 |
 | 010 | NHL model | ✅ DONE | P1 | Pythagorean + goalie adj + 32 teams |
 | 011 | Kelly Criterion multi-sport | ✅ DONE | P2 | Portfolio optimizer with correlation detection |
-| 012 | Rolling stats (all sports) | ⏳ QUEUED | P2 | L10 windows |
-| 013 | Injury scraper (all leagues) | ⏳ QUEUED | P2 | ESPN/league APIs |
-| 014 | Line movement tracker | ⏳ QUEUED | P2 | Snapshot every 30 min |
+| 012 | Rolling stats (all sports) | ✅ DONE | P2 | L10 windows, wired into all 3 models |
+| 013 | Injury scraper (all leagues) | ✅ DONE | P2 | ESPN APIs, star impact, wired into predictions |
+| 014 | Line movement tracker | ✅ DONE | P2 | Snapshot every 30 min, steam/RLM/stale detection |
 | 015 | Totals model (Poisson) | ✅ DONE | P2 | Poisson-based, integrated into MLB model |
 | 016 | MLB: starting pitcher model | ✅ DONE | P2 | 150 pitchers, composite ratings, matchup analysis |
 | 017 | MLB: park factors | ✅ DONE | P2 | 30 parks with run multipliers |
 | 018 | MLB: weather integration | ⏳ QUEUED | P3 | Wind, temp, humidity |
-| 019 | Kalshi scanner | ⏳ QUEUED | P2 | Team totals, props |
+| 019 | Kalshi scanner | ✅ DONE | P2 | Team totals, futures, value detection |
 | 020 | Player props framework | ⏳ QUEUED | P2 | Points, rebounds, Ks, hits |
 | 021 | Live data feeds (replace static) | ✅ DONE | P1 | ESPN + NHL API, auto-refresh, 30min cache |
 | 022 | NHL backtest expansion | ⏳ QUEUED | P2 | Add more games for validation |
@@ -49,6 +49,10 @@
 | 017 | MLB park factors | 2026-03-19 | 30 parks with run multipliers |
 | 021 | Live data feeds | 2026-03-20 | ESPN NBA/MLB + NHL API, auto-refresh, cache, fallback to static |
 | 023 | MLB Opening Day projections | 2026-03-19 | 19 games projected, best bets engine, deployed v5.0 |
+| 012 | Rolling stats wired into models | 2026-03-21 | L10 rolling stats from ESPN/NHL APIs, blended into NBA/MLB/NHL predict() |
+| 013 | Injury service wired into models | 2026-03-21 | Star player impact ratings, ESPN injury data, penalty adjustments in all 3 models |
+| 014 | Line movement tracker | 2026-03-21 | 30-min snapshots, steam/RLM/stale detection, API endpoints |
+| 019 | Kalshi scanner | 2026-03-21 | 1800 NBA team total contracts, futures, 119 value bets found |
 
 ## Backlog
 - NFL win totals futures model
@@ -78,6 +82,7 @@
 | #3 | 2026-03-19 18:00 | MLB Starting Pitcher Model + Poisson Totals v4.0 — 150 pitchers across 30 teams, composite rating system, pitcher-aware predictions, Poisson totals with score distributions, matchup analysis API, dashboard with pitcher dropdowns and rotations tab. Deployed to Fly.io. |
 | #4 | 2026-03-19 20:45 | MLB Opening Day Projections v5.0 — Full 19-game schedule (March 26-27), Opening Day model with pitcher matchups, best bets engine (top 5 picks), dedicated dashboard tab with hero countdown + game cards + totals table, deployed to Fly.io v5.0. |
 | #5 | 2026-03-20 19:20 | **Live Data Feeds + Kelly Optimizer v6.0** — MAJOR: replaced static data with live feeds from ESPN (NBA/MLB) and NHL official API. All 3 models now auto-refresh from real APIs with 30-min cache and graceful static fallback. Built proper Kelly Criterion portfolio optimizer with same-game correlation detection, confidence weighting, full/half/quarter Kelly sizing, and portfolio-level risk management. NBA now shows real current standings (OKC 55-15, DET 50-19, SAS 52-18). Fly deploy blocked by expired token — code committed and pushed to GitHub. |
+| #6 | 2026-03-21 14:20 | **Rolling Stats + Injuries → Models + Kalshi Scanner v9.0** — Wired rolling stats (L10 form) and injury data (star player impact) into MLB prediction engine (was already in NBA/NHL). MLB predict() now adjusts expected runs based on recent form and missing stars. Enhanced dashboard: new "Trends & Injuries" tab with sortable rolling form table and detailed injury reports. Factor Breakdown UI shows rolling cards + injury detail. Built full Kalshi prediction market scanner — scans 1800+ NBA team total contracts + championship futures for +EV opportunities. First scan found 119 value bets (90 HIGH confidence). Tasks 012, 013, 014, 019 all completed. |
 
 ---
 
@@ -117,6 +122,6 @@
 - Total: $203.80 wagered, +$20.77 expected profit, 10.2% ROI
 
 ---
-*Last updated: 2026-03-20*
-*MLB OPENING DAY: 7 DAYS*
-*Next priorities: Rolling stats (Task 012), Injury scraper (Task 013), Line movement tracker (Task 014)*
+*Last updated: 2026-03-21*
+*MLB OPENING DAY: 6 DAYS*
+*Next priorities: MLB weather integration (Task 018), Player props framework (Task 020), NHL backtest expansion (Task 022)*
