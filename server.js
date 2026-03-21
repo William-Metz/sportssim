@@ -16,6 +16,8 @@ const rollingStats = require('./services/rolling-stats');
 const injuries = require('./services/injuries');
 const lineMovement = require('./services/line-movement');
 const kalshi = require('./services/kalshi');
+const playerProps = require('./services/player-props');
+const weather = require('./services/weather');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -79,7 +81,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '6.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day'] });
+  res.json({ status: 'ok', version: '11.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -170,7 +172,7 @@ app.get('/api/model/mlb/ratings', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/model/mlb/predict', (req, res) => {
+app.get('/api/model/mlb/predict', async (req, res) => {
   const { away, home, awayPitcher, homePitcher, awayPitcherEra, awayPitcherFip, homePitcherEra, homePitcherFip } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
@@ -183,6 +185,11 @@ app.get('/api/model/mlb/predict', (req, res) => {
     if (awayPitcherFip) opts.awayPitcherFip = parseFloat(awayPitcherFip);
     if (homePitcherEra) opts.homePitcherEra = parseFloat(homePitcherEra);
     if (homePitcherFip) opts.homePitcherFip = parseFloat(homePitcherFip);
+    // Fetch live weather for the home ballpark
+    try {
+      const weatherData = await weather.getWeatherForPark(home.toUpperCase());
+      if (weatherData && !weatherData.error) opts.weather = weatherData;
+    } catch (e) { /* weather optional */ }
     const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
     if (!pred || pred.error) return res.status(400).json({ error: pred?.error || 'Invalid team code' });
     res.json(pred);
@@ -220,26 +227,35 @@ app.get('/api/model/mlb/pitchers/:team', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/model/mlb/matchup', (req, res) => {
+app.get('/api/model/mlb/matchup', async (req, res) => {
   const { away, home, awayPitcher, homePitcher } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
     const opts = {};
     if (awayPitcher) opts.awayPitcher = awayPitcher;
     if (homePitcher) opts.homePitcher = homePitcher;
+    try {
+      const weatherData = await weather.getWeatherForPark(home.toUpperCase());
+      if (weatherData && !weatherData.error) opts.weather = weatherData;
+    } catch (e) { /* weather optional */ }
     const matchup = mlb.analyzeMatchup(away.toUpperCase(), home.toUpperCase(), opts);
     if (!matchup || matchup.error) return res.status(400).json({ error: matchup?.error || 'Invalid team code' });
     res.json(matchup);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/model/mlb/totals', (req, res) => {
+app.get('/api/model/mlb/totals', async (req, res) => {
   const { away, home, awayPitcher, homePitcher } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
     const opts = {};
     if (awayPitcher) opts.awayPitcher = awayPitcher;
     if (homePitcher) opts.homePitcher = homePitcher;
+    // Fetch live weather for totals — critical for O/U betting
+    try {
+      const weatherData = await weather.getWeatherForPark(home.toUpperCase());
+      if (weatherData && !weatherData.error) opts.weather = weatherData;
+    } catch (e) { /* weather optional */ }
     const totals = mlb.predictTotal(away.toUpperCase(), home.toUpperCase(), opts);
     if (!totals || totals.error) return res.status(400).json({ error: totals?.error || 'Invalid team code' });
     res.json(totals);
@@ -266,7 +282,13 @@ app.get('/api/value/mlb', async (req, res) => {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const pred = mlb.predict(awayAbbr, homeAbbr);
+      // Fetch weather for home park to adjust predictions
+      const opts = {};
+      try {
+        const weatherData = await weather.getWeatherForPark(homeAbbr);
+        if (weatherData && !weatherData.error) opts.weather = weatherData;
+      } catch (e) { /* weather optional */ }
+      const pred = mlb.predict(awayAbbr, homeAbbr, opts);
       if (!pred || pred.error) continue;
 
       const books = game.bookmakers || [];
@@ -512,7 +534,13 @@ async function fetch_value_bets(sport) {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const pred = mlb.predict(awayAbbr, homeAbbr);
+      // Weather-adjusted predictions
+      const opts = {};
+      try {
+        const wd = await weather.getWeatherForPark(homeAbbr);
+        if (wd && !wd.error) opts.weather = wd;
+      } catch (e) { /* weather optional */ }
+      const pred = mlb.predict(awayAbbr, homeAbbr, opts);
       if (!pred || pred.error) continue;
       for (const bk of (game.bookmakers || [])) {
         const bookLine = extractBookLine(bk, game.home_team);
@@ -574,9 +602,18 @@ async function getAllOdds() {
         const homeAbbr = resolveTeam(nameMap, game.home_team);
         // Get model prediction
         let pred = null;
+        let gameWeather = null;
         try {
           if (s.sport === 'NBA') pred = nba.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
-          else if (s.sport === 'MLB') pred = mlb.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+          else if (s.sport === 'MLB') {
+            // Fetch weather for MLB games
+            const mlbOpts = {};
+            try {
+              const wd = await weather.getWeatherForPark(homeAbbr || 'UNK');
+              if (wd && !wd.error) { mlbOpts.weather = wd; gameWeather = wd; }
+            } catch (e) { /* weather optional */ }
+            pred = mlb.predict(awayAbbr || 'UNK', homeAbbr || 'UNK', mlbOpts);
+          }
           else if (s.sport === 'NHL') pred = nhl.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
         } catch (e) { /* skip */ }
         if (pred && pred.error) pred = null;
@@ -628,6 +665,17 @@ async function getAllOdds() {
             awayWinProb: +(pred.awayWinProb || pred.away?.winProb || 50).toFixed(1),
             spread: pred.spread || pred.home?.spread || null,
             total: pred.total || null
+          } : null,
+          weather: gameWeather ? {
+            temp: gameWeather.weather?.temp,
+            wind: gameWeather.weather?.wind,
+            windDir: gameWeather.weather?.windDir,
+            humidity: gameWeather.weather?.humidity,
+            multiplier: gameWeather.multiplier,
+            totalImpact: gameWeather.totalImpact,
+            description: gameWeather.description,
+            park: gameWeather.park,
+            dome: gameWeather.dome
           } : null,
           books,
           bestLine: {
@@ -727,11 +775,16 @@ app.get('/api/mlb/ratings', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/mlb/predict', (req, res) => {
+app.get('/api/mlb/predict', async (req, res) => {
   const { away, home } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
-    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase());
+    const opts = {};
+    try {
+      const wd = await weather.getWeatherForPark(home.toUpperCase());
+      if (wd && !wd.error) opts.weather = wd;
+    } catch (e) { /* weather optional */ }
+    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
     if (pred.error) return res.status(400).json(pred);
     res.json(pred);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -753,10 +806,16 @@ app.get('/api/mlb/pitchers', (req, res) => {
 
 app.get('/api/mlb/opening-day', async (req, res) => {
   try {
-    const projections = mlbOpeningDay.OPENING_DAY_GAMES.map(game => {
-      const pred = mlb.predict(game.away, game.home);
-      return { ...game, prediction: pred };
-    });
+    const projections = [];
+    for (const game of mlbOpeningDay.OPENING_DAY_GAMES) {
+      const opts = {};
+      try {
+        const wd = await weather.getWeatherForPark(game.home);
+        if (wd && !wd.error) opts.weather = wd;
+      } catch (e) { /* weather optional */ }
+      const pred = mlb.predict(game.away, game.home, opts);
+      projections.push({ ...game, prediction: pred, weather: opts.weather || null });
+    }
     res.json({ games: projections, date: '2026-03-27', updated: new Date().toISOString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1116,27 +1175,230 @@ app.get('/api/kalshi/status', (req, res) => {
   res.json(kalshi.getStatus());
 });
 
+// ==================== PLAYER PROPS ====================
+
+app.get('/api/props/status', (req, res) => {
+  res.json(playerProps.getStatus());
+});
+
+app.get('/api/props/players/:sport', (req, res) => {
+  const sport = req.params.sport.toLowerCase();
+  const players = playerProps.getAvailablePlayers(sport);
+  res.json({ sport, players, count: players.length });
+});
+
+app.get('/api/props/projection/:sport/:player', (req, res) => {
+  const sport = req.params.sport.toLowerCase();
+  const playerName = decodeURIComponent(req.params.player);
+  const projection = playerProps.getPlayerProjection(playerName, sport, { nba, mlb, nhl });
+  if (!projection) return res.status(404).json({ error: `Player "${playerName}" not found in ${sport.toUpperCase()} baselines` });
+  res.json(projection);
+});
+
+app.get('/api/props/scan/:sport', async (req, res) => {
+  const sport = req.params.sport.toLowerCase();
+  try {
+    const results = await playerProps.scanProps(sport, { nba, mlb, nhl });
+    if (results.error) return res.status(400).json(results);
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/props/value/:sport', async (req, res) => {
+  const sport = req.params.sport.toLowerCase();
+  try {
+    const results = await playerProps.scanProps(sport, { nba, mlb, nhl });
+    if (results.error) return res.status(400).json(results);
+    // Return only value bets, sorted by edge
+    const minEdge = parseFloat(req.query.minEdge) || 3;
+    const valueBets = (results.valueBets || []).filter(b => b.edge >= minEdge);
+    res.json({
+      sport: results.sport,
+      valueBets,
+      count: valueBets.length,
+      totalScanned: results.totalProps,
+      timestamp: results.timestamp,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Prop calculator: user enters player + line + odds, get model edge
+app.get('/api/props/calc', (req, res) => {
+  const { player, sport, stat, line, overOdds, underOdds } = req.query;
+  if (!player || !sport || !stat || !line) {
+    return res.status(400).json({ error: 'Required: player, sport, stat, line' });
+  }
+  const sportLower = sport.toLowerCase();
+  const baseline = playerProps.getPlayerProjection(decodeURIComponent(player), sportLower, { nba, mlb, nhl });
+  if (!baseline || !baseline.stats[stat]) {
+    return res.status(404).json({ error: `No baseline for ${player} ${stat}` });
+  }
+  const projection = baseline.stats[stat];
+  const lineNum = parseFloat(line);
+  const { over, under } = playerProps.calcOverUnderProb(projection, lineNum);
+  
+  const result = {
+    player: decodeURIComponent(player),
+    stat,
+    projection,
+    line: lineNum,
+    modelOver: over,
+    modelUnder: under,
+  };
+  
+  if (overOdds) {
+    const bookOver = overOdds < 0 ? (-overOdds) / (-overOdds + 100) * 100 : 100 / (parseFloat(overOdds) + 100) * 100;
+    result.overEdge = +(over - bookOver).toFixed(1);
+    result.overSignal = result.overEdge > 3 ? 'BET OVER' : result.overEdge > 0 ? 'lean over' : 'pass';
+  }
+  if (underOdds) {
+    const bookUnder = underOdds < 0 ? (-underOdds) / (-underOdds + 100) * 100 : 100 / (parseFloat(underOdds) + 100) * 100;
+    result.underEdge = +(under - bookUnder).toFixed(1);
+    result.underSignal = result.underEdge > 3 ? 'BET UNDER' : result.underEdge > 0 ? 'lean under' : 'pass';
+  }
+  
+  res.json(result);
+});
+
+// ==================== WEATHER ====================
+
+app.get('/api/weather/status', (req, res) => {
+  res.json(weather.getStatus());
+});
+
+app.get('/api/weather/:team', async (req, res) => {
+  try {
+    const result = await weather.getWeatherForPark(req.params.team.toUpperCase());
+    if (result.error) return res.status(400).json(result);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/weather', async (req, res) => {
+  try {
+    const all = await weather.getAllWeather();
+    // Sort by impact (most hitter-friendly first)
+    const sorted = Object.values(all).sort((a, b) => (b.totalImpact || 0) - (a.totalImpact || 0));
+    res.json({
+      parks: sorted,
+      count: sorted.length,
+      updated: new Date().toISOString(),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/weather/game/:away/:home', async (req, res) => {
+  try {
+    const { away, home } = req.params;
+    const baseTotal = parseFloat(req.query.total) || 8.5;
+    const result = await weather.adjustGameTotal(home.toUpperCase(), away.toUpperCase(), baseTotal);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== MLB WEATHER GAMES (enriched today's MLB with weather) ====================
+app.get('/api/mlb/weather-games', async (req, res) => {
+  try {
+    const nameMap = buildNameMap(mlb.TEAMS, { 'diamondbacks': 'ARI', 'd-backs': 'ARI', 'white sox': 'CWS', 'red sox': 'BOS', 'blue jays': 'TOR' });
+    const liveOdds = await fetchOdds('baseball_mlb');
+    const games = [];
+
+    for (const game of liveOdds) {
+      const awayAbbr = resolveTeam(nameMap, game.away_team);
+      const homeAbbr = resolveTeam(nameMap, game.home_team);
+      if (!awayAbbr || !homeAbbr) continue;
+
+      // Get weather for this game's ballpark
+      let weatherData = null;
+      try {
+        weatherData = await weather.getWeatherForPark(homeAbbr);
+      } catch (e) { /* skip */ }
+
+      // Get prediction with weather
+      const opts = {};
+      if (weatherData && !weatherData.error) opts.weather = weatherData;
+      const pred = mlb.predict(awayAbbr, homeAbbr, opts);
+
+      // Get prediction WITHOUT weather for comparison
+      const predNoWeather = mlb.predict(awayAbbr, homeAbbr);
+
+      // Extract best book odds
+      let total = null;
+      for (const bk of (game.bookmakers || [])) {
+        const line = extractBookLine(bk, game.home_team);
+        if (line.total) { total = line.total; break; }
+      }
+
+      // Weather-adjusted total
+      let adjustedTotal = null;
+      if (total && weatherData && weatherData.multiplier) {
+        adjustedTotal = +(total * weatherData.multiplier).toFixed(1);
+      }
+
+      games.push({
+        away: awayAbbr,
+        home: homeAbbr,
+        awayFull: game.away_team,
+        homeFull: game.home_team,
+        commence: game.commence_time,
+        weather: weatherData || null,
+        bookTotal: total,
+        adjustedTotal,
+        totalDiff: adjustedTotal && total ? +(adjustedTotal - total).toFixed(1) : 0,
+        prediction: pred && !pred.error ? {
+          homeWinProb: pred.homeWinProb,
+          awayWinProb: pred.awayWinProb,
+          totalRuns: pred.totalRuns,
+          awayExpRuns: pred.awayExpRuns,
+          homeExpRuns: pred.homeExpRuns,
+        } : null,
+        predNoWeather: predNoWeather && !predNoWeather.error ? {
+          totalRuns: predNoWeather.totalRuns,
+          homeWinProb: predNoWeather.homeWinProb,
+        } : null,
+        weatherEdge: pred && predNoWeather && !pred.error && !predNoWeather.error ? {
+          totalShift: +(pred.totalRuns - predNoWeather.totalRuns).toFixed(2),
+          probShift: +(pred.homeWinProb - predNoWeather.homeWinProb).toFixed(1),
+        } : null,
+      });
+    }
+
+    // Sort by weather impact (most impactful first)
+    games.sort((a, b) => Math.abs(b.weather?.totalImpact || 0) - Math.abs(a.weather?.totalImpact || 0));
+
+    res.json({
+      games,
+      count: games.length,
+      updated: new Date().toISOString(),
+      note: 'Weather data adjusts run projections. Positive totalImpact = hitter-friendly. Check totalDiff for O/U edge.',
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v9.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v11.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, pitcher model, Poisson totals, Kelly optimizer`);
+  console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER`);
   
   // Auto-refresh all data on startup
-  console.log('   📡 Fetching live data + rolling stats + injuries...');
+  console.log('   📡 Fetching live data + rolling stats + injuries + weather...');
   Promise.all([
     liveData.refreshAll(),
     rollingStats.refreshAll(),
-    injuries.refreshAll()
-  ]).then(async ([liveResults, rollingResults, injuryResults]) => {
+    injuries.refreshAll(),
+    weather.getAllWeather().catch(() => ({}))
+  ]).then(async ([liveResults, rollingResults, injuryResults, weatherResults]) => {
     console.log('   ✅ Live data:', JSON.stringify(liveResults));
     console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
     console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
+    console.log(`   ✅ Weather: ${Object.keys(weatherResults).length} parks cached`);
     console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
     console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
     

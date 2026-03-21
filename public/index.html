@@ -139,6 +139,7 @@ function buildTabs() {
   const tabs = [
     { id: 'today', label: '📡 Today\'s Games' },
     { id: 'value', label: '💰 Value Bets' },
+    { id: 'props', label: '🎰 Player Props' },
     { id: 'ratings', label: '📊 Power Ratings' },
     { id: 'trends', label: '🔥 Trends & Injuries' },
     { id: 'lines', label: '📈 Lines' },
@@ -146,7 +147,8 @@ function buildTabs() {
     { id: 'backtest', label: '🧪 Backtest' }
   ];
   if (currentSport === 'mlb' || currentSport === 'all') {
-    tabs.splice(4, 0, { id: 'rotations', label: '⚾ Rotations' });
+    tabs.splice(5, 0, { id: 'rotations', label: '⚾ Rotations' });
+    tabs.splice(6, 0, { id: 'weather', label: '⛅ Weather' });
   }
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
@@ -160,9 +162,11 @@ function showTab(id) {
   wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading...</p></div>';
   if (id === 'today') loadToday();
   else if (id === 'value') loadValue();
+  else if (id === 'props') loadProps();
   else if (id === 'ratings') loadRatings();
   else if (id === 'lines') loadLines();
   else if (id === 'rotations') loadRotationsTab();
+  else if (id === 'weather') loadWeatherTab();
   else if (id === 'predict') loadPredictor();
   else if (id === 'trends') loadTrends();
   else if (id === 'backtest') loadBacktest();
@@ -229,6 +233,7 @@ function renderTodayGames(games) {
     html += `<div class="game-header">
       <div>
         <span class="badge ${sportBadge}">${sportEmoji} ${game.sport}</span>
+        ${game.weather && game.sport === 'MLB' ? `<span style="font-size:11px;margin-left:6px;padding:2px 6px;border-radius:4px;background:${game.weather.dome ? 'var(--bg3)' : Math.abs(game.weather.totalImpact || 0) > 2 ? 'rgba(255,152,0,0.15)' : 'var(--bg3)'};color:${game.weather.dome ? 'var(--text2)' : (game.weather.totalImpact || 0) > 2 ? '#ff9800' : (game.weather.totalImpact || 0) < -2 ? '#2196f3' : 'var(--text2)'}">${game.weather.dome ? '🏠 Dome' : `${game.weather.temp ? game.weather.temp.toFixed(0)+'°F' : ''} ${game.weather.wind ? '💨'+game.weather.wind.toFixed(0)+'mph' : ''} ${(game.weather.totalImpact||0) !== 0 ? '('+(game.weather.totalImpact>0?'+':'')+game.weather.totalImpact+'%)' : ''}`}</span>` : ''}
         <span class="game-teams" style="margin-left:8px">${game.away} <span class="at">@</span> ${game.home}</span>
       </div>
       <div class="game-time">${gameTime}</div>
@@ -715,10 +720,27 @@ async function runPredict(sport) {
         html += `</div>`;
       }
       
-      // Core factors table (filter out rolling/injury objects)
+      // Weather section (MLB only)
+      const weatherFactor = pred.factors.weather;
+      if (weatherFactor && sport === 'mlb') {
+        const impact = weatherFactor.impact || 0;
+        const impactColor = impact > 3 ? '#f44336' : impact > 1 ? '#ff9800' : impact < -3 ? '#2196f3' : impact < -1 ? '#42a5f5' : 'var(--text2)';
+        html += `<div style="margin:12px 0"><h3 style="font-size:14px;color:var(--text2);margin-bottom:8px">⛅ Weather Impact</h3>`;
+        html += `<div style="padding:10px;background:var(--bg3);border-radius:8px;border-left:4px solid ${impactColor}">`;
+        html += `<div style="font-weight:600;color:${impactColor}">${weatherFactor.description} (${impact > 0 ? '+' : ''}${impact}%)</div>`;
+        html += `<div style="font-size:12px;color:var(--text3);margin-top:4px">Run multiplier: ${weatherFactor.multiplier}x</div>`;
+        if (weatherFactor.factors && weatherFactor.factors.length > 0) {
+          weatherFactor.factors.forEach(f => {
+            html += `<div style="font-size:11px;color:var(--text3)">• ${f.note} → ${f.impact > 0 ? '+' : ''}${f.impact}%</div>`;
+          });
+        }
+        html += `</div></div>`;
+      }
+      
+      // Core factors table (filter out rolling/injury/weather objects)
       html += `<div style="overflow-x:auto"><table><thead><tr><th>Factor</th><th>Value</th></tr></thead><tbody>`;
       for (const [k,v] of Object.entries(pred.factors)) {
-        if (typeof v === 'object' && v !== null) continue; // skip rolling/injury objects, already rendered above
+        if (typeof v === 'object' && v !== null) continue; // skip rolling/injury/weather objects, already rendered above
         html += `<tr><td>${k}</td><td>${typeof v === 'number' ? v.toFixed(3) : v}</td></tr>`;
       }
       html += `</tbody></table></div></div>`;
@@ -886,6 +908,141 @@ async function loadLines() {
     wrap.innerHTML = html;
   } catch (e) {
     wrap.innerHTML = `<div class="card" style="padding:20px;color:#ff6b6b">Error loading line movement data: ${e.message}</div>`;
+  }
+}
+
+// ==================== WEATHER TAB ====================
+async function loadWeatherTab() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    // Fetch weather-enriched MLB games + all-parks weather
+    const [gamesResp, parksResp] = await Promise.all([
+      fetch('/api/mlb/weather-games').then(r => r.json()).catch(() => ({ games: [] })),
+      fetch('/api/weather').then(r => r.json()).catch(() => ({ parks: [] }))
+    ]);
+
+    const games = gamesResp.games || [];
+    const parks = parksResp.parks || [];
+
+    let html = '<div class="card"><h2>⛅ MLB Weather Impact</h2>';
+    html += '<p style="color:var(--text2);font-size:13px;margin-bottom:16px">Weather-adjusted run projections for today\'s MLB games. Temperature, wind, and humidity affect ball carry and run scoring at outdoor parks.</p>';
+
+    // Today's games with weather
+    if (games.length > 0) {
+      html += '<h3 style="margin:16px 0 8px">🏟️ Today\'s MLB Games — Weather Impact</h3>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px">';
+      
+      for (const g of games) {
+        const w = g.weather || {};
+        const dome = w.dome;
+        const temp = w.weather?.temp;
+        const wind = w.weather?.wind;
+        const impact = w.totalImpact || 0;
+        
+        // Color based on impact
+        let impactColor = 'var(--text2)';
+        let impactIcon = '⚖️';
+        if (impact > 3) { impactColor = '#f44336'; impactIcon = '🔥'; }
+        else if (impact > 1) { impactColor = '#ff9800'; impactIcon = '☀️'; }
+        else if (impact < -3) { impactColor = '#2196f3'; impactIcon = '🥶'; }
+        else if (impact < -1) { impactColor = '#42a5f5'; impactIcon = '🌤️'; }
+
+        const gameTime = g.commence ? new Date(g.commence).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+        
+        html += `<div style="background:var(--bg2);border-radius:10px;padding:14px;border-left:4px solid ${impactColor}">`;
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">`;
+        html += `<strong>${g.away} @ ${g.home}</strong>`;
+        html += `<span style="font-size:12px;color:var(--text2)">${gameTime}</span>`;
+        html += `</div>`;
+        
+        // Park info
+        html += `<div style="font-size:12px;color:var(--text2);margin-bottom:8px">${w.park || 'Unknown park'}${dome ? ' 🏠 Dome' : ''}</div>`;
+
+        if (dome) {
+          html += `<div style="font-size:13px">🏠 <strong>Indoor — No Weather Impact</strong></div>`;
+        } else {
+          // Weather conditions
+          html += `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">`;
+          if (temp !== undefined) html += `<span style="font-size:13px">🌡️ ${temp.toFixed(0)}°F</span>`;
+          if (wind !== undefined) html += `<span style="font-size:13px">💨 ${wind.toFixed(0)} mph</span>`;
+          if (w.weather?.humidity) html += `<span style="font-size:13px">💧 ${w.weather.humidity}%</span>`;
+          html += `</div>`;
+          
+          // Impact
+          html += `<div style="font-size:14px;font-weight:600;color:${impactColor}">${impactIcon} ${w.description || 'N/A'} (${impact > 0 ? '+' : ''}${impact}%)</div>`;
+          
+          // Weather factors breakdown
+          if (w.factors && w.factors.length > 0) {
+            html += `<div style="margin-top:6px;font-size:11px;color:var(--text2)">`;
+            for (const f of w.factors) {
+              html += `<div>${f.note} → ${f.impact > 0 ? '+' : ''}${f.impact}%</div>`;
+            }
+            html += `</div>`;
+          }
+        }
+        
+        // Totals impact
+        if (g.bookTotal && !dome) {
+          html += `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bg3);font-size:13px">`;
+          html += `<div>📊 Book Total: <strong>${g.bookTotal}</strong>`;
+          if (g.adjustedTotal && g.adjustedTotal !== g.bookTotal) {
+            const diff = g.totalDiff;
+            html += ` → Weather-Adjusted: <strong style="color:${diff > 0 ? '#f44336' : '#2196f3'}">${g.adjustedTotal}</strong>`;
+            html += ` <span style="font-size:11px;color:${diff > 0 ? '#f44336' : '#2196f3'}">(${diff > 0 ? '+' : ''}${diff})</span>`;
+          }
+          html += `</div>`;
+          
+          // Model total comparison
+          if (g.prediction && g.predNoWeather) {
+            const shift = g.weatherEdge?.totalShift || 0;
+            if (Math.abs(shift) > 0.05) {
+              html += `<div style="font-size:12px;color:var(--text2);margin-top:4px">Model: ${g.predNoWeather.totalRuns?.toFixed(1) || '?'} → ${g.prediction.totalRuns?.toFixed(1) || '?'} (weather ${shift > 0 ? '+' : ''}${shift.toFixed(2)} runs)</div>`;
+            }
+          }
+          html += `</div>`;
+        }
+
+        html += `</div>`;
+      }
+      html += '</div>';
+    } else {
+      html += '<p style="color:var(--text2);text-align:center;padding:30px">No MLB games today or weather data unavailable</p>';
+    }
+
+    // All parks overview
+    if (parks.length > 0) {
+      html += '<h3 style="margin:24px 0 8px">🗺️ All Ballpark Conditions</h3>';
+      html += '<div style="overflow-x:auto"><table><thead><tr>';
+      html += '<th>Team</th><th>Park</th><th>Type</th><th>Temp</th><th>Wind</th><th>Humidity</th><th>Impact</th><th>Description</th>';
+      html += '</tr></thead><tbody>';
+      
+      for (const p of parks) {
+        const impact = p.totalImpact || 0;
+        let impactColor = 'var(--text)';
+        if (impact > 3) impactColor = '#f44336';
+        else if (impact > 1) impactColor = '#ff9800';
+        else if (impact < -3) impactColor = '#2196f3';
+        else if (impact < -1) impactColor = '#42a5f5';
+        
+        html += `<tr>`;
+        html += `<td><strong>${p.team}</strong></td>`;
+        html += `<td style="font-size:11px">${p.park}</td>`;
+        html += `<td>${p.dome ? '🏠' : '☀️'}</td>`;
+        html += `<td>${p.weather?.temp ? p.weather.temp.toFixed(0) + '°F' : (p.dome ? '72°F' : '—')}</td>`;
+        html += `<td>${p.weather?.wind ? p.weather.wind.toFixed(0) + ' mph' : (p.dome ? 'N/A' : '—')}</td>`;
+        html += `<td>${p.weather?.humidity ? p.weather.humidity + '%' : (p.dome ? 'N/A' : '—')}</td>`;
+        html += `<td style="color:${impactColor};font-weight:600">${impact > 0 ? '+' : ''}${impact}%</td>`;
+        html += `<td style="font-size:11px">${p.description || '—'}</td>`;
+        html += `</tr>`;
+      }
+      
+      html += '</tbody></table></div>';
+    }
+
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><p style="color:#f44336">Error loading weather: ${e.message}</p></div>`;
   }
 }
 
@@ -1294,6 +1451,307 @@ function renderOpeningDay(data) {
   html += `</tbody></table></div></div>`;
 
   wrap.innerHTML = html;
+}
+
+// ==================== PLAYER PROPS TAB ====================
+
+let propsData = null;
+let propsView = 'value'; // 'value', 'players', 'calc'
+
+async function loadProps() {
+  const wrap = document.getElementById('tab-content');
+  const sport = currentSport === 'all' ? 'nba' : currentSport;
+  
+  let html = `<div class="card"><h2 style="margin-bottom:15px">🎰 Player Props${sport ? ' — ' + sport.toUpperCase() : ''}</h2>`;
+  html += `<div style="display:flex;gap:8px;margin-bottom:15px;flex-wrap:wrap">`;
+  html += `<button class="tab ${propsView==='value'?'active':''}" onclick="propsView='value';loadProps()">💰 Value Props</button>`;
+  html += `<button class="tab ${propsView==='players'?'active':''}" onclick="propsView='players';loadProps()">👤 Player Projections</button>`;
+  html += `<button class="tab ${propsView==='calc'?'active':''}" onclick="propsView='calc';loadProps()">🧮 Prop Calculator</button>`;
+  html += `</div>`;
+
+  if (propsView === 'value') {
+    html += `<p style="color:var(--text3);font-size:13px;margin-bottom:12px">Scanning ${sport.toUpperCase()} prop markets for +EV opportunities...</p>`;
+    html += `<div id="props-value-content"><div class="loading"><div class="spinner"></div></div></div>`;
+    html += `</div>`;
+    wrap.innerHTML = html;
+    // Fetch value props
+    try {
+      const data = await api('/props/scan/' + sport);
+      propsData = data;
+      renderPropsValue(data);
+    } catch (e) {
+      document.getElementById('props-value-content').innerHTML = renderPropsOffline(sport);
+    }
+  } else if (propsView === 'players') {
+    try {
+      const data = await api('/props/players/' + sport);
+      html += renderPlayersGrid(data, sport);
+    } catch (e) {
+      html += `<p style="color:var(--neg)">Error loading players: ${e.message}</p>`;
+    }
+    html += `</div>`;
+    wrap.innerHTML = html;
+  } else if (propsView === 'calc') {
+    html += renderPropCalc(sport);
+    html += `</div>`;
+    wrap.innerHTML = html;
+  }
+}
+
+function renderPropsOffline(sport) {
+  // Show player projections when live props unavailable
+  let html = `<div style="padding:12px;background:var(--bg3);border-radius:8px;margin-bottom:15px">`;
+  html += `<p style="color:var(--warn);font-weight:600">⚠️ Live props require Odds API event-level access. Showing model projections.</p>`;
+  html += `<p style="color:var(--text3);font-size:12px;margin-top:4px">Use the Prop Calculator tab to manually check lines against our model.</p>`;
+  html += `</div>`;
+  html += `<div id="offline-players"></div>`;
+  // Load players
+  fetch(API + '/props/players/' + sport).then(r => r.json()).then(data => {
+    document.getElementById('offline-players').innerHTML = renderPlayersGrid(data, sport);
+  }).catch(() => {});
+  return html;
+}
+
+function renderPropsValue(data) {
+  const el = document.getElementById('props-value-content');
+  if (!el) return;
+  let html = '';
+  
+  html += `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:15px">`;
+  html += `<div style="background:var(--bg3);padding:10px 15px;border-radius:8px;flex:1;min-width:120px">`;
+  html += `<div style="font-size:11px;color:var(--text3)">EVENTS SCANNED</div>`;
+  html += `<div style="font-size:22px;font-weight:700">${data.eventsScanned || 0}/${data.eventsAvailable || 0}</div></div>`;
+  html += `<div style="background:var(--bg3);padding:10px 15px;border-radius:8px;flex:1;min-width:120px">`;
+  html += `<div style="font-size:11px;color:var(--text3)">TOTAL PROPS</div>`;
+  html += `<div style="font-size:22px;font-weight:700">${data.totalProps || 0}</div></div>`;
+  html += `<div style="background:var(--bg3);padding:10px 15px;border-radius:8px;flex:1;min-width:120px">`;
+  html += `<div style="font-size:11px;color:var(--text3)">VALUE BETS</div>`;
+  html += `<div style="font-size:22px;font-weight:700;color:var(--pos)">${data.valueCount || 0}</div></div>`;
+  html += `</div>`;
+  
+  if (data.valueBets && data.valueBets.length > 0) {
+    html += `<div style="overflow-x:auto"><table><thead><tr>`;
+    html += `<th>Player</th><th>Prop</th><th>Line</th><th>Proj</th><th>Signal</th><th>Edge</th><th>Conf</th><th>Book</th><th>Over</th><th>Under</th>`;
+    html += `</tr></thead><tbody>`;
+    for (const vb of data.valueBets.slice(0, 50)) {
+      const edgeColor = vb.confidence === 'HIGH' ? 'var(--pos)' : vb.confidence === 'MEDIUM' ? 'var(--warn)' : 'var(--text3)';
+      const signalEmoji = vb.signal === 'OVER' ? '⬆️' : '⬇️';
+      html += `<tr>`;
+      html += `<td style="font-weight:600">${vb.player}</td>`;
+      html += `<td>${vb.marketLabel || vb.abbr}</td>`;
+      html += `<td>${vb.line}</td>`;
+      html += `<td>${vb.projection !== null ? vb.projection : '—'}</td>`;
+      html += `<td style="font-weight:700;color:${edgeColor}">${signalEmoji} ${vb.signal}</td>`;
+      html += `<td style="font-weight:700;color:${edgeColor}">+${vb.edge}%</td>`;
+      html += `<td><span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${vb.confidence==='HIGH'?'rgba(0,200,83,0.15);color:var(--pos)':vb.confidence==='MEDIUM'?'rgba(255,179,0,0.15);color:var(--warn)':'rgba(120,120,120,0.15);color:var(--text3)'}">${vb.confidence}</span></td>`;
+      html += `<td style="font-size:11px">${vb.book || '—'}</td>`;
+      html += `<td style="font-size:11px">${vb.overPrice ? (vb.overPrice > 0 ? '+' : '') + vb.overPrice : '—'}</td>`;
+      html += `<td style="font-size:11px">${vb.underPrice ? (vb.underPrice > 0 ? '+' : '') + vb.underPrice : '—'}</td>`;
+      html += `</tr>`;
+    }
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<p style="color:var(--text3);text-align:center;padding:20px">No value props found above threshold. Try scanning more events or lowering minimum edge.</p>`;
+  }
+  
+  if (data.games && data.games.length > 0) {
+    html += `<div style="margin-top:15px"><h3 style="font-size:14px;margin-bottom:8px">📋 Scanned Games</h3>`;
+    for (const g of data.games) {
+      html += `<div style="font-size:12px;color:var(--text3);padding:3px 0">${g.away} @ ${g.home} — ${g.propsCount} props found</div>`;
+    }
+    html += `</div>`;
+  }
+  
+  el.innerHTML = html;
+}
+
+function renderPlayersGrid(data, sport) {
+  if (!data || !data.players || data.players.length === 0) {
+    return `<p style="color:var(--text3)">No players available for ${sport.toUpperCase()}</p>`;
+  }
+  
+  let html = `<div style="overflow-x:auto"><table><thead><tr>`;
+  
+  if (sport === 'nba') {
+    html += `<th>Player</th><th>Team</th><th>PPG</th><th>RPG</th><th>APG</th><th>PRA</th><th>3PM</th><th>STL</th><th>BLK</th>`;
+    html += `</tr></thead><tbody>`;
+    // Sort by PPG
+    const sorted = data.players.sort((a, b) => (b.ppg || 0) - (a.ppg || 0));
+    for (const p of sorted) {
+      const bl = p; // player data from API
+      html += `<tr style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
+      html += `<td style="font-weight:600">${p.name}</td>`;
+      html += `<td>${p.team}</td>`;
+      html += `<td style="color:var(--pos);font-weight:600">${p.ppg || '—'}</td>`;
+      html += `<td>${p.rpg || '—'}</td>`;
+      html += `<td>${p.apg || '—'}</td>`;
+      html += `<td style="font-weight:600">${((p.ppg||0)+(p.rpg||0)+(p.apg||0)).toFixed(1)}</td>`;
+      // Fetch full data via API for other stats
+      html += `<td>—</td><td>—</td><td>—</td>`;
+      html += `</tr>`;
+    }
+  } else if (sport === 'mlb') {
+    html += `<th>Player</th><th>Team</th><th>Type</th><th>Key Stat</th>`;
+    html += `</tr></thead><tbody>`;
+    const sorted = data.players.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'pitcher' ? -1 : 1;
+      return (b.kPer || b.hPer || 0) - (a.kPer || a.hPer || 0);
+    });
+    for (const p of sorted) {
+      html += `<tr style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
+      html += `<td style="font-weight:600">${p.name}</td>`;
+      html += `<td>${p.team}</td>`;
+      html += `<td><span style="padding:2px 6px;border-radius:4px;font-size:11px;background:${p.type==='pitcher'?'rgba(66,133,244,0.15);color:#4285f4':'rgba(234,67,53,0.15);color:#ea4335'}">${p.type==='pitcher'?'⚾ P':'🏏 B'}</span></td>`;
+      html += `<td style="font-weight:600">${p.type==='pitcher' ? (p.kPer || 0) + ' K/game' : (p.hPer || 0) + ' H/game'}</td>`;
+      html += `</tr>`;
+    }
+  }
+  
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+async function showPlayerDetail(encodedName, sport) {
+  const name = decodeURIComponent(encodedName);
+  try {
+    const data = await api('/props/projection/' + sport + '/' + encodedName);
+    const wrap = document.getElementById('tab-content');
+    let html = `<div class="card">`;
+    html += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:15px">`;
+    html += `<button onclick="loadProps()" style="padding:6px 12px;border-radius:6px;background:var(--bg3);color:var(--text);font-size:12px">← Back</button>`;
+    html += `<h2 style="margin:0">${data.player}</h2>`;
+    html += `<span style="padding:4px 10px;border-radius:6px;background:var(--accent);color:#fff;font-size:12px;font-weight:600">${data.team}</span>`;
+    html += `</div>`;
+    
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:15px">`;
+    const statLabels = sport === 'nba' ? {
+      points: 'Points', rebounds: 'Rebounds', assists: 'Assists', threes: '3PM',
+      steals: 'Steals', blocks: 'Blocks', turnovers: 'Turnovers', pra: 'PRA',
+      pts_reb: 'PTS+REB', pts_ast: 'PTS+AST', reb_ast: 'REB+AST'
+    } : {
+      strikeouts: 'Strikeouts', hits: 'Hits', home_runs: 'Home Runs', total_bases: 'Total Bases',
+      rbis: 'RBIs', runs: 'Runs', batter_ks: 'Batter Ks', walks: 'Walks',
+      stolen_bases: 'Stolen Bases', hits_allowed: 'Hits Allowed', outs: 'Outs', pitcher_walks: 'Pitcher BB'
+    };
+    
+    for (const [key, label] of Object.entries(statLabels)) {
+      if (data.stats[key] === undefined) continue;
+      const val = data.stats[key];
+      html += `<div style="background:var(--bg3);padding:10px;border-radius:8px;text-align:center">`;
+      html += `<div style="font-size:11px;color:var(--text3);text-transform:uppercase">${label}</div>`;
+      html += `<div style="font-size:24px;font-weight:700;color:var(--pos)">${typeof val === 'number' ? val.toFixed(1) : val}</div>`;
+      html += `<div style="font-size:10px;color:var(--text3)">per game avg</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+    
+    html += `<p style="font-size:11px;color:var(--text3)">Source: ${data.source}</p>`;
+    html += `</div>`;
+    wrap.innerHTML = html;
+  } catch (e) {
+    alert('Player not found: ' + name);
+  }
+}
+
+function renderPropCalc(sport) {
+  let html = `<h3 style="font-size:14px;margin-bottom:12px">🧮 Prop Calculator</h3>`;
+  html += `<p style="color:var(--text3);font-size:12px;margin-bottom:15px">Enter a player, stat, and book line to get our model's edge estimate.</p>`;
+  
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:500px">`;
+  html += `<div><label style="font-size:12px;color:var(--text3)">Player Name</label>`;
+  html += `<input type="text" id="calc-player" placeholder="e.g. Luka Doncic" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  
+  const stats = sport === 'nba' ? 
+    ['points','rebounds','assists','threes','pra','steals','blocks','turnovers','pts_reb','pts_ast','reb_ast'] :
+    ['strikeouts','hits','home_runs','total_bases','rbis','runs','batter_ks','walks','stolen_bases'];
+  html += `<div><label style="font-size:12px;color:var(--text3)">Stat</label>`;
+  html += `<select id="calc-stat" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box">`;
+  for (const s of stats) html += `<option value="${s}">${s.replace(/_/g,' ')}</option>`;
+  html += `</select></div>`;
+  
+  html += `<div><label style="font-size:12px;color:var(--text3)">Book Line (O/U)</label>`;
+  html += `<input type="number" id="calc-line" step="0.5" placeholder="e.g. 28.5" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  
+  html += `<div><label style="font-size:12px;color:var(--text3)">Over Odds (American)</label>`;
+  html += `<input type="number" id="calc-over" placeholder="e.g. -110" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  
+  html += `<div><label style="font-size:12px;color:var(--text3)">Under Odds (American)</label>`;
+  html += `<input type="number" id="calc-under" placeholder="e.g. -110" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--bg3);background:var(--bg2);color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  
+  html += `</div>`;
+  html += `<button onclick="runPropCalc('${sport}')" style="margin-top:12px;padding:10px 24px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;font-size:14px;border:none;cursor:pointer">Calculate Edge</button>`;
+  html += `<div id="calc-result" style="margin-top:15px"></div>`;
+  return html;
+}
+
+async function runPropCalc(sport) {
+  const player = document.getElementById('calc-player').value.trim();
+  const stat = document.getElementById('calc-stat').value;
+  const line = document.getElementById('calc-line').value;
+  const overOdds = document.getElementById('calc-over').value;
+  const underOdds = document.getElementById('calc-under').value;
+  
+  if (!player || !line) { alert('Enter player name and line'); return; }
+  
+  const el = document.getElementById('calc-result');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    let url = `/props/calc?player=${encodeURIComponent(player)}&sport=${sport}&stat=${stat}&line=${line}`;
+    if (overOdds) url += `&overOdds=${overOdds}`;
+    if (underOdds) url += `&underOdds=${underOdds}`;
+    const data = await api(url);
+    
+    let html = `<div style="background:var(--bg3);padding:15px;border-radius:10px">`;
+    html += `<h3 style="margin:0 0 10px 0;font-size:16px">${data.player} — ${data.stat.replace(/_/g,' ')}</h3>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">`;
+    
+    html += `<div style="text-align:center"><div style="font-size:11px;color:var(--text3)">PROJECTION</div>`;
+    html += `<div style="font-size:28px;font-weight:700;color:var(--accent)">${data.projection}</div></div>`;
+    
+    html += `<div style="text-align:center"><div style="font-size:11px;color:var(--text3)">LINE</div>`;
+    html += `<div style="font-size:28px;font-weight:700">${data.line}</div></div>`;
+    
+    const diff = (data.projection - data.line).toFixed(1);
+    const diffColor = diff > 0 ? 'var(--pos)' : diff < 0 ? 'var(--neg)' : 'var(--text)';
+    html += `<div style="text-align:center"><div style="font-size:11px;color:var(--text3)">DIFF</div>`;
+    html += `<div style="font-size:28px;font-weight:700;color:${diffColor}">${diff > 0 ? '+' : ''}${diff}</div></div>`;
+    
+    html += `</div>`;
+    
+    // Model probabilities
+    html += `<div style="display:flex;gap:20px;justify-content:center;margin-bottom:12px">`;
+    html += `<div style="text-align:center"><span style="font-size:12px;color:var(--text3)">Over: </span><span style="font-weight:700;color:${data.modelOver > 55 ? 'var(--pos)' : 'var(--text)'}">${data.modelOver}%</span></div>`;
+    html += `<div style="text-align:center"><span style="font-size:12px;color:var(--text3)">Under: </span><span style="font-weight:700;color:${data.modelUnder > 55 ? 'var(--pos)' : 'var(--text)'}">${data.modelUnder}%</span></div>`;
+    html += `</div>`;
+    
+    // Edge display
+    if (data.overEdge !== undefined || data.underEdge !== undefined) {
+      html += `<div style="display:flex;gap:20px;justify-content:center;padding-top:10px;border-top:1px solid var(--bg2)">`;
+      if (data.overEdge !== undefined) {
+        const ec = data.overEdge > 3 ? 'var(--pos)' : data.overEdge > 0 ? 'var(--warn)' : 'var(--neg)';
+        html += `<div style="text-align:center">`;
+        html += `<div style="font-size:11px;color:var(--text3)">OVER EDGE</div>`;
+        html += `<div style="font-size:20px;font-weight:700;color:${ec}">${data.overEdge > 0 ? '+' : ''}${data.overEdge}%</div>`;
+        html += `<div style="font-size:12px;font-weight:600;color:${ec}">${data.overSignal || ''}</div>`;
+        html += `</div>`;
+      }
+      if (data.underEdge !== undefined) {
+        const ec = data.underEdge > 3 ? 'var(--pos)' : data.underEdge > 0 ? 'var(--warn)' : 'var(--neg)';
+        html += `<div style="text-align:center">`;
+        html += `<div style="font-size:11px;color:var(--text3)">UNDER EDGE</div>`;
+        html += `<div style="font-size:20px;font-weight:700;color:${ec}">${data.underEdge > 0 ? '+' : ''}${data.underEdge}%</div>`;
+        html += `<div style="font-size:12px;font-weight:600;color:${ec}">${data.underSignal || ''}</div>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    
+    html += `</div>`;
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<p style="color:var(--neg)">Error: ${e.message}. Make sure the player name exactly matches our database.</p>`;
+  }
 }
 
 // ==================== HELPERS ====================

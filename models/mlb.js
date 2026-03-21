@@ -337,6 +337,31 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   // Defensive adjustments: if a team is injured on the pitching side, the OTHER team scores more
   // This is implicit in the injury adj for pitchers (their totalImpact counts pitcher injuries)
 
+  // ==================== WEATHER ADJUSTMENT ====================
+  // Weather impacts run scoring at outdoor parks
+  let weatherData = null;
+  if (opts.weather) {
+    // Direct weather impact passed in
+    weatherData = opts.weather;
+  } else {
+    // Try to load weather service
+    try {
+      const weatherService = require('../services/weather');
+      const park = weatherService.BALLPARK_COORDS[homeAbbr];
+      if (park) {
+        // Use cached weather if available, don't make async call in sync predict()
+        weatherData = { multiplier: 1.0, factors: [], description: 'N/A' };
+        if (park.dome) {
+          weatherData.description = 'Dome stadium';
+        }
+      }
+    } catch (e) { /* no weather service */ }
+  }
+  if (weatherData && weatherData.multiplier && weatherData.multiplier !== 1.0) {
+    awayRaG *= weatherData.multiplier;
+    homeRaG *= weatherData.multiplier;
+  }
+
   // Ensure sane bounds
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
   homeRaG = Math.max(1.5, Math.min(10, homeRaG));
@@ -436,7 +461,8 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       awayRolling: awayRolling ? { adj: +awayRollingAdj.toFixed(2), trend: awayRolling.trend, streak: awayRolling.streak, l5: awayRolling.l5Record, l10: awayRolling.l10Record, confidence: awayRolling.confidence } : null,
       homeRolling: homeRolling ? { adj: +homeRollingAdj.toFixed(2), trend: homeRolling.trend, streak: homeRolling.streak, l5: homeRolling.l5Record, l10: homeRolling.l10Record, confidence: homeRolling.confidence } : null,
       awayInjuries: awayInjuries && awayInjuries.starPlayersOut.length > 0 ? { adj: +awayInjuryAdj.toFixed(2), out: awayInjuries.starPlayersOut } : null,
-      homeInjuries: homeInjuries && homeInjuries.starPlayersOut.length > 0 ? { adj: +homeInjuryAdj.toFixed(2), out: homeInjuries.starPlayersOut } : null
+      homeInjuries: homeInjuries && homeInjuries.starPlayersOut.length > 0 ? { adj: +homeInjuryAdj.toFixed(2), out: homeInjuries.starPlayersOut } : null,
+      weather: weatherData ? { multiplier: weatherData.multiplier, impact: weatherData.totalImpact, description: weatherData.description, factors: weatherData.factors } : null
     }
   };
 
