@@ -15,6 +15,7 @@ const kelly = require('./services/kelly');
 const rollingStats = require('./services/rolling-stats');
 const injuries = require('./services/injuries');
 const lineMovement = require('./services/line-movement');
+const kalshi = require('./services/kalshi');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -960,6 +961,7 @@ app.get('/api/data/status', (req, res) => {
     odds: { configured: !!ODDS_API_KEY, source: 'the-odds-api', cacheMinutes: 5 },
     rollingStats: rollingStats.getStatus(),
     injuries: injuries.getStatus(),
+    kalshi: kalshi.getStatus(),
     updated: new Date().toISOString()
   });
 });
@@ -1064,16 +1066,66 @@ app.get('/api/lines/:sport', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== KALSHI SCANNER ====================
+
+app.get('/api/kalshi/scan', async (req, res) => {
+  try {
+    const results = await kalshi.fullScan({ nba: nba, mlb: mlb, nhl: nhl });
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kalshi/value', async (req, res) => {
+  try {
+    const results = await kalshi.getScanResults({ nba: nba, mlb: mlb, nhl: nhl });
+    if (!results) return res.json({ valueBets: [], note: 'No scan data. Trigger /api/kalshi/scan first.' });
+    res.json({
+      valueBets: results.valueBets || [],
+      totalBets: results.totalValueBets || 0,
+      highConfidence: results.highConfidence || 0,
+      lastScan: results.timestamp
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kalshi/futures', async (req, res) => {
+  try {
+    const cached = kalshi.getCachedResults();
+    if (cached && cached.futures) {
+      return res.json(cached.futures);
+    }
+    // Run scan if no cache
+    const results = await kalshi.fullScan({ nba: nba, mlb: mlb, nhl: nhl });
+    res.json(results.futures || {});
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kalshi/team-totals', async (req, res) => {
+  try {
+    const cached = kalshi.getCachedResults();
+    if (cached && cached.nbaTeamTotals) {
+      return res.json({ games: cached.nbaTeamTotals, count: cached.nbaTeamTotals.length });
+    }
+    const events = await kalshi.fetchKalshiEvents(kalshi.SERIES.NBA_TEAM_TOTAL);
+    const parsed = kalshi.parseNBATeamTotals(events);
+    res.json({ games: parsed, count: parsed.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kalshi/status', (req, res) => {
+  res.json(kalshi.getStatus());
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v8.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v9.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, pitcher model, Poisson totals, Kelly optimizer`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, pitcher model, Poisson totals, Kelly optimizer`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries...');
