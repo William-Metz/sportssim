@@ -32,6 +32,7 @@ const sgpEngine = require('./services/sgp-engine');
 const altLines = require('./services/alt-lines');
 const mlBridge = require('./services/ml-bridge');
 const arbitrage = require('./services/arbitrage');
+const playoffSeries = require('./services/playoff-series');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -95,7 +96,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '24.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','backtest-v2-point-in-time'] });
+  res.json({ status: 'ok', version: '25.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','backtest-v2-point-in-time','playoff-series-pricing','championship-simulator'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -1680,6 +1681,68 @@ app.get('/api/polymarket/futures/:sport', async (req, res) => {
     const sport = req.params.sport;
     const result = await polymarket.scanChampionshipFutures(sport);
     res.json({ futures: result, count: result.length, sport, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== PLAYOFF SERIES PRICING ====================
+
+// Full bracket projection with first-round series analysis
+app.get('/api/playoffs/bracket', (req, res) => {
+  try {
+    const bracket = playoffSeries.projectBracket(nba);
+    res.json({ 
+      bracket, 
+      daysUntilPlayoffs: bracket.daysUntilPlayoffs,
+      timestamp: new Date().toISOString() 
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Analyze specific playoff series
+app.get('/api/playoffs/series', (req, res) => {
+  try {
+    const { higher, lower } = req.query;
+    if (!higher || !lower) return res.status(400).json({ error: 'Need ?higher=OKC&lower=POR' });
+    const result = playoffSeries.analyzePlayoffSeries(nba, higher.toUpperCase(), lower.toUpperCase());
+    if (result.error) return res.status(400).json(result);
+    
+    // Add exact length distribution
+    const teams = nba.getTeams();
+    const homeGamePred = nba.predict(lower.toUpperCase(), higher.toUpperCase());
+    const awayGamePred = nba.predict(higher.toUpperCase(), lower.toUpperCase());
+    const pHome = homeGamePred.homeWinProb / 100;
+    const pAway = awayGamePred.awayWinProb / 100;
+    const gameProbs = playoffSeries.SERIES_PATTERN_7.map(isHome => isHome ? pHome : pAway);
+    result.exactLengthDist = playoffSeries.exactLengthDistribution(gameProbs);
+    
+    res.json({ series: result, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Full playoff simulation — championship odds for all 16 teams
+app.get('/api/playoffs/championship', (req, res) => {
+  try {
+    const sims = Math.min(parseInt(req.query.sims) || 10000, 50000);
+    const result = playoffSeries.simulateFullPlayoffs(nba, sims);
+    res.json({ ...result, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Series value finder — compare model vs book odds
+app.get('/api/playoffs/value', (req, res) => {
+  try {
+    // Accept matchups with book odds as JSON query param
+    // ?matchups=[{"higher":"OKC","lower":"POR","bookHigherML":-800,"bookLowerML":550}]
+    const matchupsStr = req.query.matchups;
+    if (!matchupsStr) {
+      return res.json({ 
+        note: 'Pass ?matchups=[{"higher":"OKC","lower":"POR","bookHigherML":-800,"bookLowerML":550}]',
+        example: '/api/playoffs/value?matchups=[{"higher":"OKC","lower":"POR","bookHigherML":-800,"bookLowerML":550}]'
+      });
+    }
+    const matchups = JSON.parse(matchupsStr);
+    const values = playoffSeries.findSeriesValue(nba, matchups);
+    res.json({ valueBets: values, count: values.length, timestamp: new Date().toISOString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

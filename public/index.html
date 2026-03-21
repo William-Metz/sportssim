@@ -158,6 +158,9 @@ function buildTabs() {
   tabs.push({ id: 'polymarket', label: '🔮 Polymarket' });
   tabs.push({ id: 'ml', label: '🧠 ML Engine' });
   tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
+  if (currentSport === 'nba' || currentSport === 'all') {
+    tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
+  }
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -187,6 +190,7 @@ function showTab(id) {
   else if (id === 'arb') loadArbTab();
   else if (id === 'ml') loadMLTab();
   else if (id === 'tracker') loadTracker();
+  else if (id === 'playoffs') loadPlayoffsTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -3571,6 +3575,272 @@ async function runAutoGrade(e) {
     setTimeout(() => loadTracker(), 3000);
   } catch (err) {
     el.innerHTML = '<div style="color:#ff4444">Error: ' + err.message + '</div>';
+  }
+}
+
+// ==================== PLAYOFFS TAB ====================
+
+async function loadPlayoffsTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading playoff projections...</p></div>';
+  
+  try {
+    // Load bracket and championship odds in parallel
+    const [bracketResp, champResp] = await Promise.all([
+      fetch(`${API}/api/playoffs/bracket`),
+      fetch(`${API}/api/playoffs/championship?sims=10000`)
+    ]);
+    const bracketData = await bracketResp.json();
+    const champData = await champResp.json();
+    
+    const bracket = bracketData.bracket;
+    let html = '';
+    
+    // Hero section
+    html += `<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #e94560">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:#e94560">🏆 NBA Playoff Series Pricing</h2>
+          <p style="margin:4px 0 0;color:#aaa">Monte Carlo simulation + binomial math • ${champData.simulations?.toLocaleString() || '10,000'} simulations</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:28px;font-weight:bold;color:#e94560">${bracket.daysUntilPlayoffs}</div>
+          <div style="color:#aaa;font-size:12px">days until playoffs</div>
+        </div>
+      </div>
+    </div>`;
+    
+    // Championship Odds
+    if (champData.championshipOdds) {
+      html += `<div class="card"><h3>🏆 Championship Probabilities</h3>`;
+      html += `<div style="overflow-x:auto"><table><thead><tr>
+        <th>#</th><th>Team</th><th>Record</th><th>Champ %</th><th>Fair ML</th><th>Finals %</th><th>Conf Finals %</th><th>Power</th>
+      </tr></thead><tbody>`;
+      
+      champData.championshipOdds.forEach((t, i) => {
+        if (t.champPct < 0.1 && i > 8) return; // Skip irrelevant teams
+        const barW = Math.min(t.champPct * 1.2, 100);
+        const color = t.champPct >= 30 ? '#e94560' : t.champPct >= 10 ? '#f59e0b' : t.champPct >= 2 ? '#22c55e' : '#666';
+        html += `<tr>
+          <td>${i + 1}</td>
+          <td><strong>${t.abbr}</strong> <span style="color:#888;font-size:11px">${t.name}</span></td>
+          <td>${t.record}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:80px;height:14px;background:#222;border-radius:7px;overflow:hidden">
+                <div style="width:${barW}%;height:100%;background:${color};border-radius:7px"></div>
+              </div>
+              <strong style="color:${color}">${t.champPct}%</strong>
+            </div>
+          </td>
+          <td style="font-family:monospace;color:${t.champML > 0 ? '#22c55e' : '#e94560'}">${t.champML > 0 ? '+' : ''}${t.champML}</td>
+          <td>${t.finalsPct}%</td>
+          <td>${t.confFinalsPct}%</td>
+          <td>${t.power?.toFixed(1) || 'N/A'}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div></div>`;
+    }
+    
+    // Conference brackets
+    ['eastern', 'western'].forEach(conf => {
+      const confData = bracket[conf];
+      const confName = conf === 'eastern' ? '🏀 Eastern Conference' : '🏀 Western Conference';
+      
+      html += `<div class="card"><h3>${confName}</h3>`;
+      
+      // Standings
+      html += `<details style="margin-bottom:16px"><summary style="cursor:pointer;color:#aaa;font-size:13px">📊 Full Standings (top 10)</summary>`;
+      html += `<div style="overflow-x:auto;margin-top:8px"><table><thead><tr><th>Seed</th><th>Team</th><th>W-L</th><th>W%</th><th>Power</th><th>Diff</th></tr></thead><tbody>`;
+      confData.standings.slice(0, 10).forEach(t => {
+        const inPlayoffs = t.seed <= 6;
+        const inPlayIn = t.seed >= 7 && t.seed <= 10;
+        const badge = inPlayoffs ? '✅' : inPlayIn ? '🟡' : '❌';
+        html += `<tr style="opacity:${t.seed <= 8 ? 1 : 0.5}">
+          <td>${badge} ${t.seed}</td>
+          <td><strong>${t.abbr}</strong></td>
+          <td>${t.w}-${t.l}</td>
+          <td>${(t.wpct * 100).toFixed(1)}%</td>
+          <td>${t.power.toFixed(2)}</td>
+          <td style="color:${t.diff > 0 ? '#22c55e' : '#ff4444'}">${t.diff > 0 ? '+' : ''}${t.diff.toFixed(1)}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div></details>`;
+      
+      // Matchups
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">`;
+      confData.matchups.forEach(m => {
+        const s = m.series;
+        const compColor = s.competitiveness === 'DOMINANT' ? '#e94560' : 
+                          s.competitiveness === 'HEAVY FAVORITE' ? '#f59e0b' :
+                          s.competitiveness === 'FAVORED' ? '#3b82f6' :
+                          s.competitiveness === 'COMPETITIVE' ? '#22c55e' : '#a855f7';
+        
+        html += `<div style="background:var(--bg2);border-radius:12px;padding:14px;border-left:3px solid ${compColor}">
+          <div style="font-size:11px;color:#888;margin-bottom:6px">${m.matchup} • Round 1</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div>
+              <div style="font-size:16px;font-weight:bold">(${m.higher.seed}) ${m.higher.abbr}</div>
+              <div style="font-size:11px;color:#888">${m.higher.w}-${m.higher.l}</div>
+            </div>
+            <div style="font-size:12px;color:#888">vs</div>
+            <div style="text-align:right">
+              <div style="font-size:16px;font-weight:bold">(${m.lower.seed}) ${m.lower.abbr}</div>
+              <div style="font-size:11px;color:#888">${m.lower.w}-${m.lower.l}</div>
+            </div>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:#22c55e;font-weight:bold">${s.higherSeedWinPct}%</span>
+            <span style="color:#ff4444;font-weight:bold">${s.lowerSeedWinPct}%</span>
+          </div>
+          <div style="height:8px;background:#333;border-radius:4px;overflow:hidden;margin-bottom:8px">
+            <div style="width:${s.higherSeedWinPct}%;height:100%;background:#22c55e;border-radius:4px"></div>
+          </div>
+          
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#888">
+            <span>ML: ${s.higherSeedML}</span>
+            <span>ML: ${s.lowerSeedML}</span>
+          </div>
+          
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+            <span style="background:${compColor}22;color:${compColor};padding:2px 8px;border-radius:4px;font-size:10px">${s.competitiveness}</span>
+            <span style="background:#33333366;color:#aaa;padding:2px 8px;border-radius:4px;font-size:10px">~${s.expectedLength} games</span>
+            ${s.upsetAlert ? '<span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;border-radius:4px;font-size:10px">⚠️ UPSET ALERT</span>' : ''}
+          </div>
+          
+          <div style="margin-top:8px;font-size:10px;color:#666">
+            Sweep: ${s.lengthDistribution.sweep}% • In 5: ${s.lengthDistribution.in5}% • In 6: ${s.lengthDistribution.in6}% • In 7: ${s.lengthDistribution.in7}%
+          </div>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+    
+    // Series Analyzer Tool
+    html += `<div class="card">
+      <h3>🔬 Series Analyzer</h3>
+      <p style="color:#888;font-size:12px;margin-bottom:12px">Analyze any potential matchup — pick two teams to see full series pricing</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select id="series-higher" style="padding:8px 12px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px">
+          <option value="">Higher Seed...</option>
+        </select>
+        <span style="color:#888">vs</span>
+        <select id="series-lower" style="padding:8px 12px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px">
+          <option value="">Lower Seed...</option>
+        </select>
+        <button onclick="analyzeSeries()" style="padding:8px 16px;background:#e94560;color:white;border:none;border-radius:6px;cursor:pointer">Analyze</button>
+      </div>
+      <div id="series-result"></div>
+    </div>`;
+    
+    // Populate team selects
+    wrap.innerHTML = html;
+    
+    const allTeams = [...(bracket.eastern?.standings || []), ...(bracket.western?.standings || [])].sort((a,b) => b.power - a.power);
+    const selects = ['series-higher', 'series-lower'];
+    selects.forEach(id => {
+      const sel = document.getElementById(id);
+      if (sel) {
+        allTeams.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.abbr;
+          opt.textContent = `${t.abbr} (${t.w}-${t.l}, Power: ${t.power.toFixed(1)})`;
+          sel.appendChild(opt);
+        });
+      }
+    });
+    
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${err.message}</p></div>`;
+  }
+}
+
+async function analyzeSeries() {
+  const higher = document.getElementById('series-higher').value;
+  const lower = document.getElementById('series-lower').value;
+  const resultDiv = document.getElementById('series-result');
+  
+  if (!higher || !lower || higher === lower) {
+    resultDiv.innerHTML = '<p style="color:#f59e0b">Select two different teams</p>';
+    return;
+  }
+  
+  resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/playoffs/series?higher=${higher}&lower=${lower}`);
+    const data = await resp.json();
+    const s = data.series;
+    
+    if (!s || s.error) {
+      resultDiv.innerHTML = `<p style="color:#ff4444">Error: ${s?.error || 'Unknown error'}</p>`;
+      return;
+    }
+    
+    let html = `<div style="background:var(--bg2);border-radius:12px;padding:16px;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <strong style="font-size:18px">${s.higherSeed.name}</strong>
+          <div style="font-size:12px;color:#888">${s.higherSeed.record} • Power: ${s.higherSeed.power.toFixed(2)} • Rank #${s.higherSeed.rank}</div>
+        </div>
+        <div style="font-size:14px;color:#888;padding:0 16px">vs</div>
+        <div style="text-align:right">
+          <strong style="font-size:18px">${s.lowerSeed.name}</strong>
+          <div style="font-size:12px;color:#888">${s.lowerSeed.record} • Power: ${s.lowerSeed.power.toFixed(2)} • Rank #${s.lowerSeed.rank}</div>
+        </div>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:var(--bg3);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:28px;font-weight:bold;color:#22c55e">${s.seriesPrice.higherSeedWinPct}%</div>
+          <div style="font-size:12px;color:#888">${s.higherSeed.abbr} wins series</div>
+          <div style="font-size:14px;font-family:monospace;margin-top:4px">${s.seriesPrice.fairOdds.higher}</div>
+        </div>
+        <div style="background:var(--bg3);padding:12px;border-radius:8px;text-align:center">
+          <div style="font-size:28px;font-weight:bold;color:#e94560">${s.seriesPrice.lowerSeedWinPct}%</div>
+          <div style="font-size:12px;color:#888">${s.lowerSeed.abbr} wins series</div>
+          <div style="font-size:14px;font-family:monospace;margin-top:4px">${s.seriesPrice.fairOdds.lower}</div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;color:#888;margin-bottom:6px">Series Length Distribution</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">`;
+    
+    ['sweep', 'in5', 'in6', 'in7'].forEach((key, i) => {
+      const len = [4,5,6,7][i];
+      const pct = s.lengthDistribution[key];
+      html += `<div style="background:var(--bg3);padding:8px;border-radius:6px;text-align:center">
+        <div style="font-size:16px;font-weight:bold">${pct}%</div>
+        <div style="font-size:11px;color:#888">In ${len}</div>
+      </div>`;
+    });
+    
+    html += `</div></div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div style="background:var(--bg3);padding:10px;border-radius:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">${s.higherSeed.abbr} Home Court</div>
+          <div style="font-size:14px">Win: <strong>${s.singleGameEdge.atHigherHome.higherWinPct}%</strong> • Spread: <strong>${s.singleGameEdge.atHigherHome.spread}</strong></div>
+        </div>
+        <div style="background:var(--bg3);padding:10px;border-radius:8px">
+          <div style="font-size:11px;color:#888;margin-bottom:4px">${s.lowerSeed.abbr} Home Court</div>
+          <div style="font-size:14px">Win: <strong>${s.singleGameEdge.atLowerHome.higherWinPct}%</strong> • Spread: <strong>${s.singleGameEdge.atLowerHome.spread}</strong></div>
+        </div>
+      </div>
+      
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="background:#33333366;color:#aaa;padding:3px 10px;border-radius:4px;font-size:11px">Expected: ~${s.expectedLength} games</span>
+        <span style="background:#33333366;color:#aaa;padding:3px 10px;border-radius:4px;font-size:11px">${s.competitiveness}</span>
+        <span style="background:#33333366;color:#aaa;padding:3px 10px;border-radius:4px;font-size:11px">Binomial: ${s.exactBinomial.higherSeedWinPct}%</span>
+        <span style="background:#33333366;color:#aaa;padding:3px 10px;border-radius:4px;font-size:11px">MC: ${s.monteCarlo.higherSeedWinPct}%</span>
+      </div>
+    </div>`;
+    
+    resultDiv.innerHTML = html;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:#ff4444">Error: ${err.message}</p>`;
   }
 }
 
