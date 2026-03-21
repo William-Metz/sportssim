@@ -23,10 +23,10 @@
     "WAS": {
       "name": "Washington Wizards",
       "w": 16,
-      "l": 53,
+      "l": 54,
       "ppg": 112.5,
-      "oppg": 123.7,
-      "diff": -11.2,
+      "oppg": 123.8,
+      "diff": -11.3,
       "l10": "0-10",
       "source": "espn-live"
     },
@@ -162,11 +162,11 @@
     },
     "OKC": {
       "name": "Oklahoma City Thunder",
-      "w": 55,
+      "w": 56,
       "l": 15,
-      "ppg": 118.5,
+      "ppg": 118.7,
       "oppg": 107.5,
-      "diff": 11,
+      "diff": 11.2,
       "l10": "10-0",
       "source": "espn-live"
     },
@@ -435,6 +435,25 @@
       "regulationWins": 29,
       "source": "nhl-api-live"
     },
+    "CBJ": {
+      "name": "Columbus Blue Jackets",
+      "w": 37,
+      "l": 21,
+      "otl": 11,
+      "gf": 3.3,
+      "ga": 3.1,
+      "gfTotal": 228,
+      "gaTotal": 214,
+      "gp": 69,
+      "l10w": 7,
+      "l10l": 0,
+      "l10otl": 3,
+      "points": 85,
+      "pointPctg": 0.615942,
+      "streak": "W4",
+      "regulationWins": 26,
+      "source": "nhl-api-live"
+    },
     "MTL": {
       "name": "Montréal Canadiens",
       "w": 37,
@@ -490,25 +509,6 @@
       "pointPctg": 0.608696,
       "streak": "W2",
       "regulationWins": 27,
-      "source": "nhl-api-live"
-    },
-    "CBJ": {
-      "name": "Columbus Blue Jackets",
-      "w": 36,
-      "l": 21,
-      "otl": 11,
-      "gf": 3.28,
-      "ga": 3.12,
-      "gfTotal": 223,
-      "gaTotal": 212,
-      "gp": 68,
-      "l10w": 7,
-      "l10l": 0,
-      "l10otl": 3,
-      "points": 83,
-      "pointPctg": 0.610294,
-      "streak": "W3",
-      "regulationWins": 25,
       "source": "nhl-api-live"
     },
     "NYI": {
@@ -720,25 +720,6 @@
       "regulationWins": 18,
       "source": "nhl-api-live"
     },
-    "SEA": {
-      "name": "Seattle Kraken",
-      "w": 31,
-      "l": 28,
-      "otl": 9,
-      "gf": 2.85,
-      "ga": 3.06,
-      "gfTotal": 194,
-      "gaTotal": 208,
-      "gp": 68,
-      "l10w": 4,
-      "l10l": 6,
-      "l10otl": 0,
-      "points": 71,
-      "pointPctg": 0.522059,
-      "streak": "L2",
-      "regulationWins": 25,
-      "source": "nhl-api-live"
-    },
     "FLA": {
       "name": "Florida Panthers",
       "w": 34,
@@ -756,6 +737,25 @@
       "pointPctg": 0.514493,
       "streak": "L1",
       "regulationWins": 27,
+      "source": "nhl-api-live"
+    },
+    "SEA": {
+      "name": "Seattle Kraken",
+      "w": 31,
+      "l": 29,
+      "otl": 9,
+      "gf": 2.84,
+      "ga": 3.09,
+      "gfTotal": 196,
+      "gaTotal": 213,
+      "gp": 69,
+      "l10w": 3,
+      "l10l": 7,
+      "l10otl": 0,
+      "points": 71,
+      "pointPctg": 0.514493,
+      "streak": "L3",
+      "regulationWins": 25,
       "source": "nhl-api-live"
     },
     "TOR": {
@@ -1244,8 +1244,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774134396297,
-    "nhl": 1774134396576,
-    "mlb": 1774134396949
+    "nba": 1774136813390,
+    "nhl": 1774136813636,
+    "mlb": 1774136814034
   }
 }

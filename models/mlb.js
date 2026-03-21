@@ -16,11 +16,13 @@ let injuryService = null;
 let restTravel = null;
 let monteCarlo = null;
 let umpireService = null;
+let statcastService = null;
 try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
 try { injuryService = require('../services/injuries'); } catch (e) { /* no injury data */ }
 try { restTravel = require('../services/rest-travel'); } catch (e) { /* no rest/travel */ }
 try { monteCarlo = require('../services/monte-carlo'); } catch (e) { /* no monte carlo */ }
 try { umpireService = require('../services/umpire-tendencies'); } catch (e) { /* no umpire data */ }
+try { statcastService = require('../services/statcast'); } catch (e) { /* no statcast */ }
 
 /**
  * Get current team data — live if available, static fallback
@@ -289,6 +291,7 @@ function resolvePitcher(pitcherInput, teamAbbr) {
 
 // Calculate pitcher's raw expected RA/9 (NEUTRAL — no offense or park adjustments)
 // Offense and park adjustments are applied ONCE in predict() to avoid double-counting
+// If Statcast data is available, blend xERA for more predictive power
 function pitcherExpectedRA(pitcher, opposingTeam, parkFactor) {
   if (!pitcher) return null;
   
@@ -296,9 +299,21 @@ function pitcherExpectedRA(pitcher, opposingTeam, parkFactor) {
   const pEra = pitcher.era || pitcher.fip || LG_AVG.era;
   const pXfip = pitcher.xfip || pFip;
   
-  // Predictive RA: weight FIP/xFIP more than ERA (more predictive)
-  // This is the pitcher's neutral expected RA/9 — NOT adjusted for opponent or park
-  const pitcherRA = pFip * 0.35 + pXfip * 0.35 + pEra * 0.30;
+  // Base predictive RA: weight FIP/xFIP more than ERA (more predictive)
+  let pitcherRA = pFip * 0.35 + pXfip * 0.35 + pEra * 0.30;
+  
+  // Statcast enhancement: if we have xERA data, blend it in
+  // xERA is based on exit velocity, launch angle, and barrel rate — 
+  // more predictive than ERA or even FIP for future performance
+  if (statcastService && pitcher.name) {
+    const scData = statcastService.getStatcastPitcherAdjustment(pitcher.name);
+    if (scData && scData.xera > 0 && scData.confidence !== 'LOW') {
+      // Blend xERA into pitcherRA calculation (20% weight — supplemental signal)
+      // Don't over-weight since FIP/xFIP already capture skill
+      const xeraWeight = scData.confidence === 'HIGH' ? 0.20 : 0.12;
+      pitcherRA = pitcherRA * (1 - xeraWeight) + scData.xera * xeraWeight;
+    }
+  }
   
   return pitcherRA;
 }
@@ -498,6 +513,50 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     homeRaG *= umpireData.multiplier;
   }
 
+  // ==================== STATCAST ADJUSTMENT ====================
+  // Baseball Savant xERA/xwOBA data — the single most predictive adjustment available.
+  // xERA tells us a pitcher's TRUE quality independent of BABIP/sequencing luck.
+  // Team xwOBA tells us the TRUE offensive quality independent of BA luck.
+  let awayStatcastAdj = 0, homeStatcastAdj = 0;
+  let awayStatcastPitcher = null, homeStatcastPitcher = null;
+  let awayStatcastBatting = null, homeStatcastBatting = null;
+  
+  if (statcastService) {
+    // Pitcher Statcast regression — adjust for xERA vs ERA gap
+    if (homePitcher && homePitcher.name) {
+      homeStatcastPitcher = statcastService.getStatcastPitcherAdjustment(homePitcher.name);
+      if (homeStatcastPitcher && homeStatcastPitcher.runAdjustment !== 0) {
+        // Positive runAdj = pitcher worse than ERA (away team scores MORE)
+        // Scale by 0.5 to avoid over-adjusting (Statcast is one signal among many)
+        awayStatcastAdj += homeStatcastPitcher.runAdjustment * 0.5;
+      }
+    }
+    if (awayPitcher && awayPitcher.name) {
+      awayStatcastPitcher = statcastService.getStatcastPitcherAdjustment(awayPitcher.name);
+      if (awayStatcastPitcher && awayStatcastPitcher.runAdjustment !== 0) {
+        homeStatcastAdj += awayStatcastPitcher.runAdjustment * 0.5;
+      }
+    }
+    
+    // Team batting Statcast edge — xwOBA tells us true offensive quality
+    awayStatcastBatting = statcastService.getTeamBattingStatcast(awayAbbr);
+    homeStatcastBatting = statcastService.getTeamBattingStatcast(homeAbbr);
+    
+    if (awayStatcastBatting && awayStatcastBatting.xwobaEdge !== 0) {
+      // Positive xwOBA edge = team is BETTER than surface stats (more runs expected)
+      awayStatcastAdj += awayStatcastBatting.xwobaEdge * 25; // ~25 runs per 0.010 xwOBA per game
+    }
+    if (homeStatcastBatting && homeStatcastBatting.xwobaEdge !== 0) {
+      homeStatcastAdj += homeStatcastBatting.xwobaEdge * 25;
+    }
+    
+    // Apply Statcast adjustments (capped at ±0.75 runs to prevent over-leverage)
+    awayStatcastAdj = Math.max(-0.75, Math.min(0.75, awayStatcastAdj));
+    homeStatcastAdj = Math.max(-0.75, Math.min(0.75, homeStatcastAdj));
+    awayRaG += awayStatcastAdj;
+    homeRaG += homeStatcastAdj;
+  }
+
   // ==================== REST/TRAVEL ADJUSTMENT ====================
   // Applied synchronously from pre-fetched opts.restTravel data
   let awayRestAdj = 0, homeRestAdj = 0;
@@ -636,7 +695,16 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       homeRest: homeRestData ? { adj: +homeRestAdj.toFixed(3), factors: homeRestData.factors, daysSinceLast: homeRestData.daysSinceLast, consecutiveHome: homeRestData.consecutiveHome, confidence: homeRestData.confidence } : null,
       awayBullpenFatigue: awayBullpenFatigue ? { multiplier: awayBullpenFatigue.multiplier, status: awayBullpenFatigue.status, factors: awayBullpenFatigue.factors } : null,
       homeBullpenFatigue: homeBullpenFatigue ? { multiplier: homeBullpenFatigue.multiplier, status: homeBullpenFatigue.status, factors: homeBullpenFatigue.factors } : null,
-      earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null
+      earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null,
+      statcast: (awayStatcastPitcher || homeStatcastPitcher || awayStatcastBatting || homeStatcastBatting) ? {
+        awayPitcher: awayStatcastPitcher ? { name: awayStatcastPitcher.name, era: awayStatcastPitcher.era, xera: awayStatcastPitcher.xera, eraGap: awayStatcastPitcher.eraGap, xwoba: awayStatcastPitcher.xwoba, regression: awayStatcastPitcher.regressionDirection, confidence: awayStatcastPitcher.confidence } : null,
+        homePitcher: homeStatcastPitcher ? { name: homeStatcastPitcher.name, era: homeStatcastPitcher.era, xera: homeStatcastPitcher.xera, eraGap: homeStatcastPitcher.eraGap, xwoba: homeStatcastPitcher.xwoba, regression: homeStatcastPitcher.regressionDirection, confidence: homeStatcastPitcher.confidence } : null,
+        awayBatting: awayStatcastBatting ? { xwoba: awayStatcastBatting.teamXwoba, woba: awayStatcastBatting.teamWoba, edge: awayStatcastBatting.xwobaEdge, multiplier: awayStatcastBatting.offenseMultiplier } : null,
+        homeBatting: homeStatcastBatting ? { xwoba: homeStatcastBatting.teamXwoba, woba: homeStatcastBatting.teamWoba, edge: homeStatcastBatting.xwobaEdge, multiplier: homeStatcastBatting.offenseMultiplier } : null,
+        awayAdj: +awayStatcastAdj.toFixed(3),
+        homeAdj: +homeStatcastAdj.toFixed(3),
+        note: 'Statcast xERA/xwOBA adjustments for true quality vs surface stats'
+      } : null
     }
   };
   

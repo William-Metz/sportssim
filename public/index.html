@@ -153,6 +153,7 @@ function buildTabs() {
     tabs.splice(7, 0, { id: 'umpires', label: '👨‍⚖️ Umpires' });
   }
   tabs.push({ id: 'alt-lines', label: '📐 Alt Lines' });
+  tabs.push({ id: 'statcast', label: '🔬 Statcast' });
   tabs.push({ id: 'arb', label: '🔀 Arb Scanner' });
   tabs.push({ id: 'sgp', label: '🎲 SGP Builder' });
   tabs.push({ id: 'polymarket', label: '🔮 Polymarket' });
@@ -187,6 +188,7 @@ function showTab(id) {
   else if (id === 'polymarket') loadPolymarket();
   else if (id === 'sgp') loadSGPTab();
   else if (id === 'alt-lines') loadAltLinesTab();
+  else if (id === 'statcast') loadStatcastTab();
   else if (id === 'arb') loadArbTab();
   else if (id === 'ml') loadMLTab();
   else if (id === 'tracker') loadTracker();
@@ -2847,6 +2849,142 @@ async function scanAltLines(sport) {
 
 let arbScanData = null;
 let arbView = 'overview';
+
+// ==================== STATCAST TAB ====================
+async function loadStatcastTab() {
+  const wrap = document.getElementById('tab-content');
+  let html = '<div class="section">';
+  html += '<h2>🔬 Statcast Intelligence — Baseball Savant</h2>';
+  html += '<p style="color:var(--text2)">Real xERA, xwOBA, xBA data from Baseball Savant. <strong>xERA is more predictive than ERA</strong> for future performance. Pitchers with ERA &lt;&lt; xERA are due for regression (FADE). Pitchers with ERA &gt;&gt; xERA are undervalued (BACK).</p>';
+  html += '<button class="refresh-btn" onclick="loadStatcastTab()" style="margin:8px 0">🔄 Refresh</button>';
+  html += '<button class="refresh-btn" onclick="refreshStatcast()" style="margin:8px 8px;background:var(--green);color:#000">📡 Fetch Fresh from Savant</button>';
+  
+  try {
+    // Fetch all data in parallel
+    const [statusResp, regrResp, teamResp] = await Promise.all([
+      fetch(API + '/api/statcast/status'),
+      fetch(API + '/api/statcast/regression?minPA=200'),
+      fetch(API + '/api/statcast/team-xwoba')
+    ]);
+    const status = await statusResp.json();
+    const regression = await regrResp.json();
+    const teams = await teamResp.json();
+    
+    // Status card
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a0e17,#1a2a1e);border:1px solid var(--green)">
+      <h3>📊 Statcast Data Status</h3>
+      <div class="stats-grid">
+        <div class="stat"><div class="val">${status.pitchers || 0}</div><div class="label">Pitchers</div></div>
+        <div class="stat"><div class="val">${status.batters || 0}</div><div class="label">Batters</div></div>
+        <div class="stat"><div class="val">${status.teams || 0}</div><div class="label">Teams</div></div>
+        <div class="stat"><div class="val">${status.cacheAge || 'N/A'}</div><div class="label">Cache Age</div></div>
+      </div>
+    </div>`;
+    
+    // Regression candidates — THE MONEY SECTION
+    html += '<div class="card" style="border:2px solid #ff4444">';
+    html += '<h3>🎰 Regression Alert: LUCKY Pitchers (FADE THESE)</h3>';
+    html += '<p style="color:var(--text2);font-size:12px">ERA way below xERA → they\'ve been getting lucky. Regression coming. Bet AGAINST them or OVER their games.</p>';
+    if (regression.lucky && regression.lucky.length > 0) {
+      html += '<table><thead><tr><th>Pitcher</th><th>ERA</th><th>xERA</th><th>Gap</th><th>xwOBA</th><th>PA</th><th>Signal</th></tr></thead><tbody>';
+      for (const p of regression.lucky) {
+        const severity = Math.abs(p.gap) > 1.5 ? '🔴' : Math.abs(p.gap) > 1.0 ? '🟠' : '🟡';
+        html += `<tr><td><strong>${p.name}</strong></td><td style="color:var(--green)">${p.era.toFixed(2)}</td><td style="color:var(--red)">${p.xera.toFixed(2)}</td><td style="color:var(--red);font-weight:bold">${p.gap.toFixed(2)}</td><td>${p.xwoba.toFixed(3)}</td><td>${p.pa}</td><td>${severity} FADE</td></tr>`;
+      }
+      html += '</tbody></table>';
+    } else {
+      html += '<p>No data — click "Fetch Fresh from Savant" above.</p>';
+    }
+    html += '</div>';
+    
+    html += '<div class="card" style="border:2px solid var(--green)">';
+    html += '<h3>💎 Hidden Gems: UNLUCKY Pitchers (BACK THESE)</h3>';
+    html += '<p style="color:var(--text2);font-size:12px">ERA way above xERA → they\'ve been getting unlucky. Improvement coming. Bet ON them or UNDER their games.</p>';
+    if (regression.unlucky && regression.unlucky.length > 0) {
+      html += '<table><thead><tr><th>Pitcher</th><th>ERA</th><th>xERA</th><th>Gap</th><th>xwOBA</th><th>PA</th><th>Signal</th></tr></thead><tbody>';
+      for (const p of regression.unlucky) {
+        const severity = p.gap > 1.5 ? '🟢' : p.gap > 1.0 ? '💚' : '🔹';
+        html += `<tr><td><strong>${p.name}</strong></td><td style="color:var(--red)">${p.era.toFixed(2)}</td><td style="color:var(--green)">${p.xera.toFixed(2)}</td><td style="color:var(--green);font-weight:bold">+${p.gap.toFixed(2)}</td><td>${p.xwoba.toFixed(3)}</td><td>${p.pa}</td><td>${severity} BACK</td></tr>`;
+      }
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    
+    // Team xwOBA leaderboard
+    html += '<div class="card">';
+    html += '<h3>⚾ Team Offensive Quality — xwOBA Leaderboard</h3>';
+    html += '<p style="color:var(--text2);font-size:12px">xwOBA is the best single metric for true offensive quality. Edge = xwOBA minus actual wOBA. Positive edge = team is UNDERVALUED by traditional stats.</p>';
+    if (teams.teams && teams.teams.length > 0) {
+      html += '<table><thead><tr><th>#</th><th>Team</th><th>xwOBA</th><th>wOBA</th><th>Edge</th><th>xSLG</th><th>Mult</th><th>Players</th></tr></thead><tbody>';
+      teams.teams.forEach((t, i) => {
+        const edgeColor = t.xwobaEdge > 0.005 ? 'var(--green)' : t.xwobaEdge < -0.005 ? 'var(--red)' : 'var(--text2)';
+        const edgeIcon = t.xwobaEdge > 0.005 ? '📈' : t.xwobaEdge < -0.005 ? '📉' : '➖';
+        html += `<tr><td>${i+1}</td><td><strong>${t.team}</strong></td><td style="font-weight:bold">${t.teamXwoba.toFixed(3)}</td><td>${t.teamWoba.toFixed(3)}</td><td style="color:${edgeColor};font-weight:bold">${edgeIcon} ${t.xwobaEdge > 0 ? '+' : ''}${(t.xwobaEdge * 1000).toFixed(0)} pts</td><td>${t.teamXslg.toFixed(3)}</td><td>${t.offenseMultiplier.toFixed(2)}x</td><td>${t.matchedPlayers}</td></tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+    
+    // Pitcher lookup
+    html += '<div class="card">';
+    html += '<h3>🔍 Pitcher Lookup</h3>';
+    html += '<div style="display:flex;gap:8px;margin-bottom:16px">';
+    html += '<input type="text" id="statcast-pitcher-name" placeholder="Pitcher name (e.g. Gerrit Cole)" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--text)">';
+    html += '<button onclick="lookupStatcastPitcher()" style="padding:8px 16px;border-radius:6px;background:var(--primary);color:#fff;border:none;cursor:pointer">Look Up</button>';
+    html += '</div>';
+    html += '<div id="statcast-pitcher-result"></div>';
+    html += '</div>';
+    
+  } catch(e) {
+    html += `<div class="card"><p style="color:var(--red)">Error: ${e.message}. Try clicking "Fetch Fresh from Savant".</p></div>`;
+  }
+  
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+async function refreshStatcast() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Fetching from Baseball Savant...</p></div>';
+  try {
+    await fetch(API + '/api/statcast/refresh');
+    loadStatcastTab();
+  } catch(e) {
+    wrap.innerHTML = `<div class="card"><p style="color:var(--red)">Refresh failed: ${e.message}</p></div>`;
+  }
+}
+
+async function lookupStatcastPitcher() {
+  const name = document.getElementById('statcast-pitcher-name').value.trim();
+  if (!name) return;
+  const el = document.getElementById('statcast-pitcher-result');
+  el.innerHTML = '<p>Looking up...</p>';
+  try {
+    const resp = await fetch(API + '/api/statcast/pitcher/' + encodeURIComponent(name));
+    const data = await resp.json();
+    if (data.error) {
+      el.innerHTML = `<p style="color:var(--red)">${data.error}</p>`;
+      return;
+    }
+    const regColor = data.regressionDirection === 'LUCKY_DUE_FOR_REGRESSION' ? 'var(--red)' : 
+                     data.regressionDirection === 'UNLUCKY_DUE_FOR_IMPROVEMENT' ? 'var(--green)' : 'var(--text2)';
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:8px">
+        <div class="stat"><div class="val">${data.era.toFixed(2)}</div><div class="label">ERA (actual)</div></div>
+        <div class="stat"><div class="val" style="color:var(--primary)">${data.xera.toFixed(2)}</div><div class="label">xERA (expected)</div></div>
+        <div class="stat"><div class="val" style="color:${data.eraGap < -0.3 ? 'var(--red)' : data.eraGap > 0.3 ? 'var(--green)' : 'var(--text2)'}">${data.eraGap > 0 ? '+' : ''}${data.eraGap.toFixed(2)}</div><div class="label">ERA Gap</div></div>
+        <div class="stat"><div class="val">${data.trueERA.toFixed(2)}</div><div class="label">True ERA (regressed)</div></div>
+        <div class="stat"><div class="val">${data.xwoba.toFixed(3)}</div><div class="label">xwOBA Against</div></div>
+        <div class="stat"><div class="val">${data.xba.toFixed(3)}</div><div class="label">xBA Against</div></div>
+        <div class="stat"><div class="val">${data.xslg.toFixed(3)}</div><div class="label">xSLG Against</div></div>
+        <div class="stat"><div class="val" style="color:${regColor}">${data.regressionDirection.replace(/_/g,' ')}</div><div class="label">Regression</div></div>
+        <div class="stat"><div class="val">${data.confidence}</div><div class="label">Confidence (${data.sampleSize} PA)</div></div>
+        <div class="stat"><div class="val">${data.runAdjustment > 0 ? '+' : ''}${data.runAdjustment.toFixed(3)}</div><div class="label">Run Adj (per game)</div></div>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`;
+  }
+}
 
 async function loadArbTab() {
   const wrap = document.getElementById('tab-content');

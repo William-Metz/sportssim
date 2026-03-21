@@ -33,6 +33,7 @@ const altLines = require('./services/alt-lines');
 const mlBridge = require('./services/ml-bridge');
 const arbitrage = require('./services/arbitrage');
 const playoffSeries = require('./services/playoff-series');
+const statcast = require('./services/statcast');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -96,7 +97,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '25.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','backtest-v2-point-in-time','playoff-series-pricing','championship-simulator'] });
+  res.json({ status: 'ok', version: '26.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','backtest-v2-point-in-time','playoff-series-pricing','championship-simulator','statcast-integration'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -1232,6 +1233,12 @@ app.get('/api/data/status', (req, res) => {
     rollingStats: rollingStats.getStatus(),
     injuries: injuries.getStatus(),
     kalshi: kalshi.getStatus(),
+    statcast: {
+      pitchers: statcast.cachedPitchers ? Object.keys(statcast.cachedPitchers).length : 0,
+      batters: statcast.cachedBatters ? Object.keys(statcast.cachedBatters).length : 0,
+      teams: statcast.cachedTeamBatting ? Object.keys(statcast.cachedTeamBatting).length : 0,
+      lastFetch: statcast.lastFetch ? new Date(statcast.lastFetch).toISOString() : null,
+    },
     updated: new Date().toISOString()
   });
 });
@@ -2738,8 +2745,92 @@ app.get('/api/arb/calc', (req, res) => {
   });
 });
 
+// ==================== STATCAST ENDPOINTS ====================
+
+// Pitcher Statcast lookup — individual pitcher xERA/xwOBA analysis
+app.get('/api/statcast/pitcher/:name', (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const result = statcast.getStatcastPitcherAdjustment(name);
+    if (!result) return res.json({ error: `No Statcast data for "${name}"`, note: 'Try /api/statcast/refresh first, or check exact name spelling' });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Team batting Statcast — xwOBA-based offensive quality
+app.get('/api/statcast/team/:abbr', (req, res) => {
+  try {
+    const abbr = req.params.abbr.toUpperCase();
+    const result = statcast.getTeamBattingStatcast(abbr);
+    if (!result) return res.json({ error: `No Statcast batting data for ${abbr}` });
+    res.json({ team: abbr, ...result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Regression candidates — THE EDGE: pitchers who will regress
+app.get('/api/statcast/regression', (req, res) => {
+  try {
+    const minPA = parseInt(req.query.minPA) || 200;
+    const result = statcast.getRegressionCandidates(minPA);
+    res.json({
+      lucky: result.lucky,
+      unlucky: result.unlucky,
+      note: 'Lucky = ERA << xERA (FADE them). Unlucky = ERA >> xERA (BACK them).',
+      luckyCount: result.lucky.length,
+      unluckyCount: result.unlucky.length,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Team xwOBA leaderboard — true offensive quality ranking
+app.get('/api/statcast/team-xwoba', (req, res) => {
+  try {
+    const leaderboard = statcast.getTeamXwobaLeaderboard();
+    res.json({
+      teams: leaderboard,
+      note: 'xwOBA is the best single metric for true offensive quality. Edge = xwOBA - wOBA (positive = undervalued).',
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Full matchup Statcast report
+app.get('/api/statcast/matchup/:away/:home', (req, res) => {
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const awayPitcher = req.query.awayPitcher || null;
+    const homePitcher = req.query.homePitcher || null;
+    const result = statcast.getMatchupStatcast(away, home, awayPitcher, homePitcher);
+    res.json({ away, home, awayPitcher, homePitcher, ...result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Force refresh Statcast data from Baseball Savant
+app.get('/api/statcast/refresh', async (req, res) => {
+  try {
+    const result = await statcast.refreshStatcast(true);
+    res.json({ success: true, ...result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Statcast status
+app.get('/api/statcast/status', (req, res) => {
+  try {
+    const pitcherCount = statcast.cachedPitchers ? Object.keys(statcast.cachedPitchers).length : 0;
+    const batterCount = statcast.cachedBatters ? Object.keys(statcast.cachedBatters).length : 0;
+    const teamCount = statcast.cachedTeamBatting ? Object.keys(statcast.cachedTeamBatting).length : 0;
+    res.json({
+      pitchers: pitcherCount,
+      batters: batterCount,
+      teams: teamCount,
+      lastFetch: statcast.lastFetch ? new Date(statcast.lastFetch).toISOString() : null,
+      cacheAge: statcast.lastFetch ? `${Math.round((Date.now() - statcast.lastFetch) / 60000)} min` : 'never',
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v24.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v26.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -2759,22 +2850,24 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Alt lines scanner: alt totals, alt spreads, team totals, F5 lines — Poisson-powered`);
   console.log(`   Arbitrage scanner: cross-book arbs, low-hold, middles, stale lines`);
   console.log(`   🧠 ML Engine: Python sklearn ensemble (LR + GradientBoosting + RandomForest)`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE, ARBITRAGE SCANNER`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE, ARBITRAGE SCANNER, STATCAST INTEGRATION`);
   
   // Auto-refresh all data on startup
-  console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats...');
+  console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats + statcast...');
   Promise.all([
     liveData.refreshAll(),
     rollingStats.refreshAll(),
     injuries.refreshAll(),
     weather.getAllWeather().catch(() => ({})),
-    playerStatsService.refreshAll().catch(() => ({ nba: 0, mlb: 0, nhl: 0 }))
-  ]).then(async ([liveResults, rollingResults, injuryResults, weatherResults, playerResults]) => {
+    playerStatsService.refreshAll().catch(() => ({ nba: 0, mlb: 0, nhl: 0 })),
+    statcast.refreshStatcast().catch(() => ({ pitchers: 0, batters: 0, error: true }))
+  ]).then(async ([liveResults, rollingResults, injuryResults, weatherResults, playerResults, statcastResults]) => {
     console.log('   ✅ Live data:', JSON.stringify(liveResults));
     console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
     console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
     console.log(`   ✅ Weather: ${Object.keys(weatherResults).length} parks cached`);
     console.log(`   ✅ Player stats: NBA ${playerResults.nba}, MLB ${playerResults.mlb}, NHL ${playerResults.nhl}`);
+    console.log(`   ✅ Statcast: ${statcastResults.pitchers} pitchers, ${statcastResults.batters} batters${statcastResults.fromCache ? ' (cache)' : ' (fresh)'}`);
     console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
     console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
     
