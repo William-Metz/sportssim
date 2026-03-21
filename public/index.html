@@ -115,7 +115,7 @@ tr:hover td{background:var(--bg3)}
 <script>
 const API = '';
 let currentSport = 'all';
-let currentTab = 'today';
+let currentTab = 'picks';
 let todayData = null;
 let minEdge = 0;
 
@@ -131,12 +131,13 @@ function switchSport(sport) {
     return;
   }
   buildTabs();
-  showTab(currentTab === 'opening-day' ? 'today' : currentTab);
+  showTab(currentTab === 'opening-day' ? 'picks' : currentTab);
 }
 
 function buildTabs() {
   const tabsEl = document.getElementById('main-tabs');
   const tabs = [
+    { id: 'picks', label: '🎯 Daily Picks' },
     { id: 'today', label: '📡 Today\'s Games' },
     { id: 'value', label: '💰 Value Bets' },
     { id: 'props', label: '🎰 Player Props' },
@@ -149,7 +150,10 @@ function buildTabs() {
   if (currentSport === 'mlb' || currentSport === 'all') {
     tabs.splice(5, 0, { id: 'rotations', label: '⚾ Rotations' });
     tabs.splice(6, 0, { id: 'weather', label: '⛅ Weather' });
+    tabs.splice(7, 0, { id: 'umpires', label: '👨‍⚖️ Umpires' });
   }
+  tabs.push({ id: 'alt-lines', label: '📐 Alt Lines' });
+  tabs.push({ id: 'sgp', label: '🎲 SGP Builder' });
   tabs.push({ id: 'polymarket', label: '🔮 Polymarket' });
   tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
   tabsEl.innerHTML = tabs.map(t =>
@@ -162,19 +166,196 @@ function showTab(id) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
   const wrap = document.getElementById('tab-content');
   wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading...</p></div>';
-  if (id === 'today') loadToday();
+  if (id === 'picks') loadDailyPicks();
+  else if (id === 'today') loadToday();
   else if (id === 'value') loadValue();
   else if (id === 'props') loadProps();
   else if (id === 'ratings') loadRatings();
   else if (id === 'lines') loadLines();
   else if (id === 'rotations') loadRotationsTab();
   else if (id === 'weather') loadWeatherTab();
+  else if (id === 'umpires') loadUmpiresTab();
   else if (id === 'predict') loadPredictor();
   else if (id === 'trends') loadTrends();
   else if (id === 'backtest') loadBacktest();
   else if (id === 'opening-day') loadOpeningDay();
   else if (id === 'polymarket') loadPolymarket();
+  else if (id === 'sgp') loadSGPTab();
+  else if (id === 'alt-lines') loadAltLinesTab();
   else if (id === 'tracker') loadTracker();
+}
+
+// ==================== DAILY PICKS ENGINE ====================
+
+async function loadDailyPicks() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const bankroll = 1000;
+    const resp = await fetch(`${API}/api/picks/today?bankroll=${bankroll}&fresh=true`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+
+    const picks = data.picks || [];
+    const summary = data.summary || {};
+    const advice = data.bankrollAdvice || {};
+    
+    let html = '';
+    
+    // Hero banner
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a0e17,#1a1a2e);border:2px solid var(--green);position:relative;overflow:hidden">
+      <div style="position:absolute;top:-20px;right:-20px;font-size:120px;opacity:0.05">🎯</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+        <div>
+          <h2 style="font-size:24px;margin-bottom:4px">🎯 Today's Picks — ${data.date}</h2>
+          <p style="color:var(--text2)">Aggregated from all models • ${summary.totalGamesScanned || 0} games scanned • ${summary.totalPicksFound || 0} value spots found</p>
+        </div>
+        <button class="refresh-btn" onclick="loadDailyPicks()" style="background:var(--green);color:#000">🔄 Refresh Picks</button>
+      </div>
+    </div>`;
+    
+    // Summary stats
+    html += `<div class="stats-grid">
+      <div class="stat"><div class="val">${picks.length}</div><div class="label">Top Picks</div></div>
+      <div class="stat"><div class="val">${summary.averageEdge ? (summary.averageEdge * 100).toFixed(1) + '%' : '0%'}</div><div class="label">Avg Edge</div></div>
+      <div class="stat"><div class="val">${summary.averageConfidence || 0}</div><div class="label">Avg Confidence</div></div>
+      <div class="stat"><div class="val">$${advice.totalExpectedProfit || 0}</div><div class="label">Expected Profit</div></div>
+      <div class="stat"><div class="val">${advice.expectedROI || 0}%</div><div class="label">Expected ROI</div></div>
+      <div class="stat"><div class="val">${advice.riskPercent || 0}%</div><div class="label">Bankroll at Risk</div></div>
+    </div>`;
+    
+    // Sport breakdown
+    if (summary.bySport && Object.keys(summary.bySport).length > 0) {
+      html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+      for (const [sport, count] of Object.entries(summary.bySport)) {
+        const emoji = sport === 'NBA' ? '🏀' : sport === 'MLB' ? '⚾' : '🏒';
+        const cls = sport === 'NBA' ? 'badge-nba' : sport === 'MLB' ? 'badge-mlb' : 'badge-nhl';
+        html += `<span class="badge ${cls}" style="font-size:13px;padding:5px 12px">${emoji} ${sport}: ${count} picks</span>`;
+      }
+      html += '</div>';
+    }
+    
+    if (picks.length === 0) {
+      html += '<div class="empty"><p style="font-size:18px">No value picks found right now</p><p style="color:var(--text3);margin-top:8px">Check back when more games are posted or lower the minimum edge</p></div>';
+      wrap.innerHTML = html;
+      return;
+    }
+    
+    // Individual pick cards
+    for (const pick of picks) {
+      const tierColor = pick.tier.includes('LOCK') ? '#22c55e' : pick.tier.includes('STRONG') ? '#3b82f6' : pick.tier.includes('SOLID') ? '#60a5fa' : pick.tier.includes('LEAN') ? '#eab308' : '#6b7280';
+      const edgePct = (pick.edge * 100).toFixed(1);
+      const sportEmoji = pick.sport === 'NBA' ? '🏀' : pick.sport === 'MLB' ? '⚾' : '🏒';
+      
+      html += `<div class="card" style="border-left:4px solid ${tierColor};position:relative">`;
+      
+      // Header
+      html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:20px">${sportEmoji}</span>
+            <span style="font-size:18px;font-weight:800">${pick.pick}</span>
+            <span class="badge" style="background:${tierColor}20;color:${tierColor};font-size:12px;padding:4px 10px">${pick.tier}</span>
+          </div>
+          <div style="color:var(--text2);font-size:13px">${pick.game || ''} • ${pick.market}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:28px;font-weight:800;color:${tierColor}">${pick.confidence}</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase">Confidence</div>
+        </div>
+      </div>`;
+      
+      // Key metrics row
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:12px;padding:12px;background:var(--bg3);border-radius:8px">`;
+      html += `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">+${edgePct}%</div><div style="font-size:10px;color:var(--text3)">EDGE</div></div>`;
+      if (pick.modelProb) html += `<div style="text-align:center"><div style="font-size:18px;font-weight:700">${(pick.modelProb * 100).toFixed(1)}%</div><div style="font-size:10px;color:var(--text3)">MODEL PROB</div></div>`;
+      if (pick.bookProb) html += `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--text2)">${(pick.bookProb * 100).toFixed(1)}%</div><div style="font-size:10px;color:var(--text3)">BOOK PROB</div></div>`;
+      if (pick.ml) html += `<div style="text-align:center"><div style="font-size:18px;font-weight:700">${pick.ml > 0 ? '+' : ''}${pick.ml}</div><div style="font-size:10px;color:var(--text3)">BEST LINE</div></div>`;
+      if (pick.ev) html += `<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:${pick.ev > 0 ? 'var(--green)' : 'var(--red)'}">${pick.ev > 0 ? '+' : ''}${pick.ev}</div><div style="font-size:10px;color:var(--text3)">EV/$100</div></div>`;
+      html += `</div>`;
+      
+      // Totals-specific info
+      if (pick.market === 'total' && pick.modelTotal && pick.bookTotal) {
+        html += `<div style="padding:8px 12px;background:var(--bg3);border-radius:6px;margin-bottom:12px;font-size:13px">
+          📊 Model projects <strong>${pick.modelTotal} total runs</strong> vs book line <strong>${pick.bookTotal}</strong>
+          (diff: <span class="${pick.diff > 0 ? 'positive' : 'negative'}">${pick.diff > 0 ? '+' : ''}${pick.diff}</span>)
+        </div>`;
+      }
+      
+      // Kelly sizing
+      if (pick.kelly) {
+        const alloc = advice.allocations ? advice.allocations.find(a => a.pick === pick.pick) : null;
+        html += `<div style="padding:8px 12px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:6px;margin-bottom:12px;font-size:13px">
+          💰 Kelly: Full ${(pick.kelly.full * 100).toFixed(1)}% | Half ${(pick.kelly.half * 100).toFixed(1)}% | Quarter ${(pick.kelly.quarter * 100).toFixed(1)}%`;
+        if (alloc) html += ` → <strong>Wager $${alloc.wager}</strong> ${alloc.riskReward ? `(${alloc.riskReward})` : ''}`;
+        html += `</div>`;
+      }
+      
+      // Pitcher info (MLB)
+      if (pick.pitcher) {
+        html += `<div style="padding:6px 12px;background:rgba(34,197,94,.08);border-radius:6px;margin-bottom:8px;font-size:12px">
+          ⚾ Pitcher: <strong>${pick.pitcher.name}</strong> (${pick.pitcher.tier || 'N/A'}, Rating: ${pick.pitcher.rating || 'N/A'})
+        </div>`;
+      }
+      
+      // Umpire info (MLB totals)
+      if (pick.umpire && pick.umpire.note) {
+        html += `<div style="padding:6px 12px;background:rgba(234,179,8,.08);border-radius:6px;margin-bottom:8px;font-size:12px">
+          👨‍⚖️ ${pick.umpire.note}
+        </div>`;
+      }
+      
+      // Monte Carlo total (MLB/NHL totals)
+      if (pick.mcTotal && pick.market === 'total') {
+        html += `<div style="padding:6px 12px;background:rgba(168,85,247,.08);border-radius:6px;margin-bottom:8px;font-size:12px">
+          🎲 Monte Carlo sim: ${pick.mcTotal.toFixed(1)} total runs (10K sims)
+        </div>`;
+      }
+      
+      // Reasons
+      if (pick.reasons && pick.reasons.length > 0) {
+        html += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">';
+        for (const reason of pick.reasons) {
+          const warn = reason.startsWith('⚠️');
+          html += `<span style="font-size:11px;padding:3px 8px;border-radius:4px;background:${warn ? 'rgba(239,68,68,.1)' : 'rgba(156,163,175,.1)'};color:${warn ? 'var(--red)' : 'var(--text2)'}">${reason}</span>`;
+        }
+        html += '</div>';
+      }
+      
+      html += `</div>`;
+    }
+    
+    // Bankroll advice card
+    if (advice.allocations && advice.allocations.length > 0) {
+      html += `<div class="card" style="border:1px solid rgba(59,130,246,.3)">
+        <h2>💼 Bankroll Allocation ($${advice.bankroll})</h2>
+        <table>
+          <tr><th>Pick</th><th>Wager</th><th>Expected Profit</th><th>Risk/Reward</th></tr>`;
+      for (const a of advice.allocations) {
+        html += `<tr>
+          <td><strong>${a.pick}</strong></td>
+          <td>$${a.wager}</td>
+          <td class="positive">+$${a.expectedProfit}</td>
+          <td>${a.riskReward || '-'}</td>
+        </tr>`;
+      }
+      html += `<tr style="border-top:2px solid var(--border);font-weight:700">
+        <td>TOTAL</td>
+        <td>$${advice.totalWager}</td>
+        <td class="positive">+$${advice.totalExpectedProfit}</td>
+        <td>${advice.expectedROI}% ROI</td>
+      </tr>`;
+      html += '</table></div>';
+    }
+    
+    wrap.innerHTML = html;
+    
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error loading picks</h2><p>${e.message}</p><button class="refresh-btn" onclick="loadDailyPicks()">🔄 Retry</button></div>`;
+  }
 }
 
 // ==================== TODAY'S GAMES ====================
@@ -675,6 +856,140 @@ async function runPredict(sport) {
         }
         html += `</div>`;
       }
+    }
+
+    // Monte Carlo simulation results (MLB only)
+    if (pred.monteCarlo && sport === 'mlb') {
+      const mc = pred.monteCarlo;
+      html += `<div class="card" style="margin-top:12px"><h2>🎲 Monte Carlo Simulation (10K games)</h2>`;
+      
+      // Win probability comparison
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">`;
+      html += `<div style="background:var(--card2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--text3)">ANALYTICAL WIN%</div>
+        <div style="font-size:20px;font-weight:700;color:var(--accent2)">${(pred.homeWinProb * 100).toFixed(1)}% / ${(pred.awayWinProb * 100).toFixed(1)}%</div>
+      </div>`;
+      html += `<div style="background:var(--card2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--text3)">MC SIM WIN%</div>
+        <div style="font-size:20px;font-weight:700;color:var(--green)">${(mc.homeWinProb * 100).toFixed(1)}% / ${(mc.awayWinProb * 100).toFixed(1)}%</div>
+      </div>`;
+      html += `</div>`;
+      
+      // Blended line
+      if (pred.blendedHomeWinProb) {
+        html += `<div style="text-align:center;margin:8px 0;padding:10px;background:linear-gradient(135deg,var(--card2),rgba(76,175,80,0.1));border-radius:8px;border:1px solid var(--green)">
+          <div style="font-size:11px;color:var(--text3)">BLENDED (60% MC + 40% ANALYTICAL)</div>
+          <div style="font-size:22px;font-weight:800;color:var(--green)">${home} ${(pred.blendedHomeWinProb * 100).toFixed(1)}% | ${away} ${(pred.blendedAwayWinProb * 100).toFixed(1)}%</div>
+          <div style="font-size:13px;color:var(--text2)">${pred.blendedHomeML > 0 ? '+' : ''}${pred.blendedHomeML} / ${pred.blendedAwayML > 0 ? '+' : ''}${pred.blendedAwayML}</div>
+        </div>`;
+      }
+      
+      // Total runs distribution
+      const tr = mc.totalRuns;
+      html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">`;
+      html += `<div style="background:var(--card2);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:var(--text3)">MEAN</div>
+        <div style="font-size:18px;font-weight:700">${tr.mean}</div>
+      </div>`;
+      html += `<div style="background:var(--card2);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:var(--text3)">MEDIAN</div>
+        <div style="font-size:18px;font-weight:700">${tr.median}</div>
+      </div>`;
+      html += `<div style="background:var(--card2);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:var(--text3)">P10-P90</div>
+        <div style="font-size:18px;font-weight:700">${tr.p10}-${tr.p90}</div>
+      </div>`;
+      html += `<div style="background:var(--card2);border-radius:6px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:var(--text3)">STD DEV</div>
+        <div style="font-size:18px;font-weight:700">${tr.std}</div>
+      </div>`;
+      html += `</div>`;
+      
+      // Top scores
+      if (mc.topScores) {
+        html += `<div style="margin:12px 0"><span style="font-size:12px;color:var(--text3)">MOST LIKELY SCORES: </span>`;
+        mc.topScores.slice(0, 6).forEach(s => {
+          html += `<span style="display:inline-block;margin:2px 4px;padding:3px 8px;background:var(--card2);border-radius:4px;font-size:12px;font-weight:600">${s.score} (${s.prob}%)</span>`;
+        });
+        html += `</div>`;
+      }
+      
+      // Margin distribution
+      if (mc.marginDist) {
+        const md = mc.marginDist;
+        html += `<div style="margin:12px 0;font-size:12px;color:var(--text2)">
+          <span style="font-weight:600">Margin:</span> 
+          ${home} by 1: ${md.homeBy1}% | by 2: ${md.homeBy2}% | by 3+: ${md.homeBy3plus}% | 
+          ${away} by 1: ${md.awayBy1}% | by 2: ${md.awayBy2}% | by 3+: ${md.awayBy3plus}%
+          | Extras: ${mc.extraInningsPct}%
+        </div>`;
+      }
+      
+      html += `</div>`;
+    }
+
+    // Rest/Travel factors (MLB)
+    if (pred.factors && sport === 'mlb' && (pred.factors.awayRest || pred.factors.homeRest || pred.factors.awayBullpenFatigue || pred.factors.homeBullpenFatigue)) {
+      html += `<div class="card" style="margin-top:12px"><h2>✈️ Rest & Travel</h2>`;
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">`;
+      
+      // Away team rest
+      const ar = pred.factors.awayRest;
+      if (ar) {
+        const color = ar.adj > 0 ? 'var(--green)' : ar.adj < 0 ? 'var(--red, #f44336)' : 'var(--text2)';
+        html += `<div style="background:var(--card2);border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:var(--text3)">${away} REST</div>
+          <div style="font-size:20px;font-weight:700;color:${color}">${ar.adj >= 0 ? '+' : ''}${ar.adj.toFixed(2)} runs</div>`;
+        if (ar.factors && ar.factors.length > 0) {
+          ar.factors.forEach(f => {
+            html += `<div style="font-size:11px;color:var(--text3);margin-top:4px">• ${f.note || f.factor} (${f.impact >= 0 ? '+' : ''}${f.impact.toFixed(2)})</div>`;
+          });
+        }
+        html += `</div>`;
+      }
+      
+      // Home team rest
+      const hr = pred.factors.homeRest;
+      if (hr) {
+        const color = hr.adj > 0 ? 'var(--green)' : hr.adj < 0 ? 'var(--red, #f44336)' : 'var(--text2)';
+        html += `<div style="background:var(--card2);border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:var(--text3)">${home} REST</div>
+          <div style="font-size:20px;font-weight:700;color:${color}">${hr.adj >= 0 ? '+' : ''}${hr.adj.toFixed(2)} runs</div>`;
+        if (hr.factors && hr.factors.length > 0) {
+          hr.factors.forEach(f => {
+            html += `<div style="font-size:11px;color:var(--text3);margin-top:4px">• ${f.note || f.factor} (${f.impact >= 0 ? '+' : ''}${f.impact.toFixed(2)})</div>`;
+          });
+        }
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
+      
+      // Bullpen fatigue
+      const abf = pred.factors.awayBullpenFatigue;
+      const hbf = pred.factors.homeBullpenFatigue;
+      if (abf || hbf) {
+        html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0">`;
+        if (abf) {
+          const statusColor = abf.status === 'GASSED' ? 'var(--red, #f44336)' : abf.status === 'TIRED' ? 'var(--yellow)' : 'var(--green)';
+          html += `<div style="background:var(--card2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--text3)">${away} BULLPEN</div>
+            <div style="font-size:16px;font-weight:700;color:${statusColor}">${abf.status}</div>
+            <div style="font-size:11px;color:var(--text3)">${abf.multiplier}x ERA mult</div>
+          </div>`;
+        }
+        if (hbf) {
+          const statusColor = hbf.status === 'GASSED' ? 'var(--red, #f44336)' : hbf.status === 'TIRED' ? 'var(--yellow)' : 'var(--green)';
+          html += `<div style="background:var(--card2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--text3)">${home} BULLPEN</div>
+            <div style="font-size:16px;font-weight:700;color:${statusColor}">${hbf.status}</div>
+            <div style="font-size:11px;color:var(--text3)">${hbf.multiplier}x ERA mult</div>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
     }
 
     // Factor breakdown (all sports) — enhanced with rolling/injury display
@@ -1574,39 +1889,106 @@ function renderPlayersGrid(data, sport) {
     return `<p style="color:var(--text3)">No players available for ${sport.toUpperCase()}</p>`;
   }
   
-  let html = `<div style="overflow-x:auto"><table><thead><tr>`;
+  // Data source indicator
+  const liveCount = data.liveCount || data.players.filter(p => p.source === 'live').length;
+  const totalCount = data.players.length;
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">`;
+  html += `<div style="font-size:12px;color:var(--text3)">${totalCount} players`;
+  if (liveCount > 0) {
+    html += ` • <span style="color:var(--green);font-weight:600">${liveCount} live from ESPN</span>`;
+    html += ` • <span style="color:var(--text3)">${totalCount - liveCount} static baseline</span>`;
+  }
+  html += `</div>`;
+  html += `<div style="display:flex;gap:6px;align-items:center">`;
+  html += `<input type="text" id="player-search" placeholder="Search players..." oninput="filterPlayersTable()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:12px;width:180px">`;
+  html += `</div></div>`;
+  
+  html += `<div style="overflow-x:auto"><table id="players-table"><thead><tr>`;
   
   if (sport === 'nba') {
-    html += `<th>Player</th><th>Team</th><th>PPG</th><th>RPG</th><th>APG</th><th>PRA</th><th>3PM</th><th>STL</th><th>BLK</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(0)">Player ⇅</th>`;
+    html += `<th>Team</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(2)">PPG ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(3)">RPG ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(4)">APG ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(5)">PRA ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(6)">3PM ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(7)">STL ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(8)">BLK ⇅</th>`;
+    html += `<th>Source</th>`;
     html += `</tr></thead><tbody>`;
     // Sort by PPG
     const sorted = data.players.sort((a, b) => (b.ppg || 0) - (a.ppg || 0));
     for (const p of sorted) {
-      const bl = p; // player data from API
-      html += `<tr style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
+      const pra = ((p.ppg||0)+(p.rpg||0)+(p.apg||0)).toFixed(1);
+      const isLive = p.source === 'live';
+      const srcBadge = isLive 
+        ? `<span style="padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(34,197,94,.15);color:var(--green)">LIVE</span>`
+        : `<span style="padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(156,163,175,.15);color:var(--text3)">STATIC</span>`;
+      html += `<tr class="player-row" style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
       html += `<td style="font-weight:600">${p.name}</td>`;
-      html += `<td>${p.team}</td>`;
-      html += `<td style="color:var(--pos);font-weight:600">${p.ppg || '—'}</td>`;
-      html += `<td>${p.rpg || '—'}</td>`;
-      html += `<td>${p.apg || '—'}</td>`;
-      html += `<td style="font-weight:600">${((p.ppg||0)+(p.rpg||0)+(p.apg||0)).toFixed(1)}</td>`;
-      // Fetch full data via API for other stats
-      html += `<td>—</td><td>—</td><td>—</td>`;
+      html += `<td><span class="badge badge-nba">${p.team||'—'}</span></td>`;
+      html += `<td style="color:var(--green);font-weight:700">${p.ppg ? p.ppg.toFixed(1) : '—'}</td>`;
+      html += `<td>${p.rpg ? p.rpg.toFixed(1) : '—'}</td>`;
+      html += `<td>${p.apg ? p.apg.toFixed(1) : '—'}</td>`;
+      html += `<td style="font-weight:600;color:var(--accent2)">${pra}</td>`;
+      html += `<td>${p.threes ? p.threes.toFixed(1) : '—'}</td>`;
+      html += `<td>${p.steals ? p.steals.toFixed(1) : '—'}</td>`;
+      html += `<td>${p.blocks ? p.blocks.toFixed(1) : '—'}</td>`;
+      html += `<td>${srcBadge}</td>`;
       html += `</tr>`;
     }
   } else if (sport === 'mlb') {
-    html += `<th>Player</th><th>Team</th><th>Type</th><th>Key Stat</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(0)">Player ⇅</th>`;
+    html += `<th>Team</th>`;
+    html += `<th>Type</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(3)">Key Stat ⇅</th>`;
+    html += `<th>ERA/OPS</th>`;
+    html += `<th>Source</th>`;
     html += `</tr></thead><tbody>`;
     const sorted = data.players.sort((a, b) => {
       if (a.type !== b.type) return a.type === 'pitcher' ? -1 : 1;
       return (b.kPer || b.hPer || 0) - (a.kPer || a.hPer || 0);
     });
     for (const p of sorted) {
-      html += `<tr style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
+      const isLive = p.source === 'live';
+      const srcBadge = isLive 
+        ? `<span style="padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(34,197,94,.15);color:var(--green)">LIVE</span>`
+        : `<span style="padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(156,163,175,.15);color:var(--text3)">STATIC</span>`;
+      const typeColor = p.type==='pitcher' ? 'rgba(66,133,244,0.15);color:#4285f4' : 'rgba(234,67,53,0.15);color:#ea4335';
+      const keyStat = p.type==='pitcher' ? `${p.kPer || 0} K/game` : `${p.hPer || 0} H/game`;
+      const extraStat = p.type==='pitcher' ? (p.era ? p.era.toFixed(2) + ' ERA' : '—') : (p.ops ? p.ops.toFixed(3) + ' OPS' : (p.avg ? p.avg.toFixed(3) + ' AVG' : '—'));
+      
+      html += `<tr class="player-row" style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
       html += `<td style="font-weight:600">${p.name}</td>`;
-      html += `<td>${p.team}</td>`;
-      html += `<td><span style="padding:2px 6px;border-radius:4px;font-size:11px;background:${p.type==='pitcher'?'rgba(66,133,244,0.15);color:#4285f4':'rgba(234,67,53,0.15);color:#ea4335'}">${p.type==='pitcher'?'⚾ P':'🏏 B'}</span></td>`;
-      html += `<td style="font-weight:600">${p.type==='pitcher' ? (p.kPer || 0) + ' K/game' : (p.hPer || 0) + ' H/game'}</td>`;
+      html += `<td><span class="badge badge-mlb">${p.team||'—'}</span></td>`;
+      html += `<td><span style="padding:2px 6px;border-radius:4px;font-size:11px;background:${typeColor}">${p.type==='pitcher'?'⚾ P':'🏏 B'}</span></td>`;
+      html += `<td style="font-weight:600">${keyStat}</td>`;
+      html += `<td style="font-size:11px;color:var(--text2)">${extraStat}</td>`;
+      html += `<td>${srcBadge}</td>`;
+      html += `</tr>`;
+    }
+  } else if (sport === 'nhl') {
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(0)">Player ⇅</th>`;
+    html += `<th>Team</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(2)">Goals ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(3)">Assists ⇅</th>`;
+    html += `<th style="cursor:pointer" onclick="sortPlayersTable(4)">Points ⇅</th>`;
+    html += `<th>Source</th>`;
+    html += `</tr></thead><tbody>`;
+    const sorted = data.players.sort((a, b) => (b.points || 0) - (a.points || 0));
+    for (const p of sorted) {
+      const isLive = p.source === 'live';
+      const srcBadge = isLive 
+        ? `<span style="padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(34,197,94,.15);color:var(--green)">LIVE</span>`
+        : `<span style="padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;background:rgba(156,163,175,.15);color:var(--text3)">STATIC</span>`;
+      html += `<tr class="player-row" style="cursor:pointer" onclick="showPlayerDetail('${encodeURIComponent(p.name)}','${sport}')">`;
+      html += `<td style="font-weight:600">${p.name}</td>`;
+      html += `<td><span class="badge badge-nhl">${p.team||'—'}</span></td>`;
+      html += `<td style="color:var(--green);font-weight:700">${p.goals || '—'}</td>`;
+      html += `<td>${p.assists || '—'}</td>`;
+      html += `<td style="font-weight:600;color:var(--accent2)">${p.points || '—'}</td>`;
+      html += `<td>${srcBadge}</td>`;
       html += `</tr>`;
     }
   }
@@ -1761,6 +2143,119 @@ async function runPropCalc(sport) {
 // ==================== POLYMARKET TAB ====================
 
 let polyData = null;
+// ==================== SGP CORRELATION ENGINE TAB ====================
+
+async function loadSGPTab() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const sport = currentSport === 'all' ? 'mlb' : currentSport;
+    const resp = await fetch(`${API}/api/sgp/scan/${sport}`);
+    const data = await resp.json();
+
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ SGP Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+
+    let html = '<div class="card"><h2>🎲 Same-Game Parlay Builder</h2>';
+    html += '<p style="color:var(--text2);margin-bottom:16px">Finds correlated SGP legs that books misprice. Uses Gaussian copula correlation model — books assume independence, we don\'t.</p>';
+
+    // Summary stats
+    const s = data.summary || {};
+    html += '<div class="stats-grid">';
+    html += `<div class="stat"><div class="val">${s.gamesScanned || 0}</div><div class="label">Games Scanned</div></div>`;
+    html += `<div class="stat"><div class="val">${s.totalCombos || 0}</div><div class="label">SGP Combos</div></div>`;
+    html += `<div class="stat"><div class="val">${s.highConfidence || 0}</div><div class="label">High Confidence</div></div>`;
+    html += `<div class="stat"><div class="val" style="color:var(--green)">${s.bestEV ? s.bestEV + '%' : '—'}</div><div class="label">Best EV</div></div>`;
+    html += `<div class="stat"><div class="val">${s.avgEV ? s.avgEV + '%' : '—'}</div><div class="label">Avg EV</div></div>`;
+    html += '</div>';
+
+    // Combos table
+    const combos = data.combos || [];
+    if (combos.length === 0) {
+      html += '<p style="color:var(--text2);text-align:center;padding:30px">No SGP opportunities found. This can happen if no odds are available or no games have enough edge.</p>';
+      html += '<p style="color:var(--text3);text-align:center;font-size:12px">Try loading specific games: <code>/api/sgp/game/LAD/COL?sport=mlb</code></p>';
+    } else {
+      html += '<table><thead><tr>';
+      html += '<th>Game</th><th>SGP Combo</th><th>Legs</th><th>Correlation</th><th>True Prob</th><th>Book Prob</th>';
+      html += '<th>Edge</th><th>EV%</th><th>Fair</th><th>Book</th><th>½ Kelly</th><th>Conf</th>';
+      html += '</tr></thead><tbody>';
+
+      for (const c of combos) {
+        const edgeClass = c.comboEdge > 0.05 ? 'positive' : c.comboEdge > 0.02 ? 'neutral' : 'negative';
+        const confBadge = c.confidence >= 60 ? 'badge-high' : c.confidence >= 40 ? 'badge-med' : 'badge-low';
+        const corrColor = c.correlation > 0.3 ? 'var(--green)' : c.correlation > 0.1 ? 'var(--yellow)' : 'var(--text2)';
+
+        html += '<tr>';
+        html += `<td><strong>${c.game || '—'}</strong></td>`;
+        html += `<td style="max-width:220px">${c.description || '—'}</td>`;
+        html += `<td>${c.numLegs || c.legs?.length || '?'}</td>`;
+        html += `<td style="color:${corrColor}">${(c.correlation * 100).toFixed(0)}%</td>`;
+        html += `<td>${(c.trueJointProb * 100).toFixed(1)}%</td>`;
+        html += `<td>${(c.bookJointProb * 100).toFixed(1)}%</td>`;
+        html += `<td class="${edgeClass}">${(c.comboEdge * 100).toFixed(1)}%</td>`;
+        html += `<td class="positive" style="font-weight:700">${c.ev > 0 ? '+' : ''}${c.ev}%</td>`;
+        html += `<td>${c.fairOdds > 0 ? '+' : ''}${c.fairOdds}</td>`;
+        html += `<td>${c.bookOdds > 0 ? '+' : ''}${c.bookOdds}</td>`;
+        html += `<td>${(c.halfKelly * 100).toFixed(2)}%</td>`;
+        html += `<td><span class="badge ${confBadge}">${c.confidence}</span></td>`;
+        html += '</tr>';
+
+        // Reasoning row
+        if (c.reasoning) {
+          html += `<tr><td colspan="12" style="padding:4px 10px 12px;border-bottom:2px solid var(--border);color:var(--text2);font-size:11px">`;
+          html += `💡 ${c.reasoning}`;
+          // Show leg details
+          if (c.legs && c.legs.length > 0) {
+            html += '<br>';
+            for (const leg of c.legs) {
+              const legEdge = (leg.edge * 100).toFixed(1);
+              const legClass = leg.edge > 0.03 ? 'positive' : leg.edge > 0 ? 'neutral' : 'negative';
+              html += `<span style="display:inline-block;margin:3px 8px 0 0;padding:2px 6px;background:var(--bg3);border-radius:4px;font-size:10px">`;
+              html += `${leg.pick} <span class="${legClass}">${leg.edge > 0 ? '+' : ''}${legEdge}%</span> | Model: ${(leg.modelProb * 100).toFixed(1)}%`;
+              html += `</span>`;
+            }
+          }
+          html += '</td></tr>';
+        }
+      }
+      html += '</tbody></table>';
+    }
+
+    html += '</div>';
+
+    // How it works card
+    html += '<div class="card"><h2>📐 How SGP Correlation Works</h2>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px">';
+
+    html += '<div style="background:var(--bg3);padding:16px;border-radius:8px">';
+    html += '<h3 style="font-size:14px;margin-bottom:8px">🎯 The Edge</h3>';
+    html += '<p style="font-size:12px;color:var(--text2)">Books price SGP legs as <strong>independent events</strong> (P(A∩B) = P(A)×P(B)). But outcomes within a game are correlated. A team winning ML is 72% correlated with covering the run line. We model true joint probabilities using Gaussian copulas.</p>';
+    html += '</div>';
+
+    html += '<div style="background:var(--bg3);padding:16px;border-radius:8px">';
+    html += '<h3 style="font-size:14px;margin-bottom:8px">🔗 Key Correlations</h3>';
+    html += '<p style="font-size:12px;color:var(--text2)">';
+    html += '• <strong>ML + Run Line:</strong> 72% correlated<br>';
+    html += '• <strong>ML + F5 Result:</strong> 55% correlated<br>';
+    html += '• <strong>Over/Under + F5 Total:</strong> 65% correlated<br>';
+    html += '• <strong>Ace Start + Under:</strong> 25% correlated<br>';
+    html += '• <strong>Wind Out + Over:</strong> 20% correlated';
+    html += '</p></div>';
+
+    html += '<div style="background:var(--bg3);padding:16px;border-radius:8px">';
+    html += '<h3 style="font-size:14px;margin-bottom:8px">💰 SGP Juice vs Edge</h3>';
+    html += '<p style="font-size:12px;color:var(--text2)">Books charge 15-22% juice on SGPs vs 4-5% on straight bets. But when correlation is strong (>30%), the mispricing from assuming independence often <strong>exceeds the juice</strong>. That\'s our edge.</p>';
+    html += '</div>';
+
+    html += '</div></div>';
+
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${e.message}</p></div>`;
+  }
+}
+
 let polyView = 'featured'; // 'featured', 'movers', 'games'
 
 async function loadPolymarket() {
@@ -1941,6 +2436,273 @@ function formatNumber(n) {
 // ==================== BET TRACKER TAB ====================
 
 let trackerView = 'dashboard'; // 'dashboard', 'log', 'history', 'grade'
+
+// ==================== ALT LINES SCANNER TAB ====================
+
+async function loadAltLinesTab() {
+  const wrap = document.getElementById('tab-content');
+  
+  let html = '<div class="section">';
+  html += '<h2>📐 Alt Lines Value Scanner</h2>';
+  html += '<p style="color:var(--text2);margin-bottom:16px">Scans alternate totals, alt run lines, team totals, and F5 lines for +EV opportunities. Alt markets are less efficient = more edge.</p>';
+  
+  // Matchup analyzer
+  html += '<div class="card" style="margin-bottom:20px">';
+  html += '<h3>🔍 Analyze Matchup Alt Lines</h3>';
+  html += '<div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">';
+  html += '<select id="alt-away" style="padding:8px;border-radius:6px;background:var(--bg3);color:var(--text);border:1px solid var(--bg3);min-width:120px"><option value="">Away Team</option></select>';
+  html += '<span style="align-self:center;color:var(--text2)">@</span>';
+  html += '<select id="alt-home" style="padding:8px;border-radius:6px;background:var(--bg3);color:var(--text);border:1px solid var(--bg3);min-width:120px"><option value="">Home Team</option></select>';
+  html += '<button onclick="analyzeAltLines()" style="padding:8px 20px;border-radius:6px;background:var(--accent);color:#fff;font-weight:600">Analyze</button>';
+  html += '</div>';
+  html += '<div id="alt-matchup-result"></div>';
+  html += '</div>';
+  
+  // Live scan
+  html += '<div class="card">';
+  html += '<h3>🔎 Live Alt Lines Scan</h3>';
+  html += '<p style="color:var(--text2);font-size:13px;margin-bottom:12px">Scans The Odds API for alt market value across all today\'s games. Uses Odds API quota.</p>';
+  html += '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">';
+  html += '<button onclick="scanAltLines(\'mlb\')" style="padding:8px 20px;border-radius:6px;background:#e74c3c;color:#fff;font-weight:600">⚾ Scan MLB</button>';
+  html += '<button onclick="scanAltLines(\'nba\')" style="padding:8px 20px;border-radius:6px;background:#3498db;color:#fff;font-weight:600">🏀 Scan NBA</button>';
+  html += '<button onclick="scanAltLines(\'nhl\')" style="padding:8px 20px;border-radius:6px;background:#2ecc71;color:#fff;font-weight:600">🏒 Scan NHL</button>';
+  html += '<button onclick="scanAltLines(\'all\')" style="padding:8px 20px;border-radius:6px;background:var(--accent);color:#fff;font-weight:600">🌐 Scan All Sports</button>';
+  html += '</div>';
+  html += '<div id="alt-scan-result"></div>';
+  html += '</div>';
+  
+  html += '</div>';
+  wrap.innerHTML = html;
+  
+  // Populate team dropdowns
+  const teams = Object.entries(currentSport === 'mlb' ? mlbTeamsCache : currentSport === 'nhl' ? nhlTeamsCache : nbaTeamsCache || {});
+  const sport = currentSport;
+  
+  try {
+    const resp = await fetch(`${API}/api/model/${sport}/ratings`);
+    const data = await resp.json();
+    const ratings = data.ratings || data;
+    if (Array.isArray(ratings)) {
+      const sortedTeams = ratings.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      const awaySelect = document.getElementById('alt-away');
+      const homeSelect = document.getElementById('alt-home');
+      for (const t of sortedTeams) {
+        const abbr = t.abbr || t.team;
+        awaySelect.innerHTML += `<option value="${abbr}">${t.name} (${abbr})</option>`;
+        homeSelect.innerHTML += `<option value="${abbr}">${t.name} (${abbr})</option>`;
+      }
+    }
+  } catch (e) { console.error('Failed to load teams for alt-lines:', e); }
+}
+
+async function analyzeAltLines() {
+  const away = document.getElementById('alt-away').value;
+  const home = document.getElementById('alt-home').value;
+  const result = document.getElementById('alt-matchup-result');
+  
+  if (!away || !home) {
+    result.innerHTML = '<p style="color:#e74c3c">Select both teams</p>';
+    return;
+  }
+  
+  result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analyzing alt lines...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/alt-lines/${currentSport}/${away}/${home}`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      result.innerHTML = `<p style="color:#e74c3c">${data.error}</p>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Summary
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0">';
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">${data.projTotal}</div><div style="color:var(--text2);font-size:12px">Projected Total</div></div>`;
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">${data.f5?.projTotal || '-'}</div><div style="color:var(--text2);font-size:12px">F5 Projected</div></div>`;
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">${data.awayLambda}</div><div style="color:var(--text2);font-size:12px">${away} Exp Runs</div></div>`;
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">${data.homeLambda}</div><div style="color:var(--text2);font-size:12px">${home} Exp Runs</div></div>`;
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">${data.sweetSpots?.length || 0}</div><div style="color:var(--text2);font-size:12px">Sweet Spots</div></div>`;
+    html += '</div>';
+    
+    // Sweet spots
+    if (data.sweetSpots && data.sweetSpots.length > 0) {
+      html += '<h4 style="margin:16px 0 8px">🎯 Sweet Spots (High Model Conviction)</h4>';
+      html += '<table><thead><tr><th>Pick</th><th>Market</th><th>Model Prob</th><th>Fair ML</th><th>Note</th></tr></thead><tbody>';
+      for (const ss of data.sweetSpots.slice(0, 15)) {
+        const probColor = ss.modelProb >= 0.7 ? '#2ecc71' : ss.modelProb >= 0.6 ? '#f39c12' : 'var(--text)';
+        html += `<tr>`;
+        html += `<td><strong>${ss.pick}</strong></td>`;
+        html += `<td style="font-size:11px">${ss.market}</td>`;
+        html += `<td style="color:${probColor};font-weight:600">${(ss.modelProb * 100).toFixed(1)}%</td>`;
+        html += `<td>${ss.modelML > 0 ? '+' : ''}${ss.modelML}</td>`;
+        html += `<td style="color:var(--text2);font-size:11px">${ss.note}</td>`;
+        html += `</tr>`;
+      }
+      html += '</tbody></table>';
+    }
+    
+    // Full game totals table
+    if (data.fullGame?.totals) {
+      html += '<h4 style="margin:16px 0 8px">📊 Full Game Alt Totals</h4>';
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Line</th><th>Over%</th><th>Over ML</th><th>Under%</th><th>Under ML</th></tr></thead><tbody>';
+      for (const [line, d] of Object.entries(data.fullGame.totals)) {
+        const dist = Math.abs(parseFloat(line) - data.projTotal);
+        const highlight = dist < 0.5 ? 'background:rgba(52,152,219,0.15)' : '';
+        html += `<tr style="${highlight}">`;
+        html += `<td><strong>${line}</strong>${dist < 0.5 ? ' ⬅️' : ''}</td>`;
+        html += `<td style="color:${d.over > 0.55 ? '#2ecc71' : d.over < 0.45 ? '#e74c3c' : 'var(--text)'}">${(d.over * 100).toFixed(1)}%</td>`;
+        html += `<td>${d.overML > 0 ? '+' : ''}${d.overML}</td>`;
+        html += `<td style="color:${d.under > 0.55 ? '#2ecc71' : d.under < 0.45 ? '#e74c3c' : 'var(--text)'}">${(d.under * 100).toFixed(1)}%</td>`;
+        html += `<td>${d.underML > 0 ? '+' : ''}${d.underML}</td>`;
+        html += `</tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+    
+    // Alt spreads table
+    if (data.fullGame?.spreads) {
+      html += '<h4 style="margin:16px 0 8px">📊 Alt Run Lines / Spreads</h4>';
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Home Spread</th><th>Home Cover%</th><th>Home ML</th><th>Away Cover%</th><th>Away ML</th></tr></thead><tbody>';
+      for (const [spread, d] of Object.entries(data.fullGame.spreads)) {
+        const s = parseFloat(spread);
+        const isStd = Math.abs(Math.abs(s) - 1.5) < 0.1;
+        const highlight = isStd ? 'background:rgba(52,152,219,0.15)' : '';
+        html += `<tr style="${highlight}">`;
+        html += `<td><strong>${home} ${s > 0 ? '+' : ''}${s}</strong>${isStd ? ' ⬅️' : ''}</td>`;
+        html += `<td style="color:${d.homeCover > 0.55 ? '#2ecc71' : d.homeCover < 0.45 ? '#e74c3c' : 'var(--text)'}">${(d.homeCover * 100).toFixed(1)}%</td>`;
+        html += `<td>${d.homeCoverML > 0 ? '+' : ''}${d.homeCoverML}</td>`;
+        html += `<td style="color:${d.awayCover > 0.55 ? '#2ecc71' : d.awayCover < 0.45 ? '#e74c3c' : 'var(--text)'}">${(d.awayCover * 100).toFixed(1)}%</td>`;
+        html += `<td>${d.awayCoverML > 0 ? '+' : ''}${d.awayCoverML}</td>`;
+        html += `</tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+    
+    // F5 totals
+    if (data.f5?.totals) {
+      html += '<h4 style="margin:16px 0 8px">⏱️ First 5 Innings Alt Totals</h4>';
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Line</th><th>Over%</th><th>Over ML</th><th>Under%</th><th>Under ML</th></tr></thead><tbody>';
+      for (const [line, d] of Object.entries(data.f5.totals)) {
+        const dist = Math.abs(parseFloat(line) - data.f5.projTotal);
+        const highlight = dist < 0.5 ? 'background:rgba(52,152,219,0.15)' : '';
+        html += `<tr style="${highlight}">`;
+        html += `<td><strong>${line}</strong>${dist < 0.5 ? ' ⬅️' : ''}</td>`;
+        html += `<td style="color:${d.over > 0.55 ? '#2ecc71' : d.over < 0.45 ? '#e74c3c' : 'var(--text)'}">${(d.over * 100).toFixed(1)}%</td>`;
+        html += `<td>${d.overML > 0 ? '+' : ''}${d.overML}</td>`;
+        html += `<td style="color:${d.under > 0.55 ? '#2ecc71' : d.under < 0.45 ? '#e74c3c' : 'var(--text)'}">${(d.under * 100).toFixed(1)}%</td>`;
+        html += `<td>${d.underML > 0 ? '+' : ''}${d.underML}</td>`;
+        html += `</tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+    
+    // Team totals
+    if (data.fullGame?.awayTeamTotals && data.fullGame?.homeTeamTotals) {
+      html += '<h4 style="margin:16px 0 8px">👥 Team Totals</h4>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      
+      // Away team totals
+      html += '<div>';
+      html += `<h5 style="margin-bottom:8px">${data.awayName || away} (${data.awayLambda} exp runs)</h5>`;
+      html += '<table><thead><tr><th>Line</th><th>Over%</th><th>Under%</th></tr></thead><tbody>';
+      for (const [line, d] of Object.entries(data.fullGame.awayTeamTotals)) {
+        if (parseFloat(line) >= 1.5 && parseFloat(line) <= 6.5) {
+          html += `<tr><td>${line}</td><td style="color:${d.over > 0.55 ? '#2ecc71' : 'var(--text)'}">${(d.over * 100).toFixed(1)}%</td><td style="color:${d.under > 0.55 ? '#2ecc71' : 'var(--text)'}">${(d.under * 100).toFixed(1)}%</td></tr>`;
+        }
+      }
+      html += '</tbody></table></div>';
+      
+      // Home team totals
+      html += '<div>';
+      html += `<h5 style="margin-bottom:8px">${data.homeName || home} (${data.homeLambda} exp runs)</h5>`;
+      html += '<table><thead><tr><th>Line</th><th>Over%</th><th>Under%</th></tr></thead><tbody>';
+      for (const [line, d] of Object.entries(data.fullGame.homeTeamTotals)) {
+        if (parseFloat(line) >= 1.5 && parseFloat(line) <= 6.5) {
+          html += `<tr><td>${line}</td><td style="color:${d.over > 0.55 ? '#2ecc71' : 'var(--text)'}">${(d.over * 100).toFixed(1)}%</td><td style="color:${d.under > 0.55 ? '#2ecc71' : 'var(--text)'}">${(d.under * 100).toFixed(1)}%</td></tr>`;
+        }
+      }
+      html += '</tbody></table></div>';
+      html += '</div>';
+    }
+    
+    result.innerHTML = html;
+  } catch (e) {
+    result.innerHTML = `<p style="color:#e74c3c">Error: ${e.message}</p>`;
+  }
+}
+
+async function scanAltLines(sport) {
+  const result = document.getElementById('alt-scan-result');
+  result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Scanning alt lines vs live odds... (uses API quota)</p></div>';
+  
+  try {
+    const endpoint = sport === 'all' ? `${API}/api/alt-lines/scan` : `${API}/api/alt-lines/scan/${sport}`;
+    const resp = await fetch(endpoint);
+    const data = await resp.json();
+    
+    if (data.error) {
+      result.innerHTML = `<p style="color:#e74c3c">${data.error}</p>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Summary stats
+    const totalBets = data.totalValueBets || 0;
+    const highConf = data.highConfidence || 0;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:16px 0">';
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700;color:#2ecc71">${totalBets}</div><div style="color:var(--text2);font-size:12px">Value Bets Found</div></div>`;
+    html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700;color:#e74c3c">${highConf}</div><div style="color:var(--text2);font-size:12px">High Confidence</div></div>`;
+    if (data.avgEdge) html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">${(data.avgEdge * 100).toFixed(1)}%</div><div style="color:var(--text2);font-size:12px">Avg Edge</div></div>`;
+    if (data.avgEV) html += `<div class="card" style="text-align:center"><div style="font-size:24px;font-weight:700">$${data.avgEV}</div><div style="color:var(--text2);font-size:12px">Avg EV/100</div></div>`;
+    html += '</div>';
+    
+    // Top bets table
+    const topBets = data.topBets || [];
+    if (topBets.length > 0) {
+      html += '<h4 style="margin:16px 0 8px">🏆 Top Value Bets</h4>';
+      html += '<div style="overflow-x:auto"><table><thead><tr><th>Pick</th><th>Game</th><th>Market</th><th>Book ML</th><th>Model Prob</th><th>Edge</th><th>EV/$100</th><th>Confidence</th><th>Kelly</th></tr></thead><tbody>';
+      for (const bet of topBets) {
+        const confColor = bet.confidence === 'HIGH' ? '#2ecc71' : bet.confidence === 'MEDIUM' ? '#f39c12' : '#95a5a6';
+        html += `<tr>`;
+        html += `<td><strong>${bet.pick}</strong></td>`;
+        html += `<td style="font-size:11px">${bet.game || ''}</td>`;
+        html += `<td style="font-size:11px">${bet.market}</td>`;
+        html += `<td>${bet.bookML > 0 ? '+' : ''}${bet.bookML}</td>`;
+        html += `<td>${(bet.modelProb * 100).toFixed(1)}%</td>`;
+        html += `<td style="color:#2ecc71;font-weight:600">${(bet.edge * 100).toFixed(1)}%</td>`;
+        html += `<td style="color:#2ecc71;font-weight:600">$${bet.ev?.toFixed(1) || '-'}</td>`;
+        html += `<td style="color:${confColor};font-weight:600">${bet.confidence}</td>`;
+        html += `<td style="font-size:11px">${bet.kelly ? (bet.kelly.half * 100).toFixed(1) + '%' : '-'}</td>`;
+        html += `</tr>`;
+      }
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p style="color:var(--text2);text-align:center;padding:20px">No alt line value bets found. Markets may be closed or efficiently priced right now.</p>';
+    }
+    
+    // By sport (for all-sports scan)
+    if (data.bySport) {
+      html += '<h4 style="margin:16px 0 8px">📊 Breakdown by Sport</h4>';
+      for (const [s, sportData] of Object.entries(data.bySport)) {
+        const emoji = s === 'mlb' ? '⚾' : s === 'nba' ? '🏀' : '🏒';
+        html += `<div class="card" style="margin-bottom:8px">`;
+        html += `<strong>${emoji} ${s.toUpperCase()}</strong>: ${sportData.totalValueBets || 0} value bets`;
+        if (sportData.gamesChecked) html += ` (${sportData.gamesChecked} games scanned)`;
+        if (sportData.highConfidence) html += ` — <span style="color:#2ecc71">${sportData.highConfidence} HIGH</span>`;
+        html += '</div>';
+      }
+    }
+    
+    html += `<p style="color:var(--text2);font-size:11px;margin-top:12px">Scanned at ${data.scannedAt || new Date().toISOString()}</p>`;
+    result.innerHTML = html;
+  } catch (e) {
+    result.innerHTML = `<p style="color:#e74c3c">Error: ${e.message}</p>`;
+  }
+}
 
 async function loadTracker() {
   const wrap = document.getElementById('tab-content');
@@ -2335,7 +3097,7 @@ async function api(url) {
 // ==================== INIT ====================
 
 buildTabs();
-showTab('today');
+showTab('picks');
 </script>
 </body>
 </html>

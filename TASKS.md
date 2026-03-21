@@ -24,12 +24,14 @@
 | 015 | Totals model (Poisson) | ✅ DONE | P2 | Poisson-based, integrated into MLB model |
 | 016 | MLB: starting pitcher model | ✅ DONE | P2 | 150 pitchers, composite ratings, matchup analysis |
 | 017 | MLB: park factors | ✅ DONE | P2 | 30 parks with run multipliers |
-| 018 | MLB: weather integration | ⏳ QUEUED | P3 | Wind, temp, humidity |
+| 018 | MLB: weather integration | ✅ DONE | P3 | Wind, temp, humidity — wired into predictions + value detection |
 | 019 | Kalshi scanner | ✅ DONE | P2 | Team totals, futures, value detection |
-| 020 | Player props framework | ⏳ QUEUED | P2 | Points, rebounds, Ks, hits |
+| 020 | Player props framework | ✅ DONE | P2 | Points, rebounds, Ks, hits — APIs + dashboard |
 | 021 | Live data feeds (replace static) | ✅ DONE | P1 | ESPN + NHL API, auto-refresh, 30min cache |
 | 022 | NHL backtest expansion | ⏳ QUEUED | P2 | Add more games for validation |
 | 023 | MLB Opening Day projections | ✅ DONE | P1 | March 26-27 matchup picks with pitcher analysis |
+| 024 | Unified Signal Engine | ✅ DONE | P1 | All signals (umpire, weather, MC, calibration, rest/travel) into daily picks + value detection |
+| 025 | Alt Lines Value Scanner | ✅ DONE | P1 | Alt totals, alt spreads, team totals, F5 lines — Poisson-powered value scanning |
 
 ## Completed
 | ID | Task | Completed | Result |
@@ -53,6 +55,10 @@
 | 013 | Injury service wired into models | 2026-03-21 | Star player impact ratings, ESPN injury data, penalty adjustments in all 3 models |
 | 014 | Line movement tracker | 2026-03-21 | 30-min snapshots, steam/RLM/stale detection, API endpoints |
 | 019 | Kalshi scanner | 2026-03-21 | 1800 NBA team total contracts, futures, 119 value bets found |
+| 018 | MLB weather integration | 2026-03-21 | Open-Meteo API, wind/temp/humidity multipliers, 30 parks, wired into predictions |
+| 020 | Player props framework | 2026-03-21 | NBA/MLB/NHL player projections, value scanning, live stats integration |
+| 024 | Unified Signal Engine | 2026-03-21 | Umpire+weather+MC+calibration+rest/travel all wired into daily picks & value detection |
+| 025 | Alt Lines Value Scanner | 2026-03-21 | Alt totals, alt spreads, team totals, F5 lines, Poisson math, live odds scanning, dashboard tab |
 
 ## Backlog
 - NFL win totals futures model
@@ -83,6 +89,8 @@
 | #4 | 2026-03-19 20:45 | MLB Opening Day Projections v5.0 — Full 19-game schedule (March 26-27), Opening Day model with pitcher matchups, best bets engine (top 5 picks), dedicated dashboard tab with hero countdown + game cards + totals table, deployed to Fly.io v5.0. |
 | #5 | 2026-03-20 19:20 | **Live Data Feeds + Kelly Optimizer v6.0** — MAJOR: replaced static data with live feeds from ESPN (NBA/MLB) and NHL official API. All 3 models now auto-refresh from real APIs with 30-min cache and graceful static fallback. Built proper Kelly Criterion portfolio optimizer with same-game correlation detection, confidence weighting, full/half/quarter Kelly sizing, and portfolio-level risk management. NBA now shows real current standings (OKC 55-15, DET 50-19, SAS 52-18). Fly deploy blocked by expired token — code committed and pushed to GitHub. |
 | #6 | 2026-03-21 14:20 | **Rolling Stats + Injuries → Models + Kalshi Scanner v9.0** — Wired rolling stats (L10 form) and injury data (star player impact) into MLB prediction engine (was already in NBA/NHL). MLB predict() now adjusts expected runs based on recent form and missing stars. Enhanced dashboard: new "Trends & Injuries" tab with sortable rolling form table and detailed injury reports. Factor Breakdown UI shows rolling cards + injury detail. Built full Kalshi prediction market scanner — scans 1800+ NBA team total contracts + championship futures for +EV opportunities. First scan found 119 value bets (90 HIGH confidence). Tasks 012, 013, 014, 019 all completed. |
+| #7 | 2026-03-21 19:40 | **Unified Signal Engine v19.0** — CRITICAL UPGRADE: Wired ALL signals into the money-printing daily picks engine. Previously, daily picks used basic `predict()` (no rest/travel, no Monte Carlo, no umpire, no calibration). Now uses `asyncPredict` for MLB (rest/travel + MC), umpire zone data for totals, probability calibration, and blended probs (analytical + MC). Also: umpire data wired into MLB value detection (`/api/value/mlb` + `/api/value/all`), MC-enhanced totals in combined endpoint, new `/api/signal-check/:sport/:away/:home` unified pre-bet signal aggregator. Dashboard shows umpire + MC info in picks. Confidence scoring expanded (0-15 situational with umpire support). Tasks 018, 020, 024 completed. |
+| #8 | 2026-03-21 20:00 | **Alt Lines Value Scanner v20.0** — NEW FEATURE: Full alt lines scanner (`services/alt-lines.js`). Uses Poisson score matrix to calculate exact probabilities for ANY line — alt totals (4.5-14.5), alt run lines (-4.5 to +4.5), team totals (0.5-8.5), F5 totals (2.5-8.5), F5 spreads. Live odds scanning via The Odds API to find +EV alt market opportunities. Dashboard "📐 Alt Lines" tab with matchup analyzer (pick any two teams, see all alt line probabilities + sweet spots) and live scan button. Alt markets are less efficiently priced = more edge. API endpoints: `/api/alt-lines/:sport/:away/:home`, `/api/alt-lines/scan/:sport`, `/api/alt-lines/scan`. Task 025 completed. |
 
 ---
 
@@ -124,4 +132,4 @@
 ---
 *Last updated: 2026-03-21*
 *MLB OPENING DAY: 6 DAYS*
-*Next priorities: MLB weather integration (Task 018), Player props framework (Task 020), NHL backtest expansion (Task 022)*
+*Next priorities: NHL backtest expansion (Task 022), Telegram/WhatsApp alerts, Bet tracker auto-grading, CLV tracking, ML ensemble, Python ML engine*

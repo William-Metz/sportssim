@@ -19,11 +19,11 @@ const PITCHERS = {
     { name: 'Cade Povich', team: 'BAL', hand: 'L', era: 4.35, fip: 4.15, xfip: 4.25, whip: 1.28, k9: 8.5, bb9: 3.0, hr9: 1.1, ip: 130, war: 1.5 },
   ],
   'BOS': [
+    { name: 'Garrett Crochet', team: 'BOS', hand: 'L', era: 3.55, fip: 3.40, xfip: 3.48, whip: 1.08, k9: 12.0, bb9: 2.5, hr9: 0.8, ip: 145, war: 3.5 }, // ACE — acquired from CWS
+    { name: 'Sonny Gray', team: 'BOS', hand: 'R', era: 3.45, fip: 3.32, xfip: 3.40, whip: 1.10, k9: 9.5, bb9: 2.5, hr9: 0.9, ip: 185, war: 4.2 }, // #2 — acquired from STL
     { name: 'Brayan Bello', team: 'BOS', hand: 'R', era: 3.72, fip: 3.58, xfip: 3.65, whip: 1.18, k9: 8.5, bb9: 2.8, hr9: 0.9, ip: 180, war: 3.2 },
     { name: 'Tanner Houck', team: 'BOS', hand: 'R', era: 3.55, fip: 3.42, xfip: 3.50, whip: 1.12, k9: 9.2, bb9: 2.5, hr9: 0.8, ip: 170, war: 3.5 },
     { name: 'Kutter Crawford', team: 'BOS', hand: 'R', era: 3.88, fip: 3.72, xfip: 3.80, whip: 1.15, k9: 9.5, bb9: 2.2, hr9: 1.1, ip: 165, war: 2.8 },
-    { name: 'Lucas Giolito', team: 'BOS', hand: 'R', era: 4.45, fip: 4.20, xfip: 4.30, whip: 1.30, k9: 9.0, bb9: 3.2, hr9: 1.3, ip: 140, war: 1.5 },
-    { name: 'Garrett Whitlock', team: 'BOS', hand: 'R', era: 3.95, fip: 3.80, xfip: 3.88, whip: 1.20, k9: 8.0, bb9: 2.5, hr9: 1.0, ip: 145, war: 2.0 },
   ],
   'TOR': [
     { name: 'Kevin Gausman', team: 'TOR', hand: 'R', era: 3.68, fip: 3.52, xfip: 3.60, whip: 1.12, k9: 9.8, bb9: 2.0, hr9: 1.1, ip: 185, war: 3.8 },
@@ -46,7 +46,7 @@ const PITCHERS = {
     { name: 'Gavin Williams', team: 'CLE', hand: 'R', era: 3.72, fip: 3.55, xfip: 3.62, whip: 1.15, k9: 10.2, bb9: 3.0, hr9: 0.9, ip: 155, war: 3.0 },
     { name: 'Logan Allen', team: 'CLE', hand: 'L', era: 4.05, fip: 3.90, xfip: 3.98, whip: 1.22, k9: 8.0, bb9: 2.8, hr9: 1.0, ip: 165, war: 2.2 },
     { name: 'Ben Lively', team: 'CLE', hand: 'R', era: 3.88, fip: 3.75, xfip: 3.82, whip: 1.18, k9: 7.5, bb9: 2.0, hr9: 1.0, ip: 160, war: 2.5 },
-    { name: 'Matthew Boyd', team: 'CLE', hand: 'L', era: 4.20, fip: 4.02, xfip: 4.10, whip: 1.25, k9: 8.5, bb9: 2.5, hr9: 1.2, ip: 140, war: 1.5 },
+    { name: 'Matthew Boyd', team: 'CHC', hand: 'L', era: 4.20, fip: 4.02, xfip: 4.10, whip: 1.25, k9: 8.5, bb9: 2.5, hr9: 1.2, ip: 140, war: 1.5 }, // SIGNED by CHC offseason 2025-26
   ],
   'KC': [
     { name: 'Seth Lugo', team: 'KC', hand: 'R', era: 3.42, fip: 3.30, xfip: 3.38, whip: 1.10, k9: 8.8, bb9: 1.8, hr9: 0.9, ip: 195, war: 4.5 },
@@ -70,7 +70,7 @@ const PITCHERS = {
     { name: 'Chris Paddack', team: 'MIN', hand: 'R', era: 4.45, fip: 4.28, xfip: 4.35, whip: 1.28, k9: 7.8, bb9: 2.5, hr9: 1.2, ip: 140, war: 1.2 },
   ],
   'CWS': [
-    { name: 'Garrett Crochet', team: 'CWS', hand: 'L', era: 3.55, fip: 3.40, xfip: 3.48, whip: 1.08, k9: 12.0, bb9: 2.5, hr9: 0.8, ip: 145, war: 3.5 },
+    { name: 'Garrett Crochet', team: 'BOS', hand: 'L', era: 3.55, fip: 3.40, xfip: 3.48, whip: 1.08, k9: 12.0, bb9: 2.5, hr9: 0.8, ip: 145, war: 3.5 }, // TRADED to BOS offseason 2025-26
     { name: 'Erick Fedde', team: 'CWS', hand: 'R', era: 3.88, fip: 3.72, xfip: 3.80, whip: 1.18, k9: 8.2, bb9: 2.2, hr9: 1.0, ip: 175, war: 2.5 },
     { name: 'Chris Flexen', team: 'CWS', hand: 'R', era: 5.05, fip: 4.82, xfip: 4.90, whip: 1.38, k9: 6.8, bb9: 3.0, hr9: 1.3, ip: 150, war: 0.2 },
     { name: 'Jonathan Cannon', team: 'CWS', hand: 'R', era: 5.22, fip: 4.95, xfip: 5.02, whip: 1.40, k9: 6.5, bb9: 3.2, hr9: 1.4, ip: 130, war: -0.2 },
@@ -153,7 +153,7 @@ const PITCHERS = {
 
   // ==================== NL CENTRAL ====================
   'MIL': [
-    { name: 'Freddy Peralta', team: 'MIL', hand: 'R', era: 3.42, fip: 3.28, xfip: 3.35, whip: 1.10, k9: 10.5, bb9: 2.5, hr9: 0.9, ip: 180, war: 4.2 },
+    { name: 'Freddy Peralta', team: 'NYM', hand: 'R', era: 3.42, fip: 3.28, xfip: 3.35, whip: 1.10, k9: 10.5, bb9: 2.5, hr9: 0.9, ip: 180, war: 4.2 }, // TRADED to NYM offseason 2025-26
     { name: 'Colin Rea', team: 'MIL', hand: 'R', era: 3.78, fip: 3.65, xfip: 3.72, whip: 1.15, k9: 8.0, bb9: 2.0, hr9: 0.9, ip: 170, war: 2.8 },
     { name: 'Tobias Myers', team: 'MIL', hand: 'R', era: 3.92, fip: 3.78, xfip: 3.85, whip: 1.18, k9: 8.2, bb9: 2.2, hr9: 1.0, ip: 155, war: 2.2 },
     { name: 'Frankie Montas', team: 'MIL', hand: 'R', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 8.5, bb9: 2.5, hr9: 1.2, ip: 145, war: 1.5 },
@@ -167,7 +167,7 @@ const PITCHERS = {
     { name: 'Jordan Wicks', team: 'CHC', hand: 'L', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 8.0, bb9: 3.0, hr9: 1.0, ip: 130, war: 1.2 },
   ],
   'STL': [
-    { name: 'Sonny Gray', team: 'STL', hand: 'R', era: 3.45, fip: 3.32, xfip: 3.40, whip: 1.10, k9: 9.5, bb9: 2.5, hr9: 0.9, ip: 185, war: 4.2 },
+    { name: 'Sonny Gray', team: 'BOS', hand: 'R', era: 3.45, fip: 3.32, xfip: 3.40, whip: 1.10, k9: 9.5, bb9: 2.5, hr9: 0.9, ip: 185, war: 4.2 }, // TRADED to BOS offseason 2025-26
     { name: 'Miles Mikolas', team: 'STL', hand: 'R', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.22, k9: 7.0, bb9: 1.8, hr9: 1.2, ip: 180, war: 1.8 },
     { name: 'Steven Matz', team: 'STL', hand: 'L', era: 4.45, fip: 4.28, xfip: 4.35, whip: 1.28, k9: 7.5, bb9: 2.5, hr9: 1.2, ip: 150, war: 1.2 },
     { name: 'Andre Pallante', team: 'STL', hand: 'R', era: 4.12, fip: 3.95, xfip: 4.02, whip: 1.20, k9: 7.2, bb9: 2.8, hr9: 1.0, ip: 155, war: 1.8 },

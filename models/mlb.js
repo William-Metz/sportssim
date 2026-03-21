@@ -13,8 +13,14 @@ try { liveData = require('../services/live-data'); } catch (e) { /* fallback to 
 // Rolling stats & injury integration
 let rollingStats = null;
 let injuryService = null;
+let restTravel = null;
+let monteCarlo = null;
+let umpireService = null;
 try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
 try { injuryService = require('../services/injuries'); } catch (e) { /* no injury data */ }
+try { restTravel = require('../services/rest-travel'); } catch (e) { /* no rest/travel */ }
+try { monteCarlo = require('../services/monte-carlo'); } catch (e) { /* no monte carlo */ }
+try { umpireService = require('../services/umpire-tendencies'); } catch (e) { /* no umpire data */ }
 
 /**
  * Get current team data — live if available, static fallback
@@ -128,6 +134,19 @@ const PARK_FACTORS = {
 // League average baselines
 const LG_AVG = { rsG: 4.4, raG: 4.4, era: 4.10, whip: 1.28, k9: 8.6, fip: 4.05 };
 const HOME_ADV = 0.540; // 54% historical home win rate in MLB
+
+// ==================== EARLY SEASON REGRESSION ====================
+// At the start of the season, preseason projections have higher uncertainty.
+// We regress expected runs toward the league average based on how much
+// real data we have. After ~40 games, the regression disappears.
+// This prevents overconfident bets on Opening Day.
+function getEarlySeasonRegression(teamData) {
+  const gp = (teamData.w || 0) + (teamData.l || 0);
+  if (gp >= 40) return 0; // full confidence after 40 games
+  if (gp === 0) return 0.35; // Opening Day: 35% regression to mean
+  // Linear ramp: 35% at 0 games → 0% at 40 games
+  return Math.max(0, 0.35 * (1 - gp / 40));
+}
 
 // ==================== PLATOON SPLITS ====================
 // How much each team's offense drops when facing a same-side pitcher
@@ -341,6 +360,17 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     homeRaG = home.rsG * (away.raG / LG_AVG.raG) * pf;
   }
 
+  // ==================== EARLY SEASON REGRESSION ====================
+  // Regress expected runs toward league average based on sample size
+  const awayRegression = getEarlySeasonRegression(away);
+  const homeRegression = getEarlySeasonRegression(home);
+  if (awayRegression > 0) {
+    awayRaG = awayRaG * (1 - awayRegression) + LG_AVG.rsG * awayRegression;
+  }
+  if (homeRegression > 0) {
+    homeRaG = homeRaG * (1 - homeRegression) + LG_AVG.rsG * homeRegression;
+  }
+
   // ==================== PLATOON SPLIT ADJUSTMENT ====================
   // Pitcher handedness significantly affects opposing team offense
   // LHP face teams that may be LHH-heavy (same-side = harder to hit)
@@ -438,6 +468,59 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   if (weatherData && weatherData.multiplier && weatherData.multiplier !== 1.0) {
     awayRaG *= weatherData.multiplier;
     homeRaG *= weatherData.multiplier;
+  }
+
+  // ==================== UMPIRE TENDENCY ADJUSTMENT ====================
+  // Home plate umpire strike zone affects run totals by 0.3-0.5 runs
+  let umpireData = null;
+  if (opts.umpire && typeof opts.umpire === 'string') {
+    // Umpire name passed directly
+    if (umpireService) {
+      const ump = umpireService.getUmpire(opts.umpire);
+      if (ump) {
+        umpireData = umpireService.calcTotalRunsMultiplier(ump);
+        umpireData.name = ump.name;
+        umpireData.zone = ump.zone;
+      }
+    }
+  } else if (opts.umpire && typeof opts.umpire === 'object') {
+    // Pre-computed umpire adjustment object
+    umpireData = opts.umpire;
+  }
+  if (umpireData && umpireData.multiplier && umpireData.multiplier !== 1.0) {
+    awayRaG *= umpireData.multiplier;
+    homeRaG *= umpireData.multiplier;
+  }
+
+  // ==================== REST/TRAVEL ADJUSTMENT ====================
+  // Applied synchronously from pre-fetched opts.restTravel data
+  let awayRestAdj = 0, homeRestAdj = 0;
+  let awayRestData = null, homeRestData = null;
+  let awayBullpenFatigue = null, homeBullpenFatigue = null;
+  
+  if (opts.restTravel) {
+    awayRestData = opts.restTravel.away?.rest;
+    homeRestData = opts.restTravel.home?.rest;
+    awayBullpenFatigue = opts.restTravel.away?.bullpenFatigue;
+    homeBullpenFatigue = opts.restTravel.home?.bullpenFatigue;
+    
+    // Rest/travel adjusts run scoring for each team
+    awayRestAdj = awayRestData?.adjFactor || 0;
+    homeRestAdj = homeRestData?.adjFactor || 0;
+    
+    // Away team rest affects THEIR run scoring
+    awayRaG += awayRestAdj * 0.4;  // positive = rested = more runs, negative = tired = fewer
+    homeRaG += homeRestAdj * 0.4;
+    
+    // Bullpen fatigue affects opponent's late-inning scoring
+    if (awayBullpenFatigue && awayBullpenFatigue.multiplier !== 1.0) {
+      // Away pitcher bullpen tired → home team scores more
+      homeRaG *= (1 + (awayBullpenFatigue.multiplier - 1) * 0.35); // partial effect (bullpen only covers ~3.5 innings)
+    }
+    if (homeBullpenFatigue && homeBullpenFatigue.multiplier !== 1.0) {
+      // Home pitcher bullpen tired → away team scores more
+      awayRaG *= (1 + (homeBullpenFatigue.multiplier - 1) * 0.35);
+    }
   }
 
   // Ensure sane bounds
@@ -542,9 +625,52 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       homeInjuries: homeInjuries && homeInjuries.starPlayersOut.length > 0 ? { adj: +homeInjuryAdj.toFixed(2), out: homeInjuries.starPlayersOut } : null,
       awayPlatoon: awayPlatoonInfo,
       homePlatoon: homePlatoonInfo,
-      weather: weatherData ? { multiplier: weatherData.multiplier, impact: weatherData.totalImpact, description: weatherData.description, factors: weatherData.factors } : null
+      weather: weatherData ? { multiplier: weatherData.multiplier, impact: weatherData.totalImpact, description: weatherData.description, factors: weatherData.factors } : null,
+      umpire: umpireData ? { name: umpireData.name, zone: umpireData.zone, multiplier: umpireData.multiplier, adjustment: umpireData.adjustment, overRate: umpireData.overRate, confidence: umpireData.confidence } : null,
+      awayRest: awayRestData ? { adj: +awayRestAdj.toFixed(3), factors: awayRestData.factors, daysSinceLast: awayRestData.daysSinceLast, consecutiveRoad: awayRestData.consecutiveRoad, confidence: awayRestData.confidence } : null,
+      homeRest: homeRestData ? { adj: +homeRestAdj.toFixed(3), factors: homeRestData.factors, daysSinceLast: homeRestData.daysSinceLast, consecutiveHome: homeRestData.consecutiveHome, confidence: homeRestData.confidence } : null,
+      awayBullpenFatigue: awayBullpenFatigue ? { multiplier: awayBullpenFatigue.multiplier, status: awayBullpenFatigue.status, factors: awayBullpenFatigue.factors } : null,
+      homeBullpenFatigue: homeBullpenFatigue ? { multiplier: homeBullpenFatigue.multiplier, status: homeBullpenFatigue.status, factors: homeBullpenFatigue.factors } : null,
+      earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null
     }
   };
+  
+  // ==================== MONTE CARLO SIMULATION ====================
+  // Run 10K sims for more accurate distributions (optional, can be slow)
+  if (opts.monteCarlo !== false && monteCarlo) {
+    try {
+      const simOpts = {
+        awayBullpenMult: awayBullpenFatigue?.multiplier || 1.0,
+        homeBullpenMult: homeBullpenFatigue?.multiplier || 1.0,
+        numSims: opts.numSims || 10000,
+      };
+      const sim = monteCarlo.simulate(awayExpRuns, homeExpRuns, simOpts);
+      result.monteCarlo = {
+        homeWinProb: sim.homeWinProb,
+        awayWinProb: sim.awayWinProb,
+        homeML: sim.homeML,
+        awayML: sim.awayML,
+        totalRuns: sim.totalRuns,
+        runLines: sim.runLines,
+        totals: sim.totals,
+        f5: sim.f5,
+        topScores: sim.topScores.slice(0, 8),
+        marginDist: sim.marginDist,
+        extraInningsPct: sim.extraInningsPct,
+      };
+      
+      // Blend MC win prob with analytical (MC is more accurate for extreme matchups)
+      // Weight: 60% Monte Carlo, 40% analytical
+      const blendedHomeProb = sim.homeWinProb * 0.6 + result.homeWinProb * 0.4;
+      const blendedAwayProb = 1 - blendedHomeProb;
+      result.blendedHomeWinProb = +blendedHomeProb.toFixed(4);
+      result.blendedAwayWinProb = +blendedAwayProb.toFixed(4);
+      result.blendedHomeML = probToML(blendedHomeProb);
+      result.blendedAwayML = probToML(blendedAwayProb);
+    } catch (e) {
+      // Monte Carlo optional — don't break predict()
+    }
+  }
 
   // Add pitcher info if available
   if (awayPitcher) {
@@ -861,9 +987,42 @@ function kellySize(modelProb, ml) {
   return Math.max(0, kelly);
 }
 
+// ==================== ASYNC PREDICT (with rest/travel) ====================
+
+/**
+ * Async version of predict that fetches rest/travel data automatically
+ * Use this from server endpoints for the most accurate predictions
+ */
+async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
+  // Fetch rest/travel data if not already provided
+  if (!opts.restTravel && restTravel) {
+    try {
+      const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+      opts.restTravel = await restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate);
+    } catch (e) { /* rest/travel optional */ }
+  }
+  
+  return predict(awayAbbr, homeAbbr, opts);
+}
+
+/**
+ * Async matchup analysis with rest/travel
+ */
+async function asyncMatchup(awayAbbr, homeAbbr, opts = {}) {
+  if (!opts.restTravel && restTravel) {
+    try {
+      const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+      opts.restTravel = await restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate);
+    } catch (e) { /* rest/travel optional */ }
+  }
+  
+  return analyzeMatchup(awayAbbr, homeAbbr, opts);
+}
+
 module.exports = { 
   TEAMS, PARK_FACTORS, PLATOON_SPLITS, getTeams,
   calculateRatings, predict, predictTotal, analyzeMatchup, findValue, 
+  asyncPredict, asyncMatchup,
   pythWinPct, calculatePoissonTotals,
   resolvePitcher, refreshData
 };

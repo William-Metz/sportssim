@@ -19,8 +19,16 @@ const kalshi = require('./services/kalshi');
 const playerProps = require('./services/player-props');
 const weather = require('./services/weather');
 const polymarket = require('./services/polymarket');
+const restTravelService = require('./services/rest-travel');
+const monteCarloService = require('./services/monte-carlo');
 const playerStatsService = require('./services/player-stats');
 const betTracker = require('./services/bet-tracker');
+const umpireService = require('./services/umpire-tendencies');
+const dailyPicks = require('./services/daily-picks');
+const mlbSchedule = require('./services/mlb-schedule');
+const calibration = require('./services/calibration');
+const sgpEngine = require('./services/sgp-engine');
+const altLines = require('./services/alt-lines');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -84,7 +92,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '13.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking'] });
+  res.json({ status: 'ok', version: '20.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -101,8 +109,10 @@ app.get('/api/model/nba/predict', (req, res) => {
   const { away, home, awayB2B, homeB2B } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
-    const pred = nba.predict(away.toUpperCase(), home.toUpperCase(), { awayB2B: awayB2B === 'true', homeB2B: homeB2B === 'true' });
-    if (pred.error) return res.status(400).json(pred);
+    const rawPred = nba.predict(away.toUpperCase(), home.toUpperCase(), { awayB2B: awayB2B === 'true', homeB2B: homeB2B === 'true' });
+    if (rawPred.error) return res.status(400).json(rawPred);
+    // Apply probability calibration for accurate edge detection
+    const pred = calibration.calibratePrediction(rawPred, 'nba');
     res.json(pred);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -140,8 +150,10 @@ app.get('/api/value/nba', async (req, res) => {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const pred = nba.predict(awayAbbr, homeAbbr);
-      if (pred.error) continue;
+      const rawPred = nba.predict(awayAbbr, homeAbbr);
+      if (rawPred.error) continue;
+      // Apply calibration for accurate edge calculation
+      const pred = calibration.calibratePrediction(rawPred, 'nba');
       const books = game.bookmakers || [];
       for (const bk of books) {
         const bookLine = extractBookLine(bk, game.home_team);
@@ -176,7 +188,7 @@ app.get('/api/model/mlb/ratings', (req, res) => {
 });
 
 app.get('/api/model/mlb/predict', async (req, res) => {
-  const { away, home, awayPitcher, homePitcher, awayPitcherEra, awayPitcherFip, homePitcherEra, homePitcherFip } = req.query;
+  const { away, home, awayPitcher, homePitcher, awayPitcherEra, awayPitcherFip, homePitcherEra, homePitcherFip, gameDate, noMonteCarlo } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
     const opts = {};
@@ -188,13 +200,23 @@ app.get('/api/model/mlb/predict', async (req, res) => {
     if (awayPitcherFip) opts.awayPitcherFip = parseFloat(awayPitcherFip);
     if (homePitcherEra) opts.homePitcherEra = parseFloat(homePitcherEra);
     if (homePitcherFip) opts.homePitcherFip = parseFloat(homePitcherFip);
+    if (gameDate) opts.gameDate = gameDate;
+    if (noMonteCarlo) opts.monteCarlo = false;
     // Fetch live weather for the home ballpark
     try {
       const weatherData = await weather.getWeatherForPark(home.toUpperCase());
       if (weatherData && !weatherData.error) opts.weather = weatherData;
     } catch (e) { /* weather optional */ }
-    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
-    if (!pred || pred.error) return res.status(400).json({ error: pred?.error || 'Invalid team code' });
+    // Fetch umpire assignment for totals adjustment
+    try {
+      const umpAdj = await umpireService.getGameUmpireAdjustment(away.toUpperCase(), home.toUpperCase(), req.query.umpire);
+      if (umpAdj?.totalRunsAdj?.multiplier !== 1.0) opts.umpire = umpAdj.totalRunsAdj;
+    } catch (e) { /* umpire optional */ }
+    // Use async predict (includes rest/travel + monte carlo)
+    const rawPred = await mlb.asyncPredict(away.toUpperCase(), home.toUpperCase(), opts);
+    if (!rawPred || rawPred.error) return res.status(400).json({ error: rawPred?.error || 'Invalid team code' });
+    // Apply probability calibration
+    const pred = calibration.calibratePrediction(rawPred, 'mlb');
     res.json(pred);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -231,17 +253,22 @@ app.get('/api/model/mlb/pitchers/:team', (req, res) => {
 });
 
 app.get('/api/model/mlb/matchup', async (req, res) => {
-  const { away, home, awayPitcher, homePitcher } = req.query;
+  const { away, home, awayPitcher, homePitcher, gameDate } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
     const opts = {};
     if (awayPitcher) opts.awayPitcher = awayPitcher;
     if (homePitcher) opts.homePitcher = homePitcher;
+    if (gameDate) opts.gameDate = gameDate;
     try {
       const weatherData = await weather.getWeatherForPark(home.toUpperCase());
       if (weatherData && !weatherData.error) opts.weather = weatherData;
     } catch (e) { /* weather optional */ }
-    const matchup = mlb.analyzeMatchup(away.toUpperCase(), home.toUpperCase(), opts);
+    try {
+      const umpAdj = await umpireService.getGameUmpireAdjustment(away.toUpperCase(), home.toUpperCase(), req.query.umpire);
+      if (umpAdj?.totalRunsAdj?.multiplier !== 1.0) opts.umpire = umpAdj.totalRunsAdj;
+    } catch (e) { /* umpire optional */ }
+    const matchup = await mlb.asyncMatchup(away.toUpperCase(), home.toUpperCase(), opts);
     if (!matchup || matchup.error) return res.status(400).json({ error: matchup?.error || 'Invalid team code' });
     res.json(matchup);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -259,6 +286,11 @@ app.get('/api/model/mlb/totals', async (req, res) => {
       const weatherData = await weather.getWeatherForPark(home.toUpperCase());
       if (weatherData && !weatherData.error) opts.weather = weatherData;
     } catch (e) { /* weather optional */ }
+    // Fetch umpire data — critical for totals
+    try {
+      const umpAdj = await umpireService.getGameUmpireAdjustment(away.toUpperCase(), home.toUpperCase(), req.query.umpire);
+      if (umpAdj?.totalRunsAdj?.multiplier !== 1.0) opts.umpire = umpAdj.totalRunsAdj;
+    } catch (e) { /* umpire optional */ }
     const totals = mlb.predictTotal(away.toUpperCase(), home.toUpperCase(), opts);
     if (!totals || totals.error) return res.status(400).json({ error: totals?.error || 'Invalid team code' });
     res.json(totals);
@@ -291,18 +323,44 @@ app.get('/api/value/mlb', async (req, res) => {
         const weatherData = await weather.getWeatherForPark(homeAbbr);
         if (weatherData && !weatherData.error) opts.weather = weatherData;
       } catch (e) { /* weather optional */ }
-      const pred = mlb.predict(awayAbbr, homeAbbr, opts);
-      if (!pred || pred.error) continue;
+      // Fetch umpire data for totals adjustment
+      try {
+        const umpAdj = await umpireService.getGameUmpireAdjustment(awayAbbr, homeAbbr);
+        if (umpAdj?.totalRunsAdj?.multiplier !== 1.0) opts.umpire = umpAdj.totalRunsAdj;
+      } catch (e) { /* umpire optional */ }
+      // Use async predict (includes rest/travel + monte carlo)
+      const rawPred = await mlb.asyncPredict(awayAbbr, homeAbbr, opts);
+      if (!rawPred || rawPred.error) continue;
+      // Apply probability calibration for accurate edge detection
+      const pred = calibration.calibratePrediction(rawPred, 'mlb');
 
       const books = game.bookmakers || [];
       for (const bk of books) {
         const bookLine = extractBookLine(bk, game.home_team);
         const edges = mlb.findValue(pred, bookLine);
+        
+        // Also find MC-enhanced value if simulation ran
+        if (pred.monteCarlo) {
+          const mcEdges = monteCarloService.findSimValue(pred.monteCarlo, bookLine);
+          mcEdges.forEach(e => {
+            // Only add if not already found by analytical model
+            const isDuplicate = edges.some(ae => ae.pick === e.pick && ae.market === e.market);
+            if (!isDuplicate) {
+              edges.push(e);
+            }
+          });
+        }
+        
         edges.forEach(e => {
           valueBets.push({
             sport: 'MLB', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title,
             commence: game.commence_time, ...e,
-            prediction: { homeWinProb: pred.homeWinProb, awayWinProb: pred.awayWinProb, total: pred.totalRuns }
+            prediction: { 
+              homeWinProb: pred.blendedHomeWinProb || pred.homeWinProb, 
+              awayWinProb: pred.blendedAwayWinProb || pred.awayWinProb, 
+              total: pred.totalRuns,
+              mcTotal: pred.monteCarlo?.totalRuns?.mean || null
+            }
           });
         });
       }
@@ -321,7 +379,7 @@ app.get('/api/backtest/mlb', (req, res) => {
 
 app.get('/api/model/mlb/opening-day', async (req, res) => {
   try {
-    const projections = mlbOpeningDay.getProjections();
+    const projections = await mlbOpeningDay.getProjections();
     
     // Try to fetch live MLB odds for edge comparison
     let liveOdds = [];
@@ -402,11 +460,23 @@ app.get('/api/model/nhl/predict', (req, res) => {
   const { away, home, awayGoalie, homeGoalie } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
-    const pred = nhl.predict(away.toUpperCase(), home.toUpperCase(), {
+    const rawPred = nhl.predict(away.toUpperCase(), home.toUpperCase(), {
       awayGoalie: awayGoalie || 'starter', homeGoalie: homeGoalie || 'starter'
     });
-    if (!pred) return res.status(400).json({ error: 'Invalid team code' });
-    res.json(pred);
+    if (!rawPred) return res.status(400).json({ error: 'Invalid team code' });
+    // Apply probability calibration
+    // NHL predict returns {home: {winProb}, away: {winProb}} format — need to adapt
+    const calHome = calibration.calibrate(rawPred.home.winProb / 100, 'nhl');
+    const calAway = calibration.calibrate(rawPred.away.winProb / 100, 'nhl');
+    const totalCal = calHome.calibrated + calAway.calibrated;
+    const normHome = totalCal > 0 ? calHome.calibrated / totalCal : 0.5;
+    const normAway = totalCal > 0 ? calAway.calibrated / totalCal : 0.5;
+    rawPred.home.rawWinProb = rawPred.home.winProb;
+    rawPred.away.rawWinProb = rawPred.away.winProb;
+    rawPred.home.winProb = +(normHome * 100).toFixed(1);
+    rawPred.away.winProb = +(normAway * 100).toFixed(1);
+    rawPred.calibration = { method: 'piecewise-linear', sport: 'nhl' };
+    res.json(rawPred);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -431,17 +501,22 @@ app.get('/api/value/nhl', async (req, res) => {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const pred = nhl.predict(awayAbbr, homeAbbr);
-      if (!pred) continue;
+      const rawPred = nhl.predict(awayAbbr, homeAbbr);
+      if (!rawPred) continue;
+
+      // Apply calibration for accurate edge detection
+      const calHome = calibration.calibrate(rawPred.home.winProb / 100, 'nhl');
+      const calAway = calibration.calibrate(rawPred.away.winProb / 100, 'nhl');
+      const totalCal = calHome.calibrated + calAway.calibrated;
+      const modelHomeProb = totalCal > 0 ? calHome.calibrated / totalCal : 0.5;
+      const modelAwayProb = totalCal > 0 ? calAway.calibrated / totalCal : 0.5;
 
       const books = game.bookmakers || [];
       for (const bk of books) {
         const bookLine = extractBookLine(bk, game.home_team);
-        // NHL value detection: compare model ML probabilities to book
+        // NHL value detection: compare calibrated model ML probabilities to book
         const bookHomeProb = bookLine.homeML ? (bookLine.homeML < 0 ? (-bookLine.homeML) / (-bookLine.homeML + 100) : 100 / (bookLine.homeML + 100)) : null;
         const bookAwayProb = bookLine.awayML ? (bookLine.awayML < 0 ? (-bookLine.awayML) / (-bookLine.awayML + 100) : 100 / (bookLine.awayML + 100)) : null;
-        const modelHomeProb = pred.home.winProb / 100;
-        const modelAwayProb = pred.away.winProb / 100;
 
         if (bookHomeProb !== null) {
           const homeEdge = modelHomeProb - bookHomeProb;
@@ -472,10 +547,10 @@ app.get('/api/value/nhl', async (req, res) => {
           }
         }
         // Total edge
-        if (bookLine.total && pred.projTotal) {
-          const totalDiff = Math.abs(pred.projTotal - bookLine.total);
+        if (bookLine.total && rawPred.projTotal) {
+          const totalDiff = Math.abs(rawPred.projTotal - bookLine.total);
           if (totalDiff >= 0.5) {
-            const side = pred.projTotal > bookLine.total ? 'Over' : 'Under';
+            const side = rawPred.projTotal > bookLine.total ? 'Over' : 'Under';
             valueBets.push({
               sport: 'NHL', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title,
               commence: game.commence_time,
@@ -523,9 +598,11 @@ async function fetch_value_bets(sport) {
       if (!awayAbbr || !homeAbbr) continue;
       const pred = nba.predict(awayAbbr, homeAbbr);
       if (pred.error) continue;
+      // Apply calibration for accurate edge calculation
+      const calPred = calibration.calibratePrediction(pred, 'nba');
       for (const bk of (game.bookmakers || [])) {
         const bookLine = extractBookLine(bk, game.home_team);
-        nba.findValue(pred, bookLine).forEach(e => {
+        nba.findValue(calPred, bookLine).forEach(e => {
           bets.push({ sport: 'NBA', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title, commence: game.commence_time, ...e });
         });
       }
@@ -543,11 +620,29 @@ async function fetch_value_bets(sport) {
         const wd = await weather.getWeatherForPark(homeAbbr);
         if (wd && !wd.error) opts.weather = wd;
       } catch (e) { /* weather optional */ }
-      const pred = mlb.predict(awayAbbr, homeAbbr, opts);
-      if (!pred || pred.error) continue;
+      // Umpire data for totals
+      try {
+        const umpAdj = await umpireService.getGameUmpireAdjustment(awayAbbr, homeAbbr);
+        if (umpAdj?.totalRunsAdj?.multiplier !== 1.0) opts.umpire = umpAdj.totalRunsAdj;
+      } catch (e) { /* umpire optional */ }
+      const rawPred = await mlb.asyncPredict(awayAbbr, homeAbbr, opts);
+      if (!rawPred || rawPred.error) continue;
+      // Apply calibration for accurate edge calculation
+      const pred = calibration.calibratePrediction(rawPred, 'mlb');
       for (const bk of (game.bookmakers || [])) {
         const bookLine = extractBookLine(bk, game.home_team);
-        mlb.findValue(pred, bookLine).forEach(e => {
+        const edges = mlb.findValue(pred, bookLine);
+        // Also find MC-enhanced value if simulation ran
+        if (pred.monteCarlo) {
+          try {
+            const mcEdges = monteCarloService.findSimValue(pred.monteCarlo, bookLine);
+            mcEdges.forEach(e => {
+              const isDuplicate = edges.some(ae => ae.pick === e.pick && ae.market === e.market);
+              if (!isDuplicate) edges.push(e);
+            });
+          } catch (e) { /* MC value optional */ }
+        }
+        edges.forEach(e => {
           bets.push({ sport: 'MLB', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title, commence: game.commence_time, ...e });
         });
       }
@@ -559,20 +654,26 @@ async function fetch_value_bets(sport) {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const pred = nhl.predict(awayAbbr, homeAbbr);
-      if (!pred) continue;
+      const rawPredNhl = nhl.predict(awayAbbr, homeAbbr);
+      if (!rawPredNhl) continue;
+      // Apply calibration for accurate NHL edge detection
+      const calH = calibration.calibrate(rawPredNhl.home.winProb / 100, 'nhl');
+      const calA = calibration.calibrate(rawPredNhl.away.winProb / 100, 'nhl');
+      const totCal = calH.calibrated + calA.calibrated;
+      const nhlHomeProb = totCal > 0 ? calH.calibrated / totCal : 0.5;
+      const nhlAwayProb = totCal > 0 ? calA.calibrated / totCal : 0.5;
       for (const bk of (game.bookmakers || [])) {
         const bookLine = extractBookLine(bk, game.home_team);
         const bookHomeProb = bookLine.homeML ? (bookLine.homeML < 0 ? (-bookLine.homeML) / (-bookLine.homeML + 100) : 100 / (bookLine.homeML + 100)) : null;
         const bookAwayProb = bookLine.awayML ? (bookLine.awayML < 0 ? (-bookLine.awayML) / (-bookLine.awayML + 100) : 100 / (bookLine.awayML + 100)) : null;
-        if (bookHomeProb !== null && (pred.home.winProb / 100 - bookHomeProb) > 0.02) {
-          const edge = pred.home.winProb / 100 - bookHomeProb;
+        if (bookHomeProb !== null && (nhlHomeProb - bookHomeProb) > 0.02) {
+          const edge = nhlHomeProb - bookHomeProb;
           bets.push({ sport: 'NHL', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title, commence: game.commence_time,
             pick: `${homeAbbr} ML`, market: 'moneyline', edge: +(edge * 100).toFixed(1), confidence: edge >= 0.08 ? 'HIGH' : edge >= 0.05 ? 'MEDIUM' : 'LOW'
           });
         }
-        if (bookAwayProb !== null && (pred.away.winProb / 100 - bookAwayProb) > 0.02) {
-          const edge = pred.away.winProb / 100 - bookAwayProb;
+        if (bookAwayProb !== null && (nhlAwayProb - bookAwayProb) > 0.02) {
+          const edge = nhlAwayProb - bookAwayProb;
           bets.push({ sport: 'NHL', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title, commence: game.commence_time,
             pick: `${awayAbbr} ML`, market: 'moneyline', edge: +(edge * 100).toFixed(1), confidence: edge >= 0.08 ? 'HIGH' : edge >= 0.05 ? 'MEDIUM' : 'LOW'
           });
@@ -616,6 +717,8 @@ async function getAllOdds() {
               if (wd && !wd.error) { mlbOpts.weather = wd; gameWeather = wd; }
             } catch (e) { /* weather optional */ }
             pred = mlb.predict(awayAbbr || 'UNK', homeAbbr || 'UNK', mlbOpts);
+            // Calibrate MLB probabilities
+            if (pred && !pred.error) pred = calibration.calibratePrediction(pred, 'mlb');
           }
           else if (s.sport === 'NHL') pred = nhl.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
         } catch (e) { /* skip */ }
@@ -756,8 +859,9 @@ app.get('/api/nba/predict', (req, res) => {
   const { away, home, awayB2B, homeB2B } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
-    const pred = nba.predict(away.toUpperCase(), home.toUpperCase(), { awayB2B: awayB2B === 'true', homeB2B: homeB2B === 'true' });
-    if (pred.error) return res.status(400).json(pred);
+    const rawPred = nba.predict(away.toUpperCase(), home.toUpperCase(), { awayB2B: awayB2B === 'true', homeB2B: homeB2B === 'true' });
+    if (rawPred.error) return res.status(400).json(rawPred);
+    const pred = calibration.calibratePrediction(rawPred, 'nba');
     res.json(pred);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -787,8 +891,9 @@ app.get('/api/mlb/predict', async (req, res) => {
       const wd = await weather.getWeatherForPark(home.toUpperCase());
       if (wd && !wd.error) opts.weather = wd;
     } catch (e) { /* weather optional */ }
-    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
-    if (pred.error) return res.status(400).json(pred);
+    const rawPred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
+    if (rawPred.error) return res.status(400).json(rawPred);
+    const pred = calibration.calibratePrediction(rawPred, 'mlb');
     res.json(pred);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -809,17 +914,36 @@ app.get('/api/mlb/pitchers', (req, res) => {
 
 app.get('/api/mlb/opening-day', async (req, res) => {
   try {
-    const projections = [];
-    for (const game of mlbOpeningDay.OPENING_DAY_GAMES) {
-      const opts = {};
-      try {
-        const wd = await weather.getWeatherForPark(game.home);
-        if (wd && !wd.error) opts.weather = wd;
-      } catch (e) { /* weather optional */ }
-      const pred = mlb.predict(game.away, game.home, opts);
-      projections.push({ ...game, prediction: pred, weather: opts.weather || null });
-    }
-    res.json({ games: projections, date: '2026-03-27', updated: new Date().toISOString() });
+    // Use enhanced Opening Day model with all services integrated
+    const projections = await mlbOpeningDay.getProjections();
+    res.json(projections);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// MLB Schedule & Confirmed Starters
+app.get('/api/mlb/schedule', async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const schedule = await mlbSchedule.getSchedule(date);
+    res.json(schedule);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/mlb/schedule/multi', async (req, res) => {
+  try {
+    const start = req.query.start || new Date().toISOString().split('T')[0];
+    const days = Math.min(parseInt(req.query.days) || 3, 7);
+    const schedule = await mlbSchedule.getMultiDaySchedule(start, days);
+    res.json(schedule);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/mlb/starter/:team', async (req, res) => {
+  try {
+    const team = req.params.team.toUpperCase();
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const starter = await mlbSchedule.getConfirmedStarter(team, date);
+    res.json(starter || { team, date, starter: null, note: 'No confirmed starter found' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1128,6 +1252,32 @@ app.get('/api/lines/:sport', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== PROBABILITY CALIBRATION ====================
+
+app.get('/api/calibration/status', (req, res) => {
+  res.json(calibration.getStatus());
+});
+
+app.get('/api/calibration/diagnostics', (req, res) => {
+  const sport = req.query.sport || 'mlb';
+  res.json(calibration.getDiagnostics(sport));
+});
+
+app.get('/api/calibration/test', (req, res) => {
+  const rawProb = parseFloat(req.query.prob) || 0.55;
+  const sport = req.query.sport || 'mlb';
+  const result = calibration.calibrate(rawProb, sport);
+  res.json(result);
+});
+
+app.get('/api/calibration/edge', (req, res) => {
+  const modelProb = parseFloat(req.query.model) || 0.55;
+  const bookProb = parseFloat(req.query.book) || 0.50;
+  const sport = req.query.sport || 'mlb';
+  const result = calibration.calibratedEdge(modelProb, bookProb, sport);
+  res.json(result);
+});
+
 // ==================== KALSHI SCANNER ====================
 
 app.get('/api/kalshi/scan', async (req, res) => {
@@ -1184,18 +1334,23 @@ app.get('/api/props/status', (req, res) => {
   res.json(playerProps.getStatus());
 });
 
-app.get('/api/props/players/:sport', (req, res) => {
+app.get('/api/props/players/:sport', async (req, res) => {
   const sport = req.params.sport.toLowerCase();
-  const players = playerProps.getAvailablePlayers(sport);
-  res.json({ sport, players, count: players.length });
+  try {
+    const players = await playerProps.getAvailablePlayers(sport);
+    const liveCount = players.filter(p => p.source === 'live').length;
+    res.json({ sport, players, count: players.length, liveCount, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/props/projection/:sport/:player', (req, res) => {
+app.get('/api/props/projection/:sport/:player', async (req, res) => {
   const sport = req.params.sport.toLowerCase();
   const playerName = decodeURIComponent(req.params.player);
-  const projection = playerProps.getPlayerProjection(playerName, sport, { nba, mlb, nhl });
-  if (!projection) return res.status(404).json({ error: `Player "${playerName}" not found in ${sport.toUpperCase()} baselines` });
-  res.json(projection);
+  try {
+    const projection = await playerProps.getPlayerProjection(playerName, sport, { nba, mlb, nhl });
+    if (!projection) return res.status(404).json({ error: `Player "${playerName}" not found in ${sport.toUpperCase()}` });
+    res.json(projection);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/props/scan/:sport', async (req, res) => {
@@ -1226,13 +1381,13 @@ app.get('/api/props/value/:sport', async (req, res) => {
 });
 
 // Prop calculator: user enters player + line + odds, get model edge
-app.get('/api/props/calc', (req, res) => {
+app.get('/api/props/calc', async (req, res) => {
   const { player, sport, stat, line, overOdds, underOdds } = req.query;
   if (!player || !sport || !stat || !line) {
     return res.status(400).json({ error: 'Required: player, sport, stat, line' });
   }
   const sportLower = sport.toLowerCase();
-  const baseline = playerProps.getPlayerProjection(decodeURIComponent(player), sportLower, { nba, mlb, nhl });
+  const baseline = await playerProps.getPlayerProjection(decodeURIComponent(player), sportLower, { nba, mlb, nhl });
   if (!baseline || !baseline.stats[stat]) {
     return res.status(404).json({ error: `No baseline for ${player} ${stat}` });
   }
@@ -1543,6 +1698,105 @@ app.post('/api/bets/from-model', (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// ==================== DAILY PICKS ENGINE ====================
+
+app.get('/api/picks/today', async (req, res) => {
+  try {
+    // Check cache first
+    const cached = dailyPicks.getCachedPicks();
+    if (cached && !req.query.fresh) {
+      return res.json(cached);
+    }
+
+    // Generate fresh picks
+    const oddsData = await getAllOdds();
+    const bankroll = parseFloat(req.query.bankroll) || 1000;
+    const kellyFraction = parseFloat(req.query.kelly) || 0.5;
+    const minEdge = parseFloat(req.query.minEdge) || 0.02;
+
+    const result = await dailyPicks.generateDailyPicks({
+      nbaModel: nba,
+      mlbModel: mlb,
+      nhlModel: nhl,
+      oddsData,
+      lineMovementSvc: lineMovement,
+      injurySvc: injuries,
+      rollingSvc: rollingStats,
+      weatherSvc: weather,
+      propsSvc: playerProps,
+      umpireSvc: umpireService,
+      calibrationSvc: calibration,
+      bankroll,
+      kellyFraction,
+      minEdge,
+      maxPicks: parseInt(req.query.maxPicks) || 20
+    });
+
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/picks/history', (req, res) => {
+  try {
+    const history = dailyPicks.getPicksHistory();
+    const limit = parseInt(req.query.limit) || 30;
+    res.json({ history: history.slice(-limit), total: history.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/picks/best', async (req, res) => {
+  try {
+    // Quick endpoint — top 5 picks for today
+    const cached = dailyPicks.getCachedPicks();
+    let picks;
+    
+    if (cached) {
+      picks = cached;
+    } else {
+      const oddsData = await getAllOdds();
+      picks = await dailyPicks.generateDailyPicks({
+        nbaModel: nba, mlbModel: mlb, nhlModel: nhl,
+        oddsData,
+        lineMovementSvc: lineMovement,
+        injurySvc: injuries,
+        rollingSvc: rollingStats,
+        weatherSvc: weather,
+        umpireSvc: umpireService,
+        calibrationSvc: calibration,
+        bankroll: parseFloat(req.query.bankroll) || 1000,
+        kellyFraction: 0.5,
+        minEdge: 0.03 // higher threshold for "best" picks
+      });
+    }
+
+    // Filter to only strong+ picks
+    const best = (picks.picks || []).filter(p => p.confidence >= 50).slice(0, 5);
+    
+    res.json({
+      date: picks.date,
+      bestPicks: best,
+      count: best.length,
+      summary: {
+        totalScanned: picks.summary?.totalGamesScanned || 0,
+        totalValue: picks.summary?.totalPicksFound || 0,
+        avgConfidence: best.length > 0 ? +(best.reduce((s, p) => s + p.confidence, 0) / best.length).toFixed(1) : 0
+      }
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/picks/status', (req, res) => {
+  const cached = dailyPicks.getCachedPicks();
+  const history = dailyPicks.getPicksHistory();
+  res.json({
+    hasCachedPicks: !!cached,
+    cachedDate: cached ? cached.date : null,
+    cachedPicksCount: cached ? cached.picks.length : 0,
+    historyDays: history.length,
+    lastGenerated: cached ? cached.summary?.generated : null
+  });
+});
+
 // Fetch scores (for manual inspection)
 app.get('/api/scores/:sport', async (req, res) => {
   try {
@@ -1552,19 +1806,657 @@ app.get('/api/scores/:sport', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== REST/TRAVEL ENDPOINTS ====================
+
+// ==================== UMPIRE TENDENCIES API ====================
+app.get('/api/umpire/status', (req, res) => {
+  res.json(umpireService.getStatus());
+});
+
+app.get('/api/umpire/lookup/:name', (req, res) => {
+  const ump = umpireService.getUmpire(decodeURIComponent(req.params.name));
+  if (!ump) return res.status(404).json({ error: 'Umpire not found', searched: req.params.name });
+  const runsAdj = umpireService.calcTotalRunsMultiplier(ump);
+  const propsAdj = umpireService.calcPitcherPropAdj(ump);
+  res.json({ umpire: ump, totalRunsAdj: runsAdj, pitcherPropsAdj: propsAdj });
+});
+
+app.get('/api/umpire/today', async (req, res) => {
+  try {
+    const data = await umpireService.getAllGameAdjustments();
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/umpire/edges', async (req, res) => {
+  try {
+    const edges = await umpireService.getTopUmpireEdges();
+    res.json(edges);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/umpire/game/:away/:home', async (req, res) => {
+  try {
+    const { away, home } = req.params;
+    const umpireName = req.query.umpire;
+    const adj = await umpireService.getGameUmpireAdjustment(away.toUpperCase(), home.toUpperCase(), umpireName);
+    res.json(adj);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/rest-travel/status', (req, res) => {
+  res.json(restTravelService.getStatus());
+});
+
+app.get('/api/rest-travel/:team', async (req, res) => {
+  try {
+    const team = req.params.team.toUpperCase();
+    const gameDate = req.query.gameDate || new Date().toISOString().split('T')[0];
+    const [rest, bullpen] = await Promise.all([
+      restTravelService.getRestTravelAdjustment(team, gameDate),
+      restTravelService.getBullpenFatigue(team)
+    ]);
+    res.json({ team, gameDate, rest, bullpenFatigue: bullpen });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/rest-travel/matchup/:away/:home', async (req, res) => {
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const gameDate = req.query.gameDate || new Date().toISOString().split('T')[0];
+    const result = await restTravelService.getMatchupAdjustments(away, home, gameDate);
+    res.json({ away, home, gameDate, ...result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== UNIFIED SIGNAL CHECK ====================
+// The pre-bet check: aggregates ALL factors for a specific game
+app.get('/api/signal-check/:sport/:away/:home', async (req, res) => {
+  try {
+    const sport = req.params.sport.toUpperCase();
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    
+    const signals = {
+      sport, away, home, timestamp: new Date().toISOString(),
+      prediction: null,
+      weather: null,
+      umpire: null,
+      restTravel: null,
+      injuries: { home: null, away: null },
+      rolling: { home: null, away: null },
+      lineMovement: null,
+      monteCarlo: null,
+      calibration: null,
+      verdict: null
+    };
+    
+    if (sport === 'MLB') {
+      // Full async predict with all factors
+      const opts = {};
+      
+      // Weather
+      try {
+        const wd = await weather.getWeatherForPark(home);
+        if (wd && !wd.error) {
+          opts.weather = wd;
+          signals.weather = {
+            park: wd.park,
+            dome: wd.dome,
+            multiplier: wd.multiplier,
+            totalImpact: wd.totalImpact,
+            description: wd.description,
+            factors: wd.factors,
+            conditions: wd.weather
+          };
+        }
+      } catch (e) { signals.weather = { error: e.message }; }
+      
+      // Umpire
+      try {
+        const umpAdj = await umpireService.getGameUmpireAdjustment(away, home, req.query.umpire);
+        if (umpAdj) {
+          if (umpAdj.totalRunsAdj?.multiplier !== 1.0) opts.umpire = umpAdj.totalRunsAdj;
+          signals.umpire = {
+            name: umpAdj.umpire?.name || req.query.umpire || 'Unknown',
+            zone: umpAdj.umpire?.zone || 'N/A',
+            totalRunsAdj: umpAdj.totalRunsAdj,
+            pitcherPropsAdj: umpAdj.pitcherPropsAdj,
+            impact: umpAdj.totalRunsAdj ? `${((umpAdj.totalRunsAdj.multiplier - 1) * 100).toFixed(1)}% runs` : 'neutral'
+          };
+        }
+      } catch (e) { signals.umpire = { error: e.message }; }
+      
+      // Prediction (async = rest/travel + MC)
+      try {
+        const rawPred = await mlb.asyncPredict(away, home, opts);
+        if (rawPred && !rawPred.error) {
+          const calPred = calibration.calibratePrediction(rawPred, 'mlb');
+          signals.prediction = {
+            homeWinProb: calPred.blendedHomeWinProb || calPred.homeWinProb,
+            awayWinProb: calPred.blendedAwayWinProb || calPred.awayWinProb,
+            homeML: calPred.blendedHomeML || calPred.homeML,
+            awayML: calPred.blendedAwayML || calPred.awayML,
+            totalRuns: calPred.totalRuns,
+            homeExpRuns: calPred.homeExpRuns,
+            awayExpRuns: calPred.awayExpRuns,
+            homePower: calPred.homePower,
+            awayPower: calPred.awayPower,
+            parkFactor: calPred.parkFactor,
+            factors: calPred.factors
+          };
+          if (calPred.monteCarlo) {
+            signals.monteCarlo = {
+              totalRuns: calPred.monteCarlo.totalRuns,
+              homeWinProb: calPred.monteCarlo.homeWinProb,
+              simCount: calPred.monteCarlo.simCount || 10000
+            };
+          }
+          signals.calibration = {
+            applied: true,
+            sport: 'mlb',
+            note: 'Probabilities calibrated for historical accuracy'
+          };
+        }
+      } catch (e) { signals.prediction = { error: e.message }; }
+      
+      // Rest/Travel
+      try {
+        const rt = await restTravelService.getMatchupAdjustments(away, home);
+        if (rt) signals.restTravel = rt;
+      } catch (e) { signals.restTravel = { error: e.message }; }
+      
+    } else if (sport === 'NBA') {
+      try {
+        const rawPred = nba.predict(away, home, { awayB2B: req.query.awayB2B === 'true', homeB2B: req.query.homeB2B === 'true' });
+        if (rawPred && !rawPred.error) {
+          const calPred = calibration.calibratePrediction(rawPred, 'nba');
+          signals.prediction = {
+            homeWinProb: calPred.homeWinProb,
+            awayWinProb: calPred.awayWinProb,
+            spread: calPred.spread,
+            totalPoints: calPred.totalPoints,
+            homePower: calPred.homePower,
+            awayPower: calPred.awayPower
+          };
+        }
+      } catch (e) { signals.prediction = { error: e.message }; }
+      
+    } else if (sport === 'NHL') {
+      try {
+        const rawPred = nhl.predict(away, home);
+        if (rawPred) {
+          signals.prediction = {
+            homeWinProb: rawPred.home?.winProb,
+            awayWinProb: rawPred.away?.winProb,
+            totalGoals: rawPred.totalGoals,
+            homePower: rawPred.home?.power,
+            awayPower: rawPred.away?.power
+          };
+        }
+      } catch (e) { signals.prediction = { error: e.message }; }
+    }
+    
+    // Cross-sport signals
+    try {
+      const homeInj = injuries.getInjuryAdjustment(sport.toLowerCase(), home);
+      const awayInj = injuries.getInjuryAdjustment(sport.toLowerCase(), away);
+      signals.injuries.home = homeInj;
+      signals.injuries.away = awayInj;
+    } catch (e) {}
+    
+    try {
+      signals.rolling.home = rollingStats.getRollingAdjustment(sport.toLowerCase(), home);
+      signals.rolling.away = rollingStats.getRollingAdjustment(sport.toLowerCase(), away);
+    } catch (e) {}
+    
+    try {
+      const sharpSignals = lineMovement.getSharpSignals();
+      signals.lineMovement = sharpSignals.filter(s => 
+        s.gameId && (s.gameId.includes(home) || s.gameId.includes(away))
+      );
+    } catch (e) {}
+    
+    // Generate verdict
+    const pred = signals.prediction;
+    if (pred && !pred.error) {
+      const factors = [];
+      const homeProb = pred.homeWinProb || (pred.homeWinProb && pred.homeWinProb / 100);
+      
+      if (homeProb > 0.58) factors.push(`${home} strong favorite (${(homeProb * 100).toFixed(1)}%)`);
+      else if (homeProb < 0.42) factors.push(`${away} strong favorite (${((1 - homeProb) * 100).toFixed(1)}%)`);
+      
+      if (signals.weather?.multiplier > 1.03) factors.push('Weather boosts scoring');
+      if (signals.weather?.multiplier < 0.97) factors.push('Weather suppresses scoring');
+      if (signals.umpire?.totalRunsAdj?.multiplier > 1.02) factors.push('Umpire zone favors hitters');
+      if (signals.umpire?.totalRunsAdj?.multiplier < 0.98) factors.push('Umpire zone favors pitchers');
+      
+      const homeInjCount = signals.injuries.home?.starPlayersOut?.length || 0;
+      const awayInjCount = signals.injuries.away?.starPlayersOut?.length || 0;
+      if (homeInjCount > awayInjCount) factors.push(`${home} has more key injuries (${homeInjCount} vs ${awayInjCount})`);
+      if (awayInjCount > homeInjCount) factors.push(`${away} has more key injuries (${awayInjCount} vs ${homeInjCount})`);
+      
+      signals.verdict = {
+        factors,
+        signalCount: Object.values(signals).filter(v => v !== null && !v?.error).length,
+        note: 'All available signals aggregated. Use with live odds for edge detection.'
+      };
+    }
+    
+    res.json(signals);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== MONTE CARLO ENDPOINTS ====================
+
+app.get('/api/simulate/:away/:home', async (req, res) => {
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const numSims = Math.min(parseInt(req.query.sims) || 10000, 50000);
+    
+    // Get expected runs from MLB model
+    const pred = mlb.predict(away, home, { monteCarlo: false });
+    if (!pred || pred.error) return res.status(400).json({ error: pred?.error || 'Invalid teams' });
+    
+    // Run simulation
+    const simOpts = { numSims };
+    
+    // Get bullpen fatigue if available
+    try {
+      const matchupAdj = await restTravelService.getMatchupAdjustments(away, home);
+      simOpts.awayBullpenMult = matchupAdj.away.bullpenFatigue?.multiplier || 1.0;
+      simOpts.homeBullpenMult = matchupAdj.home.bullpenFatigue?.multiplier || 1.0;
+    } catch (e) { /* optional */ }
+    
+    const sim = monteCarloService.simulate(pred.awayExpRuns, pred.homeExpRuns, simOpts);
+    
+    res.json({
+      matchup: `${away} @ ${home}`,
+      awayExpRuns: pred.awayExpRuns,
+      homeExpRuns: pred.homeExpRuns,
+      analyticalHomeWinProb: pred.homeWinProb,
+      simulation: sim,
+      awayPitcher: pred.awayPitcher || null,
+      homePitcher: pred.homePitcher || null,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== SGP CORRELATION ENGINE ====================
+
+app.get('/api/sgp/status', (req, res) => {
+  res.json(sgpEngine.getStatus());
+});
+
+// SGP analysis for a specific game
+app.get('/api/sgp/game/:away/:home', async (req, res) => {
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const sport = (req.query.sport || 'mlb').toLowerCase();
+    
+    // Get prediction
+    let prediction;
+    const opts = {};
+    
+    if (req.query.awayPitcher) opts.awayPitcher = req.query.awayPitcher;
+    if (req.query.homePitcher) opts.homePitcher = req.query.homePitcher;
+    
+    // Fetch weather for MLB
+    if (sport === 'mlb') {
+      try {
+        const wd = await weather.getWeatherForPark(home);
+        if (wd && !wd.error) opts.weather = wd;
+      } catch (e) { /* optional */ }
+    }
+    
+    if (sport === 'mlb') {
+      prediction = await mlb.asyncPredict(away, home, opts);
+    } else if (sport === 'nba') {
+      prediction = nba.predict(away, home, opts);
+    } else if (sport === 'nhl') {
+      prediction = nhl.predict(away, home, opts);
+    } else {
+      return res.status(400).json({ error: `Unknown sport: ${sport}` });
+    }
+    
+    if (prediction.error) return res.status(400).json(prediction);
+    
+    // Get odds for this game
+    let gameOdds = {};
+    try {
+      const allOdds = await getAllOdds();
+      const match = allOdds.find(g => {
+        const ga = (g.awayAbbr || g.away || '').toUpperCase();
+        const gh = (g.homeAbbr || g.home || '').toUpperCase();
+        return ga === away && gh === home;
+      });
+      if (match) gameOdds = match;
+    } catch (e) { /* no odds */ }
+    
+    const normalizedOdds = {
+      homeML: gameOdds.homeOdds || gameOdds.homeML || prediction.homeML,
+      awayML: gameOdds.awayOdds || gameOdds.awayML || prediction.awayML,
+      total: gameOdds.total || null,
+      overOdds: gameOdds.overOdds || -110,
+      underOdds: gameOdds.underOdds || -110,
+      overProb: gameOdds.overOdds ? mlToProb(gameOdds.overOdds) : 0.5,
+      underProb: gameOdds.underOdds ? mlToProb(gameOdds.underOdds) : 0.5,
+      homeSpread: gameOdds.homeSpread || (sport === 'mlb' ? -1.5 : null),
+      awaySpread: gameOdds.awaySpread || (sport === 'mlb' ? 1.5 : null),
+      homeSpreadOdds: gameOdds.homeSpreadOdds || -110,
+      awaySpreadOdds: gameOdds.awaySpreadOdds || -110,
+      homeSpreadProb: gameOdds.homeSpreadOdds ? mlToProb(gameOdds.homeSpreadOdds) : 0.5,
+      awaySpreadProb: gameOdds.awaySpreadOdds ? mlToProb(gameOdds.awaySpreadOdds) : 0.5,
+    };
+    
+    const sgpCombos = sgpEngine.buildSGPCombos(prediction, normalizedOdds, {
+      minLegEdge: parseFloat(req.query.minEdge) || -0.03,
+      minComboEdge: parseFloat(req.query.minComboEdge) || 0.02,
+    });
+    
+    res.json({
+      game: `${away} @ ${home}`,
+      sport: sport.toUpperCase(),
+      prediction: {
+        homeWinProb: prediction.homeWinProb,
+        awayWinProb: prediction.awayWinProb,
+        totalRuns: prediction.totalRuns,
+        homeExpRuns: prediction.homeExpRuns,
+        awayExpRuns: prediction.awayExpRuns,
+        homePitcher: prediction.homePitcher?.name || null,
+        awayPitcher: prediction.awayPitcher?.name || null,
+      },
+      odds: normalizedOdds,
+      sgpCombos: sgpCombos,
+      count: sgpCombos.length,
+      bestEV: sgpCombos.length > 0 ? sgpCombos[0].ev : 0,
+      topPick: sgpCombos.length > 0 ? sgpCombos[0].description : null,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Scan all games for SGP opportunities
+app.get('/api/sgp/scan', async (req, res) => {
+  try {
+    const sport = (req.query.sport || 'all').toLowerCase();
+    const results = { timestamp: new Date().toISOString(), sports: {}, allCombos: [] };
+    
+    const sports = sport === 'all' ? ['mlb', 'nba', 'nhl'] : [sport];
+    
+    for (const s of sports) {
+      try {
+        const sportModel = s === 'mlb' ? mlb : s === 'nba' ? nba : nhl;
+        const scanResult = await sgpEngine.scanSGPs(s, { mlb, nba, nhl }, getAllOdds);
+        results.sports[s.toUpperCase()] = scanResult.summary;
+        results.allCombos.push(...scanResult.combos);
+      } catch (e) {
+        results.sports[s.toUpperCase()] = { error: e.message };
+      }
+    }
+    
+    // Sort all combos by EV
+    results.allCombos.sort((a, b) => b.ev - a.ev);
+    
+    // Top picks across all sports
+    results.topPicks = results.allCombos.slice(0, 10).map(c => ({
+      description: c.description,
+      game: c.game,
+      sport: c.sport,
+      ev: c.ev,
+      confidence: c.confidence,
+      correlation: c.correlation,
+      bookOdds: c.bookOdds,
+      fairOdds: c.fairOdds,
+      halfKelly: c.halfKelly,
+      reasoning: c.reasoning,
+    }));
+    
+    results.totalCombos = results.allCombos.length;
+    results.highConfCount = results.allCombos.filter(c => c.confidence >= 60).length;
+    
+    // Don't return all combos in summary — too large
+    delete results.allCombos;
+    
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Scan SGP for specific sport with full combo details
+app.get('/api/sgp/scan/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    if (!['mlb', 'nba', 'nhl'].includes(sport)) {
+      return res.status(400).json({ error: `Invalid sport: ${sport}` });
+    }
+    
+    const scanResult = await sgpEngine.scanSGPs(sport, { mlb, nba, nhl }, getAllOdds);
+    
+    // Return top 25 combos with full details
+    const topCombos = scanResult.combos.slice(0, 25);
+    
+    res.json({
+      sport: sport.toUpperCase(),
+      summary: scanResult.summary,
+      combos: topCombos,
+      timestamp: scanResult.timestamp,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Helper for SGP endpoints
+function mlToProb(ml) {
+  if (ml < 0) return (-ml) / (-ml + 100);
+  return 100 / (ml + 100);
+}
+
+// ==================== TRAVEL DISTANCE ====================
+
+app.get('/api/travel/:from/:to', (req, res) => {
+  const from = req.params.from.toUpperCase();
+  const to = req.params.to.toUpperCase();
+  const distance = restTravelService.getDistance(from, to);
+  const tzShift = restTravelService.getTimezoneShift(from, to);
+  res.json({ from, to, distanceMiles: distance, timezoneShift: tzShift });
+});
+
+// ==================== ALT LINES SCANNER ====================
+
+// Alt lines analysis for a specific matchup
+app.get('/api/alt-lines/:sport/:away/:home', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    const awayParam = req.params.away.toUpperCase();
+    const homeParam = req.params.home.toUpperCase();
+    
+    let prediction;
+    if (sport === 'mlb') {
+      prediction = await mlb.asyncPredict(awayParam, homeParam, {
+        awayPitcher: req.query.awayPitcher,
+        homePitcher: req.query.homePitcher
+      });
+    } else if (sport === 'nba') {
+      prediction = nba.predict(awayParam, homeParam);
+    } else if (sport === 'nhl') {
+      prediction = nhl.predict(awayParam, homeParam);
+    } else {
+      return res.status(400).json({ error: `Unknown sport: ${sport}` });
+    }
+    
+    if (prediction.error) return res.status(400).json(prediction);
+    
+    const analysis = altLines.analyzeMatchupAltLines(prediction);
+    res.json(analysis);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Scan alt lines across all games for a sport (uses live odds)
+app.get('/api/alt-lines/scan/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    const minEdge = parseFloat(req.query.minEdge) || 0.03;
+    const minEV = parseFloat(req.query.minEV) || 3;
+    
+    // Generate predictions for all teams
+    let predictions = [];
+    let model;
+    if (sport === 'mlb') model = mlb;
+    else if (sport === 'nba') model = nba;
+    else if (sport === 'nhl') model = nhl;
+    else return res.status(400).json({ error: `Unknown sport: ${sport}` });
+    
+    // Fetch current odds to know which games are being played
+    const sportKeys = { mlb: 'baseball_mlb', nba: 'basketball_nba', nhl: 'icehockey_nhl' };
+    const sportKey = sportKeys[sport];
+    
+    // First fetch basic odds to get today's games
+    let todayGames = [];
+    if (ODDS_API_KEY) {
+      try {
+        const fetch = require('node-fetch');
+        const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h&oddsFormat=american`;
+        const resp = await fetch(url, { timeout: 15000 });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data)) todayGames = data;
+        }
+      } catch (e) { /* fallback below */ }
+    }
+    
+    // Build name maps for matching
+    const teams = model.getTeams();
+    const nameMap = {};
+    for (const [abbr, t] of Object.entries(teams)) {
+      nameMap[t.name.toLowerCase()] = abbr;
+      const parts = t.name.split(' ');
+      nameMap[parts[parts.length - 1].toLowerCase()] = abbr;
+    }
+    
+    // Generate predictions for games with odds
+    for (const game of todayGames) {
+      let awayAbbr = null, homeAbbr = null;
+      for (const [name, abbr] of Object.entries(nameMap)) {
+        if (game.away_team.toLowerCase().includes(name)) awayAbbr = abbr;
+        if (game.home_team.toLowerCase().includes(name)) homeAbbr = abbr;
+      }
+      if (awayAbbr && homeAbbr) {
+        try {
+          let pred;
+          if (sport === 'mlb') pred = await mlb.asyncPredict(awayAbbr, homeAbbr);
+          else pred = model.predict(awayAbbr, homeAbbr);
+          if (!pred.error) predictions.push(pred);
+        } catch (e) { /* skip game */ }
+      }
+    }
+    
+    const result = await altLines.scanAltLines(sport, predictions, { minEdge, minEV });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Scan alt lines for ALL sports
+app.get('/api/alt-lines/scan', async (req, res) => {
+  try {
+    const minEdge = parseFloat(req.query.minEdge) || 0.03;
+    const minEV = parseFloat(req.query.minEV) || 3;
+    const results = {};
+    
+    for (const sport of ['mlb', 'nba', 'nhl']) {
+      try {
+        const model = sport === 'mlb' ? mlb : sport === 'nba' ? nba : nhl;
+        const sportKeys = { mlb: 'baseball_mlb', nba: 'basketball_nba', nhl: 'icehockey_nhl' };
+        
+        let predictions = [];
+        if (ODDS_API_KEY) {
+          const fetch = require('node-fetch');
+          const url = `https://api.the-odds-api.com/v4/sports/${sportKeys[sport]}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h&oddsFormat=american`;
+          try {
+            const resp = await fetch(url, { timeout: 15000 });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (Array.isArray(data)) {
+                const teams = model.getTeams();
+                const nameMap = {};
+                for (const [abbr, t] of Object.entries(teams)) {
+                  nameMap[t.name.toLowerCase()] = abbr;
+                  const parts = t.name.split(' ');
+                  nameMap[parts[parts.length - 1].toLowerCase()] = abbr;
+                }
+                for (const game of data) {
+                  let awayAbbr = null, homeAbbr = null;
+                  for (const [name, abbr] of Object.entries(nameMap)) {
+                    if (game.away_team.toLowerCase().includes(name)) awayAbbr = abbr;
+                    if (game.home_team.toLowerCase().includes(name)) homeAbbr = abbr;
+                  }
+                  if (awayAbbr && homeAbbr) {
+                    try {
+                      let pred;
+                      if (sport === 'mlb') pred = await mlb.asyncPredict(awayAbbr, homeAbbr);
+                      else pred = model.predict(awayAbbr, homeAbbr);
+                      if (!pred.error) predictions.push(pred);
+                    } catch (e) { /* skip */ }
+                  }
+                }
+              }
+            }
+          } catch (e) { /* skip sport */ }
+        }
+        
+        results[sport] = await altLines.scanAltLines(sport, predictions, { minEdge, minEV });
+      } catch (e) {
+        results[sport] = { error: e.message, valueBets: [] };
+      }
+    }
+    
+    // Aggregate
+    const allBets = [];
+    for (const [sport, data] of Object.entries(results)) {
+      if (data.allValueBets) {
+        allBets.push(...data.allValueBets.map(b => ({ ...b, sport })));
+      }
+    }
+    allBets.sort((a, b) => b.ev - a.ev);
+    
+    res.json({
+      totalValueBets: allBets.length,
+      highConfidence: allBets.filter(b => b.confidence === 'HIGH').length,
+      topBets: allBets.slice(0, 30),
+      bySport: results,
+      scannedAt: new Date().toISOString()
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v13.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v20.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
   console.log(`   MLB pitchers: ${mlbPitchers.getAllPitchers().length}`);
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
+  console.log(`   MLB Schedule: ESPN confirmed starters service active`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
   console.log(`   Polymarket: scanner active`);
   console.log(`   Bet tracker: ${betTracker.getStatus().totalBets} bets tracked, ${betTracker.getStatus().pending} pending`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER`);
+  const umpStatus = umpireService.getStatus();
+  console.log(`   Umpire tendencies: ${umpStatus.umpires} umpires (${umpStatus.overUmpires} over, ${umpStatus.underUmpires} under, ${umpStatus.neutralUmpires} neutral)`);
+  const calStatus = calibration.getStatus();
+  console.log(`   Probability calibration: ${calStatus.sports.join(', ')} — ${JSON.stringify(calStatus.curves)}`);
+  const sgpStatus = sgpEngine.getStatus();
+  console.log(`   SGP engine: ${sgpStatus.correlationsModeled} correlations modeled, ${sgpStatus.comboTypes.join('/')} combos`);
+  console.log(`   Alt lines scanner: alt totals, alt spreads, team totals, F5 lines — Poisson-powered`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats...');

@@ -18,6 +18,14 @@ const ODDS_API_KEY = process.env.ODDS_API_KEY || '';
 const CACHE_FILE = path.join(__dirname, 'props-cache.json');
 const CACHE_TTL = 15 * 60 * 1000; // 15 min
 
+// Dynamic player stats from ESPN — replaces static baselines when available
+let playerStatsService = null;
+try { playerStatsService = require('./player-stats'); } catch (e) { /* fallback to static */ }
+
+// Live stats cache (refreshed on scan)
+let livePlayerStats = { nba: null, mlb: null, nhl: null, ts: 0 };
+const LIVE_STATS_TTL = 30 * 60 * 1000; // 30 min
+
 // ==================== MARKET DEFINITIONS ====================
 
 const NBA_PROP_MARKETS = {
@@ -182,12 +190,72 @@ async function fetchEventProps(sportKey, eventId, markets) {
   }
 }
 
+// ==================== LIVE STATS INTEGRATION ====================
+
+/**
+ * Fetch/cache live player stats from ESPN
+ * Returns a map of { playerName: { stat1: val, stat2: val, team: 'ABC', source: 'espn-live' } }
+ */
+async function getLiveStats(sport) {
+  // Check in-memory cache
+  if (livePlayerStats[sport] && (Date.now() - livePlayerStats.ts) < LIVE_STATS_TTL) {
+    return livePlayerStats[sport];
+  }
+  
+  if (!playerStatsService) return null;
+  
+  try {
+    const stats = await playerStatsService.getPlayerStats(sport);
+    if (stats && typeof stats === 'object') {
+      // Filter to actual player objects
+      const players = {};
+      for (const [key, val] of Object.entries(stats)) {
+        if (val && typeof val === 'object' && val.name) {
+          players[val.name] = val;
+        }
+      }
+      if (Object.keys(players).length > 0) {
+        livePlayerStats[sport] = players;
+        livePlayerStats.ts = Date.now();
+        return players;
+      }
+    }
+  } catch (e) {
+    console.error(`Props: failed to load live ${sport} stats:`, e.message);
+  }
+  return null;
+}
+
+/**
+ * Synchronous live stats getter (uses cached data)
+ */
+function getLiveStatsSync(sport) {
+  if (livePlayerStats[sport] && (Date.now() - livePlayerStats.ts) < LIVE_STATS_TTL) {
+    return livePlayerStats[sport];
+  }
+  return null;
+}
+
 // ==================== PROJECTION ENGINE ====================
 
 /**
  * Get player baseline projection for a stat
+ * Priority: live ESPN data > static baselines
+ * Returns { value, source } where source is 'espn-live' or 'static-baseline'
  */
 function getPlayerBaseline(playerName, stat, sport) {
+  // Try live stats first
+  const liveStats = getLiveStatsSync(sport);
+  if (liveStats) {
+    const livePlayer = liveStats[playerName];
+    if (livePlayer) {
+      // Map ESPN stat names to our format
+      const val = resolveStatFromLive(livePlayer, stat, sport);
+      if (val !== null) return val;
+    }
+  }
+  
+  // Fall back to static baselines
   if (sport === 'nba') {
     const player = NBA_PLAYER_BASELINES[playerName];
     if (!player) return null;
@@ -199,14 +267,148 @@ function getPlayerBaseline(playerName, stat, sport) {
     return player[stat] || null;
   }
   if (sport === 'mlb') {
-    // Check pitchers first
     const pitcher = MLB_PITCHER_BASELINES[playerName];
     if (pitcher && pitcher[stat] !== undefined) return pitcher[stat];
-    // Check batters
     const batter = MLB_BATTER_BASELINES[playerName];
     if (batter && batter[stat] !== undefined) return batter[stat];
     return null;
   }
+  return null;
+}
+
+/**
+ * Resolve a stat from live ESPN data, mapping field names
+ */
+function resolveStatFromLive(player, stat, sport) {
+  if (sport === 'nba') {
+    // Direct mapping
+    const mapping = {
+      points: ['points', 'avgPoints', 'pointsPerGame', 'scoringPerGame'],
+      rebounds: ['rebounds', 'avgRebounds', 'reboundsPerGame'],
+      assists: ['assists', 'avgAssists', 'assistsPerGame'],
+      threes: ['threes', 'threePointFieldGoalsMade', 'threePointFieldGoalsMadePerGame'],
+      steals: ['steals', 'avgSteals', 'stealsPerGame'],
+      blocks: ['blocks', 'avgBlocks', 'blocksPerGame'],
+      turnovers: ['turnovers', 'avgTurnovers', 'turnoversPerGame'],
+    };
+    
+    // Handle combo stats
+    if (stat === 'pra') {
+      const pts = resolveStatFromLive(player, 'points', sport);
+      const reb = resolveStatFromLive(player, 'rebounds', sport);
+      const ast = resolveStatFromLive(player, 'assists', sport);
+      if (pts !== null || reb !== null || ast !== null) {
+        return (pts || 0) + (reb || 0) + (ast || 0);
+      }
+      return null;
+    }
+    if (stat === 'pts_reb') {
+      const pts = resolveStatFromLive(player, 'points', sport);
+      const reb = resolveStatFromLive(player, 'rebounds', sport);
+      if (pts !== null || reb !== null) return (pts || 0) + (reb || 0);
+      return null;
+    }
+    if (stat === 'pts_ast') {
+      const pts = resolveStatFromLive(player, 'points', sport);
+      const ast = resolveStatFromLive(player, 'assists', sport);
+      if (pts !== null || ast !== null) return (pts || 0) + (ast || 0);
+      return null;
+    }
+    if (stat === 'reb_ast') {
+      const reb = resolveStatFromLive(player, 'rebounds', sport);
+      const ast = resolveStatFromLive(player, 'assists', sport);
+      if (reb !== null || ast !== null) return (reb || 0) + (ast || 0);
+      return null;
+    }
+    
+    const keys = mapping[stat] || [stat];
+    for (const key of keys) {
+      if (player[key] !== undefined && player[key] !== null) {
+        const val = parseFloat(player[key]);
+        if (!isNaN(val)) return val;
+      }
+    }
+    return null;
+  }
+  
+  if (sport === 'mlb') {
+    // MLB live stats from ESPN are season-level, not per-game
+    // Map accordingly
+    if (player[stat] !== undefined && player[stat] !== null) {
+      const val = parseFloat(player[stat]);
+      if (!isNaN(val)) return val;
+    }
+    return null;
+  }
+  
+  if (sport === 'nhl') {
+    const mapping = {
+      points: ['points'],
+      goals: ['goals'],
+      assists: ['assists'],
+      shots: ['shots', 'shotsOnGoal'],
+    };
+    const keys = mapping[stat] || [stat];
+    for (const key of keys) {
+      if (player[key] !== undefined && player[key] !== null) {
+        const val = parseFloat(player[key]);
+        if (!isNaN(val)) return val;
+      }
+    }
+    return null;
+  }
+  
+  return null;
+}
+
+/**
+ * Get player projection with source info (for UI display)
+ */
+function getPlayerBaselineWithSource(playerName, stat, sport) {
+  // Check live stats
+  const liveStats = getLiveStatsSync(sport);
+  if (liveStats) {
+    const livePlayer = liveStats[playerName];
+    if (livePlayer) {
+      const val = resolveStatFromLive(livePlayer, stat, sport);
+      if (val !== null) return { value: val, source: 'espn-live', team: livePlayer.team };
+    }
+  }
+  
+  // Static fallback
+  const staticVal = getPlayerBaselineStatic(playerName, stat, sport);
+  if (staticVal !== null) {
+    const team = getPlayerTeam(playerName, sport);
+    return { value: staticVal, source: 'static-baseline', team };
+  }
+  
+  return null;
+}
+
+/** Static-only baseline (for fallback) */
+function getPlayerBaselineStatic(playerName, stat, sport) {
+  if (sport === 'nba') {
+    const player = NBA_PLAYER_BASELINES[playerName];
+    if (!player) return null;
+    if (stat === 'pra') return (player.points || 0) + (player.rebounds || 0) + (player.assists || 0);
+    if (stat === 'pts_reb') return (player.points || 0) + (player.rebounds || 0);
+    if (stat === 'pts_ast') return (player.points || 0) + (player.assists || 0);
+    if (stat === 'reb_ast') return (player.rebounds || 0) + (player.assists || 0);
+    return player[stat] || null;
+  }
+  if (sport === 'mlb') {
+    const pitcher = MLB_PITCHER_BASELINES[playerName];
+    if (pitcher && pitcher[stat] !== undefined) return pitcher[stat];
+    const batter = MLB_BATTER_BASELINES[playerName];
+    if (batter && batter[stat] !== undefined) return batter[stat];
+    return null;
+  }
+  return null;
+}
+
+function getPlayerTeam(playerName, sport) {
+  if (sport === 'nba') return NBA_PLAYER_BASELINES[playerName]?.team || null;
+  if (sport === 'mlb') return (MLB_PITCHER_BASELINES[playerName]?.team || MLB_BATTER_BASELINES[playerName]?.team || null);
   return null;
 }
 
@@ -465,6 +667,9 @@ async function scanProps(sport, models = {}) {
     return { ...propsCache.data, cached: true };
   }
   
+  // Pre-fetch live player stats for projection engine
+  await getLiveStats(sport);
+  
   // Get events
   const events = await fetchEvents(config.key);
   if (!events.length) return { events: 0, props: [], valueBets: [] };
@@ -526,19 +731,59 @@ async function scanProps(sport, models = {}) {
 }
 
 /**
- * Get projections for a specific player
+ * Get projections for a specific player — with live stats when available
  */
-function getPlayerProjection(playerName, sport, models = {}) {
-  const baselines = sport === 'nba' ? NBA_PLAYER_BASELINES : 
-                    sport === 'mlb' ? { ...MLB_PITCHER_BASELINES, ...MLB_BATTER_BASELINES } : {};
+async function getPlayerProjection(playerName, sport, models = {}) {
+  // Try live stats first
+  await getLiveStats(sport);
+  const liveStats = getLiveStatsSync(sport);
   
-  const player = baselines[playerName];
+  let player = null;
+  let source = 'static-baseline';
+  
+  if (liveStats) {
+    // Try exact match
+    player = liveStats[playerName];
+    if (player) source = 'espn-live';
+    
+    // Try fuzzy match (partial name)
+    if (!player) {
+      const lower = playerName.toLowerCase();
+      for (const [name, data] of Object.entries(liveStats)) {
+        if (name.toLowerCase().includes(lower) || lower.includes(name.toLowerCase().split(' ').pop())) {
+          player = { ...data, name };
+          source = 'espn-live';
+          break;
+        }
+      }
+    }
+  }
+  
+  // Fall back to static
+  if (!player) {
+    const baselines = sport === 'nba' ? NBA_PLAYER_BASELINES : 
+                      sport === 'mlb' ? { ...MLB_PITCHER_BASELINES, ...MLB_BATTER_BASELINES } : {};
+    player = baselines[playerName];
+    if (!player) {
+      // Fuzzy match on static
+      const lower = playerName.toLowerCase();
+      for (const [name, data] of Object.entries(baselines)) {
+        if (name.toLowerCase().includes(lower) || lower.includes(name.toLowerCase().split(' ').pop())) {
+          player = { ...data };
+          playerName = name;
+          break;
+        }
+      }
+    }
+    source = 'static-baseline (2025-26 season avg)';
+  }
+  
   if (!player) return null;
   
   const stats = {};
   for (const [key, val] of Object.entries(player)) {
-    if (key === 'team') continue;
-    stats[key] = val;
+    if (key === 'team' || key === 'name' || key === 'source' || key === 'position') continue;
+    if (typeof val === 'number') stats[key] = val;
   }
   
   // Add combo stats for NBA
@@ -550,44 +795,127 @@ function getPlayerProjection(playerName, sport, models = {}) {
   }
   
   return {
-    player: playerName,
+    player: player.name || playerName,
     team: player.team,
     sport: sport.toUpperCase(),
     stats,
-    source: 'baseline (2025-26 season avg)',
+    source,
+    isLive: source === 'espn-live',
   };
 }
 
 /**
- * Get all available players for a sport
+ * Get all available players for a sport — merges live + static
  */
-function getAvailablePlayers(sport) {
+async function getAvailablePlayers(sport) {
+  await getLiveStats(sport);
+  const liveStats = getLiveStatsSync(sport);
+  const playerMap = {};
+  
   if (sport === 'nba') {
-    return Object.entries(NBA_PLAYER_BASELINES).map(([name, data]) => ({
-      name, team: data.team, ppg: data.points, rpg: data.rebounds, apg: data.assists,
-    }));
+    // Start with static baselines
+    for (const [name, data] of Object.entries(NBA_PLAYER_BASELINES)) {
+      playerMap[name] = {
+        name, team: data.team, ppg: data.points, rpg: data.rebounds, apg: data.assists,
+        threes: data.threes, steals: data.steals, blocks: data.blocks,
+        source: 'static',
+      };
+    }
+    // Overlay live data (higher priority)
+    if (liveStats) {
+      for (const [name, data] of Object.entries(liveStats)) {
+        if (!data.name) continue;
+        const pts = data.points || data.avgPoints || data.pointsPerGame || data.scoringPerGame;
+        const reb = data.rebounds || data.avgRebounds || data.reboundsPerGame;
+        const ast = data.assists || data.avgAssists || data.assistsPerGame;
+        const thr = data.threes || data.threePointFieldGoalsMade;
+        const stl = data.steals || data.avgSteals;
+        const blk = data.blocks || data.avgBlocks;
+        
+        if (pts || reb || ast) {
+          playerMap[data.name] = {
+            name: data.name,
+            team: data.team || (playerMap[data.name]?.team),
+            ppg: pts || playerMap[data.name]?.ppg || 0,
+            rpg: reb || playerMap[data.name]?.rpg || 0,
+            apg: ast || playerMap[data.name]?.apg || 0,
+            threes: thr || playerMap[data.name]?.threes || 0,
+            steals: stl || playerMap[data.name]?.steals || 0,
+            blocks: blk || playerMap[data.name]?.blocks || 0,
+            source: 'live',
+          };
+        }
+      }
+    }
+    return Object.values(playerMap);
   }
+  
   if (sport === 'mlb') {
+    // Start with static
     const pitchers = Object.entries(MLB_PITCHER_BASELINES).map(([name, data]) => ({
-      name, team: data.team, type: 'pitcher', kPer: data.strikeouts,
+      name, team: data.team, type: 'pitcher', kPer: data.strikeouts, source: 'static',
     }));
     const batters = Object.entries(MLB_BATTER_BASELINES).map(([name, data]) => ({
-      name, team: data.team, type: 'batter', hPer: data.hits, hrPer: data.home_runs,
+      name, team: data.team, type: 'batter', hPer: data.hits, hrPer: data.home_runs, source: 'static',
     }));
-    return [...pitchers, ...batters];
+    for (const p of [...pitchers, ...batters]) playerMap[p.name] = p;
+    
+    // Overlay live
+    if (liveStats) {
+      for (const [name, data] of Object.entries(liveStats)) {
+        if (!data.name) continue;
+        const pos = data.position;
+        const isPitcher = pos && (pos === 'SP' || pos === 'RP' || pos === 'P');
+        playerMap[data.name] = {
+          name: data.name,
+          team: data.team || (playerMap[data.name]?.team),
+          type: isPitcher ? 'pitcher' : (playerMap[data.name]?.type || 'batter'),
+          kPer: data.strikeouts || playerMap[data.name]?.kPer,
+          hPer: data.hits || data.avg || playerMap[data.name]?.hPer,
+          hrPer: data.home_runs || playerMap[data.name]?.hrPer,
+          era: data.era,
+          ops: data.ops,
+          avg: data.avg,
+          source: 'live',
+        };
+      }
+    }
+    return Object.values(playerMap);
   }
+  
+  if (sport === 'nhl') {
+    if (liveStats) {
+      return Object.values(liveStats).filter(p => p.name).map(p => ({
+        name: p.name, team: p.team,
+        goals: p.goals, assists: p.assists, points: p.points,
+        source: 'live',
+      }));
+    }
+    return [];
+  }
+  
   return [];
 }
 
 function getStatus() {
+  const liveNba = getLiveStatsSync('nba');
+  const liveMlb = getLiveStatsSync('mlb');
+  const liveNhl = getLiveStatsSync('nhl');
+  
   return {
     service: 'player-props',
-    version: '1.0',
+    version: '2.0',
     cacheAge: propsCache.ts ? Date.now() - propsCache.ts : null,
     cachedSport: propsCache.sport,
     nbaPlayers: Object.keys(NBA_PLAYER_BASELINES).length,
     mlbPitchers: Object.keys(MLB_PITCHER_BASELINES).length,
     mlbBatters: Object.keys(MLB_BATTER_BASELINES).length,
+    liveStats: {
+      nba: liveNba ? Object.keys(liveNba).length : 0,
+      mlb: liveMlb ? Object.keys(liveMlb).length : 0,
+      nhl: liveNhl ? Object.keys(liveNhl).length : 0,
+      lastRefresh: livePlayerStats.ts ? new Date(livePlayerStats.ts).toISOString() : null,
+    },
     supportedSports: ['nba', 'mlb', 'nhl'],
     markets: {
       nba: Object.keys(NBA_PROP_MARKETS),
@@ -602,6 +930,8 @@ module.exports = {
   getPlayerProjection,
   getAvailablePlayers,
   getStatus,
+  getLiveStats,
+  getPlayerBaselineWithSource,
   parsePropsFromEvent,
   scorePropBet,
   calcOverUnderProb,

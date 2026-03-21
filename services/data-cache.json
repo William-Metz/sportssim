@@ -1222,30 +1222,30 @@
     },
     "TB": {
       "name": "Tampa Bay Rays",
-      "w": 9,
+      "w": 10,
       "l": 16,
-      "gp": 25,
-      "rsG": 4.04,
-      "raG": 4.92,
-      "diff": -0.88,
+      "gp": 26,
+      "rsG": 4,
+      "raG": 4.81,
+      "diff": -0.81,
       "isSpringTraining": true,
       "source": "espn-live"
     },
     "MIN": {
       "name": "Minnesota Twins",
       "w": 8,
-      "l": 17,
-      "gp": 25,
-      "rsG": 4.4,
-      "raG": 5.68,
-      "diff": -1.28,
+      "l": 18,
+      "gp": 26,
+      "rsG": 4.31,
+      "raG": 5.58,
+      "diff": -1.27,
       "isSpringTraining": true,
       "source": "espn-live"
     }
   },
   "timestamps": {
-    "nba": 1774108053711,
-    "nhl": 1774108054079,
-    "mlb": 1774108054444
+    "nba": 1774119658963,
+    "nhl": 1774119659193,
+    "mlb": 1774119659542
   }
 }
