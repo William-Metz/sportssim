@@ -191,12 +191,14 @@ function buildTabs() {
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
   tabs.push({ id: 'catcher-framing', label: '🥊 Catcher Framing' });
+  tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
+  tabs.push({ id: 'live-tracker', label: '🔴 Live Tracker' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -249,6 +251,8 @@ function showTab(id) {
   else if (id === 'march-madness') loadMarchMadnessTab();
   else if (id === 'platoon-splits') loadPlatoonSplitsTab();
   else if (id === 'catcher-framing') loadCatcherFramingTab();
+  else if (id === 'stolen-bases') loadStolenBasesTab();
+  else if (id === 'live-tracker') loadLiveTrackerTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -9577,6 +9581,55 @@ async function analyzePlatoonMatchup() {
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }
+}
+
+// ==================== STOLEN BASES REVOLUTION TAB ====================
+async function loadStolenBasesTab() {
+  const wrap = document.getElementById('tab-content');
+  let h = '<h2>🏃 Stolen Base Revolution — Totals Model Adjustment</h2>';
+  h += '<p style="color:#aaa">Post-2023 rule changes: bigger bases + pitch clock + disengagement limits = 10% SB attempt rate (was 6%). Systematically increases run scoring by +0.1-0.2 R/G.</p>';
+  
+  try {
+    const [summary, profiles, scan] = await Promise.all([
+      fetch('/api/mlb/sb/summary').then(r => r.json()),
+      fetch('/api/mlb/sb/profiles').then(r => r.json()),
+      fetch('/api/mlb/sb/scan').then(r => r.json()),
+    ]);
+    
+    // League summary
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:15px 0">';
+    h += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center"><div style="font-size:2em;color:#22c55e">${summary.avgSBPer162}</div><div style="color:#888">Avg SB/162G</div></div>`;
+    h += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center"><div style="font-size:2em;color:#f59e0b">${summary.avgAttemptRate}</div><div style="color:#888">Attempt Rate</div></div>`;
+    h += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center"><div style="font-size:2em;color:#3b82f6">${summary.avgSuccessRate}</div><div style="color:#888">Success Rate</div></div>`;
+    h += `<div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center"><div style="font-size:2em;color:#ef4444">+${summary.avgExtraRuns}</div><div style="color:#888">Extra R/G vs Pre-Rule</div></div>`;
+    h += '</div>';
+    
+    // OD Edges
+    if (scan.edges && scan.edges.length > 0) {
+      h += '<h3>🎯 Opening Day SB Totals Edges</h3>';
+      h += '<table style="width:100%;border-collapse:collapse"><thead><tr><th>Matchup</th><th>Away Tier</th><th>Home Tier</th><th>Extra Runs</th><th>Net Adj</th><th>Direction</th></tr></thead><tbody>';
+      for (const e of scan.edges) {
+        const color = e.totalsImpact === 'OVER' ? '#22c55e' : '#ef4444';
+        h += `<tr><td>${e.matchup}</td><td>${e.awayTier}</td><td>${e.homeTier}</td><td>+${e.combinedExtra.toFixed(2)}</td><td style="color:${color}">+${e.netAdjustment.toFixed(3)}</td><td style="color:${color}">${e.totalsImpact}</td></tr>`;
+      }
+      h += '</tbody></table>';
+    }
+    
+    // All team profiles
+    h += '<h3>📊 All Team SB Profiles</h3>';
+    const sorted = Object.entries(profiles).sort((a, b) => b[1].sb162 - a[1].sb162);
+    h += '<table style="width:100%;border-collapse:collapse"><thead><tr><th>#</th><th>Team</th><th>SB/162</th><th>Rate</th><th>Success%</th><th>Extra R/G</th><th>Tier</th></tr></thead><tbody>';
+    sorted.forEach(([team, p], i) => {
+      const tierColor = p.tier === 'elite' ? '#22c55e' : p.tier === 'high' ? '#3b82f6' : p.tier === 'low' ? '#ef4444' : '#888';
+      h += `<tr><td>${i+1}</td><td><strong>${team}</strong></td><td>${p.sb162}</td><td>${(p.rate*100).toFixed(1)}%</td><td>${(p.success*100).toFixed(0)}%</td><td>+${p.extraRuns.toFixed(2)}</td><td style="color:${tierColor};font-weight:bold">${p.tier.toUpperCase()}</td></tr>`;
+    });
+    h += '</tbody></table>';
+    
+  } catch (err) {
+    h += `<p style="color:red">Error loading SB data: ${err.message}</p>`;
+  }
+  
+  wrap.innerHTML = h;
 }
 
 </script>

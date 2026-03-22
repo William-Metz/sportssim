@@ -32,6 +32,8 @@ let bullpenQuality = null;
 try { bullpenQuality = require('../services/bullpen-quality'); } catch (e) { /* no bullpen quality data */ }
 let platoonSplitsService = null;
 try { platoonSplitsService = require('../services/platoon-splits'); } catch (e) { /* no platoon splits */ }
+let stolenBaseModel = null;
+try { stolenBaseModel = require('../services/stolen-base-model'); } catch (e) { /* no SB model */ }
 
 // Negative Binomial model — upgrades Poisson for overdispersion in MLB scoring
 let negBinomial = null;
@@ -834,8 +836,30 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
   homeRaG = Math.max(1.5, Math.min(10, homeRaG));
 
-  const awayExpRuns = awayRaG;
-  const homeExpRuns = homeRaG;
+  let awayExpRuns = awayRaG;
+  let homeExpRuns = homeRaG;
+  
+  // Stolen Base Revolution adjustment — post-2023 rule changes
+  // Increases expected runs for aggressive baserunning teams
+  let sbFactors = null;
+  if (stolenBaseModel) {
+    try {
+      const sbAdj = stolenBaseModel.getSBTotalsAdjustment(awayAbbr, homeAbbr);
+      if (sbAdj && sbAdj.netAdjustment !== 0) {
+        // Split the SB adjustment — each team gets their own extra runs
+        awayExpRuns += sbAdj.awaySBExtra * 0.5; // 50% weight — conservative
+        homeExpRuns += sbAdj.homeSBExtra * 0.5;
+        sbFactors = {
+          awayExtra: +(sbAdj.awaySBExtra * 0.5).toFixed(3),
+          homeExtra: +(sbAdj.homeSBExtra * 0.5).toFixed(3),
+          netTotalAdj: +((sbAdj.awaySBExtra + sbAdj.homeSBExtra) * 0.5).toFixed(3),
+          awayTier: sbAdj.awayTier,
+          homeTier: sbAdj.homeTier,
+          direction: sbAdj.totalsImpact,
+        };
+      }
+    } catch (e) { /* SB model optional */ }
+  }
   
   // F5 (first 5 innings) — pitcher dominates this portion
   let f5Factor = 0.565;
@@ -1104,6 +1128,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
         home: homeBullpenInfo,
         note: 'Projected 2026 bullpen ERA from reliever-level modeling (replaces static 2025 data)'
       } : null,
+      stolenBases: sbFactors,
     }
   };
   
