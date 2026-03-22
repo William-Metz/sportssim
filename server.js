@@ -70,6 +70,8 @@ let odPreflight = null;
 try { odPreflight = require('./services/opening-day-preflight'); } catch (e) { console.error('[server] OD Preflight not loaded:', e.message); }
 let ncaa = null;
 try { ncaa = require('./models/ncaa'); } catch (e) { console.error('[server] NCAA model not loaded:', e.message); }
+let ncaaLive = null;
+try { ncaaLive = require('./services/ncaa-live'); } catch (e) { console.error('[server] NCAA Live not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -139,7 +141,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '60.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test','nb-exact-run-lines','nb-f5-scoring-model','conviction-score-engine','alt-run-line-matrix','f5-three-way-ml','margin-distribution','f5-value-scanner','runline-value-scanner','f5-api-endpoints','runline-api-endpoints','spread-odds-capture'] });
+  res.json({ status: 'ok', version: '62.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test','nb-exact-run-lines','nb-f5-scoring-model','conviction-score-engine','alt-run-line-matrix','f5-three-way-ml','margin-distribution','f5-value-scanner','runline-value-scanner','f5-api-endpoints','runline-api-endpoints','spread-odds-capture','ncaa-live-scores','ncaa-bracket-auto-update','ncaa-tournament-momentum','ncaa-futures-value','ncaa-dashboard-live'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -733,6 +735,97 @@ app.get('/api/model/mlb/nb-status', (req, res) => {
   res.json(negBinomial.getStatus());
 });
 
+// ==================== MLB PLATOON SPLITS ====================
+
+let platoonSplitsService = null;
+try { platoonSplitsService = require('./services/platoon-splits'); } catch (e) { /* no platoon splits */ }
+
+// Get platoon analysis for a specific matchup
+app.get('/api/mlb/platoon/:away/:home', (req, res) => {
+  if (!platoonSplitsService) return res.status(503).json({ error: 'Platoon splits service unavailable' });
+  
+  const { away, home } = req.params;
+  const homePitcherHand = req.query.homePitcherHand || req.query.hph || null;
+  const awayPitcherHand = req.query.awayPitcherHand || req.query.aph || null;
+  
+  const analysis = platoonSplitsService.getMatchupPlatoonAnalysis(
+    away.toUpperCase(), home.toUpperCase(),
+    homePitcherHand, awayPitcherHand
+  );
+  
+  res.json(analysis);
+});
+
+// Get all team platoon vulnerability profiles (ranked)
+app.get('/api/mlb/platoon/profiles', (req, res) => {
+  if (!platoonSplitsService) return res.status(503).json({ error: 'Platoon splits service unavailable' });
+  
+  const ranking = platoonSplitsService.getPlatoonVulnerabilityRanking();
+  const allSplits = platoonSplitsService.getAllPlatoonSplits();
+  
+  res.json({
+    profiles: ranking,
+    details: allSplits,
+    source: 'statcast_2024_woba_splits',
+    note: 'Ranked by gap between vsLHP and vsRHP run multipliers. Bigger gap = more vulnerable to LHP.',
+  });
+});
+
+// Get platoon-based betting edges for today's games
+app.get('/api/mlb/platoon/scan', async (req, res) => {
+  if (!platoonSplitsService) return res.status(503).json({ error: 'Platoon splits service unavailable' });
+  
+  try {
+    // Get today's games with pitcher info
+    let games = [];
+    try {
+      const lineupFetcher = require('./services/lineup-fetcher');
+      const lineups = await lineupFetcher.fetchLineups();
+      if (lineups && lineups.games) {
+        games = lineups.games.map(g => ({
+          away: g.awayTeam,
+          home: g.homeTeam,
+          awayPitcherHand: g.awayPitcher?.hand || null,
+          homePitcherHand: g.homePitcher?.hand || null,
+          awayLineup: g.awayLineup || null,
+          homeLineup: g.homeLineup || null,
+        }));
+      }
+    } catch (e) {
+      // No lineup data — use static profiles only
+    }
+    
+    if (games.length === 0) {
+      return res.json({ edges: [], note: 'No games found today or no pitcher hand data available' });
+    }
+    
+    const edges = platoonSplitsService.scanPlatoonEdges(games);
+    
+    res.json({
+      gamesScanned: games.length,
+      edgesFound: edges.length,
+      edges,
+      note: 'Platoon edges based on pitcher handedness vs lineup composition. LHP starters create the biggest edges.',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Platoon service status
+app.get('/api/mlb/platoon/status', (req, res) => {
+  if (!platoonSplitsService) return res.status(503).json({ error: 'Platoon splits service unavailable' });
+  const splits = platoonSplitsService.getModelPlatoonSplits();
+  res.json({
+    status: 'active',
+    source: 'statcast_2024_woba_splits_with_2026_roster_adj',
+    teamsTracked: Object.keys(splits).length,
+    topVulnerable: platoonSplitsService.getPlatoonVulnerabilityRanking().slice(0, 5).map(t => `${t.team} (${t.gap.toFixed(3)})`),
+    mostImmune: platoonSplitsService.getPlatoonVulnerabilityRanking().slice(-5).map(t => `${t.team} (${t.gap.toFixed(3)})`),
+    note: 'Platoon splits data-driven from Baseball Savant wOBA splits. Auto-refines when confirmed lineups available.',
+  });
+});
+
 // ==================== MLB SEASON SIMULATOR ====================
 
 // Cache for simulation results (expensive operation — 5K sims take ~2s)
@@ -1267,6 +1360,62 @@ app.get('/api/ncaa/futures', async (req, res) => {
       sims: sim.sims,
       timestamp: new Date().toISOString()
     });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NCAA live scores
+app.get('/api/ncaa/live', async (req, res) => {
+  if (!ncaaLive) return res.json({ error: 'NCAA Live service not loaded' });
+  try {
+    const data = await ncaaLive.fetchLiveScores();
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NCAA auto-update bracket from live scores
+app.get('/api/ncaa/update-bracket', async (req, res) => {
+  if (!ncaaLive) return res.json({ error: 'NCAA Live service not loaded' });
+  try {
+    const result = await ncaaLive.updateBracketResults();
+    const bracketState = ncaa ? ncaa.getBracketState() : null;
+    res.json({ ...result, bracketState, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NCAA tournament dashboard data (all-in-one for dashboard)
+app.get('/api/ncaa/dashboard', async (req, res) => {
+  if (!ncaaLive) return res.json({ error: 'NCAA Live service not loaded' });
+  try {
+    const data = await ncaaLive.getDashboardData();
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NCAA Sweet 16 bracket (auto-generated from results)
+app.get('/api/ncaa/sweet16-bracket', async (req, res) => {
+  if (!ncaaLive) return res.json({ error: 'NCAA Live service not loaded' });
+  try {
+    // First update bracket from live scores
+    await ncaaLive.updateBracketResults();
+    const bracket = ncaaLive.getSweet16Bracket();
+    res.json(bracket);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NCAA tournament momentum rankings
+app.get('/api/ncaa/momentum', (req, res) => {
+  if (!ncaa || !ncaaLive) return res.json({ error: 'NCAA not loaded' });
+  try {
+    const bracketState = ncaa.getBracketState();
+    const rankings = [];
+    for (const region of Object.values(bracketState.regions)) {
+      for (const team of (region.teams || [])) {
+        const momentum = ncaaLive.getTournamentMomentum(team.abbr);
+        rankings.push({ ...team, momentum });
+      }
+    }
+    rankings.sort((a, b) => (b.momentum?.momentumScore || 0) - (a.momentum?.momentumScore || 0));
+    res.json({ rankings, totalTeams: rankings.length, timestamp: new Date().toISOString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -6710,7 +6859,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   MLB Schedule: ESPN confirmed starters service active`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
   if (nfl) console.log(`   NFL teams: ${Object.keys(nfl.TEAMS).length} (win totals model active, ${Object.keys(nfl.MARKET_LINES).length} market lines)`);
-  if (ncaa) console.log(`   NCAA teams: ${Object.keys(ncaa.TEAMS).length} (March Madness KenPom model, bracket simulator, value scanner)`);
+  if (ncaa) console.log(`   NCAA teams: ${Object.keys(ncaa.TEAMS).length} (March Madness KenPom model, bracket simulator, value scanner, live scores, momentum, futures)`);
+  if (ncaaLive) console.log('   NCAA Live: ESPN live scores, bracket auto-update, tournament momentum');
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
   console.log(`   Polymarket: scanner active`);
   console.log(`   Polymarket Value Bridge: model vs market edge detection active`);

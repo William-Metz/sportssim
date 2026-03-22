@@ -189,6 +189,7 @@ function buildTabs() {
   tabs.push({ id: 'nfl-futures', label: '🏈 NFL Futures' });
   // NCAA March Madness tab — always visible during tournament
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
+  tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -245,6 +246,7 @@ function showTab(id) {
   else if (id === 'seeding-futures') loadSeedingFuturesTab();
   else if (id === 'nfl-futures') loadNFLFuturesTab();
   else if (id === 'march-madness') loadMarchMadnessTab();
+  else if (id === 'platoon-splits') loadPlatoonSplitsTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -8394,43 +8396,139 @@ async function loadMarchMadnessTab() {
   wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading March Madness data...</p></div>';
   
   try {
-    const [simRes, ratingsRes, valueRes, sweet16Res] = await Promise.allSettled([
+    const [simRes, ratingsRes, valueRes, sweet16Res, liveRes, momentumRes, futuresRes] = await Promise.allSettled([
       fetch('/api/ncaa/simulate?sims=10000').then(r => r.json()),
       fetch('/api/ncaa/ratings').then(r => r.json()),
       fetch('/api/ncaa/value').then(r => r.json()),
-      fetch('/api/ncaa/sweet16').then(r => r.json())
+      fetch('/api/ncaa/sweet16').then(r => r.json()),
+      fetch('/api/ncaa/live').then(r => r.json()),
+      fetch('/api/ncaa/momentum').then(r => r.json()),
+      fetch('/api/ncaa/futures').then(r => r.json())
     ]);
     
     const sim = simRes.status === 'fulfilled' ? simRes.value : null;
     const ratings = ratingsRes.status === 'fulfilled' ? ratingsRes.value : null;
     const value = valueRes.status === 'fulfilled' ? valueRes.value : null;
     const sweet16 = sweet16Res.status === 'fulfilled' ? sweet16Res.value : null;
+    const live = liveRes.status === 'fulfilled' ? liveRes.value : null;
+    const momentum = momentumRes.status === 'fulfilled' ? momentumRes.value : null;
+    const futures = futuresRes.status === 'fulfilled' ? futuresRes.value : null;
     
     let html = '';
     
     // === HEADER ===
     html += '<div style="text-align:center;margin-bottom:24px">';
     html += '<h2 style="margin:0;font-size:2em">🏀 March Madness 2026</h2>';
-    html += '<div style="font-size:14px;color:#94a3b8;margin-top:4px">NCAA Tournament • KenPom Efficiency Model • Sweet 16 starts March 27</div>';
+    html += '<div style="font-size:14px;color:#94a3b8;margin-top:4px">NCAA Tournament • KenPom Efficiency Model + Tournament Momentum • Live Odds Scanning</div>';
+    if (live && live.liveGames > 0) {
+      html += `<div style="margin-top:6px;color:#ef4444;font-weight:bold;animation:pulse 2s infinite">🔴 ${live.liveGames} LIVE GAME${live.liveGames > 1 ? 'S' : ''} RIGHT NOW</div>`;
+    }
     html += '</div>';
     
     // === SUB-TAB NAV ===
     html += '<div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">';
     const subTabs = [
+      { id: 'mm-live', label: `🔴 Live${live && live.liveGames > 0 ? ' ('+live.liveGames+')' : ''}` },
       { id: 'mm-bracket', label: '🏆 Championship Odds' },
       { id: 'mm-sweet16', label: '🎯 Sweet 16 Picks' },
       { id: 'mm-value', label: '💰 Value Scanner' },
+      { id: 'mm-futures', label: '📈 Futures Value' },
+      { id: 'mm-momentum', label: '🔥 Momentum' },
       { id: 'mm-ratings', label: '📊 Power Ratings' },
       { id: 'mm-predict', label: '🔮 Matchup Predictor' },
       { id: 'mm-results', label: '📋 Results Tracker' }
     ];
+    const defaultTab = (live && live.liveGames > 0) ? 'mm-live' : 'mm-bracket';
     for (const st of subTabs) {
-      html += `<button onclick="showMMSubTab('${st.id}')" id="btn-${st.id}" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:${st.id === 'mm-bracket' ? '#f97316' : '#1e293b'};color:${st.id === 'mm-bracket' ? '#000' : '#e2e8f0'};cursor:pointer;white-space:nowrap;font-weight:600;font-size:13px">${st.label}</button>`;
+      html += `<button onclick="showMMSubTab('${st.id}')" id="btn-${st.id}" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:${st.id === defaultTab ? '#f97316' : '#1e293b'};color:${st.id === defaultTab ? '#000' : '#e2e8f0'};cursor:pointer;white-space:nowrap;font-weight:600;font-size:13px">${st.label}</button>`;
     }
     html += '</div>';
     
+    // === LIVE SCORES SUB-TAB ===
+    html += `<div id="mm-live" class="mm-subtab" ${defaultTab !== 'mm-live' ? 'style="display:none"' : ''}>`;
+    html += '<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #ef444440;padding:24px;border-radius:12px;margin-bottom:16px">';
+    html += '<h3 style="margin-top:0;color:#ef4444">🔴 Live Tournament Scores</h3>';
+    
+    if (live && live.games && live.games.length > 0) {
+      const liveGames = live.games.filter(g => g.isLive);
+      const completedGames = live.games.filter(g => g.isComplete);
+      const upcomingGames = live.games.filter(g => g.isScheduled);
+      
+      if (liveGames.length > 0) {
+        html += '<h4 style="color:#ef4444;margin:12px 0 8px">🏀 IN PROGRESS</h4>';
+        for (const g of liveGames) {
+          const awayWinning = g.awayScore > g.homeScore;
+          html += `<div style="background:#0f172a;border-radius:10px;padding:16px;margin-bottom:10px;border-left:4px solid #ef4444;animation:pulse 2s infinite">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:11px;color:#ef4444;font-weight:bold">${g.statusDetail || g.clock || 'LIVE'}</div>
+                <div style="font-size:16px;font-weight:bold;margin:4px 0">
+                  ${g.awaySeed ? '('+g.awaySeed+')' : ''} ${g.awayTeam} 
+                  <span style="font-size:24px;color:${awayWinning ? '#4ade80' : '#94a3b8'}">${g.awayScore}</span>
+                </div>
+                <div style="font-size:16px;font-weight:bold">
+                  ${g.homeSeed ? '('+g.homeSeed+')' : ''} ${g.homeTeam} 
+                  <span style="font-size:24px;color:${!awayWinning ? '#4ade80' : '#94a3b8'}">${g.homeScore}</span>
+                </div>
+              </div>`;
+          // Show model prediction if we have the teams
+          if (g.awayAbbr && g.homeAbbr) {
+            html += `<div style="text-align:right;font-size:12px;color:#64748b">
+              <div>Model spread: ${g.awayAbbr}/${g.homeAbbr}</div>
+              <button onclick="runNCAAPredict('${g.awayAbbr}','${g.homeAbbr}')" style="margin-top:4px;padding:4px 12px;border-radius:4px;background:#f97316;color:#000;border:none;cursor:pointer;font-size:11px">View Model</button>
+            </div>`;
+          }
+          html += '</div></div>';
+        }
+      }
+      
+      if (upcomingGames.length > 0) {
+        html += '<h4 style="color:#60a5fa;margin:16px 0 8px">⏰ UPCOMING TODAY</h4>';
+        for (const g of upcomingGames) {
+          const startTime = g.startTime ? new Date(g.startTime).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit',hour12:true,timeZone:'America/New_York'}) : '';
+          html += `<div style="background:#0f172a;border-radius:8px;padding:12px;margin-bottom:8px;border-left:4px solid #60a5fa">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:14px;font-weight:bold">${g.awaySeed ? '('+g.awaySeed+')' : ''} ${g.awayTeam} vs ${g.homeSeed ? '('+g.homeSeed+')' : ''} ${g.homeTeam}</div>
+                <div style="font-size:11px;color:#64748b">${startTime} ET${g.notes ? ' • '+g.notes : ''}</div>
+              </div>`;
+          if (g.awayAbbr && g.homeAbbr) {
+            html += `<button onclick="showMMSubTab('mm-predict');document.getElementById('ncaa-away').value='${g.awayAbbr}';document.getElementById('ncaa-home').value='${g.homeAbbr}';runNCAAPredict()" style="padding:4px 12px;border-radius:4px;background:#1e293b;color:#60a5fa;border:1px solid #60a5fa;cursor:pointer;font-size:11px">Predict</button>`;
+          }
+          html += '</div></div>';
+        }
+      }
+      
+      if (completedGames.length > 0) {
+        html += '<h4 style="color:#4ade80;margin:16px 0 8px">✅ COMPLETED TODAY</h4>';
+        for (const g of completedGames) {
+          const winner = g.homeScore > g.awayScore ? g.homeTeam : g.awayTeam;
+          const winScore = Math.max(g.homeScore, g.awayScore);
+          const loseScore = Math.min(g.homeScore, g.awayScore);
+          const isUpset = g.homeSeed && g.awaySeed && (
+            (g.homeScore > g.awayScore && g.homeSeed > g.awaySeed) ||
+            (g.awayScore > g.homeScore && g.awaySeed > g.homeSeed)
+          );
+          html += `<div style="background:#0f172a;border-radius:8px;padding:12px;margin-bottom:6px;${isUpset ? 'border-left:4px solid #f97316' : 'border-left:4px solid #4ade80'}">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:14px"><strong>${winner}</strong> wins ${winScore}-${loseScore}${isUpset ? ' 🔥 UPSET' : ''}</div>
+              <div style="font-size:12px;color:#4ade80">FINAL</div>
+            </div>
+          </div>`;
+        }
+      }
+      
+      html += `<div style="text-align:center;margin-top:12px;font-size:12px;color:#64748b">
+        Auto-refreshes • Last fetch: ${live.fetchedAt ? new Date(live.fetchedAt).toLocaleTimeString() : 'N/A'}
+        <br><button onclick="loadMarchMadnessTab()" style="margin-top:6px;padding:4px 16px;border-radius:4px;background:#1e293b;color:#60a5fa;border:1px solid #60a5fa;cursor:pointer;font-size:11px">🔄 Refresh</button>
+      </div>`;
+    } else {
+      html += '<div style="text-align:center;padding:24px;color:#94a3b8"><div style="font-size:32px;margin-bottom:8px">📡</div><div>No live tournament games right now</div><div style="font-size:12px;margin-top:4px">Check back during game time for live scores and auto-bracket updates</div></div>';
+    }
+    html += '</div></div>';
+    
     // === CHAMPIONSHIP ODDS SUB-TAB ===
-    html += '<div id="mm-bracket" class="mm-subtab">';
+    html += `<div id="mm-bracket" class="mm-subtab" ${defaultTab !== 'mm-bracket' ? 'style="display:none"' : ''}>`;
     if (sim && sim.results) {
       html += '<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #f9731640;padding:24px;border-radius:12px;margin-bottom:16px">';
       html += '<h3 style="margin-top:0;color:#f97316">🏆 Championship Probability (10,000 Simulations)</h3>';
@@ -8674,6 +8772,116 @@ async function loadMarchMadnessTab() {
     html += '</div>';
     html += '</div>';
     
+    // === FUTURES VALUE SUB-TAB ===
+    html += '<div id="mm-futures" class="mm-subtab" style="display:none">';
+    html += '<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #f9731640;padding:24px;border-radius:12px">';
+    html += '<h3 style="margin-top:0;color:#f97316">📈 NCAA Championship Futures Value</h3>';
+    html += '<p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Model championship probability (10K sims) vs sportsbook futures odds — find mispriced futures</p>';
+    
+    if (futures && futures.futuresValue && futures.futuresValue.length > 0) {
+      html += `<div style="background:#4ade8015;border:1px solid #4ade8040;border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
+        <span style="font-size:20px;font-weight:bold;color:#4ade80">${futures.futuresValue.length}</span>
+        <span style="color:#94a3b8"> championship futures with +EV edge detected</span>
+      </div>`;
+      
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<tr style="border-bottom:2px solid #334155"><th style="text-align:left;padding:8px">Team</th><th>Seed</th><th>Region</th><th>Book</th><th>Odds</th><th style="color:#4ade80">Model%</th><th>Market%</th><th style="color:#4ade80">Edge</th><th>Conf</th></tr>';
+      
+      for (const vb of futures.futuresValue.slice(0, 20)) {
+        const confColor = vb.confidence === 'HIGH' ? '#4ade80' : vb.confidence === 'MEDIUM' ? '#f97316' : '#60a5fa';
+        html += `<tr style="border-bottom:1px solid #1e293b">
+          <td style="padding:6px 8px;font-weight:bold">${vb.team}</td>
+          <td style="text-align:center">${vb.seed}</td>
+          <td style="text-align:center;font-size:11px">${vb.region}</td>
+          <td style="text-align:center;font-size:11px">${vb.book}</td>
+          <td style="text-align:center">${vb.odds > 0 ? '+' : ''}${vb.odds}</td>
+          <td style="text-align:center;font-weight:bold;color:#4ade80">${vb.modelProb}%</td>
+          <td style="text-align:center;color:#94a3b8">${vb.impliedProb}%</td>
+          <td style="text-align:center;font-weight:bold;color:#4ade80">+${vb.edge}%</td>
+          <td style="text-align:center"><span style="background:${confColor}20;color:${confColor};padding:2px 6px;border-radius:4px;font-size:11px">${vb.confidence}</span></td>
+        </tr>`;
+      }
+      html += '</table></div>';
+    } else if (futures && futures.championshipOdds) {
+      html += '<div style="background:#1e293b;border-radius:8px;padding:16px;text-align:center;color:#94a3b8;margin-bottom:16px">';
+      html += '<div style="font-size:14px">No futures odds available from books right now</div>';
+      html += '<div style="font-size:12px;margin-top:4px">Model championship odds shown below — compare manually</div>';
+      html += '</div>';
+      
+      html += '<h4 style="color:#f97316;margin:12px 0 8px">Model Championship Probabilities</h4>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">';
+      for (const t of futures.championshipOdds.slice(0, 16)) {
+        const barColor = t.champProb > 15 ? '#4ade80' : t.champProb > 8 ? '#f97316' : '#60a5fa';
+        html += `<div style="background:#0f172a;border-radius:8px;padding:12px;text-align:center;border:1px solid ${barColor}30">
+          <div style="font-size:20px;font-weight:bold;color:${barColor}">${t.champProb}%</div>
+          <div style="font-size:12px;font-weight:bold;margin:2px 0">(${t.seed}) ${t.name}</div>
+          <div style="font-size:11px;color:#64748b">F4: ${t.finalFourProb}% • E8: ${t.eliteEightProb}%</div>
+        </div>`;
+      }
+      html += '</div>';
+    } else {
+      html += '<div style="text-align:center;padding:24px;color:#94a3b8">Futures data unavailable</div>';
+    }
+    
+    html += '</div></div>';
+    
+    // === MOMENTUM SUB-TAB ===
+    html += '<div id="mm-momentum" class="mm-subtab" style="display:none">';
+    html += '<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #f9731640;padding:24px;border-radius:12px">';
+    html += '<h3 style="margin-top:0;color:#f97316">🔥 Tournament Momentum Rankings</h3>';
+    html += '<p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Teams ranked by average margin of victory in tournament play — hotter teams get a prediction boost</p>';
+    
+    if (momentum && momentum.rankings && momentum.rankings.length > 0) {
+      // Hot teams
+      const hotTeams = momentum.rankings.filter(t => t.momentum && (t.momentum.label === 'DOMINANT' || t.momentum.label === 'HOT'));
+      if (hotTeams.length > 0) {
+        html += '<h4 style="color:#ef4444;margin:0 0 12px">🔥 HOTTEST TEAMS</h4>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px">';
+        for (const t of hotTeams) {
+          html += `<div style="background:#0f172a;border-radius:10px;padding:16px;text-align:center;border:2px solid #ef444440">
+            <div style="font-size:28px;font-weight:bold;color:#ef4444">+${t.momentum.avgMOV}</div>
+            <div style="font-size:10px;color:#ef4444;font-weight:bold">AVG MOV</div>
+            <div style="font-size:14px;font-weight:bold;margin:4px 0">(${t.seed}) ${t.name}</div>
+            <div style="font-size:12px;color:#94a3b8">${t.momentum.wins}W-${t.momentum.losses}L in tourney</div>
+            <div style="margin-top:4px;font-size:11px;color:#64748b">KenPom #${t.kenpom}</div>
+            <div style="margin-top:4px"><span style="background:#ef444420;color:#ef4444;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold">${t.momentum.label}</span></div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      
+      // Full table
+      html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<tr style="border-bottom:2px solid #334155"><th style="text-align:left;padding:8px">#</th><th style="text-align:left">Team</th><th>Seed</th><th>Region</th><th>KenPom</th><th style="color:#f97316">Avg MOV</th><th>Wins</th><th>Status</th></tr>';
+      
+      let rank = 1;
+      for (const t of momentum.rankings) {
+        const m = t.momentum || {};
+        const statusColor = m.label === 'DOMINANT' ? '#ef4444' : m.label === 'HOT' ? '#f97316' : m.label === 'WARM' ? '#eab308' : m.label === 'COOL' ? '#60a5fa' : '#94a3b8';
+        const movColor = m.avgMOV > 15 ? '#ef4444' : m.avgMOV > 10 ? '#f97316' : m.avgMOV > 5 ? '#eab308' : '#94a3b8';
+        html += `<tr style="border-bottom:1px solid #1e293b">
+          <td style="padding:6px 8px;color:#64748b">${rank++}</td>
+          <td style="font-weight:bold">${t.name}</td>
+          <td style="text-align:center">${t.seed}</td>
+          <td style="text-align:center;font-size:11px">${t.momentum?.region || ''}</td>
+          <td style="text-align:center">#${t.kenpom}</td>
+          <td style="text-align:center;font-weight:bold;color:${movColor}">+${m.avgMOV || 0}</td>
+          <td style="text-align:center">${m.wins || 0}W</td>
+          <td style="text-align:center"><span style="background:${statusColor}20;color:${statusColor};padding:2px 6px;border-radius:4px;font-size:11px;font-weight:bold">${m.label || 'N/A'}</span></td>
+        </tr>`;
+      }
+      html += '</table>';
+      
+      html += '<div style="margin-top:12px;background:#0f172a;border-radius:8px;padding:12px;font-size:12px;color:#94a3b8">';
+      html += '<strong style="color:#f97316">How it works:</strong> Teams with higher average margin of victory get up to ±3% probability adjustment in predictions. ';
+      html += 'A team averaging +20pt MOV (like Michigan or Florida) gets the maximum boost. Close wins reduce momentum.';
+      html += '</div>';
+    } else {
+      html += '<div style="text-align:center;padding:24px;color:#94a3b8">Momentum data unavailable</div>';
+    }
+    
+    html += '</div></div>';
+    
     // === MATCHUP PREDICTOR SUB-TAB ===
     html += '<div id="mm-predict" class="mm-subtab" style="display:none">';
     html += '<div class="card" style="background:#1a1a2e;border-radius:12px;padding:24px;border:1px solid #f9731640">';
@@ -8873,6 +9081,253 @@ async function runNCAAPredict() {
       h += `<div style="background:#1e293b;border-radius:6px;padding:10px;margin-top:8px;font-size:12px;color:#94a3b8">
         <strong style="color:#f97316">Seed History:</strong> ${pred.historicalAdj.seedMatchup} matchups — lower seed wins ${(pred.historicalAdj.historicalUpsetRate * 100).toFixed(0)}% historically
       </div>`;
+    }
+    
+    h += '</div>';
+    resultDiv.innerHTML = h;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
+// ==================== PLATOON SPLITS TAB ====================
+
+async function loadPlatoonSplitsTab() {
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = '<p>Loading platoon splits data...</p>';
+  
+  try {
+    const [profilesRes, scanRes, statusRes] = await Promise.all([
+      fetch('/api/mlb/platoon/profiles').then(r => r.json()).catch(() => null),
+      fetch('/api/mlb/platoon/scan').then(r => r.json()).catch(() => null),
+      fetch('/api/mlb/platoon/status').then(r => r.json()).catch(() => null),
+    ]);
+    
+    let h = '<div style="max-width:1200px;margin:0 auto">';
+    
+    // Header
+    h += `
+      <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);padding:20px;border-radius:12px;margin-bottom:20px;color:white">
+        <h2 style="margin:0">🔄 MLB Platoon Splits Engine</h2>
+        <p style="margin:5px 0 0;opacity:0.8">Statcast wOBA-calibrated L/R pitcher-batter matchup adjustments wired into all predictions</p>
+        ${statusRes ? `<p style="margin:5px 0 0;font-size:0.85em;opacity:0.6">${statusRes.teamsTracked} teams tracked · Source: ${statusRes.source}</p>` : ''}
+        ${statusRes && statusRes.topVulnerable ? `<p style="margin:5px 0 0;font-size:0.85em;opacity:0.6">Most vulnerable: ${statusRes.topVulnerable.join(', ')}</p>` : ''}
+      </div>
+    `;
+    
+    // Today's Platoon Edges
+    if (scanRes) {
+      h += `
+        <div style="background:#1e1e2e;padding:16px;border-radius:10px;margin-bottom:16px;border:1px solid #333">
+          <h3 style="margin:0 0 10px;color:#e0e0e0">🎯 Today's Platoon Edges</h3>
+      `;
+      
+      if (scanRes.edges && scanRes.edges.length > 0) {
+        h += `<p style="color:#aaa;font-size:0.85em">${scanRes.gamesScanned} games scanned · ${scanRes.edgesFound} edges found</p>`;
+        for (const edge of scanRes.edges) {
+          const sigColor = edge.signal === 'UNDER' ? '#3b82f6' : '#ef4444';
+          h += `
+            <div style="background:#2a2a3e;padding:14px;border-radius:8px;margin-bottom:10px;border-left:3px solid ${sigColor}">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <strong style="color:white;font-size:1.1em">${edge.matchup}</strong>
+                  <span style="color:${sigColor};margin-left:10px;font-weight:bold">${edge.signal} signal (${edge.edgeMagnitude.toFixed(2)} runs)</span>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+                <div style="font-size:0.85em">
+                  <span style="color:#aaa">${edge.away.team} vs ${edge.away.vsPitcherHand || '?'}HP:</span>
+                  <span style="color:${edge.away.multiplier < 0.97 ? '#ef4444' : edge.away.multiplier > 1.02 ? '#22c55e' : '#6b7280'};font-weight:bold"> ${edge.away.multiplier}x</span>
+                  <span style="color:#666"> (${edge.away.impactPct > 0 ? '+' : ''}${edge.away.impactPct}%)</span>
+                </div>
+                <div style="font-size:0.85em">
+                  <span style="color:#aaa">${edge.home.team} vs ${edge.home.vsPitcherHand || '?'}HP:</span>
+                  <span style="color:${edge.home.multiplier < 0.97 ? '#ef4444' : edge.home.multiplier > 1.02 ? '#22c55e' : '#6b7280'};font-weight:bold"> ${edge.home.multiplier}x</span>
+                  <span style="color:#666"> (${edge.home.impactPct > 0 ? '+' : ''}${edge.home.impactPct}%)</span>
+                </div>
+              </div>
+              ${edge.bettingInsight && edge.bettingInsight.length > 0 ? `
+                <div style="margin-top:8px;padding:6px 10px;background:#1a1a2e;border-radius:6px;font-size:0.85em;color:#f59e0b">
+                  ${edge.bettingInsight.join(' · ')}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }
+      } else {
+        h += `<p style="color:#aaa">${scanRes.note || 'No platoon edges found today (no games or no pitcher data available)'}</p>`;
+      }
+      h += '</div>';
+    }
+    
+    // Team Vulnerability Ranking Table
+    if (profilesRes && profilesRes.profiles) {
+      h += `
+        <div style="background:#1e1e2e;padding:16px;border-radius:10px;margin-bottom:16px;border:1px solid #333">
+          <h3 style="margin:0 0 10px;color:#e0e0e0">🛡️ Team Platoon Vulnerability Rankings (Statcast wOBA)</h3>
+          <p style="color:#aaa;font-size:0.85em;margin:0 0 10px">Gap = how much more a team drops vs LHP compared to RHP. Bigger gap = more exploitable by LHP starters.</p>
+          <table style="width:100%;border-collapse:collapse;font-size:0.9em">
+            <thead>
+              <tr style="border-bottom:1px solid #444">
+                <th style="text-align:left;padding:8px;color:#aaa">#</th>
+                <th style="text-align:left;padding:8px;color:#aaa">Team</th>
+                <th style="text-align:center;padding:8px;color:#aaa">vs LHP mult</th>
+                <th style="text-align:center;padding:8px;color:#aaa">vs RHP mult</th>
+                <th style="text-align:center;padding:8px;color:#aaa">Gap</th>
+                <th style="text-align:center;padding:8px;color:#aaa">LHH %</th>
+                <th style="text-align:center;padding:8px;color:#aaa">Tier</th>
+                <th style="text-align:left;padding:8px;color:#aaa">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+      
+      profilesRes.profiles.forEach((p, i) => {
+        const gapColor = p.gap > 15 ? '#ef4444' : p.gap > 8 ? '#f59e0b' : p.gap > 5 ? '#6b7280' : '#22c55e';
+        const rowBg = i < 5 ? 'background:#2a1a1a' : i >= profilesRes.profiles.length - 5 ? 'background:#1a2a1a' : '';
+        h += `
+          <tr style="border-bottom:1px solid #2a2a3e;${rowBg}">
+            <td style="padding:6px 8px;color:#666">${i + 1}</td>
+            <td style="padding:6px 8px;color:white;font-weight:bold">${p.team}</td>
+            <td style="padding:6px 8px;text-align:center;color:${p.vsLHP < 0.94 ? '#ef4444' : p.vsLHP < 0.97 ? '#f59e0b' : '#22c55e'}">${p.vsLHP.toFixed(3)}</td>
+            <td style="padding:6px 8px;text-align:center;color:${p.vsRHP > 1.03 ? '#22c55e' : '#6b7280'}">${p.vsRHP.toFixed(3)}</td>
+            <td style="padding:6px 8px;text-align:center;font-weight:bold;color:${gapColor}">${p.gap.toFixed(1)}%</td>
+            <td style="padding:6px 8px;text-align:center;color:#3b82f6">${((p.lhbPct || 0) * 100).toFixed(0)}%</td>
+            <td style="padding:6px 8px;text-align:center">${p.tier === 'VERY_VULNERABLE' ? '🔴' : p.tier === 'VULNERABLE' ? '🟡' : p.tier === 'NEUTRAL' ? '🟢' : '⚪'}</td>
+            <td style="padding:6px 8px;color:#888;font-size:0.85em;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.notes || ''}">${p.notes || ''}</td>
+          </tr>
+        `;
+      });
+      
+      h += '</tbody></table></div>';
+    }
+    
+    // Matchup Analyzer Tool
+    h += `
+      <div style="background:#1e1e2e;padding:16px;border-radius:10px;margin-bottom:16px;border:1px solid #333">
+        <h3 style="margin:0 0 10px;color:#e0e0e0">🔍 Platoon Matchup Analyzer</h3>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="platoon-away" placeholder="Away (e.g. NYY)" style="padding:8px;background:#2a2a3e;border:1px solid #444;color:white;border-radius:6px;width:80px">
+          <span style="color:#aaa">@</span>
+          <input id="platoon-home" placeholder="Home (e.g. LAD)" style="padding:8px;background:#2a2a3e;border:1px solid #444;color:white;border-radius:6px;width:80px">
+          <select id="platoon-hph" style="padding:8px;background:#2a2a3e;border:1px solid #444;color:white;border-radius:6px">
+            <option value="">Home pitcher hand</option>
+            <option value="R">RHP</option>
+            <option value="L">LHP</option>
+          </select>
+          <select id="platoon-aph" style="padding:8px;background:#2a2a3e;border:1px solid #444;color:white;border-radius:6px">
+            <option value="">Away pitcher hand</option>
+            <option value="R">RHP</option>
+            <option value="L">LHP</option>
+          </select>
+          <button onclick="analyzePlatoonMatchup()" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold">Analyze</button>
+        </div>
+        <div id="platoon-matchup-result" style="margin-top:12px"></div>
+      </div>
+    `;
+    
+    // Betting insight box
+    h += `
+      <div style="background:linear-gradient(135deg,#1a2e1a,#1e3a1e);padding:16px;border-radius:10px;border:1px solid #2a4a2a">
+        <h3 style="margin:0 0 8px;color:#22c55e">💡 How to Use Platoon Splits for Betting</h3>
+        <ul style="color:#aaa;font-size:0.9em;line-height:1.6;margin:0;padding-left:20px">
+          <li><strong style="color:white">LAD = biggest platoon tell in MLB.</strong> Freeman+Ohtani(L) drop ~10.7% runs vs LHP. When a LHP faces LAD, UNDER is an automatic edge.</li>
+          <li><strong style="color:white">TB, CIN, DET nearly immune.</strong> Switch hitters and balanced lineups (&lt;1.5% gap). Platoon plays don't apply to these teams.</li>
+          <li><strong style="color:white">CHC added Tucker(L)</strong> — now 2nd most vulnerable vs LHP after LAD. Fade CHC offense vs lefties.</li>
+          <li><strong style="color:white">LHP starter vs LHH-heavy lineup = UNDER.</strong> Combined 0.4+ run suppression is common. That's huge on 7.5-8.5 totals.</li>
+          <li><strong style="color:white">Confirmed lineups upgrade confidence.</strong> When real lineups drop (game day), we refine using actual batter handedness counts.</li>
+        </ul>
+      </div>
+    `;
+    
+    h += '</div>';
+    resultDiv.innerHTML = h;
+  } catch (err) {
+    resultDiv.innerHTML = '<p style="color:red">Error loading platoon data: ' + err.message + '</p>';
+  }
+}
+    `;
+    
+    h += '</div>';
+    resultDiv.innerHTML = h;
+  } catch (err) {
+    resultDiv.innerHTML = '<p style="color:red">Error loading platoon data: ' + err.message + '</p>';
+  }
+}
+
+async function analyzePlatoonMatchup() {
+  const away = document.getElementById('platoon-away').value.toUpperCase();
+  const home = document.getElementById('platoon-home').value.toUpperCase();
+  const aph = document.getElementById('platoon-aph').value;
+  const hph = document.getElementById('platoon-hph').value;
+  const resultDiv = document.getElementById('platoon-matchup-result');
+  
+  if (!away || !home) {
+    resultDiv.innerHTML = '<p style="color:#f59e0b">Enter both teams</p>';
+    return;
+  }
+  
+  resultDiv.innerHTML = '<p style="color:#aaa">Analyzing...</p>';
+  
+  try {
+    const params = new URLSearchParams();
+    if (aph) params.set('aph', aph);
+    if (hph) params.set('hph', hph);
+    
+    const res = await fetch(`/api/mlb/platoon/${away}/${home}?${params}`);
+    const data = await res.json();
+    
+    let h = '<div style="background:#2a2a3e;padding:14px;border-radius:8px">';
+    h += `<strong style="color:white;font-size:1.1em">${away} @ ${home}</strong>`;
+    
+    // Away team analysis
+    if (data.away) {
+      const a = data.away;
+      const aColor = a.multiplier < 0.94 ? '#ef4444' : a.multiplier < 0.97 ? '#f59e0b' : a.multiplier > 1.03 ? '#22c55e' : '#6b7280';
+      h += `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+          <div style="background:#1a1a2e;padding:10px;border-radius:6px">
+            <div style="color:#aaa;font-size:0.8em">${a.team} offense vs ${a.vsPitcherHand || '?'}HP</div>
+            <div style="font-size:1.3em;font-weight:bold;color:${aColor}">${a.multiplier}x (${a.impactPct > 0 ? '+' : ''}${a.impactPct}%)</div>
+            <div style="font-size:0.8em;color:#888;margin-top:4px">wOBA: ${a.wOBA} · LHH: ${a.lhh_pct ? (a.lhh_pct * 100).toFixed(0) + '%' : 'N/A'}</div>
+            <div style="font-size:0.8em;color:#aaa;margin-top:4px">${a.notes || ''}</div>
+          </div>
+      `;
+    }
+    
+    // Home team analysis
+    if (data.home) {
+      const hm = data.home;
+      const hColor = hm.multiplier < 0.94 ? '#ef4444' : hm.multiplier < 0.97 ? '#f59e0b' : hm.multiplier > 1.03 ? '#22c55e' : '#6b7280';
+      h += `
+          <div style="background:#1a1a2e;padding:10px;border-radius:6px">
+            <div style="color:#aaa;font-size:0.8em">${hm.team} offense vs ${hm.vsPitcherHand || '?'}HP</div>
+            <div style="font-size:1.3em;font-weight:bold;color:${hColor}">${hm.multiplier}x (${hm.impactPct > 0 ? '+' : ''}${hm.impactPct}%)</div>
+            <div style="font-size:0.8em;color:#888;margin-top:4px">wOBA: ${hm.wOBA} · LHH: ${hm.lhh_pct ? (hm.lhh_pct * 100).toFixed(0) + '%' : 'N/A'}</div>
+            <div style="font-size:0.8em;color:#aaa;margin-top:4px">${hm.notes || ''}</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Total runs impact
+    if (data.totalRunsImpact !== undefined) {
+      const impColor = data.totalRunsImpact < -0.3 ? '#3b82f6' : data.totalRunsImpact > 0.3 ? '#ef4444' : '#6b7280';
+      h += `
+        <div style="margin-top:10px;text-align:center;padding:8px;background:#1a1a2e;border-radius:6px">
+          <span style="color:#aaa">Total Runs Impact: </span>
+          <span style="font-size:1.2em;font-weight:bold;color:${impColor}">${data.totalRunsImpact > 0 ? '+' : ''}${data.totalRunsImpact} runs</span>
+        </div>
+      `;
+    }
+    
+    // Betting insights
+    if (data.bettingInsight && data.bettingInsight.length > 0) {
+      h += `<div style="margin-top:10px;padding:8px;background:#1a2e1a;border-radius:6px;border:1px solid #2a4a2a">`;
+      for (const insight of data.bettingInsight) {
+        h += `<p style="margin:4px 0;color:#22c55e;font-size:0.9em">${insight}</p>`;
+      }
+      h += '</div>';
     }
     
     h += '</div>';

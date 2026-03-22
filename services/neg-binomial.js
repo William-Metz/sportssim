@@ -1067,6 +1067,20 @@ function convictionScore(prediction, market = {}, opts = {}) {
     }
   }
   
+  // Platoon split edge — strong signals when LHP faces LHH-heavy lineup
+  if (prediction.factors?.awayPlatoon || prediction.factors?.homePlatoon) {
+    const awayAdj = Math.abs(prediction.factors?.awayPlatoon?.adjustment || 0);
+    const homeAdj = Math.abs(prediction.factors?.homePlatoon?.adjustment || 0);
+    const maxAdj = Math.max(awayAdj, homeAdj);
+    if (maxAdj >= 8) {
+      situationalPoints += 4;
+      breakdown.push({ signal: 'platoon', points: 4, detail: `Strong platoon signal: ${maxAdj.toFixed(1)}% run impact` });
+    } else if (maxAdj >= 5) {
+      situationalPoints += 2;
+      breakdown.push({ signal: 'platoon', points: 2, detail: `Moderate platoon signal: ${maxAdj.toFixed(1)}% run impact` });
+    }
+  }
+  
   situationalPoints = Math.min(15, situationalPoints);
   score += situationalPoints;
   

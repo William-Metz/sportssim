@@ -203,7 +203,7 @@ function buildPick(opts) {
  */
 async function generateDailyPicks(opts = {}) {
   const {
-    nbaModel, mlbModel, nhlModel,
+    nbaModel, mlbModel, nhlModel, ncaaModel,
     oddsData = [], // Array of games with odds from getAllOdds()
     lineMovementSvc,
     injurySvc,

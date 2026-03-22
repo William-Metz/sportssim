@@ -265,6 +265,29 @@ function predict(away, home, opts = {}) {
     blendedHomeWin = 1 - blendedAwayWin;
   }
   
+  // === TOURNAMENT MOMENTUM ADJUSTMENT ===
+  // Teams blowing out opponents are "hot" — adjust predictions by up to 3%
+  // Teams that barely survived get a slight penalty
+  let momentumAdj = null;
+  const awayMomentum = calculateTourneyMomentum(away);
+  const homeMomentum = calculateTourneyMomentum(home);
+  if (awayMomentum || homeMomentum) {
+    const awayBoost = (awayMomentum?.momentumScore || 0) * 0.03; // max ±3%
+    const homeBoost = (homeMomentum?.momentumScore || 0) * 0.03;
+    const netBoost = awayBoost - homeBoost;
+    
+    blendedAwayWin = Math.max(0.02, Math.min(0.98, blendedAwayWin + netBoost));
+    blendedHomeWin = 1 - blendedAwayWin;
+    
+    momentumAdj = {
+      awayMomentum: awayMomentum?.label || 'NEUTRAL',
+      homeMomentum: homeMomentum?.label || 'NEUTRAL',
+      awayAvgMOV: awayMomentum?.avgMOV || 0,
+      homeAvgMOV: homeMomentum?.avgMOV || 0,
+      netProbShift: +(netBoost * 100).toFixed(1)
+    };
+  }
+  
   // === MATCHUP ANALYSIS ===
   const matchup = analyzeMatchup(awayTeam, homeTeam);
   
@@ -307,6 +330,7 @@ function predict(away, home, opts = {}) {
     // Analysis
     matchup,
     historicalAdj,
+    momentumAdj,
     awayTourneyPerf,
     homeTourneyPerf,
     // Efficiency data
@@ -373,6 +397,58 @@ function analyzeMatchup(away, home) {
     tempoEdge: tempoGap > 0 ? 'away' : 'home',
     kenpomGap,
     insights
+  };
+}
+
+/**
+ * Calculate tournament momentum score for a team
+ * Based on margin of victory in tournament games so far
+ */
+function calculateTourneyMomentum(abbr) {
+  const allResults = [
+    ...(TOURNAMENT_RESULTS.round1 || []),
+    ...(TOURNAMENT_RESULTS.round2 || []),
+    ...(TOURNAMENT_RESULTS.round3 || []),
+    ...(TOURNAMENT_RESULTS.round4 || []),
+    ...(TOURNAMENT_RESULTS.round5 || []),
+  ];
+  
+  const wins = allResults.filter(r => r.winner === abbr);
+  const losses = allResults.filter(r => r.loser === abbr);
+  
+  if (wins.length === 0 && losses.length === 0) return null;
+  
+  let totalMOV = 0;
+  let gamesWithScores = 0;
+  
+  for (const w of wins) {
+    if (w.score) {
+      const [high, low] = w.score.split('-').map(Number);
+      if (!isNaN(high) && !isNaN(low)) {
+        totalMOV += (high - low);
+        gamesWithScores++;
+      }
+    }
+  }
+  
+  const avgMOV = gamesWithScores > 0 ? totalMOV / gamesWithScores : 0;
+  
+  // Momentum score: -1 to +1 scale  
+  // +25 MOV = max momentum (dominant performance)
+  const momentumRaw = Math.max(-1, Math.min(1, avgMOV / 25));
+  
+  let label = 'NEUTRAL';
+  if (momentumRaw > 0.6) label = 'DOMINANT';
+  else if (momentumRaw > 0.3) label = 'HOT';
+  else if (momentumRaw > 0.1) label = 'WARM';
+  else if (momentumRaw < 0) label = 'COOL';
+  
+  return {
+    wins: wins.length,
+    losses: losses.length,
+    avgMOV: gamesWithScores > 0 ? +(totalMOV / gamesWithScores).toFixed(1) : 0,
+    momentumScore: +momentumRaw.toFixed(3),
+    label
   };
 }
 
@@ -891,6 +967,7 @@ module.exports = {
   generateReport,
   findTeamAbbr,
   getTourneyPerformance,
+  calculateTourneyMomentum,
   identifyTopValuePlays,
   addResult,
   getBracketState

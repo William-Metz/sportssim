@@ -28,6 +28,8 @@ try { statcastService = require('../services/statcast'); } catch (e) { /* no sta
 try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) { /* no preseason tuning */ }
 let lineupFetcher = null;
 try { lineupFetcher = require('../services/lineup-fetcher'); } catch (e) { /* no lineup data */ }
+let platoonSplitsService = null;
+try { platoonSplitsService = require('../services/platoon-splits'); } catch (e) { /* no platoon splits */ }
 
 // Negative Binomial model — upgrades Poisson for overdispersion in MLB scoring
 let negBinomial = null;
@@ -198,44 +200,30 @@ function getPreseasonConfidence(awayTeam, homeTeam) {
 }
 
 // ==================== PLATOON SPLITS ====================
-// How much each team's offense drops when facing a same-side pitcher
-// LHP penalty: multiplier applied to team offense when facing LHP (< 1.0 = worse)
-// RHP penalty: multiplier applied when facing RHP (usually ~1.0)
-// Teams with more LHH hitters struggle more vs LHP
-// Based on 2024 splits data: avg MLB team OPS drops ~30 points vs same-side
-const PLATOON_SPLITS = {
-  // LHH-heavy lineups (bigger penalty vs LHP)
-  'NYY': { vsLHP: 0.92, vsRHP: 1.02 }, // Judge, Soto, Volpe are RHH, but depth is LHH
-  'BAL': { vsLHP: 0.95, vsRHP: 1.01 },
-  'BOS': { vsLHP: 0.94, vsRHP: 1.01 },
-  'TOR': { vsLHP: 0.93, vsRHP: 1.02 },
-  'TB':  { vsLHP: 0.96, vsRHP: 1.00 },
-  'CLE': { vsLHP: 0.95, vsRHP: 1.01 },
-  'KC':  { vsLHP: 0.94, vsRHP: 1.01 },
-  'DET': { vsLHP: 0.95, vsRHP: 1.01 },
-  'MIN': { vsLHP: 0.93, vsRHP: 1.02 },
-  'CWS': { vsLHP: 0.94, vsRHP: 1.01 },
-  'HOU': { vsLHP: 0.95, vsRHP: 1.01 }, // Alvarez is LHH
-  'SEA': { vsLHP: 0.93, vsRHP: 1.02 }, // Julio is switch but lefty-dominant lineup
-  'TEX': { vsLHP: 0.94, vsRHP: 1.01 },
-  'LAA': { vsLHP: 0.96, vsRHP: 1.00 },
-  'OAK': { vsLHP: 0.95, vsRHP: 1.01 },
-  'ATL': { vsLHP: 0.94, vsRHP: 1.02 }, // Olson, Freeman-era but still LHH-heavy
-  'PHI': { vsLHP: 0.93, vsRHP: 1.02 }, // Harper, Turner, Bohm mix
-  'NYM': { vsLHP: 0.94, vsRHP: 1.01 }, // Soto/Alonso are RHH
-  'MIA': { vsLHP: 0.95, vsRHP: 1.01 },
-  'WSH': { vsLHP: 0.95, vsRHP: 1.01 },
-  'MIL': { vsLHP: 0.94, vsRHP: 1.01 },
-  'CHC': { vsLHP: 0.93, vsRHP: 1.02 }, // Bellinger, Happ, Suzuki switch
-  'STL': { vsLHP: 0.94, vsRHP: 1.01 },
-  'PIT': { vsLHP: 0.95, vsRHP: 1.01 },
-  'CIN': { vsLHP: 0.94, vsRHP: 1.01 },
-  'LAD': { vsLHP: 0.91, vsRHP: 1.03 }, // Freeman, Ohtani, Betts — VERY lefty-heavy
-  'SD':  { vsLHP: 0.94, vsRHP: 1.01 },
-  'ARI': { vsLHP: 0.95, vsRHP: 1.01 },
-  'SF':  { vsLHP: 0.94, vsRHP: 1.01 },
-  'COL': { vsLHP: 0.95, vsRHP: 1.01 },
-};
+// Dynamic platoon splits from Statcast wOBA team batting data (services/platoon-splits.js)
+// Falls back to basic estimates if service unavailable
+// Key insight: LAD has 17.6% gap (0.874 vs LHP → 1.050 vs RHP) — biggest in MLB
+// TB and CIN nearly immune (<1.5% gap) due to switch hitters
+const PLATOON_SPLITS = platoonSplitsService 
+  ? platoonSplitsService.getModelPlatoonSplits()
+  : {
+    // Fallback static splits (conservative estimates)
+    'NYY': { vsLHP: 0.945, vsRHP: 1.022 }, 'BAL': { vsLHP: 0.982, vsRHP: 1.007 },
+    'BOS': { vsLHP: 0.921, vsRHP: 1.031 }, 'TOR': { vsLHP: 0.937, vsRHP: 1.025 },
+    'TB':  { vsLHP: 0.992, vsRHP: 1.003 }, 'CLE': { vsLHP: 0.964, vsRHP: 1.014 },
+    'KC':  { vsLHP: 0.952, vsRHP: 1.019 }, 'DET': { vsLHP: 0.992, vsRHP: 1.003 },
+    'MIN': { vsLHP: 0.912, vsRHP: 1.034 }, 'CWS': { vsLHP: 0.943, vsRHP: 1.022 },
+    'HOU': { vsLHP: 0.955, vsRHP: 1.018 }, 'SEA': { vsLHP: 0.932, vsRHP: 1.026 },
+    'TEX': { vsLHP: 0.945, vsRHP: 1.021 }, 'LAA': { vsLHP: 0.980, vsRHP: 1.008 },
+    'OAK': { vsLHP: 0.962, vsRHP: 1.015 }, 'ATL': { vsLHP: 0.921, vsRHP: 1.031 },
+    'PHI': { vsLHP: 0.923, vsRHP: 1.030 }, 'NYM': { vsLHP: 0.957, vsRHP: 1.017 },
+    'MIA': { vsLHP: 0.947, vsRHP: 1.021 }, 'WSH': { vsLHP: 0.955, vsRHP: 1.018 },
+    'MIL': { vsLHP: 0.967, vsRHP: 1.013 }, 'CHC': { vsLHP: 0.905, vsRHP: 1.037 },
+    'STL': { vsLHP: 0.953, vsRHP: 1.018 }, 'PIT': { vsLHP: 0.963, vsRHP: 1.014 },
+    'CIN': { vsLHP: 0.989, vsRHP: 1.004 }, 'LAD': { vsLHP: 0.874, vsRHP: 1.050 },
+    'SD':  { vsLHP: 0.967, vsRHP: 1.013 }, 'ARI': { vsLHP: 0.965, vsRHP: 1.014 },
+    'SF':  { vsLHP: 0.959, vsRHP: 1.016 }, 'COL': { vsLHP: 0.949, vsRHP: 1.020 },
+  };
 
 // ==================== CORE MODEL ====================
 
@@ -445,36 +433,69 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   }
 
   // ==================== PLATOON SPLIT ADJUSTMENT ====================
-  // Pitcher handedness significantly affects opposing team offense
-  // LHP face teams that may be LHH-heavy (same-side = harder to hit)
+  // Uses Savant-calibrated platoon split service for more accurate adjustments
+  // When real lineup data is available (via asyncPredict), uses actual batter handedness
+  // Otherwise falls back to team-level handedness profiles
   let awayPlatoonAdj = 1.0, homePlatoonAdj = 1.0;
   let awayPlatoonInfo = null, homePlatoonInfo = null;
   
-  if (homePitcher && homePitcher.hand) {
-    const awaySplits = PLATOON_SPLITS[awayAbbr];
-    if (awaySplits) {
-      awayPlatoonAdj = homePitcher.hand === 'L' ? awaySplits.vsLHP : awaySplits.vsRHP;
+  if (platoonSplitsService) {
+    // Away team faces home pitcher
+    if (homePitcher && homePitcher.hand) {
+      const awayLineupData = opts.lineup?.awayLineup || null;
+      const result = platoonSplitsService.calculatePlatoonMultiplier(awayAbbr, homePitcher.hand, awayLineupData);
+      awayPlatoonAdj = result.multiplier;
       awayPlatoonInfo = {
         pitcherHand: homePitcher.hand,
-        adjustment: +((awayPlatoonAdj - 1) * 100).toFixed(1),
-        note: homePitcher.hand === 'L' 
-          ? `${awayAbbr} offense ${awaySplits.vsLHP < 0.95 ? 'struggles' : 'slightly weaker'} vs LHP`
-          : `${awayAbbr} offense vs RHP (normal)`
+        adjustment: result.adjustment,
+        source: result.source,
+        confidence: result.confidence,
+        note: result.note,
+        breakdown: result.breakdown,
       };
     }
-  }
-  
-  if (awayPitcher && awayPitcher.hand) {
-    const homeSplits = PLATOON_SPLITS[homeAbbr];
-    if (homeSplits) {
-      homePlatoonAdj = awayPitcher.hand === 'L' ? homeSplits.vsLHP : homeSplits.vsRHP;
+    
+    // Home team faces away pitcher
+    if (awayPitcher && awayPitcher.hand) {
+      const homeLineupData = opts.lineup?.homeLineup || null;
+      const result = platoonSplitsService.calculatePlatoonMultiplier(homeAbbr, awayPitcher.hand, homeLineupData);
+      homePlatoonAdj = result.multiplier;
       homePlatoonInfo = {
         pitcherHand: awayPitcher.hand,
-        adjustment: +((homePlatoonAdj - 1) * 100).toFixed(1),
-        note: awayPitcher.hand === 'L'
-          ? `${homeAbbr} offense ${homeSplits.vsLHP < 0.95 ? 'struggles' : 'slightly weaker'} vs LHP`
-          : `${homeAbbr} offense vs RHP (normal)`
+        adjustment: result.adjustment,
+        source: result.source,
+        confidence: result.confidence,
+        note: result.note,
+        breakdown: result.breakdown,
       };
+    }
+  } else {
+    // Fallback to static PLATOON_SPLITS if service unavailable
+    if (homePitcher && homePitcher.hand) {
+      const awaySplits = PLATOON_SPLITS[awayAbbr];
+      if (awaySplits) {
+        awayPlatoonAdj = homePitcher.hand === 'L' ? awaySplits.vsLHP : awaySplits.vsRHP;
+        awayPlatoonInfo = {
+          pitcherHand: homePitcher.hand,
+          adjustment: +((awayPlatoonAdj - 1) * 100).toFixed(1),
+          note: homePitcher.hand === 'L' 
+            ? `${awayAbbr} offense ${awaySplits.vsLHP < 0.95 ? 'struggles' : 'slightly weaker'} vs LHP`
+            : `${awayAbbr} offense vs RHP (normal)`
+        };
+      }
+    }
+    if (awayPitcher && awayPitcher.hand) {
+      const homeSplits = PLATOON_SPLITS[homeAbbr];
+      if (homeSplits) {
+        homePlatoonAdj = awayPitcher.hand === 'L' ? homeSplits.vsLHP : homeSplits.vsRHP;
+        homePlatoonInfo = {
+          pitcherHand: awayPitcher.hand,
+          adjustment: +((homePlatoonAdj - 1) * 100).toFixed(1),
+          note: awayPitcher.hand === 'L'
+            ? `${homeAbbr} offense ${homeSplits.vsLHP < 0.95 ? 'struggles' : 'slightly weaker'} vs LHP`
+            : `${homeAbbr} offense vs RHP (normal)`
+        };
+      }
     }
   }
   
@@ -731,7 +752,9 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   }
 
   // ==================== LINEUP ADJUSTMENT ====================
-  // Confirmed lineups tell us: star hitters in/out, platoon matchups, catcher framing
+  // Confirmed lineups tell us: star hitters in/out, catcher framing
+  // NOTE: Platoon adjustments are now handled by the platoon-splits service above,
+  // so the lineup's platoon component is excluded to avoid double-counting.
   // This runs SYNCHRONOUSLY from pre-fetched opts.lineup data (fetched in asyncPredict)
   let awayLineupAdj = 0, homeLineupAdj = 0;
   let lineupInfo = null;
@@ -739,6 +762,16 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     // Direct run adjustments from lineup analysis
     awayLineupAdj = opts.lineup.awayRunAdj || 0;
     homeLineupAdj = opts.lineup.homeRunAdj || 0;
+    
+    // When platoon-splits service is active, it already handles platoon multiplicatively
+    // The lineup-fetcher's platoon portion (typically ±0.05-0.10 runs) would double-count
+    // Strip it by reducing the lineup adj by the estimated platoon component
+    if (platoonSplitsService && (awayPlatoonAdj !== 1.0 || homePlatoonAdj !== 1.0)) {
+      // The lineup adjustment includes ~30% platoon signal — reduce to avoid double-count
+      // Conservative: just scale down the lineup adj by 30% when platoon service is active
+      awayLineupAdj *= 0.7;
+      homeLineupAdj *= 0.7;
+    }
     
     // Cap at ±0.5 runs (lineup is one signal among many)
     awayLineupAdj = Math.max(-0.5, Math.min(0.5, awayLineupAdj));
