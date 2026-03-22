@@ -105,6 +105,7 @@ tr:hover td{background:var(--bg3)}
     <button class="sport-btn" data-sport="mlb" onclick="switchSport('mlb')">⚾ MLB</button>
     <button class="sport-btn" data-sport="nhl" onclick="switchSport('nhl')">🏒 NHL</button>
     <button class="sport-btn" data-sport="opening-day" onclick="switchSport('opening-day')" style="background:linear-gradient(135deg,#22c55e20,#eab30820);border:2px solid #22c55e">🔥 Opening Day</button>
+    <button class="sport-btn" data-sport="playbook" onclick="switchSport('playbook')" style="background:linear-gradient(135deg,#6366f120,#a855f720);border:2px solid #a855f7">📋 Playbook</button>
   </div>
 
   <div class="tabs" id="main-tabs"></div>
@@ -128,6 +129,12 @@ function switchSport(sport) {
     currentTab = 'opening-day';
     document.getElementById('main-tabs').innerHTML = '';
     showTab('opening-day');
+    return;
+  }
+  if (sport === 'playbook') {
+    currentTab = 'playbook';
+    document.getElementById('main-tabs').innerHTML = '';
+    showTab('playbook');
     return;
   }
   buildTabs();
@@ -160,6 +167,7 @@ function buildTabs() {
   tabs.push({ id: 'ml', label: '🧠 ML Engine' });
   tabs.push({ id: 'edge-scanner', label: '🎯 Edge Scanner' });
   tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
+  tabs.push({ id: 'auto-scanner', label: '🔄 Auto Scanner' });
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
   }
@@ -194,6 +202,8 @@ function showTab(id) {
   else if (id === 'ml') loadMLTab();
   else if (id === 'edge-scanner') loadEdgeScanner();
   else if (id === 'tracker') loadTracker();
+  else if (id === 'auto-scanner') loadAutoScannerTab();
+  else if (id === 'playbook') loadPlaybook();
   else if (id === 'playoffs') loadPlayoffsTab();
 }
 
@@ -4617,6 +4627,335 @@ async function compareModels() {
   } catch (e) {
     el.innerHTML = `<p style="color:#ff4444">Error: ${e.message}</p>`;
   }
+}
+
+// ==================== AUTO SCANNER TAB ====================
+
+async function loadAutoScannerTab() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const [health, status] = await Promise.all([
+      api('/api/scanner/health'),
+      api('/api/scanner/status'),
+    ]);
+
+    let html = '<div style="padding:20px">';
+    html += '<h2 style="margin-bottom:8px">🔄 Auto Scanner</h2>';
+    html += '<p style="color:#94a3b8;margin-bottom:20px">Automated value scanning engine — runs on configurable intervals</p>';
+    
+    // Health overview
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">';
+    html += `<div style="background:#1e293b;padding:16px;border-radius:12px;text-align:center"><div style="font-size:28px;font-weight:bold;color:${health.running?'#22c55e':'#ef4444'}">${health.running?'🟢':'🔴'}</div><div style="color:#94a3b8;font-size:12px">${health.running?'Running':'Stopped'}</div></div>`;
+    html += `<div style="background:#1e293b;padding:16px;border-radius:12px;text-align:center"><div style="font-size:28px;font-weight:bold">${health.scansCompleted||0}</div><div style="color:#94a3b8;font-size:12px">Scans Done</div></div>`;
+    html += `<div style="background:#1e293b;padding:16px;border-radius:12px;text-align:center"><div style="font-size:28px;font-weight:bold;color:#22c55e">${health.activeTimers||0}</div><div style="color:#94a3b8;font-size:12px">Active Timers</div></div>`;
+    html += '</div>';
+    
+    // Cached scans
+    if (status.cachedScans) {
+      html += '<h3 style="margin-bottom:12px;font-size:16px">📦 Cached Scan Results</h3>';
+      html += '<div style="display:grid;gap:8px;margin-bottom:20px">';
+      for (const [key, scan] of Object.entries(status.cachedScans)) {
+        const age = scan.timestamp ? Math.round((Date.now() - new Date(scan.timestamp).getTime()) / 60000) : '?';
+        html += `<div style="background:#1e293b;padding:12px 16px;border-radius:8px;display:flex;justify-content:space-between;align-items:center">`;
+        html += `<div><span style="font-weight:bold">${key}</span><span style="color:#94a3b8;margin-left:8px;font-size:12px">${age}m ago</span></div>`;
+        html += `<button onclick="forceScan('${key}')" style="padding:6px 14px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px">Force Run</button>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Controls
+    html += '<div style="display:flex;gap:8px">';
+    html += `<button onclick="fetch('/api/scanner/start',{method:'POST'}).then(()=>loadAutoScannerTab())" style="padding:10px 24px;background:#22c55e;color:#000;font-weight:bold;border:none;border-radius:8px;cursor:pointer">▶ Start</button>`;
+    html += `<button onclick="fetch('/api/scanner/stop',{method:'POST'}).then(()=>loadAutoScannerTab())" style="padding:10px 24px;background:#ef4444;color:white;font-weight:bold;border:none;border-radius:8px;cursor:pointer">⏹ Stop</button>`;
+    html += `<button onclick="loadAutoScannerTab()" style="padding:10px 24px;background:#334155;color:white;border:none;border-radius:8px;cursor:pointer">🔄 Refresh</button>`;
+    html += '</div>';
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}<br><button onclick="loadAutoScannerTab()" style="margin-top:12px;padding:8px 24px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer">Retry</button></div>`;
+  }
+}
+
+async function forceScan(key) {
+  try {
+    await fetch(`/api/scanner/run/${key}`);
+    loadAutoScannerTab();
+  } catch (e) { alert('Scan failed: ' + e.message); }
+}
+
+// ==================== OPENING DAY PLAYBOOK — THE WAR ROOM ====================
+
+let playbookBankroll = 1000;
+
+async function loadPlaybook() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div style="text-align:center;padding:60px"><div class="spinner"></div><p style="margin-top:12px;color:#94a3b8">🎯 Building Opening Day Playbook...</p><p style="color:#666;font-size:12px">Aggregating analytical + ML + Statcast + weather + umpire + preseason signals...</p></div>';
+  
+  try {
+    const data = await api(`/api/opening-day-playbook?bankroll=${playbookBankroll}`);
+    if (data.error) throw new Error(data.error);
+    renderPlaybook(data);
+  } catch (e) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}<br><button onclick="loadPlaybook()" style="margin-top:12px;padding:8px 24px;background:#a855f7;color:white;border:none;border-radius:6px;cursor:pointer">Retry</button></div>`;
+  }
+}
+
+function renderPlaybook(data) {
+  const wrap = document.getElementById('tab-content');
+  let html = '';
+  
+  // ===== HERO BANNER =====
+  html += `<div style="background:linear-gradient(135deg,#0f0a2a,#1a0a3e,#0a1a2e);border:2px solid #a855f7;border-radius:16px;padding:32px;text-align:center;margin-bottom:24px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:-20px;right:-20px;font-size:120px;opacity:0.05">📋</div>
+    <div style="font-size:14px;color:#a855f7;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">OPENING DAY 2026</div>
+    <div style="font-size:36px;font-weight:900;background:linear-gradient(90deg,#a855f7,#22c55e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px">BETTING PLAYBOOK</div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:20px">All signals combined • ${data.totalGames} games • ${data.daysUntil} days away</div>
+    <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap">
+      <div style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:12px;padding:16px 24px">
+        <div style="font-size:32px;font-weight:900;color:#a855f7">${data.portfolio.totalBets}</div>
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Value Bets</div>
+      </div>
+      <div style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:16px 24px">
+        <div style="font-size:32px;font-weight:900;color:#22c55e">$${data.portfolio.totalWager}</div>
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Total Wager</div>
+      </div>
+      <div style="background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:12px;padding:16px 24px">
+        <div style="font-size:32px;font-weight:900;color:#eab308">+$${data.portfolio.totalEV}</div>
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Expected Value</div>
+      </div>
+      <div style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:12px;padding:16px 24px">
+        <div style="font-size:32px;font-weight:900;color:#3b82f6">${data.portfolio.avgEdge}%</div>
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Avg Edge</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;justify-content:center;align-items:center;gap:8px">
+      <label style="color:#94a3b8;font-size:12px">Bankroll: $</label>
+      <input type="number" value="${playbookBankroll}" onchange="playbookBankroll=this.value;loadPlaybook()" style="width:100px;padding:6px 10px;background:#1e293b;border:1px solid #334155;border-radius:6px;color:white;font-size:14px;text-align:center">
+    </div>
+  </div>`;
+  
+  // ===== BET CARD BOARD — ALL ACTIONABLE BETS SORTED BY EDGE =====
+  const allBets = data.playbook.flatMap(g => g.bets.map(b => ({ ...b, game: `${g.away} @ ${g.home}`, away: g.away, home: g.home, time: g.time, day: g.day })));
+  allBets.sort((a, b) => (b.edge || 0) - (a.edge || 0));
+  
+  if (allBets.length > 0) {
+    html += `<div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(34,197,94,0.02));border:2px solid rgba(34,197,94,0.4);border-radius:16px;padding:24px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span style="font-size:24px">💰</span>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#22c55e">ACTION BOARD — ${allBets.length} BETS</div>
+          <div style="font-size:12px;color:var(--text2)">Sorted by edge • Kelly-sized • All signals considered</div>
+        </div>
+      </div>`;
+    
+    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="border-bottom:2px solid #334155;text-align:left">';
+    html += '<th style="padding:10px 8px">#</th>';
+    html += '<th style="padding:10px 8px">Game</th>';
+    html += '<th style="padding:10px 8px">Pick</th>';
+    html += '<th style="padding:10px 8px">Type</th>';
+    html += '<th style="padding:10px 8px">Edge</th>';
+    html += '<th style="padding:10px 8px">Model</th>';
+    html += '<th style="padding:10px 8px">Book</th>';
+    html += '<th style="padding:10px 8px">ML</th>';
+    html += '<th style="padding:10px 8px">Wager</th>';
+    html += '<th style="padding:10px 8px">EV</th>';
+    html += '<th style="padding:10px 8px">Conf</th>';
+    html += '<th style="padding:10px 8px">Sources</th>';
+    html += '</tr></thead><tbody>';
+    
+    allBets.forEach((bet, i) => {
+      const edgeColor = bet.edge >= 8 ? '#22c55e' : bet.edge >= 5 ? '#eab308' : bet.edge >= 2 ? '#94a3b8' : '#ef4444';
+      const confColor = bet.confidence === 'HIGH' ? '#22c55e' : bet.confidence === 'MEDIUM' ? '#eab308' : '#94a3b8';
+      const rowBg = bet.confidence === 'HIGH' ? 'background:#0f2a1c' : '';
+      
+      html += `<tr style="border-bottom:1px solid #1e293b;${rowBg}">`;
+      html += `<td style="padding:10px 8px;font-weight:900;color:${edgeColor}">${i+1}</td>`;
+      html += `<td style="padding:10px 8px;font-weight:bold">${bet.game}<div style="font-size:10px;color:#666">Day ${bet.day} • ${bet.time}</div></td>`;
+      html += `<td style="padding:10px 8px;font-weight:bold;color:${edgeColor}">${bet.pick}</td>`;
+      html += `<td style="padding:10px 8px"><span style="background:${bet.type==='ML'?'#6366f130':'#eab30830'};color:${bet.type==='ML'?'#818cf8':'#eab308'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${bet.type}</span></td>`;
+      html += `<td style="padding:10px 8px;color:${edgeColor};font-weight:900;font-size:16px">${bet.edge}%</td>`;
+      html += `<td style="padding:10px 8px">${bet.modelProb || bet.modelTotal || '-'}${bet.modelProb ? '%' : ''}</td>`;
+      html += `<td style="padding:10px 8px;color:#94a3b8">${bet.bookProb || bet.bookTotal || '-'}${bet.bookProb ? '%' : ''}</td>`;
+      html += `<td style="padding:10px 8px">${bet.ml || '-'}</td>`;
+      html += `<td style="padding:10px 8px;font-weight:bold;color:#22c55e">$${bet.wager || '-'}</td>`;
+      html += `<td style="padding:10px 8px;color:#eab308;font-weight:bold">+$${bet.ev || '-'}</td>`;
+      html += `<td style="padding:10px 8px"><span style="background:${confColor}20;color:${confColor};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${bet.confidence}</span></td>`;
+      html += `<td style="padding:10px 8px;font-size:11px;color:#94a3b8">${(bet.agreementSources||[]).join(', ') || bet.weatherSupport || '-'}</td>`;
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table></div></div>';
+  } else {
+    html += '<div style="background:#1e293b;border-radius:12px;padding:32px;text-align:center;margin-bottom:24px;color:#94a3b8">No live odds available yet — bets will populate when books open MLB Opening Day lines. Check back closer to March 26!</div>';
+  }
+  
+  // ===== GAME-BY-GAME BREAKDOWN =====
+  html += '<div style="margin-bottom:8px;margin-top:24px;display:flex;align-items:center;gap:8px">';
+  html += '<div style="font-size:20px;font-weight:800">📊 Game-by-Game Signal Report</div>';
+  html += '</div>';
+  
+  for (const game of data.playbook) {
+    const gr = game.gameRating;
+    const gradeColor = gr.grade.startsWith('A') ? '#22c55e' : gr.grade === 'B' ? '#eab308' : gr.grade === 'C' ? '#f97316' : '#94a3b8';
+    const borderColor = gr.grade.startsWith('A') ? '#22c55e' : gr.grade === 'B' ? '#eab308' : '#334155';
+    
+    html += `<div class="game-card" style="border-left:4px solid ${borderColor}">`;
+    
+    // Header
+    html += `<div class="game-header">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="badge badge-mlb">⚾ Day ${game.day}</span>
+        <span class="game-teams">${game.away} <span class="at">@</span> ${game.home}</span>
+        <span style="background:${gradeColor}20;color:${gradeColor};padding:4px 12px;border-radius:6px;font-weight:900;font-size:16px">${gr.grade}</span>
+        ${gr.betCount > 0 ? `<span style="background:#22c55e20;color:#22c55e;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${gr.betCount} BETS</span>` : ''}
+      </div>
+      <div>
+        <span class="game-time">${game.time} • ${game.park}</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:6px">(${game.parkFactor}x PF)</span>
+      </div>
+    </div>`;
+    
+    // Model prediction bar
+    const aProb = (game.signals.analytical.awayWinProb * 100).toFixed(1);
+    const hProb = (game.signals.analytical.homeWinProb * 100).toFixed(1);
+    const favColor = game.signals.analytical.homeWinProb > game.signals.analytical.awayWinProb ? '#22c55e' : '#3b82f6';
+    
+    html += `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:16px;padding:12px;background:var(--bg3);border-radius:8px">
+      <div style="text-align:center">
+        <div style="font-weight:700">${game.away}</div>
+        <div style="font-size:24px;font-weight:900;color:${game.signals.analytical.awayWinProb > game.signals.analytical.homeWinProb ? '#22c55e' : 'var(--text2)'}">${aProb}%</div>
+        <div style="font-size:12px;color:var(--text2)">${game.signals.analytical.awayExpRuns} runs</div>
+      </div>
+      <div style="color:var(--text3);font-size:12px;font-weight:600">VS</div>
+      <div style="text-align:center">
+        <div style="font-weight:700">${game.home}</div>
+        <div style="font-size:24px;font-weight:900;color:${game.signals.analytical.homeWinProb > game.signals.analytical.awayWinProb ? '#22c55e' : 'var(--text2)'}">${hProb}%</div>
+        <div style="font-size:12px;color:var(--text2)">${game.signals.analytical.homeExpRuns} runs</div>
+      </div>
+    </div>`;
+    
+    // Pitcher matchup
+    if (game.awayStarter || game.homeStarter) {
+      const ap = game.awayStarter || {};
+      const hp = game.homeStarter || {};
+      const apColor = (ap.rating||0) >= 75 ? '#22c55e' : (ap.rating||0) >= 65 ? '#60a5fa' : (ap.rating||0) >= 55 ? '#eab308' : 'var(--text2)';
+      const hpColor = (hp.rating||0) >= 75 ? '#22c55e' : (hp.rating||0) >= 65 ? '#60a5fa' : (hp.rating||0) >= 55 ? '#eab308' : 'var(--text2)';
+      
+      html += `<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;padding:12px;background:var(--bg3);border-radius:8px;margin-bottom:12px">
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--text3)">AWAY STARTER</div>
+          <div style="font-weight:700">${ap.name || 'TBD'}</div>
+          <div style="font-size:20px;font-weight:900;color:${apColor}">${ap.rating || '?'}</div>
+          <div style="font-size:11px;color:var(--text3)">${ap.era ? `${ap.era} ERA` : ''} ${ap.hand ? `• ${ap.hand}HP` : ''}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3)">⚾</div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--text3)">HOME STARTER</div>
+          <div style="font-weight:700">${hp.name || 'TBD'}</div>
+          <div style="font-size:20px;font-weight:900;color:${hpColor}">${hp.rating || '?'}</div>
+          <div style="font-size:11px;color:var(--text3)">${hp.era ? `${hp.era} ERA` : ''} ${hp.hand ? `• ${hp.hand}HP` : ''}</div>
+        </div>
+      </div>`;
+    }
+    
+    // Signal badges row
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+    
+    // ML signal
+    if (game.signals.ml) {
+      const mlFav = game.signals.ml.homeWinProb > 0.5 ? game.home : game.away;
+      const mlProb = Math.max(game.signals.ml.homeWinProb, game.signals.ml.awayWinProb);
+      html += `<div style="background:#6366f120;border:1px solid #6366f140;padding:4px 10px;border-radius:6px;font-size:11px">🧠 ML: ${mlFav} ${(mlProb*100).toFixed(0)}% <span style="color:#94a3b8">(${game.signals.ml.confidence || '?'})</span></div>`;
+    }
+    
+    // Calibrated
+    if (game.signals.calibrated) {
+      const calFav = game.signals.calibrated.homeWinProb > 0.5 ? game.home : game.away;
+      const calProb = Math.max(game.signals.calibrated.homeWinProb, game.signals.calibrated.awayWinProb);
+      html += `<div style="background:#a855f720;border:1px solid #a855f740;padding:4px 10px;border-radius:6px;font-size:11px">📐 Cal: ${calFav} ${(calProb*100).toFixed(0)}%</div>`;
+    }
+    
+    // Weather
+    if (game.signals.weather) {
+      const wx = game.signals.weather;
+      const wxColor = wx.impact === 'OVER' ? '#22c55e' : wx.impact === 'UNDER' ? '#3b82f6' : '#94a3b8';
+      html += `<div style="background:${wxColor}20;border:1px solid ${wxColor}40;padding:4px 10px;border-radius:6px;font-size:11px">⛅ ${wx.temp||'?'}°F ${wx.wind||'?'}mph ${wx.impact} (${((wx.runMultiplier||1)*100-100).toFixed(1)}%)</div>`;
+    }
+    
+    // Umpire
+    if (game.signals.umpire) {
+      const ump = game.signals.umpire;
+      const umpColor = ump.tendency === 'over' ? '#22c55e' : ump.tendency === 'under' ? '#3b82f6' : '#94a3b8';
+      html += `<div style="background:${umpColor}20;border:1px solid ${umpColor}40;padding:4px 10px;border-radius:6px;font-size:11px">👨‍⚖️ ${ump.name||'TBD'}: ${ump.tendency||'?'} (${ump.runsPerGame||'?'} R/G)</div>`;
+    }
+    
+    // Statcast pitcher edge
+    if (game.signals.awayPitcherStatcast || game.signals.homePitcherStatcast) {
+      const awSC = game.signals.awayPitcherStatcast;
+      const hmSC = game.signals.homePitcherStatcast;
+      if (awSC) {
+        const edge = awSC.era - (awSC.xera || awSC.era);
+        const edgeColor = edge > 0.3 ? '#22c55e' : edge < -0.3 ? '#ef4444' : '#94a3b8';
+        html += `<div style="background:${edgeColor}20;border:1px solid ${edgeColor}40;padding:4px 10px;border-radius:6px;font-size:11px">🔬 ${game.away} SP: ERA ${awSC.era||'?'} vs xERA ${awSC.xera||'?'}</div>`;
+      }
+      if (hmSC) {
+        const edge = hmSC.era - (hmSC.xera || hmSC.era);
+        const edgeColor = edge > 0.3 ? '#22c55e' : edge < -0.3 ? '#ef4444' : '#94a3b8';
+        html += `<div style="background:${edgeColor}20;border:1px solid ${edgeColor}40;padding:4px 10px;border-radius:6px;font-size:11px">🔬 ${game.home} SP: ERA ${hmSC.era||'?'} vs xERA ${hmSC.xera||'?'}</div>`;
+      }
+    }
+    
+    // Preseason new-team penalty
+    if (game.signals.preseason?.awayNewTeamPenalty) {
+      html += `<div style="background:#ef444420;border:1px solid #ef444440;padding:4px 10px;border-radius:6px;font-size:11px">⚠️ ${game.away} SP on NEW TEAM (-${(game.signals.preseason.awayNewTeamPenalty*100).toFixed(0)}%)</div>`;
+    }
+    if (game.signals.preseason?.homeNewTeamPenalty) {
+      html += `<div style="background:#ef444420;border:1px solid #ef444440;padding:4px 10px;border-radius:6px;font-size:11px">⚠️ ${game.home} SP on NEW TEAM (-${(game.signals.preseason.homeNewTeamPenalty*100).toFixed(0)}%)</div>`;
+    }
+    
+    // Signal count
+    html += `<div style="background:#33415520;border:1px solid #33415540;padding:4px 10px;border-radius:6px;font-size:11px">📡 ${gr.signalCount} signals</div>`;
+    
+    html += '</div>';
+    
+    // Live odds comparison (if available)
+    if (game.signals.liveOdds) {
+      const lo = game.signals.liveOdds;
+      html += `<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">`;
+      html += `<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text2)">📊 BEST ODDS (${lo.bookCount} books)</div>`;
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px">`;
+      html += `<div style="text-align:center"><div style="font-size:11px;color:#94a3b8">${game.away}</div><div style="font-size:18px;font-weight:900">${lo.bestAway.ml > 0 ? '+' : ''}${lo.bestAway.ml || '?'}</div><div style="font-size:10px;color:#666">${lo.bestAway.book || ''}</div></div>`;
+      html += `<div style="text-align:center"><div style="font-size:11px;color:#94a3b8">${game.home}</div><div style="font-size:18px;font-weight:900">${lo.bestHome.ml > 0 ? '+' : ''}${lo.bestHome.ml || '?'}</div><div style="font-size:10px;color:#666">${lo.bestHome.book || ''}</div></div>`;
+      html += `<div style="text-align:center"><div style="font-size:11px;color:#94a3b8">Total</div><div style="font-size:18px;font-weight:900">${lo.bestTotal || '?'}</div></div>`;
+      html += '</div></div>';
+    }
+    
+    // Game bets (if any)
+    if (game.bets.length > 0) {
+      html += `<div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(34,197,94,0.02));border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:12px">`;
+      for (const bet of game.bets) {
+        const confColor = bet.confidence === 'HIGH' ? '#22c55e' : bet.confidence === 'MEDIUM' ? '#eab308' : '#94a3b8';
+        html += `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;flex-wrap:wrap">`;
+        html += `<div style="font-size:16px;font-weight:900;color:${confColor}">${bet.pick}</div>`;
+        html += `<div style="font-size:14px;font-weight:700;color:#22c55e">${bet.edge}% edge</div>`;
+        html += `<div style="font-size:12px;color:var(--text2)">Wager: $${bet.wager} → EV: +$${bet.ev}</div>`;
+        html += `<span style="background:${confColor}20;color:${confColor};padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700">${bet.confidence}</span>`;
+        if (bet.weatherSupport) html += `<span style="font-size:11px;color:#94a3b8">${bet.weatherSupport}</span>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    html += '</div>'; // close game-card
+  }
+  
+  // Timestamp
+  html += `<div style="text-align:center;padding:16px;color:#666;font-size:12px">Generated: ${new Date(data.timestamp).toLocaleString()} • MLB Opening Day: March 26-27, 2026</div>`;
+  
+  wrap.innerHTML = html;
 }
 
 // ==================== HELPERS ====================

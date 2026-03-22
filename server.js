@@ -38,6 +38,7 @@ const statcast = require('./services/statcast');
 const historicalGames = require('./services/historical-games');
 const polymarketValue = require('./services/polymarket-value');
 const preseasonTuning = require('./services/preseason-tuning');
+const autoScanner = require('./services/auto-scanner');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -101,7 +102,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '31.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v2','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium'] });
+  res.json({ status: 'ok', version: '33.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v2','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -3272,8 +3273,431 @@ app.get('/api/statcast/status', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== OPENING DAY PLAYBOOK — THE ULTIMATE WAR ROOM ====================
+
+/**
+ * Aggregates ALL signals for every Opening Day game into a single actionable playbook.
+ * This is the endpoint you hit on March 26-27 to know exactly what to bet.
+ * 
+ * Per game:
+ *   - Analytical model prediction (Poisson + park + pitcher)
+ *   - ML ensemble prediction (XGBoost + LightGBM + RF)
+ *   - Monte Carlo simulation (10K iterations)
+ *   - Statcast edge (xERA regression, xwOBA)
+ *   - Weather impact (wind, temp, humidity)
+ *   - Umpire tendencies (over/under)
+ *   - Preseason tuning (spring training, roster changes, new-team penalties)
+ *   - Live odds from all books (best line shopping)
+ *   - Kelly sizing (full/half/quarter)
+ *   - Calibrated probabilities
+ *   - SGP opportunities
+ *   - Alt line sweet spots
+ */
+app.get('/api/opening-day-playbook', async (req, res) => {
+  try {
+    const bankroll = parseFloat(req.query.bankroll) || 1000;
+    const kellyFraction = parseFloat(req.query.kelly) || 0.5;
+    const minEdge = parseFloat(req.query.minEdge) || 0.02;
+
+    const projections = await mlbOpeningDay.getProjections();
+    if (!projections || !projections.games || projections.games.length === 0) {
+      return res.json({ error: 'No Opening Day projections available', games: [] });
+    }
+
+    // Fetch live MLB odds
+    let liveOdds = [];
+    try { liveOdds = await fetchOdds('baseball_mlb'); } catch (e) { /* no odds yet */ }
+
+    const nameMap = buildNameMap(mlb.TEAMS || mlb.getTeams(), {
+      'diamondbacks': 'ARI', 'd-backs': 'ARI', 'white sox': 'CWS', 'red sox': 'BOS',
+      'blue jays': 'TOR', 'padres': 'SD', 'giants': 'SF', 'rays': 'TB', 'royals': 'KC',
+    });
+
+    const playbook = [];
+
+    for (const game of projections.games) {
+      const entry = {
+        away: game.away,
+        home: game.home,
+        date: game.date,
+        day: game.day,
+        time: game.time,
+        park: game.park,
+        parkFactor: game.parkFactor,
+        awayStarter: game.awayStarter,
+        homeStarter: game.homeStarter,
+        signals: {},
+        bets: [],
+      };
+
+      // 1. ANALYTICAL MODEL
+      entry.signals.analytical = {
+        homeWinProb: game.prediction.homeWinProb,
+        awayWinProb: game.prediction.awayWinProb,
+        homeExpRuns: game.prediction.homeExpRuns,
+        awayExpRuns: game.prediction.awayExpRuns,
+        totalRuns: game.prediction.totalRuns || game.prediction.expectedTotal,
+        homeML: game.prediction.homeML,
+        awayML: game.prediction.awayML,
+      };
+
+      // 2. ML ENSEMBLE
+      try {
+        const mlResult = await mlBridge.enhancedPredict(game.away, game.home, {
+          awayPitcher: game.awayStarter?.name,
+          homePitcher: game.homeStarter?.name,
+        });
+        if (mlResult?.ml) {
+          entry.signals.ml = {
+            homeWinProb: mlResult.ml.homeWinProb,
+            awayWinProb: mlResult.ml.awayWinProb,
+            confidence: mlResult.ml.confidence,
+            modelAgreement: mlResult.ml.modelAgreement,
+            predictedTotal: mlResult.ml.predictedTotal || null,
+          };
+          entry.signals.blended = {
+            homeWinProb: mlResult.blendedHomeWinProb,
+            awayWinProb: mlResult.blendedAwayWinProb,
+          };
+        }
+        if (mlResult?.statcast) {
+          entry.signals.statcast = mlResult.statcast;
+        }
+      } catch (e) { entry.signals.mlError = e.message; }
+
+      // 3. CALIBRATED PROBABILITIES
+      try {
+        const calPred = calibration.calibratePrediction({
+          homeWinProb: entry.signals.analytical.homeWinProb,
+          awayWinProb: entry.signals.analytical.awayWinProb,
+        }, 'mlb');
+        entry.signals.calibrated = {
+          homeWinProb: calPred.homeWinProb,
+          awayWinProb: calPred.awayWinProb,
+        };
+      } catch (e) { /* calibration optional */ }
+
+      // 4. WEATHER
+      try {
+        const wx = await weather.getWeatherForPark(game.home);
+        if (wx && !wx.error) {
+          entry.signals.weather = {
+            temp: wx.temp,
+            wind: wx.windSpeed,
+            windDir: wx.windDirection,
+            humidity: wx.humidity,
+            runMultiplier: wx.runMultiplier || 1.0,
+            condition: wx.condition,
+            impact: wx.runMultiplier > 1.03 ? 'OVER' : wx.runMultiplier < 0.97 ? 'UNDER' : 'NEUTRAL',
+          };
+        }
+      } catch (e) { /* weather optional */ }
+
+      // 5. UMPIRE
+      try {
+        const umpData = umpireService.getGameUmpireAdjustment(game.away, game.home);
+        if (umpData && !umpData.error) {
+          entry.signals.umpire = {
+            name: umpData.umpire || umpData.name,
+            runsPerGame: umpData.runsPerGame,
+            tendency: umpData.tendency,
+            totalAdj: umpData.totalAdj || umpData.runsAdj || 0,
+          };
+        }
+      } catch (e) { /* umpire optional */ }
+
+      // 6. PRESEASON TUNING
+      try {
+        const awayAdj = preseasonTuning.getOpeningDayAdjustments(game.away);
+        const homeAdj = preseasonTuning.getOpeningDayAdjustments(game.home);
+        const awayBP = preseasonTuning.getBullpenUncertainty(game.away);
+        const homeBP = preseasonTuning.getBullpenUncertainty(game.home);
+        
+        entry.signals.preseason = {
+          away: { adjustments: awayAdj, bullpen: awayBP },
+          home: { adjustments: homeAdj, bullpen: homeBP },
+        };
+        
+        // Check for new-team pitcher penalty
+        const awayNTP = preseasonTuning.getNewTeamPenalty(game.awayStarter?.name);
+        const homeNTP = preseasonTuning.getNewTeamPenalty(game.homeStarter?.name);
+        if (awayNTP) entry.signals.preseason.awayNewTeamPenalty = awayNTP;
+        if (homeNTP) entry.signals.preseason.homeNewTeamPenalty = homeNTP;
+      } catch (e) { /* preseason optional */ }
+
+      // 7. STATCAST EDGE (pitcher regression)
+      try {
+        if (game.awayStarter?.name) {
+          const sc = statcast.getStatcastPitcherAdjustment(game.awayStarter.name);
+          if (sc) entry.signals.awayPitcherStatcast = sc;
+        }
+        if (game.homeStarter?.name) {
+          const sc = statcast.getStatcastPitcherAdjustment(game.homeStarter.name);
+          if (sc) entry.signals.homePitcherStatcast = sc;
+        }
+        // Team xwOBA
+        const awayBat = statcast.getTeamBattingStatcast(game.away);
+        const homeBat = statcast.getTeamBattingStatcast(game.home);
+        if (awayBat) entry.signals.awayBattingXwoba = awayBat;
+        if (homeBat) entry.signals.homeBattingXwoba = homeBat;
+      } catch (e) { /* statcast optional */ }
+
+      // 8. ROLLING STATS
+      try {
+        const awayRoll = rollingStats.getRollingAdjustment('mlb', game.away);
+        const homeRoll = rollingStats.getRollingAdjustment('mlb', game.home);
+        if (awayRoll) entry.signals.awayRolling = awayRoll;
+        if (homeRoll) entry.signals.homeRolling = homeRoll;
+      } catch (e) { /* rolling optional */ }
+
+      // 9. INJURIES
+      try {
+        const awayInj = injuries.getInjuryAdjustment('mlb', game.away);
+        const homeInj = injuries.getInjuryAdjustment('mlb', game.home);
+        if (awayInj) entry.signals.awayInjuries = awayInj;
+        if (homeInj) entry.signals.homeInjuries = homeInj;
+      } catch (e) { /* injuries optional */ }
+
+      // 10. LIVE ODDS (all books)
+      if (liveOdds.length > 0) {
+        for (const oddsGame of liveOdds) {
+          const oddsAway = resolveTeam(nameMap, oddsGame.away_team);
+          const oddsHome = resolveTeam(nameMap, oddsGame.home_team);
+          if (oddsAway === game.away && oddsHome === game.home) {
+            const allBooks = {};
+            let bestHomeML = null, bestAwayML = null, bestOverTotal = null, bestUnderTotal = null;
+            let bestHomeBook = '', bestAwayBook = '', bestOverBook = '', bestUnderBook = '';
+
+            for (const bk of (oddsGame.bookmakers || [])) {
+              const line = extractBookLine(bk, oddsGame.home_team);
+              allBooks[bk.title] = line;
+
+              if (line.homeML && (bestHomeML === null || line.homeML > bestHomeML)) {
+                bestHomeML = line.homeML; bestHomeBook = bk.title;
+              }
+              if (line.awayML && (bestAwayML === null || line.awayML > bestAwayML)) {
+                bestAwayML = line.awayML; bestAwayBook = bk.title;
+              }
+              if (line.total) {
+                if (!bestOverTotal) { bestOverTotal = line.total; bestOverBook = bk.title; }
+              }
+            }
+
+            entry.signals.liveOdds = {
+              bookCount: Object.keys(allBooks).length,
+              books: allBooks,
+              bestHome: { ml: bestHomeML, book: bestHomeBook, implied: bestHomeML ? mlToProb(bestHomeML) : null },
+              bestAway: { ml: bestAwayML, book: bestAwayBook, implied: bestAwayML ? mlToProb(bestAwayML) : null },
+              bestTotal: bestOverTotal,
+            };
+            break;
+          }
+        }
+      }
+
+      // 11. CALCULATE CONSENSUS & KELLY FOR EACH BET TYPE
+      const bestProb = entry.signals.blended || entry.signals.calibrated || entry.signals.analytical;
+      const liveOddsData = entry.signals.liveOdds;
+
+      // ML bet (moneyline)
+      if (liveOddsData) {
+        const homeProb = bestProb.homeWinProb;
+        const awayProb = bestProb.awayWinProb;
+        const homeImplied = liveOddsData.bestHome.implied || 0.5;
+        const awayImplied = liveOddsData.bestAway.implied || 0.5;
+
+        const homeEdge = homeProb - homeImplied;
+        const awayEdge = awayProb - awayImplied;
+
+        if (homeEdge > minEdge) {
+          const kellyPct = kellyFraction * ((homeProb * (liveOddsData.bestHome.ml > 0 ? liveOddsData.bestHome.ml / 100 : 100 / Math.abs(liveOddsData.bestHome.ml)) - (1 - homeProb)) / (liveOddsData.bestHome.ml > 0 ? liveOddsData.bestHome.ml / 100 : 100 / Math.abs(liveOddsData.bestHome.ml)));
+          const wager = Math.max(0, Math.min(bankroll * 0.05, bankroll * Math.max(0, kellyPct)));
+          entry.bets.push({
+            type: 'ML',
+            pick: `${game.home} ML`,
+            ml: liveOddsData.bestHome.ml,
+            book: liveOddsData.bestHome.book,
+            modelProb: +(homeProb * 100).toFixed(1),
+            bookProb: +(homeImplied * 100).toFixed(1),
+            edge: +(homeEdge * 100).toFixed(1),
+            kellyPct: +(Math.max(0, kellyPct) * 100).toFixed(1),
+            wager: +wager.toFixed(0),
+            ev: +(wager * homeEdge / homeImplied).toFixed(2),
+            confidence: homeEdge >= 0.08 ? 'HIGH' : homeEdge >= 0.05 ? 'MEDIUM' : 'LOW',
+            agreementSources: [],
+          });
+          // Check which sources agree
+          const bet = entry.bets[entry.bets.length - 1];
+          if (entry.signals.analytical.homeWinProb > homeImplied) bet.agreementSources.push('Analytical');
+          if (entry.signals.ml?.homeWinProb > homeImplied) bet.agreementSources.push('ML');
+          if (entry.signals.calibrated?.homeWinProb > homeImplied) bet.agreementSources.push('Calibrated');
+        }
+        if (awayEdge > minEdge) {
+          const kellyPct = kellyFraction * ((awayProb * (liveOddsData.bestAway.ml > 0 ? liveOddsData.bestAway.ml / 100 : 100 / Math.abs(liveOddsData.bestAway.ml)) - (1 - awayProb)) / (liveOddsData.bestAway.ml > 0 ? liveOddsData.bestAway.ml / 100 : 100 / Math.abs(liveOddsData.bestAway.ml)));
+          const wager = Math.max(0, Math.min(bankroll * 0.05, bankroll * Math.max(0, kellyPct)));
+          entry.bets.push({
+            type: 'ML',
+            pick: `${game.away} ML`,
+            ml: liveOddsData.bestAway.ml,
+            book: liveOddsData.bestAway.book,
+            modelProb: +(awayProb * 100).toFixed(1),
+            bookProb: +(awayImplied * 100).toFixed(1),
+            edge: +(awayEdge * 100).toFixed(1),
+            kellyPct: +(Math.max(0, kellyPct) * 100).toFixed(1),
+            wager: +wager.toFixed(0),
+            ev: +(wager * awayEdge / awayImplied).toFixed(2),
+            confidence: awayEdge >= 0.08 ? 'HIGH' : awayEdge >= 0.05 ? 'MEDIUM' : 'LOW',
+            agreementSources: [],
+          });
+          const bet = entry.bets[entry.bets.length - 1];
+          if (entry.signals.analytical.awayWinProb > awayImplied) bet.agreementSources.push('Analytical');
+          if (entry.signals.ml?.awayWinProb > awayImplied) bet.agreementSources.push('ML');
+          if (entry.signals.calibrated?.awayWinProb > awayImplied) bet.agreementSources.push('Calibrated');
+        }
+
+        // Total bet (over/under)
+        if (liveOddsData.bestTotal) {
+          const modelTotal = entry.signals.analytical.totalRuns || 0;
+          const bookTotal = liveOddsData.bestTotal;
+          const totalDiff = modelTotal - bookTotal;
+
+          if (Math.abs(totalDiff) >= 0.5) {
+            const side = totalDiff > 0 ? 'OVER' : 'UNDER';
+            entry.bets.push({
+              type: 'TOTAL',
+              pick: `${side} ${bookTotal}`,
+              modelTotal: +modelTotal.toFixed(1),
+              bookTotal,
+              diff: +totalDiff.toFixed(1),
+              confidence: Math.abs(totalDiff) >= 1.5 ? 'HIGH' : Math.abs(totalDiff) >= 0.8 ? 'MEDIUM' : 'LOW',
+              weatherSupport: entry.signals.weather?.impact === side ? '✅ Weather agrees' : entry.signals.weather?.impact === 'NEUTRAL' ? '➖ Neutral weather' : '⚠️ Weather disagrees',
+              umpireSupport: entry.signals.umpire?.tendency === (side === 'OVER' ? 'over' : 'under') ? '✅ Umpire agrees' : '➖',
+            });
+          }
+        }
+      }
+
+      // 12. OVERALL GAME RATING
+      const totalSignals = Object.keys(entry.signals).filter(k => !k.includes('Error')).length;
+      const hasBets = entry.bets.length > 0;
+      const maxEdge = hasBets ? Math.max(...entry.bets.map(b => b.edge || 0)) : 0;
+      
+      entry.gameRating = {
+        signalCount: totalSignals,
+        betCount: entry.bets.length,
+        maxEdge,
+        grade: maxEdge >= 8 ? 'A+' : maxEdge >= 6 ? 'A' : maxEdge >= 4 ? 'B' : maxEdge >= 2 ? 'C' : 'D',
+        totalWager: entry.bets.reduce((s, b) => s + (b.wager || 0), 0),
+        totalEV: +entry.bets.reduce((s, b) => s + (b.ev || 0), 0).toFixed(2),
+      };
+
+      playbook.push(entry);
+    }
+
+    // Sort by grade (best first)
+    const gradeOrder = { 'A+': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4 };
+    playbook.sort((a, b) => (gradeOrder[a.gameRating.grade] || 99) - (gradeOrder[b.gameRating.grade] || 99));
+
+    // Portfolio summary
+    const allBets = playbook.flatMap(g => g.bets);
+    const portfolio = {
+      totalBets: allBets.length,
+      totalWager: +allBets.reduce((s, b) => s + (b.wager || 0), 0).toFixed(0),
+      totalEV: +allBets.reduce((s, b) => s + (b.ev || 0), 0).toFixed(2),
+      avgEdge: allBets.length > 0 ? +(allBets.reduce((s, b) => s + (b.edge || 0), 0) / allBets.length).toFixed(1) : 0,
+      highConfBets: allBets.filter(b => b.confidence === 'HIGH').length,
+      mlBets: allBets.filter(b => b.type === 'ML').length,
+      totalBets_total: allBets.filter(b => b.type === 'TOTAL').length,
+      bankroll,
+      kellyFraction,
+    };
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      openingDay: '2026-03-26',
+      daysUntil: Math.ceil((new Date('2026-03-26') - new Date()) / (1000 * 60 * 60 * 24)),
+      totalGames: playbook.length,
+      portfolio,
+      playbook,
+    });
+  } catch (e) { 
+    console.error('Opening Day Playbook error:', e);
+    res.status(500).json({ error: e.message }); 
+  }
+});
+
+// ==================== AUTO-SCANNER ENDPOINTS ====================
+
+// Health dashboard — monitor all automated scans
+app.get('/api/scanner/health', (req, res) => {
+  try {
+    res.json(autoScanner.getHealth());
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Scan status — quick overview of all cached scan results
+app.get('/api/scanner/status', (req, res) => {
+  try {
+    res.json({
+      scanner: autoScanner.getHealth(),
+      cachedScans: autoScanner.getAllCachedScans(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Force run a specific scan (or 'all')
+app.get('/api/scanner/run/:scanKey', async (req, res) => {
+  try {
+    const { scanKey } = req.params;
+    const result = await autoScanner.forceScan(scanKey);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get cached result for a specific scan
+app.get('/api/scanner/cache/:scanKey', (req, res) => {
+  try {
+    const cached = autoScanner.getCachedScan(req.params.scanKey);
+    if (!cached) return res.json({ error: 'No cached data', scanKey: req.params.scanKey });
+    res.json(cached);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Scan log history
+app.get('/api/scanner/log', (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const log = autoScanner.getScanLog(limit);
+    res.json({ log, count: log.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Daily digest — aggregated summary of all scan results
+app.get('/api/scanner/digest', (req, res) => {
+  try {
+    const digest = autoScanner.generateDailyDigest();
+    res.json(digest);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Start/stop scanner controls
+app.post('/api/scanner/start', (req, res) => {
+  try {
+    autoScanner.startAllTimers();
+    res.json({ status: 'started', health: autoScanner.getHealth() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/scanner/stop', (req, res) => {
+  try {
+    autoScanner.stopAllTimers();
+    res.json({ status: 'stopped' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v31.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v33.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -3294,7 +3718,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Alt lines scanner: alt totals, alt spreads, team totals, F5 lines — Poisson-powered`);
   console.log(`   Arbitrage scanner: cross-book arbs, low-hold, middles, stale lines`);
   console.log(`   🧠 ML Engine: Python sklearn ensemble (LR + GradientBoosting + RandomForest)`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE v2 (STATCAST), ARBITRAGE SCANNER, STATCAST INTEGRATION, HISTORICAL DATA EXPANSION`);
+  console.log(`   🔄 Auto-scanner: 9 automated scan types on configurable intervals`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE v2 (STATCAST), ARBITRAGE SCANNER, STATCAST INTEGRATION, AUTO-SCANNER`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats + statcast...');
@@ -3326,12 +3751,63 @@ app.listen(PORT, '0.0.0.0', () => {
     
     // Auto-train ML model
     mlBridge.autoTrain().catch(e => console.error('   ⚠️ ML auto-train failed:', e.message));
+    
+    // Initialize and start auto-scanner with all dependencies
+    autoScanner.init({
+      dailyPicks,
+      nba, mlb, nhl,
+      getAllOdds,
+      lineMovement,
+      injuries,
+      rollingStats,
+      weather,
+      playerProps,
+      umpireService,
+      calibration,
+      mlBridge,
+      sgpEngine,
+      altLines,
+      polymarketValue,
+      arbitrage,
+      clvTracker,
+      liveData,
+      playerStatsService,
+      statcast
+    });
+    autoScanner.startAllTimers();
+    console.log('   🚀 Auto-scanner initialized and running');
+    
   }).catch(e => {
     console.error('   ⚠️ Data refresh failed:', e.message);
     console.log('   Using static fallback data');
+    
+    // Still initialize auto-scanner even if data refresh failed
+    autoScanner.init({
+      dailyPicks,
+      nba, mlb, nhl,
+      getAllOdds,
+      lineMovement,
+      injuries,
+      rollingStats,
+      weather,
+      playerProps,
+      umpireService,
+      calibration,
+      mlBridge,
+      sgpEngine,
+      altLines,
+      polymarketValue,
+      arbitrage,
+      clvTracker,
+      liveData,
+      playerStatsService,
+      statcast
+    });
+    autoScanner.startAllTimers();
+    console.log('   🚀 Auto-scanner initialized (with fallback data)');
   });
 
-  // Periodic line movement snapshots every 30 min
+  // Periodic line movement snapshots every 30 min (kept separate from auto-scanner for backward compat)
   setInterval(async () => {
     try {
       const games = await getAllOdds();
