@@ -565,10 +565,549 @@ function getStatus() {
   };
 }
 
+// ==================== RUN LINE PROBABILITIES ====================
+/**
+ * Calculate exact run line probabilities using NB score distribution matrix.
+ * 
+ * This replaces the normal approximation in mlb.js (normalCDF with stdDev=3.8)
+ * with mathematically exact probabilities from the NB score matrix.
+ * 
+ * MLB run lines are typically ±1.5, but we support any spread.
+ * 
+ * Key insight: the normal approximation systematically misprices run lines
+ * in low-scoring games (underestimates home -1.5 value when total < 7)
+ * and high-scoring games (overestimates -1.5 value when total > 11).
+ * The NB matrix captures the actual discrete distribution shape.
+ * 
+ * @param {number} awayExpRuns 
+ * @param {number} homeExpRuns 
+ * @param {object} opts - { r, spreads, park, ... }
+ * @returns {object} Run line probabilities for each spread
+ */
+function negBinRunLineProb(awayExpRuns, homeExpRuns, opts = {}) {
+  const r = opts.r || getGameR(opts);
+  const lambdaAway = Math.max(0.5, awayExpRuns);
+  const lambdaHome = Math.max(0.5, homeExpRuns);
+  const maxRuns = 20;
+  
+  // Build score probability matrix
+  const scoreMatrix = [];
+  let matrixSum = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    scoreMatrix[a] = [];
+    for (let h = 0; h <= maxRuns; h++) {
+      const p = negBinPMF(a, lambdaAway, r) * negBinPMF(h, lambdaHome, r);
+      scoreMatrix[a][h] = p;
+      matrixSum += p;
+    }
+  }
+  // Normalize
+  if (matrixSum > 0 && matrixSum < 0.99) {
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        scoreMatrix[a][h] /= matrixSum;
+      }
+    }
+  }
+  
+  // Calculate run line probabilities for standard spreads
+  const spreads = opts.spreads || [-1.5, -2.5, -3.5, 1.5, 2.5, 3.5];
+  const result = {};
+  
+  for (const spread of spreads) {
+    let coverProb = 0;
+    let failProb = 0;
+    let pushProb = 0;
+    
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        const prob = scoreMatrix[a][h];
+        // Home team spread: home margin = h - a
+        // If spread is -1.5: home covers if (h - a) > 1.5 → home wins by 2+
+        // If spread is +1.5: home covers if (h - a) > -1.5 → home loses by 0 or 1 or wins
+        const margin = h - a;
+        // "covers" means home team + spread > 0
+        const adjustedMargin = margin + spread;
+        
+        if (adjustedMargin > 0) coverProb += prob;
+        else if (adjustedMargin < 0) failProb += prob;
+        else pushProb += prob;
+      }
+    }
+    
+    // Handle tie scenarios: if running total has residual pushes, split them
+    // (shouldn't happen with 0.5 spreads, but can with whole numbers)
+    if (pushProb > 0.001) {
+      // For whole number spreads, push probability is real
+      result[spread] = {
+        homeCover: +coverProb.toFixed(4),
+        awayCover: +failProb.toFixed(4),
+        push: +pushProb.toFixed(4),
+        homeCoverML: probToML(coverProb / (1 - pushProb)),
+        awayCoverML: probToML(failProb / (1 - pushProb)),
+      };
+    } else {
+      result[spread] = {
+        homeCover: +coverProb.toFixed(4),
+        awayCover: +failProb.toFixed(4),
+        push: 0,
+        homeCoverML: probToML(coverProb),
+        awayCoverML: probToML(failProb),
+      };
+    }
+  }
+  
+  // Also provide exact margin distribution (useful for alt run lines)
+  const marginDist = {};
+  for (let margin = -15; margin <= 15; margin++) {
+    let prob = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      const h = a + margin;
+      if (h >= 0 && h <= maxRuns) {
+        prob += scoreMatrix[a][h];
+      }
+    }
+    if (prob > 0.001) {
+      marginDist[margin] = +prob.toFixed(4);
+    }
+  }
+  
+  return {
+    spreads: result,
+    marginDist,
+    model: 'negative-binomial',
+    r: +r.toFixed(2),
+  };
+}
+
+
+// ==================== F5 (FIRST 5 INNINGS) MODEL ====================
+/**
+ * Calculate F5 (first 5 innings) win probabilities using NB score distributions.
+ * 
+ * F5 is a HUGE edge market on Opening Day because:
+ * - Starters go deeper (5.8 IP vs 5.5) = F5 is ALL about the starter matchup
+ * - Bullpen uncertainty is eliminated
+ * - Market prices F5 less efficiently than full game
+ * - On Opening Day, ace starters pitch even deeper (~6+ IP)
+ * 
+ * We scale expected runs to F5 proportion, then use NB for exact scoring distribution.
+ * F5 runs are NOT just 5/9 of full game — starter IP varies by quality.
+ * 
+ * @param {number} awayExpRuns - Full game away expected runs
+ * @param {number} homeExpRuns - Full game home expected runs
+ * @param {object} opts - { f5Factor, isOpeningDay, awayPitcherRating, homePitcherRating, ... }
+ * @returns {object} F5 win/draw probabilities, F5 totals, F5 run lines
+ */
+function negBinF5(awayExpRuns, homeExpRuns, opts = {}) {
+  // Calculate F5 expected runs
+  // Default F5 fraction: 56.5% of total runs happen in first 5 innings
+  // With ace starters: lower (they suppress scoring more in F5)
+  // Opening Day: even lower (starters go deep, bullpens don't get exposed)
+  let f5Factor = opts.f5Factor || 0.565;
+  
+  if (opts.isOpeningDay) {
+    f5Factor = 0.545; // OD starters go ~6 IP minimum, F5 is all aces
+  }
+  
+  // Pitcher-quality adjustment: better pitchers suppress F5 scoring MORE
+  // because they're guaranteed to be pitching all 5 innings
+  const awayPR = opts.awayPitcherRating || 50;
+  const homePR = opts.homePitcherRating || 50;
+  
+  // Ace pitcher (rating 80+) suppresses F5 by extra ~3%
+  // Replacement pitcher (rating 30) doesn't suppress as much
+  const awayPitchSuppress = Math.max(0, (awayPR - 50) / 1000); // 0 to 0.04 for ratings 50-90
+  const homePitchSuppress = Math.max(0, (homePR - 50) / 1000);
+  
+  // Away pitcher faces HOME batters → suppresses HOME team F5 runs
+  const homeF5Runs = Math.max(0.3, homeExpRuns * (f5Factor - awayPitchSuppress));
+  // Home pitcher faces AWAY batters → suppresses AWAY team F5 runs
+  const awayF5Runs = Math.max(0.3, awayExpRuns * (f5Factor - homePitchSuppress));
+  
+  // For F5, use slightly lower r (less variance in 5 innings — shorter sample)
+  const baseR = opts.r || getGameR(opts);
+  const f5R = baseR * 1.3; // Higher r = less variance for shorter game
+  
+  const maxRuns = 12; // F5 cap is lower
+  
+  // Build F5 score matrix
+  const scoreMatrix = [];
+  let matrixSum = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    scoreMatrix[a] = [];
+    for (let h = 0; h <= maxRuns; h++) {
+      const p = negBinPMF(a, awayF5Runs, f5R) * negBinPMF(h, homeF5Runs, f5R);
+      scoreMatrix[a][h] = p;
+      matrixSum += p;
+    }
+  }
+  if (matrixSum > 0 && matrixSum < 0.99) {
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        scoreMatrix[a][h] /= matrixSum;
+      }
+    }
+  }
+  
+  // F5 win/loss/draw probabilities
+  // NOTE: F5 has a DRAW option (unlike full game). This is key for F5 moneylines.
+  let awayWin = 0, homeWin = 0, draw = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    for (let h = 0; h <= maxRuns; h++) {
+      const prob = scoreMatrix[a][h];
+      if (a > h) awayWin += prob;
+      else if (h > a) homeWin += prob;
+      else draw += prob;
+    }
+  }
+  
+  // F5 total lines
+  const f5TotalLines = [3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8];
+  const f5Totals = {};
+  for (const line of f5TotalLines) {
+    let over = 0, under = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        const total = a + h;
+        const prob = scoreMatrix[a][h];
+        if (total > line) over += prob;
+        else if (total < line) under += prob;
+      }
+    }
+    f5Totals[line] = {
+      over: +over.toFixed(4),
+      under: +under.toFixed(4),
+      overML: probToML(over),
+      underML: probToML(under),
+    };
+  }
+  
+  // F5 run line (±0.5 is the standard F5 run line)
+  const f5RunLines = {};
+  for (const spread of [-0.5, 0.5, -1.5, 1.5]) {
+    let homeCover = 0, awayCover = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        const prob = scoreMatrix[a][h];
+        const margin = (h - a) + spread;
+        if (margin > 0) homeCover += prob;
+        else if (margin < 0) awayCover += prob;
+      }
+    }
+    f5RunLines[spread] = {
+      homeCover: +homeCover.toFixed(4),
+      awayCover: +awayCover.toFixed(4),
+      homeCoverML: probToML(homeCover),
+      awayCoverML: probToML(awayCover),
+    };
+  }
+  
+  // F5 team totals
+  const f5TeamTotalLines = [0.5, 1.5, 2.5, 3.5, 4.5];
+  const f5TeamTotals = {};
+  for (const line of f5TeamTotalLines) {
+    let awayOver = 0, awayUnder = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      const p = negBinPMF(a, awayF5Runs, f5R);
+      if (a > line) awayOver += p;
+      else if (a < line) awayUnder += p;
+    }
+    let homeOver = 0, homeUnder = 0;
+    for (let h = 0; h <= maxRuns; h++) {
+      const p = negBinPMF(h, homeF5Runs, f5R);
+      if (h > line) homeOver += p;
+      else if (h < line) homeUnder += p;
+    }
+    f5TeamTotals[line] = {
+      away: { over: +awayOver.toFixed(4), under: +awayUnder.toFixed(4), overML: probToML(awayOver), underML: probToML(awayUnder) },
+      home: { over: +homeOver.toFixed(4), under: +homeUnder.toFixed(4), overML: probToML(homeOver), underML: probToML(homeUnder) },
+    };
+  }
+  
+  return {
+    awayWin: +awayWin.toFixed(4),
+    homeWin: +homeWin.toFixed(4),
+    draw: +draw.toFixed(4),
+    awayWinML: probToML(awayWin),
+    homeWinML: probToML(homeWin),
+    // 3-way ML (includes draw as separate outcome)
+    threeWay: {
+      away: +awayWin.toFixed(4),
+      home: +homeWin.toFixed(4),
+      draw: +draw.toFixed(4),
+      awayML: probToML(awayWin),
+      homeML: probToML(homeWin),
+      drawML: probToML(draw),
+    },
+    // 2-way (no draw — split draws proportionally)
+    twoWay: {
+      awayWin: +(awayWin + draw * awayWin / (awayWin + homeWin)).toFixed(4),
+      homeWin: +(homeWin + draw * homeWin / (awayWin + homeWin)).toFixed(4),
+    },
+    f5Total: +(awayF5Runs + homeF5Runs).toFixed(2),
+    awayF5Runs: +awayF5Runs.toFixed(2),
+    homeF5Runs: +homeF5Runs.toFixed(2),
+    totals: f5Totals,
+    runLines: f5RunLines,
+    teamTotals: f5TeamTotals,
+    model: 'negative-binomial-f5',
+    f5Factor,
+    r: +f5R.toFixed(2),
+  };
+}
+
+
+// ==================== CONVICTION SCORE ENGINE ====================
+/**
+ * Calculate a 0-100 conviction score that aggregates ALL model signals.
+ * 
+ * This is the "should I actually bet this?" number.
+ * 
+ * Signals aggregated:
+ * 1. Edge size (model prob vs market prob)
+ * 2. Model agreement (analytical + MC + ML agree?)
+ * 3. Pitcher quality confidence (known ace vs unknown)
+ * 4. Weather data availability
+ * 5. Lineup confirmation
+ * 6. Statcast support
+ * 7. Historical CLV track record for this type of bet
+ * 8. Market movement direction (are sharps on our side?)
+ * 
+ * Score interpretation:
+ * 90-100: SMASH — max Kelly, everything lines up
+ * 75-89:  STRONG — full Kelly bet
+ * 60-74:  SOLID — half Kelly
+ * 45-59:  LEAN — quarter Kelly
+ * 30-44:  MARGINAL — tiny bet or pass
+ * 0-29:   FADE — model is uncertain, don't bet
+ * 
+ * @param {object} prediction - Output from mlb.predict() or asyncPredict()
+ * @param {object} market - { homeML, awayML, total, homeSpread }
+ * @param {object} opts - Additional context { lineMovement, clvHistory, ... }
+ * @returns {object} Conviction score with breakdown
+ */
+function convictionScore(prediction, market = {}, opts = {}) {
+  let score = 0;
+  const breakdown = [];
+  
+  // 1. EDGE SIZE (0-25 points)
+  // The bigger the edge between model and market, the more conviction
+  let edgePoints = 0;
+  if (market.homeML && prediction.homeWinProb) {
+    const impliedProb = mlToProb(market.homeML);
+    const modelProb = prediction.blendedHomeWinProb || prediction.homeWinProb;
+    const edge = modelProb - impliedProb;
+    
+    if (edge > 0.10) edgePoints = 25;       // 10%+ edge = max
+    else if (edge > 0.07) edgePoints = 20;   // 7-10% edge
+    else if (edge > 0.05) edgePoints = 16;   // 5-7% edge
+    else if (edge > 0.03) edgePoints = 12;   // 3-5% edge
+    else if (edge > 0.02) edgePoints = 8;    // 2-3% edge
+    else if (edge > 0.01) edgePoints = 4;    // 1-2% edge
+    else edgePoints = 0;
+    
+    breakdown.push({ signal: 'edge', points: edgePoints, detail: `${(edge * 100).toFixed(1)}% model edge` });
+  }
+  score += edgePoints;
+  
+  // 2. MODEL AGREEMENT (0-20 points)
+  // Do analytical, Monte Carlo, and ML models all agree on the same side?
+  let agreementPoints = 0;
+  const sides = [];
+  
+  // Analytical
+  if (prediction.homeWinProb > 0.52) sides.push('home');
+  else if (prediction.awayWinProb > 0.52) sides.push('away');
+  else sides.push('toss-up');
+  
+  // Monte Carlo
+  if (prediction.monteCarlo) {
+    if (prediction.monteCarlo.homeWinProb > 0.52) sides.push('home');
+    else if (prediction.monteCarlo.awayWinProb > 0.52) sides.push('away');
+    else sides.push('toss-up');
+  }
+  
+  // ML Ensemble
+  if (prediction.ml) {
+    if (prediction.ml.homeWinProb > 0.52) sides.push('home');
+    else if (prediction.ml.awayWinProb > 0.52) sides.push('away');
+    else sides.push('toss-up');
+  }
+  
+  // Blended
+  if (prediction.blendedHomeWinProb > 0.52) sides.push('home');
+  else if (prediction.blendedAwayWinProb > 0.52) sides.push('away');
+  
+  const uniqueSides = [...new Set(sides.filter(s => s !== 'toss-up'))];
+  if (uniqueSides.length === 1 && sides.length >= 3) {
+    agreementPoints = 20; // All models agree
+    breakdown.push({ signal: 'agreement', points: 20, detail: `All ${sides.length} models agree: ${uniqueSides[0]}` });
+  } else if (uniqueSides.length === 1 && sides.length >= 2) {
+    agreementPoints = 14; // 2 models agree
+    breakdown.push({ signal: 'agreement', points: 14, detail: `${sides.length} models agree: ${uniqueSides[0]}` });
+  } else if (uniqueSides.length <= 1) {
+    agreementPoints = 8; // At least 1 model has direction
+    breakdown.push({ signal: 'agreement', points: 8, detail: 'Limited model agreement' });
+  } else {
+    agreementPoints = 0; // Models disagree
+    breakdown.push({ signal: 'agreement', points: 0, detail: '⚠️ Models disagree on direction' });
+  }
+  score += agreementPoints;
+  
+  // 3. PITCHER CONFIDENCE (0-15 points)
+  // Known ace matchup vs unknown pitcher
+  let pitcherPoints = 0;
+  const ap = prediction.awayPitcher;
+  const hp = prediction.homePitcher;
+  
+  if (ap && hp) {
+    const avgRating = ((ap.rating || 50) + (hp.rating || 50)) / 2;
+    // Known pitchers with high ratings = more predictable
+    if (avgRating >= 70) pitcherPoints = 15;
+    else if (avgRating >= 60) pitcherPoints = 12;
+    else if (avgRating >= 50) pitcherPoints = 9;
+    else pitcherPoints = 6;
+    breakdown.push({ signal: 'pitchers', points: pitcherPoints, detail: `Avg rating ${avgRating.toFixed(0)} — ${ap.name || 'TBD'} vs ${hp.name || 'TBD'}` });
+  } else if (ap || hp) {
+    pitcherPoints = 4;
+    breakdown.push({ signal: 'pitchers', points: 4, detail: 'Only 1 pitcher confirmed' });
+  } else {
+    pitcherPoints = 0;
+    breakdown.push({ signal: 'pitchers', points: 0, detail: '⚠️ No pitcher data' });
+  }
+  score += pitcherPoints;
+  
+  // 4. DATA QUALITY (0-15 points)
+  // Weather, lineup, umpire, Statcast data availability
+  let dataPoints = 0;
+  
+  if (prediction._asyncSignals) {
+    const signals = prediction._asyncSignals;
+    if (signals.weather) { dataPoints += 4; breakdown.push({ signal: 'weather', points: 4, detail: `Weather active: ${signals.weatherDetail?.description || ''}` }); }
+    if (signals.lineup) { dataPoints += 4; breakdown.push({ signal: 'lineup', points: 4, detail: 'Confirmed lineups' }); }
+    if (signals.umpire) { dataPoints += 4; breakdown.push({ signal: 'umpire', points: 4, detail: `HP umpire: ${signals.umpireDetail?.name || ''}` }); }
+    if (signals.restTravel) { dataPoints += 3; breakdown.push({ signal: 'rest', points: 3, detail: 'Rest/travel data' }); }
+  } else {
+    // Check factors directly
+    if (prediction.factors?.weather) { dataPoints += 3; }
+    if (prediction.factors?.lineup) { dataPoints += 3; }
+    if (prediction.factors?.umpire) { dataPoints += 3; }
+    if (prediction.factors?.awayRest || prediction.factors?.homeRest) { dataPoints += 2; }
+    if (dataPoints > 0) breakdown.push({ signal: 'data', points: Math.min(15, dataPoints), detail: 'Partial signal data' });
+  }
+  
+  // Statcast bonus
+  if (prediction.factors?.statcast) {
+    dataPoints += 3;
+    breakdown.push({ signal: 'statcast', points: 3, detail: 'Statcast xERA/xwOBA active' });
+  }
+  
+  dataPoints = Math.min(15, dataPoints);
+  score += dataPoints;
+  
+  // 5. MARKET CONTEXT (0-10 points)
+  // Line movement, CLV history, market efficiency signals
+  let marketPoints = 0;
+  
+  if (opts.lineMovement) {
+    // If line moved in our direction = sharps agree
+    if (opts.lineMovement === 'toward') {
+      marketPoints += 7;
+      breakdown.push({ signal: 'lineMove', points: 7, detail: 'Line moving toward our side (sharp money)' });
+    } else if (opts.lineMovement === 'stable') {
+      marketPoints += 4;
+      breakdown.push({ signal: 'lineMove', points: 4, detail: 'Line stable' });
+    } else if (opts.lineMovement === 'against') {
+      marketPoints += 0;
+      breakdown.push({ signal: 'lineMove', points: 0, detail: '⚠️ Line moving against us' });
+    }
+  }
+  
+  if (opts.clvPositive) {
+    marketPoints += 3;
+    breakdown.push({ signal: 'clv', points: 3, detail: 'Positive CLV history for this bet type' });
+  }
+  
+  marketPoints = Math.min(10, marketPoints);
+  score += marketPoints;
+  
+  // 6. SITUATIONAL EDGE (0-15 points)
+  // Opening Day, weather extremes, mismatch situations
+  let situationalPoints = 0;
+  
+  if (prediction.factors?.earlySeasonCalibration) {
+    situationalPoints += 3;
+    breakdown.push({ signal: 'situation', points: 3, detail: 'Early season calibration applied' });
+  }
+  
+  if (prediction.factors?.preseasonTuning) {
+    situationalPoints += 3;
+    breakdown.push({ signal: 'preseason', points: 3, detail: 'Preseason roster/spring training signals' });
+  }
+  
+  // Weather extremes = strong signal for totals
+  if (prediction.factors?.weather?.multiplier) {
+    const mult = prediction.factors.weather.multiplier;
+    if (mult < 0.92 || mult > 1.06) {
+      situationalPoints += 4;
+      breakdown.push({ signal: 'weatherExtreme', points: 4, detail: `Extreme weather: ${(mult * 100 - 100).toFixed(1)}% run impact` });
+    }
+  }
+  
+  // Massive pitcher mismatch
+  if (ap && hp) {
+    const ratingDiff = Math.abs((ap.rating || 50) - (hp.rating || 50));
+    if (ratingDiff >= 30) {
+      situationalPoints += 5;
+      breakdown.push({ signal: 'mismatch', points: 5, detail: `Huge pitcher mismatch: ${ratingDiff} rating diff` });
+    } else if (ratingDiff >= 20) {
+      situationalPoints += 3;
+      breakdown.push({ signal: 'mismatch', points: 3, detail: `Pitcher mismatch: ${ratingDiff} rating diff` });
+    }
+  }
+  
+  situationalPoints = Math.min(15, situationalPoints);
+  score += situationalPoints;
+  
+  // Determine grade
+  let grade, action;
+  if (score >= 90) { grade = 'A+'; action = 'SMASH'; }
+  else if (score >= 80) { grade = 'A'; action = 'STRONG BET'; }
+  else if (score >= 70) { grade = 'B+'; action = 'SOLID BET'; }
+  else if (score >= 60) { grade = 'B'; action = 'LEAN'; }
+  else if (score >= 50) { grade = 'C+'; action = 'SMALL BET'; }
+  else if (score >= 40) { grade = 'C'; action = 'MARGINAL'; }
+  else if (score >= 30) { grade = 'D'; action = 'PASS'; }
+  else { grade = 'F'; action = 'FADE'; }
+  
+  return {
+    score: Math.min(100, Math.max(0, score)),
+    grade,
+    action,
+    breakdown,
+    kellyFraction: score >= 80 ? 1.0 : score >= 70 ? 0.75 : score >= 60 ? 0.5 : score >= 50 ? 0.25 : 0.1,
+    note: `Conviction ${score}/100 (${grade}) — ${action}`,
+  };
+}
+
+/**
+ * Convert American moneyline to implied probability
+ */
+function mlToProb(ml) {
+  if (ml === 0) return 0.5;
+  if (ml > 0) return 100 / (ml + 100);
+  return Math.abs(ml) / (Math.abs(ml) + 100);
+}
+
+
 module.exports = {
   negBinPMF,
   negBinCDF,
   negBinWinProb,
+  negBinRunLineProb,
+  negBinF5,
+  convictionScore,
   calculateNBTotals,
   compareModels,
   getGameR,
@@ -576,6 +1115,7 @@ module.exports = {
   R_BASE,
   PARK_R_ADJUSTMENTS,
   probToML,
+  mlToProb,
   logGamma,
   logBinom,
 };

@@ -856,11 +856,45 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   // Total runs
   const totalRuns = awayExpRuns + homeExpRuns;
   
-  // Run line probability
+  // Run line probability — use NB score matrix for exact distribution (v59.0 upgrade)
+  // The old normal approximation (stdDev=3.8) systematically mispriced run lines:
+  // - Low-scoring games: underestimated home -1.5 cover probability
+  // - High-scoring games: overestimated -1.5 cover probability
+  // NB matrix captures the actual discrete distribution shape.
   const runDiffMean = homeExpRuns - awayExpRuns;
-  const runDiffStd = 3.8;
-  const homeRL = normalCDF(runDiffMean - 1.5, runDiffStd);
-  const awayRL = 1 - normalCDF(runDiffMean + 1.5, runDiffStd);
+  let homeRL, awayRL;
+  let nbRunLineData = null;
+  let nbF5Data = null;
+  
+  if (negBinomial && negBinomial.negBinRunLineProb) {
+    nbRunLineData = negBinomial.negBinRunLineProb(awayExpRuns, homeExpRuns, {
+      ...nbOpts,
+      spreads: [-1.5, -2.5, -3.5, 1.5, 2.5, 3.5],
+    });
+    // Primary run line is -1.5 for home team
+    homeRL = nbRunLineData.spreads[-1.5]?.homeCover || normalCDF(runDiffMean - 1.5, 3.8);
+    awayRL = nbRunLineData.spreads[1.5]?.homeCover || (1 - normalCDF(runDiffMean + 1.5, 3.8));
+    // awayRL is probability away team covers +1.5 = away wins OR loses by exactly 1
+    // This is the AWAY perspective: nbRunLineData.spreads[-1.5]?.awayCover
+    awayRL = nbRunLineData.spreads[-1.5]?.awayCover || (1 - homeRL);
+  } else {
+    // Fallback to normal approximation
+    const runDiffStd = 3.8;
+    homeRL = normalCDF(runDiffMean - 1.5, runDiffStd);
+    awayRL = 1 - normalCDF(runDiffMean + 1.5, runDiffStd);
+  }
+  
+  // F5 (First 5 Innings) model — NB-based exact scoring distribution (v59.0)
+  // F5 is a HUGE market on Opening Day: starters go deep, bullpen uncertainty eliminated
+  if (negBinomial && negBinomial.negBinF5) {
+    const isOD = isPreseasonPredict; // Opening Day = preseason flag
+    nbF5Data = negBinomial.negBinF5(awayExpRuns, homeExpRuns, {
+      ...nbOpts,
+      isOpeningDay: isOD,
+      awayPitcherRating: awayPitcher ? (awayPitcher.rating || 50) : 50,
+      homePitcherRating: homePitcher ? (homePitcher.rating || 50) : 50,
+    });
+  }
   
   const homeML = probToML(homeWinProb);
   const awayML = probToML(awayWinProb);
@@ -909,8 +943,40 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     totalRuns: +(totalRuns.toFixed(1)),
     f5Total: +((awayExpF5 + homeExpF5).toFixed(1)),
     runDiff: +(runDiffMean.toFixed(1)),
-    homeRunLine: { spread: -1.5, prob: +(homeRL.toFixed(3)) },
-    awayRunLine: { spread: 1.5, prob: +(awayRL.toFixed(3)) },
+    homeRunLine: { spread: -1.5, prob: +(homeRL.toFixed(3)), model: nbRunLineData ? 'negative-binomial' : 'normal-approx' },
+    awayRunLine: { spread: 1.5, prob: +(awayRL.toFixed(3)), model: nbRunLineData ? 'negative-binomial' : 'normal-approx' },
+    // Alt run lines from NB matrix (exact probabilities)
+    altRunLines: nbRunLineData ? {
+      home: {
+        '-1.5': nbRunLineData.spreads[-1.5],
+        '-2.5': nbRunLineData.spreads[-2.5],
+        '-3.5': nbRunLineData.spreads[-3.5],
+      },
+      away: {
+        '+1.5': nbRunLineData.spreads[-1.5] ? { awayCover: nbRunLineData.spreads[-1.5].awayCover, awayCoverML: nbRunLineData.spreads[-1.5].awayCoverML } : null,
+        '+2.5': nbRunLineData.spreads[-2.5] ? { awayCover: nbRunLineData.spreads[-2.5].awayCover, awayCoverML: nbRunLineData.spreads[-2.5].awayCoverML } : null,
+        '+3.5': nbRunLineData.spreads[-3.5] ? { awayCover: nbRunLineData.spreads[-3.5].awayCover, awayCoverML: nbRunLineData.spreads[-3.5].awayCoverML } : null,
+      },
+      marginDist: nbRunLineData.marginDist,
+      model: 'negative-binomial',
+    } : null,
+    // F5 (First 5 Innings) model — full NB scoring distribution
+    f5: nbF5Data ? {
+      homeWinProb: nbF5Data.homeWin,
+      awayWinProb: nbF5Data.awayWin,
+      drawProb: nbF5Data.draw,
+      homeML: nbF5Data.homeWinML,
+      awayML: nbF5Data.awayWinML,
+      threeWay: nbF5Data.threeWay,
+      twoWay: nbF5Data.twoWay,
+      total: nbF5Data.f5Total,
+      awayRuns: nbF5Data.awayF5Runs,
+      homeRuns: nbF5Data.homeF5Runs,
+      totals: nbF5Data.totals,
+      runLines: nbF5Data.runLines,
+      teamTotals: nbF5Data.teamTotals,
+      model: 'negative-binomial-f5',
+    } : { total: +((awayExpF5 + homeExpF5).toFixed(1)), model: 'linear-estimate' },
     parkFactor: pf,
     awayPower: awayR.power,
     homePower: homeR.power,
@@ -1027,6 +1093,17 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       rating: homePitcher.rating || null,
       tier: homePitcher.rating ? pitchers.getPitcherTier(homePitcher.rating) : null
     };
+  }
+  
+  // ==================== CONVICTION SCORE (v59.0) ====================
+  // Aggregate all signals into a single 0-100 conviction rating
+  // This tells the bettor: "HOW confident should you be in this prediction?"
+  if (negBinomial && negBinomial.convictionScore) {
+    try {
+      result.conviction = negBinomial.convictionScore(result, {}, {});
+    } catch (e) {
+      // Conviction score is optional — don't break predict()
+    }
   }
   
   return result;
