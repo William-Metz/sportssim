@@ -60,6 +60,10 @@ let nbaHistorical = null;
 try { nbaHistorical = require('./services/nba-historical'); } catch (e) { console.error('[server] NBA Historical not loaded:', e.message); }
 let nhlGoalieStarters = null;
 try { nhlGoalieStarters = require('./services/nhl-goalie-starters'); } catch (e) { console.error('[server] NHL Goalie Starters not loaded:', e.message); }
+let weatherForecast = null;
+try { weatherForecast = require('./services/weather-forecast'); } catch (e) { console.error('[server] Weather Forecast not loaded:', e.message); }
+let seedingFuturesBridge = null;
+try { seedingFuturesBridge = require('./services/seeding-futures-bridge'); } catch (e) { console.error('[server] Seeding Futures Bridge not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -126,7 +130,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '54.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities'] });
+  res.json({ status: 'ok', version: '55.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -2704,6 +2708,82 @@ app.get('/api/nba/seeding-sim/matchups', async (req, res) => {
   }
 });
 
+// ==================== OPENING DAY WEATHER FORECAST ====================
+
+// Full Opening Day weather pre-check — all venues, all dates
+app.get('/api/weather/opening-day', async (req, res) => {
+  try {
+    if (!weatherForecast) return res.status(503).json({ error: 'Weather forecast service not loaded' });
+    const result = await weatherForecast.preCheckOpeningDayWeather();
+    res.json(result);
+  } catch (e) {
+    console.error('Opening Day weather error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Single game weather forecast
+app.get('/api/weather/forecast/:home/:date/:time', async (req, res) => {
+  try {
+    if (!weatherForecast) return res.status(503).json({ error: 'Weather forecast service not loaded' });
+    const { home, date, time } = req.params;
+    const result = await weatherForecast.getGameForecast(home, date, time);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Weather forecast service status
+app.get('/api/weather/forecast/status', (req, res) => {
+  if (!weatherForecast) return res.json({ status: 'not loaded' });
+  res.json(weatherForecast.getStatus());
+});
+
+// ==================== NBA SEEDING → FUTURES VALUE BRIDGE ====================
+
+// Full futures value analysis from seeding simulation
+app.get('/api/nba/seeding-futures', async (req, res) => {
+  try {
+    if (!seedingFuturesBridge) return res.status(503).json({ error: 'Seeding futures bridge not loaded' });
+    const fresh = req.query.fresh === 'true';
+    const result = await seedingFuturesBridge.analyzeSeedingFuturesValue(ODDS_API_KEY, { fresh });
+    res.json(result);
+  } catch (e) {
+    console.error('Seeding futures error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Team-specific futures value from seeding sim  
+app.get('/api/nba/seeding-futures/team/:team', async (req, res) => {
+  try {
+    if (!seedingFuturesBridge) return res.status(503).json({ error: 'Seeding futures bridge not loaded' });
+    const team = req.params.team.toUpperCase();
+    const result = await seedingFuturesBridge.analyzeSeedingFuturesValue(ODDS_API_KEY);
+    const teamValue = result.teamAnalysis?.[team];
+    if (!teamValue) return res.status(404).json({ error: `Team ${team} not found` });
+    res.json({ team, ...teamValue, timestamp: result.generatedAt });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Top value bets from seeding sim
+app.get('/api/nba/seeding-futures/top-bets', async (req, res) => {
+  try {
+    if (!seedingFuturesBridge) return res.status(503).json({ error: 'Seeding futures bridge not loaded' });
+    const result = await seedingFuturesBridge.analyzeSeedingFuturesValue(ODDS_API_KEY);
+    res.json({
+      topBets: result.topValueBets || [],
+      summary: result.summary || {},
+      timestamp: result.generatedAt
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Helper: Resolve NHL team names to abbreviations
 function resolveNHLTeamName(name) {
   const map = {
@@ -4570,14 +4650,16 @@ app.get('/api/opening-day-playbook', async (req, res) => {
       try {
         const wx = await weather.getWeatherForPark(game.home);
         if (wx && !wx.error) {
+          const wxData = wx.weather || {};
           entry.signals.weather = {
-            temp: wx.temp,
-            wind: wx.windSpeed,
-            windDir: wx.windDirection,
-            humidity: wx.humidity,
-            runMultiplier: wx.runMultiplier || 1.0,
-            condition: wx.condition,
-            impact: wx.runMultiplier > 1.03 ? 'OVER' : wx.runMultiplier < 0.97 ? 'UNDER' : 'NEUTRAL',
+            temp: wxData.temp,
+            wind: wxData.wind,
+            windDir: wxData.windDir,
+            humidity: wxData.humidity,
+            runMultiplier: wx.multiplier || 1.0,
+            condition: wx.description,
+            impact: (wx.multiplier || 1.0) > 1.03 ? 'OVER' : (wx.multiplier || 1.0) < 0.97 ? 'UNDER' : 'NEUTRAL',
+            factors: wx.factors,
           };
         }
       } catch (e) { /* weather optional */ }

@@ -203,6 +203,7 @@ const PITCHERS = {
     { name: 'Clayton Kershaw', team: 'LAD', hand: 'L', era: 3.65, fip: 3.52, xfip: 3.60, whip: 1.12, k9: 8.5, bb9: 2.0, hr9: 1.0, ip: 140, war: 2.5 },
     { name: 'Bobby Miller', team: 'LAD', hand: 'R', era: 4.05, fip: 3.88, xfip: 3.95, whip: 1.20, k9: 9.0, bb9: 3.0, hr9: 1.1, ip: 150, war: 2.0 },
     { name: 'Walker Buehler', team: 'LAD', hand: 'R', era: 3.88, fip: 3.72, xfip: 3.80, whip: 1.15, k9: 9.5, bb9: 2.5, hr9: 1.0, ip: 155, war: 2.8 },
+    { name: 'Shohei Ohtani', team: 'LAD', hand: 'L', era: 2.87, fip: 1.89, xfip: 2.50, whip: 1.04, k9: 11.87, bb9: 1.72, hr9: 0.57, ip: 47, war: 2.5 },
   ],
   'SD': [
     { name: 'Dylan Cease', team: 'SD', hand: 'R', era: 3.45, fip: 3.32, xfip: 3.40, whip: 1.12, k9: 10.5, bb9: 3.0, hr9: 0.8, ip: 185, war: 4.0 },
@@ -323,7 +324,55 @@ function getPitcherByName(name) {
     }
   }
   
+  // Pass 5: Fuzzy last-name match (Levenshtein distance ≤ 1)
+  // Catches common misspellings: "Burns" → "Burnes", "Degrom" → "deGrom"
+  const inputLastName = lower.split(' ').pop();
+  if (inputLastName.length >= 4) {
+    let bestMatch = null;
+    let bestDist = 2; // max distance we'll accept
+    for (const team of Object.keys(PITCHERS)) {
+      for (const p of PITCHERS[team]) {
+        const pLastName = p.name.toLowerCase().split(' ').pop();
+        const dist = levenshtein(inputLastName, pLastName);
+        if (dist > 0 && dist < bestDist) {
+          // If we have a first initial, verify it matches
+          const inputParts = lower.split(' ');
+          if (inputParts.length >= 2) {
+            const inputFirst = inputParts[0].replace('.', '');
+            const pFirst = p.name.toLowerCase().split(' ')[0];
+            if (inputFirst.length === 1 && inputFirst !== pFirst[0]) continue;
+            if (inputFirst.length > 1 && !pFirst.startsWith(inputFirst.substring(0, 3))) continue;
+          }
+          bestMatch = { ...p };
+          bestDist = dist;
+        }
+      }
+    }
+    if (bestMatch) return bestMatch;
+  }
+  
   return null;
+}
+
+// Simple Levenshtein distance for fuzzy name matching
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      const cost = a[j - 1] === b[i - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return matrix[b.length][a.length];
 }
 
 // Get team rotation

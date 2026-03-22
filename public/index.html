@@ -184,6 +184,8 @@ function buildTabs() {
     tabs.push({ id: 'nhl-goalies', label: '🥅 NHL Goalies' });
   }
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
+  tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
+  tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
@@ -233,6 +235,8 @@ function showTab(id) {
   else if (id === 'nhl-goalies') loadNHLGoaliesTab();
   else if (id === 'nba-seeding') loadNBASeedingTab();
   else if (id === 'od-validate') loadODValidateTab();
+  else if (id === 'od-weather') loadODWeatherTab();
+  else if (id === 'seeding-futures') loadSeedingFuturesTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -7827,6 +7831,267 @@ async function loadODValidateTab() {
     wrap.innerHTML = html;
   } catch (e) {
     wrap.innerHTML = `<div class="card"><h2>❌ Error loading validation</h2><p>${e.message}</p></div>`;
+  }
+}
+
+// ==================== OPENING DAY WEATHER TAB ====================
+
+async function loadODWeatherTab() {
+  const wrap = document.getElementById('content');
+  wrap.innerHTML = '<div class="card"><h2>🌤️ Loading Opening Day Weather Forecasts...</h2><p>Fetching 5-day forecasts for all March 26-27 venues...</p></div>';
+  
+  try {
+    const resp = await fetch('/api/weather/opening-day');
+    const data = await resp.json();
+    
+    let html = '';
+    
+    // Header with summary
+    html += '<div class="card" style="border-left:3px solid #3b82f6">';
+    html += '<h2 style="margin-bottom:8px">🌤️ Opening Day Weather Pre-Check</h2>';
+    html += `<p style="color:var(--muted);font-size:13px">Forecast ${data.forecastDaysOut} days out — Confidence: <span style="color:${data.summary?.forecastConfidence === 'HIGH' ? '#22c55e' : data.summary?.forecastConfidence === 'MODERATE' ? '#eab308' : '#ef4444'}">${data.summary?.forecastConfidence || 'N/A'}</span></p>`;
+    html += `<p style="margin-top:8px;font-weight:bold">${data.summary?.keyTakeaway || ''}</p>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">';
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold">${data.summary?.totalGames || 0}</div><div style="font-size:11px;color:var(--muted)">Total Games</div></div>`;
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold;color:#3b82f6">${data.summary?.coldGames || 0}</div><div style="font-size:11px;color:var(--muted)">Cold Games</div></div>`;
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold;color:#8b5cf6">${data.summary?.windyGames || 0}</div><div style="font-size:11px;color:var(--muted)">Windy Games</div></div>`;
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold;color:#ef4444">${data.summary?.rainRiskGames || 0}</div><div style="font-size:11px;color:var(--muted)">Rain Risk</div></div>`;
+    html += '</div></div>';
+    
+    // Alerts
+    if (data.alerts && data.alerts.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #ef4444">';
+      html += '<h3 style="color:#ef4444;margin-bottom:8px">🚨 Weather Alerts</h3>';
+      for (const alert of data.alerts) {
+        const color = alert.level === 'HIGH' ? '#ef4444' : alert.level === 'MODERATE' ? '#eab308' : '#3b82f6';
+        html += `<div style="padding:6px 10px;margin-bottom:4px;background:var(--bg2);border-radius:6px;border-left:3px solid ${color}">`;
+        html += `<span style="font-weight:bold">${alert.game}</span> (${alert.date}) — ${alert.message}`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Betting Insights
+    if (data.bettingInsights && data.bettingInsights.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #22c55e">';
+      html += '<h3 style="color:#22c55e;margin-bottom:8px">💰 Weather Betting Insights</h3>';
+      for (const ins of data.bettingInsights) {
+        const sigColor = ins.signal === 'OVER' ? '#ef4444' : ins.signal === 'UNDER' || ins.signal === 'F5_UNDER' ? '#3b82f6' : '#8b5cf6';
+        html += `<div style="padding:6px 10px;margin-bottom:4px;background:var(--bg2);border-radius:6px">`;
+        html += `<span style="color:${sigColor};font-weight:bold">${ins.signal}</span> `;
+        html += `<span style="font-weight:bold">${ins.game}</span> — `;
+        html += `<span style="color:var(--muted)">${ins.note}</span> `;
+        html += `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${sigColor}20;color:${sigColor}">${ins.strength}</span>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Game-by-game breakdown
+    const days = {};
+    for (const venue of (data.venues || [])) {
+      if (!days[venue.date]) days[venue.date] = [];
+      days[venue.date].push(venue);
+    }
+    
+    for (const [date, games] of Object.entries(days)) {
+      html += `<div class="card"><h3>📅 ${date} (${date === '2026-03-26' ? 'Day 1 — Opening Day' : 'Day 2'})</h3>`;
+      html += '<div style="display:grid;gap:10px;margin-top:10px">';
+      
+      for (const g of games) {
+        const ppRisk = g.postponementRisk || {};
+        const impact = g.bettingImpact || {};
+        const riskColor = ppRisk.risk === 'HIGH' ? '#ef4444' : ppRisk.risk === 'MODERATE' ? '#eab308' : ppRisk.risk === 'SLIGHT' ? '#f97316' : '#22c55e';
+        
+        html += '<div style="background:var(--bg2);border-radius:8px;padding:12px;border-left:3px solid ' + riskColor + '">';
+        html += `<div style="display:flex;justify-content:space-between;align-items:center">`;
+        html += `<div><span style="font-weight:bold;font-size:15px">${g.away}@${g.home}</span> <span style="color:var(--muted);font-size:12px">${g.time}</span>${g.isGame2 ? ' <span style="font-size:10px;background:#6366f1;color:white;padding:1px 5px;border-radius:3px">GM2</span>' : ''}</div>`;
+        html += `<div style="text-align:right"><span style="font-size:12px;color:var(--muted)">${g.park}</span></div>`;
+        html += '</div>';
+        
+        html += `<div style="font-size:12px;color:var(--muted);margin-top:2px">${g.matchup}</div>`;
+        
+        if (g.dome) {
+          html += '<div style="margin-top:6px;font-size:12px;color:#8b5cf6">🏟️ Dome — weather irrelevant</div>';
+        } else if (g.forecast) {
+          const fp = g.forecast.firstPitch || {};
+          const gd = g.forecast.gameDuration || {};
+          html += '<div style="margin-top:6px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-size:12px">';
+          html += `<div style="text-align:center"><div style="font-size:16px;font-weight:bold">${gd.avgTemp || '?'}°</div><div style="color:var(--muted)">Temp</div></div>`;
+          html += `<div style="text-align:center"><div style="font-size:16px;font-weight:bold">${gd.avgWind || '?'}</div><div style="color:var(--muted)">Wind mph</div></div>`;
+          html += `<div style="text-align:center"><div style="font-size:16px;font-weight:bold">${gd.maxGusts || '?'}</div><div style="color:var(--muted)">Gusts mph</div></div>`;
+          html += `<div style="text-align:center"><div style="font-size:16px;font-weight:bold">${gd.maxPrecipProb || 0}%</div><div style="color:var(--muted)">Rain %</div></div>`;
+          html += `<div style="text-align:center"><div style="font-size:16px;font-weight:bold;color:${riskColor}">${ppRisk.risk || '?'}</div><div style="color:var(--muted)">PPD Risk</div></div>`;
+          html += '</div>';
+          
+          if (impact.description) {
+            html += `<div style="margin-top:6px;font-size:12px">${impact.description} <span style="color:var(--muted)">— Run mult: ${impact.multiplier?.toFixed(3) || '1.000'}x</span></div>`;
+          }
+          
+          if (impact.forecastInsights && impact.forecastInsights.length > 0) {
+            for (const ins of impact.forecastInsights) {
+              const sigColor = ins.signal === 'OVER' ? '#ef4444' : ins.signal === 'UNDER' || ins.signal === 'F5_UNDER' ? '#3b82f6' : '#8b5cf6';
+              html += `<div style="margin-top:4px;font-size:11px;padding:3px 8px;background:${sigColor}15;border-radius:4px;color:${sigColor}"><b>${ins.signal}</b> (${ins.strength}) — ${ins.note}</div>`;
+            }
+          }
+        } else {
+          html += '<div style="margin-top:6px;font-size:12px;color:#eab308">⚠️ Forecast unavailable</div>';
+        }
+        
+        html += '</div>';
+      }
+      
+      html += '</div></div>';
+    }
+    
+    html += `<div class="card" style="text-align:center;color:var(--muted);font-size:12px">Last updated: ${data.fetchedAt || 'N/A'} — ${data.durationMs || 0}ms — Forecasts refresh every 3 hours</div>`;
+    
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>❌ Error loading weather forecast</h2><p>${e.message}</p></div>`;
+  }
+}
+
+// ==================== SEEDING → FUTURES VALUE TAB ====================
+
+async function loadSeedingFuturesTab() {
+  const wrap = document.getElementById('content');
+  wrap.innerHTML = '<div class="card"><h2>🎯 Loading Seeding → Futures Value Analysis...</h2><p>Running 10K seeding simulations and comparing to live futures odds...</p></div>';
+  
+  try {
+    const resp = await fetch('/api/nba/seeding-futures');
+    const data = await resp.json();
+    
+    let html = '';
+    
+    // Header
+    html += '<div class="card" style="border-left:3px solid #f59e0b">';
+    html += '<h2 style="margin-bottom:8px">🎯 NBA Seeding Sim → Futures Value Bridge</h2>';
+    html += `<p style="color:var(--muted);font-size:13px">Seeding sim: ${data.seedingSource?.simulations || 0} sims, ${data.seedingSource?.gamesRemaining || 0} games remaining — Futures market: ${data.futuresMarket?.teamsWithOdds || 0} teams priced</p>`;
+    
+    const summary = data.summary || {};
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">';
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold;color:#22c55e">${summary.totalValueBets || 0}</div><div style="font-size:11px;color:var(--muted)">Value Bets</div></div>`;
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold;color:#ef4444">${summary.totalFades || 0}</div><div style="font-size:11px;color:var(--muted)">Fades</div></div>`;
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold;color:#8b5cf6">${summary.highVolatilityMatchups || 0}</div><div style="font-size:11px;color:var(--muted)">Volatile Matchups</div></div>`;
+    html += `<div style="text-align:center;padding:8px;background:var(--bg2);border-radius:8px"><div style="font-size:24px;font-weight:bold">🏀</div><div style="font-size:11px;color:var(--muted)">21 Days to Playoffs</div></div>`;
+    html += '</div>';
+    
+    if (summary.insight) {
+      html += `<p style="margin-top:10px;font-size:13px;padding:8px;background:var(--bg2);border-radius:6px">${summary.insight}</p>`;
+    }
+    html += '</div>';
+    
+    // Top Value Bets
+    if (data.topValueBets && data.topValueBets.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #22c55e">';
+      html += '<h3 style="color:#22c55e;margin-bottom:10px">💰 Top Futures Value Bets</h3>';
+      html += '<div style="display:grid;gap:10px">';
+      
+      for (const bet of data.topValueBets) {
+        const isValue = bet.direction !== 'FADE';
+        const color = isValue ? '#22c55e' : '#ef4444';
+        
+        html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;border-left:3px solid ${color}">`;
+        html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+        html += `<div><span style="font-weight:bold;font-size:15px">${bet.bet}</span></div>`;
+        html += `<div style="text-align:right">`;
+        if (isValue) {
+          html += `<span style="font-size:18px;font-weight:bold;color:${color}">+${bet.edge}%</span>`;
+        } else {
+          html += `<span style="font-size:18px;font-weight:bold;color:${color}">${bet.edge}%</span>`;
+        }
+        html += '</div></div>';
+        
+        html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;font-size:12px">';
+        html += `<div><span style="color:var(--muted)">Model:</span> <b>${bet.modelProb}%</b></div>`;
+        html += `<div><span style="color:var(--muted)">Market:</span> <b>${bet.marketProb}%</b></div>`;
+        html += `<div><span style="color:var(--muted)">Best Odds:</span> <b>${bet.bestOdds > 0 ? '+' : ''}${bet.bestOdds}</b></div>`;
+        html += `<div><span style="color:var(--muted)">Fair Odds:</span> <b>${bet.fairOdds > 0 ? '+' : ''}${bet.fairOdds}</b></div>`;
+        html += '</div>';
+        
+        if (bet.reasoning) {
+          html += `<div style="margin-top:6px;font-size:11px;color:var(--muted)">${bet.reasoning}</div>`;
+        }
+        
+        if (bet.seedVolatility) {
+          const volColor = bet.seedVolatility === 'HIGH' ? '#ef4444' : bet.seedVolatility === 'MODERATE' ? '#eab308' : '#22c55e';
+          html += `<div style="margin-top:4px"><span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${volColor}20;color:${volColor}">Seed Volatility: ${bet.seedVolatility}</span> <span style="font-size:11px;color:var(--muted)">Projected ${bet.projectedSeed} seed</span></div>`;
+        }
+        
+        html += '</div>';
+      }
+      
+      html += '</div></div>';
+    }
+    
+    // Matchup Edges
+    if (data.matchupEdges && data.matchupEdges.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #8b5cf6">';
+      html += '<h3 style="color:#8b5cf6;margin-bottom:10px">🔄 Volatile Bracket Matchups</h3>';
+      html += '<p style="color:var(--muted);font-size:12px;margin-bottom:8px">Seeding battles that shift Round 1 matchups — creates series futures value</p>';
+      
+      for (const edge of data.matchupEdges.slice(0, 8)) {
+        html += '<div style="background:var(--bg2);border-radius:8px;padding:10px;margin-bottom:6px">';
+        html += `<div style="font-weight:bold;font-size:13px">${edge.conference} ${edge.round} Slot ${edge.slot}</div>`;
+        html += `<div style="font-size:12px;margin-top:4px">`;
+        html += `<span style="color:#22c55e">${edge.primary.matchup} (${edge.primary.prob}%)</span> vs `;
+        html += `<span style="color:#f59e0b">${edge.alternate.matchup} (${edge.alternate.prob}%)</span>`;
+        html += `</div>`;
+        html += `<div style="font-size:11px;color:var(--muted);margin-top:2px">Volatility: ${edge.volatility.toFixed(0)}% — multiple outcomes plausible</div>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Conference Winner Value
+    if (data.conferenceValueBets && data.conferenceValueBets.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #3b82f6">';
+      html += '<h3 style="color:#3b82f6;margin-bottom:10px">🏆 Conference Winner Probabilities</h3>';
+      
+      for (const conf of ['East', 'West']) {
+        const confBets = data.conferenceValueBets.filter(b => b.conference === conf).slice(0, 8);
+        if (confBets.length === 0) continue;
+        
+        html += `<h4 style="color:var(--muted);margin:10px 0 6px">${conf}ern Conference</h4>`;
+        html += '<div style="display:grid;gap:4px">';
+        
+        for (const bet of confBets) {
+          const barWidth = Math.min(bet.modelProb, 100);
+          html += `<div style="display:grid;grid-template-columns:80px 60px 1fr 80px;align-items:center;gap:8px;font-size:12px">`;
+          html += `<span style="font-weight:bold">${bet.team}</span>`;
+          html += `<span>${bet.modelProb}%</span>`;
+          html += `<div style="background:var(--bg3);border-radius:4px;height:14px;overflow:hidden"><div style="background:#3b82f6;height:100%;width:${barWidth}%;border-radius:4px"></div></div>`;
+          html += `<span style="color:var(--muted);text-align:right">${bet.fairOdds > 0 ? '+' : ''}${bet.fairOdds}</span>`;
+          html += '</div>';
+        }
+        
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Key Seeding Battles
+    if (summary.keyBattles && summary.keyBattles.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #f59e0b">';
+      html += '<h3 style="color:#f59e0b;margin-bottom:10px">⚔️ Key Seeding Battles</h3>';
+      
+      for (const battle of summary.keyBattles.slice(0, 6)) {
+        html += '<div style="background:var(--bg2);border-radius:8px;padding:10px;margin-bottom:6px">';
+        html += `<div style="font-weight:bold;font-size:13px">${battle.description || battle.battle || JSON.stringify(battle)}</div>`;
+        if (battle.impact) {
+          html += `<div style="font-size:12px;color:var(--muted);margin-top:2px">${battle.impact}</div>`;
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    html += `<div class="card" style="text-align:center;color:var(--muted);font-size:12px">Generated: ${data.generatedAt || 'N/A'} — ${data.durationMs || 0}ms — 30min cache</div>`;
+    
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>❌ Error loading seeding futures</h2><p>${e.message}</p></div>`;
   }
 }
 
