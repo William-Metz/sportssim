@@ -40,9 +40,21 @@ try { backtestGames = require('../models/backtest-mlb-v2').GAMES; } catch (e) {
  */
 function callPython(inputData, timeoutMs = 300000) {
   return new Promise((resolve, reject) => {
+    // Find libgomp.so.1 for LightGBM — search known locations
+    const libgompPaths = [
+      '/usr/lib/x86_64-linux-gnu',
+      '/tmp',
+      path.join(__dirname, '..', 'ml-env', 'lib', 'python3.12', 'site-packages', 'scikit_learn.libs'),
+      path.join(__dirname, '..', '.venv', 'lib', 'python3.12', 'site-packages', 'scikit_learn.libs'),
+    ];
+    const ldPath = libgompPaths.filter(p => {
+      try { return fs.existsSync(p); } catch { return false; }
+    }).join(':');
+
     const proc = spawn(PYTHON_BIN, [PYTHON_SCRIPT], {
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: timeoutMs,
+      env: { ...process.env, LD_LIBRARY_PATH: ldPath + (process.env.LD_LIBRARY_PATH ? ':' + process.env.LD_LIBRARY_PATH : '') },
     });
 
     let stdout = '';

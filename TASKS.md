@@ -3,14 +3,18 @@
 ## 🚨 URGENT
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| 048 | **NBA Playoff Preview Endpoint** | ⏳ QUEUED | P0 | Wire playoff-series.js to scan projected matchups: OKC vs PHX, SAS vs TOR, LAL vs MIN, HOU vs DEN (West); DET vs MIL, BOS vs CHA, NYK vs PHI, CLE vs ATL (East). Generate series prices + compare to sportsbook futures. 21 days to playoffs — EARLY MOVER ADVANTAGE on series prices. |
-| 049 | **MLB Daily Lineup → Prediction Pipeline** | ⏳ QUEUED | P0 | lineup-fetcher.js exists but NOT wired into predict(). Must be live by March 27. When confirmed lineups drop (usually 2-4hrs before game), auto-adjust predictions. Lines move 10-30 cents on lineup news — we need to beat the market. |
-| 050 | **MLB F5 Opening Week Unders Scan** | ⏳ QUEUED | P1 | Combine opening-week-unders.js + alt-lines.js to specifically surface F5 under value. Aces throw 6+ IP on OD → F5 is where the scoring suppression concentrates. Build dedicated scan for March 27-April 2. |
-| 051 | **NBA Rest/Tank Model Backtest** | ⏳ QUEUED | P1 | Validate rest/tank adjustments against recent results. 5 games today with model predictions — track and grade. |
+| 052 | **NHL Playoff Series Pricing Model** | ⏳ QUEUED | P0 | NHL playoffs April 19 (28 days). Build NHL series pricing like NBA playoff-series.js. COL/DAL/CAR/BUF top seeds. East bubble (PIT/MTL/BOS/DET all 84pts) = volatile matchup projections = early pricing edge BEFORE books efficiently price. |
+| 053 | **NHL Goalie Starter Integration** | ⏳ QUEUED | P0 | Goalie matchups swing NHL lines 5-15 cents. Need daily goalie confirmation data wired into NHL predict(). DailyFaceoff-style scraper or API. |
+| 054 | **Pre-Opening Day Final Check** | ⏳ QUEUED | P0 | End-to-end test on March 26: MLB lineup pipeline, F5 unders scan, Opening Day Playbook, weather integration, auto-scanner MLB flow. All MUST work for March 27. |
+| 055 | **Scanner Reliability Fix** | ⏳ QUEUED | P1 | Auto-scanner shows scans 1.2h+ overdue despite isRunning=true. Scans completing but timing out or not re-scheduling? Need watchdog/auto-restart. |
+| 056 | **NBA/NHL Daily Value Detection Gap** | ⏳ QUEUED | P1 | 0 value bets found today despite 5 NBA + 8 NHL games. Investigate: (a) The Odds API pulling stale/no odds? (b) Edge thresholds too strict? (c) Model-odds alignment too tight? Should be finding at least 1-3 plays on a 13-game slate. |
+| 051 | **NBA Rest/Tank Model Backtest** | ⏳ TRACKING | P1 | 5 games today with rest/tank predictions. Track outcomes to validate. POR@DEN (both B2B, DEN COASTING, POR DESPERATE), WAS@NYK (WAS TANKING). |
 
 ### Previous URGENT (completed)
 | ID | Task | Status | Priority | Notes |
 || #17 | 2026-03-22 09:20 | **MLB Data Validation + FanGraphs RS/RA Blend v41.0** — CRITICAL DATA AUDIT: Validated all 30 MLB teams against ESPN 2025 final standings AND FanGraphs 2026 Depth Charts projected RS/RA. OAK/LAA initially appeared swapped (ESPN labeling issue) but FanGraphs confirms original data correct. All base stats verified ✅. NEW FEATURE: Integrated FanGraphs 2026 projected RS/G and RA/G as 35% blend into season simulator — independent ZiPS+Steamer player-level projections reduce prediction error via ensemble effect. Season sim now produces more conservative, accurate edges: max 5.3W (was 7W+). Model agrees with FanGraphs directionally on 28/30 teams. Also: confirmed tasks 044-047 all completed (NBA rest/tank model, opening week unders, data validation, sim sanity check). |
+| #19 | 2026-03-22 12:40 | **🚨 CRITICAL Auto-Scanner Bug Fix + asyncPredict Upgrade v47.0** — Found and fixed TWO critical bugs in auto-scanner.js: (1) predict() args were SWAPPED (home,away instead of away,home) — every auto-scanner value bet had HCA backwards since it was built. Favorites showed as underdogs. (2) MLB homeWinProb scale mismatch — MLB returns 0-1 fraction but scanner divided by 100 = 0.00487 instead of 0.487. UPGRADES: Auto-scanner now uses asyncPredict() for MLB (lineup/rest/opening-week data flows into value detection). Added totals scanning (was only doing moneylines). NHL predict() format handled correctly. /api/value/nba upgraded to asyncPredict for rest/tank analysis. Sport-specific total variance scaling. Tasks 048-050 confirmed DONE (all API endpoints + dashboard tabs were built in prior sessions). |
+| #20 | 2026-03-22 14:00 | **Planning Session #20: Phase 2.75 → Phase 2.9** — Phase 2.75 COMPLETE ✅ (playoff preview, lineup pipeline, F5 unders all live). Production health: scanner running but scans 1.2h overdue (reliability concern). Data 70min stale (auto-refresh triggered). KEY FINDINGS: (1) 0 NBA/NHL value bets found today despite 13 games — investigating threshold/odds issues. (2) NHL playoffs 28 days away — COL(100pts)/DAL(96)/CAR(94)/BUF(92) top seeds, but East bubble is WILD with PIT/MTL/BOS/DET ALL at 84pts = volatile matchup projections = early pricing edge. (3) NBA standings updated: OKC 56-15, SAS 53-18, DET 51-19. POR@DEN both B2B tonight (DEN COASTING, POR DESPERATE). (4) MLB Opening Day 5 days away — need final check March 26. NEW TASKS: 052 (NHL playoff series model P0), 053 (NHL goalie starters P0), 054 (pre-OD final check P0), 055 (scanner reliability P1), 056 (daily value gap investigation P1). Priority order: 052 → 053 → 054 → 055 → 056. NHL playoff series model is highest-impact new work — books haven't posted series prices yet for most matchups, and the 84-point East bubble creates asymmetric mispricing opportunity. |
 
 ----|------|--------|----------|-------|
 | 043 | **MLB Roster Changes Audit** | ✅ DONE | P0 | All 30 teams now in ROSTER_CHANGES. BAL fixed (Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley etc). Season sim now projects BAL at 84W (was 77W). |
@@ -32,6 +36,9 @@
 ## Completed
 | ID | Task | Completed | Result |
 |----|------|-----------|--------|
+| 048 | NBA Playoff Preview Endpoint | 2026-03-22 | LIVE: /api/playoffs/preview — bracket view, series prices, championship odds, futures scanner |
+| 049 | MLB Daily Lineup → Prediction Pipeline | 2026-03-22 | asyncPredict() wired for all MLB value endpoints + auto-scanner |
+| 050 | MLB F5 Opening Week Unders Scan | 2026-03-22 | /api/opening-week/f5-scan — Poisson F5 scoring + OW adjustments + dashboard tab |
 | 001 | Project structure + backend | 2026-03-19 | Express server with multi-sport API |
 | 002 | NBA power rating model | 2026-03-19 | 30 teams, Pythagorean + luck, 72.7% ML accuracy |
 | 003 | MLB model | 2026-03-19 | 30 teams, pitcher adj + park factors, 57.4% ROI backtest |
@@ -148,14 +155,15 @@
 - Total: $203.80 wagered, +$20.77 expected profit, 10.2% ROI
 
 ---
-*Last updated: 2026-03-22 10:00 UTC*
+*Last updated: 2026-03-22 14:00 UTC*
 *MLB OPENING DAY: 5 DAYS (March 27)*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*
-*✅ Phase 2.5 COMPLETE: All calibration, rest/tank, base data validation done*
-*✅ PRODUCTION: Healthy at sportssim.fly.dev, auto-refreshing, 11+ MLB futures value bets*
-*🔧 P0: NBA playoff preview endpoint (task 048) — 21 days to exploit early series pricing*
-*🔧 P0: MLB lineup pipeline (task 049) — MUST be wired by March 27*
-*🔧 P1: F5 opening week unders (task 050) — targeted scan for March 27-April 2*
-*🔧 P1: Rest/tank backtest (task 051) — grade today's 5 NBA games*
-*Next build priorities: 048 → 049 → 050 → 051*
+*✅ Phase 2.75 COMPLETE: Playoff preview, lineup pipeline, F5 unders all live*
+*✅ PRODUCTION: Live at sportssim.fly.dev, scanner running (some overdue scans), 8+ MLB futures value bets*
+*🔧 P0: NHL playoff series model (task 052) — 28 days to exploit early series pricing, East bubble = massive edge*
+*🔧 P0: NHL goalie starter integration (task 053) — swings lines 5-15 cents*
+*🔧 P0: Pre-Opening Day final check (task 054) — must pass by March 26*
+*🔧 P1: Scanner reliability (task 055) — scans overdue, needs watchdog*
+*🔧 P1: Daily value detection gap (task 056) — 0 NBA/NHL plays found on 13-game slate*
+*Next build priorities: 052 → 053 → 054 → 055 → 056*

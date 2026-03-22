@@ -129,16 +129,24 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [x] **NBA End-of-Season Rest/Tanking Model** — Full service: B2B/3in4/4in6 detection, motivation analysis (TANKING/RESTING/DESPERATE/COMPETING), mismatch detection. Live in production.
 - [x] **MLB Opening Week Unders Edge** — Cold weather, ace starters, rusty bats factors. Wired into MLB predict().
 
-## Phase 2.75: Pre-Season Edge Maximization (Week 3-4) — CURRENT 🔥
-- [ ] 🚨 **NBA Playoff Preview Endpoint** — Seedings nearly locked. Wire playoff-series.js to generate series prices from current standings + our power ratings. Compare to DraftKings/FanDuel series futures NOW before markets efficiently price seeding. OKC/SAS/DET locked top seeds = stable matchup projections.
-- [ ] 🚨 **MLB Daily Lineup Integration** — lineup-fetcher.js exists but not wired into predict() pipeline. Must be live by March 27. Lineup confirms move lines 10-30 cents — we want to be first.
-- [ ] **MLB Opening Week F5 Unders** — Leverage existing Poisson model + opening-week-unders service to specifically surface F5 under value. Aces go 6+ IP on Opening Day → F5 market is where the edge concentrates.
-- [ ] **NBA Playoff Series Value Scanner** — Once playoff preview is live, auto-scan DK/FD series odds vs model. Flag +EV series futures.
-- [ ] **Backtest validation on fixed NBA model** — verify rest/tank adjustments improve ATS record
+## Phase 2.75: Pre-Season Edge Maximization (Week 3-4) — ✅ COMPLETE
+- [x] 🚨 **NBA Playoff Preview Endpoint** — LIVE. Generating series prices: DET(1) vs ORL(8), BOS(2) vs PHI(7), NYK(3) vs ATL(6), CLE(4) vs ORL/CHA. West: OKC(1) vs PHX(8), SAS(2) vs TOR(7), LAL(3) vs DEN/MIN, HOU(4) vs POR/ATL.
+- [x] 🚨 **MLB Daily Lineup Integration** — asyncPredict() wired for all MLB value endpoints and auto-scanner.
+- [x] **MLB Opening Week F5 Unders** — /api/opening-week/f5-scan endpoint live with Poisson F5 scoring.
+- [x] **NBA Playoff Series Value Scanner** — playoff-series.js generating fair prices, wired to championship odds.
+- [ ] **Backtest validation on fixed NBA model** — verify rest/tank adjustments improve ATS record (tracking today's 5 games)
+
+## Phase 2.9: Final Pre-Season Sprint (Week 4) — CURRENT 🔥
+- [ ] 🚨 **NHL Playoff Series Pricing Model** — NHL playoffs 28 days away (April 19). Build NHL series pricing similar to NBA playoff-series.js. COL(1)/DAL(2)/CAR(3)/BUF(4) are top seeds. Massive East bubble: PIT/MTL/BOS/DET all at 84pts = volatile matchup projections = early pricing edge.
+- [ ] 🚨 **NHL Goalie Starter Integration** — Goalie matchups swing NHL lines 5-15 cents. Need daily goalie confirmation scraper (DailyFaceoff style). Wire into NHL predict() for game-day edge.
+- [ ] 🚨 **Pre-Opening Day Final Check (March 26)** — End-to-end test: MLB lineup pipeline, F5 unders, Opening Day Playbook, weather integration, auto-scanner MLB scanning all working for March 27.
+- [ ] **Scanner Reliability Fix** — Auto-scanner shows scans 1.2h+ overdue despite isRunning=true. May need watchdog/auto-restart mechanism.
+- [ ] **NBA/NHL Daily Value Detection** — 0 value bets found today despite 5 NBA + 8 NHL games. Investigate: odds API pull timing? Threshold too strict? Model gaps?
 
 ## Phase 3: Advanced Models (Week 3-4)
-- [ ] **NBA Playoff Seeding Simulator** — Monte Carlo remaining schedule to project final seedings + matchup probabilities. Current projection: OKC(1)/SAS(2)/LAL(3)/HOU(4) vs DEN(5)/MIN(6)/TOR(7)/PHX(8) in West. DET(1)/BOS(2)/NYK(3)/CLE(4) vs ATL(5)/PHI(6)/CHA(7)/MIL(8) in East. 11-12 games left = seedings still in flux.
-- [ ] NFL off-season: win total futures model
+- [ ] **NHL Playoff Series Model** — Build series pricing + fair prices. COL/DAL/CAR/BUF top seeds. Goalie matchups critical for series pricing.
+- [ ] **NBA Playoff Seeding Simulator** — Monte Carlo remaining schedule to project final seedings + matchup probabilities. Current: OKC(1)/SAS(2)/LAL(3)/HOU(4) vs DEN(5)/MIN(6)/TOR(7)/PHX(8) in West. DET(1)/BOS(2)/NYK(3)/CLE(4) vs ATL(5)/PHI(6)/ORL(7)/CHA(8) in East. ~11 games left = some flux.
+- [ ] NFL off-season: win total futures model (NFL Draft April 24 — futures markets move)
 - [ ] Soccer model (EPL/Champions League)
 - [ ] UFC/MMA model
 - [ ] Kalshi scanner (all markets) — ✅ NBA done
@@ -146,9 +154,9 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [ ] Arbitrage scanner (cross-book)
 - [ ] Second-half / live betting model
 - [ ] Tennis model
-- [ ] **pybaseball Statcast pipeline** — advanced pitcher/batter metrics
-- [ ] **NHL playoff series model** — playoffs April 19
-- [ ] **MLB Daily Lineups Integration** — scrape confirmed lineups for game-day model adjustments
+- [ ] **pybaseball Statcast pipeline** — advanced pitcher/batter metrics (✅ DONE — xERA/xwOBA for 853 pitchers)
+- [ ] **NHL daily goalie starter integration** — confirmed starters swing lines 5-15 cents
+- [ ] **MLB Daily Lineups Integration** — ✅ DONE via asyncPredict()
 
 ## Phase 4: Automation & Alerts (Week 4)
 - [ ] Auto-scan every 30 min on game days
@@ -197,12 +205,15 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 10:00 UTC*
-*Current phase: 2.75 — Pre-Season Edge Maximization*
+*Last updated: 2026-03-22 14:00 UTC*
+*Current phase: 2.9 — Final Pre-Season Sprint*
 *✅ Phase 2.5 COMPLETE: All calibration tasks done, rest/tank model live, base data validated*
-*🔧 NEXT: NBA playoff preview endpoint, MLB daily lineup integration, F5 opening week unders*
-*⚡ TODAY: 5 NBA games (POR@DEN, BKN@SAC, WAS@NYK, MIN@BOS, TOR@PHX) — rest/tank model detecting SIGNIFICANT mismatches on POR@DEN and WAS@NYK*
-*📊 PRODUCTION: Live at sportssim.fly.dev, data 90min old (auto-refresh healthy), 11+ MLB futures value bets*
+*✅ Phase 2.75 COMPLETE: NBA playoff preview, MLB lineup pipeline, F5 unders — all live*
+*🔧 NEXT: NHL playoff series model, NHL goalie starters, Opening Day final check, scanner reliability*
+*⚡ TODAY: 5 NBA games (POR@DEN, BKN@SAC, WAS@NYK, MIN@BOS, TOR@PHX) + 8 NHL games (CAR@PIT, VGK@DAL, LAK@UTA, TBL@CGY + more)*
+*📊 PRODUCTION: Live at sportssim.fly.dev, scanner running (some scans overdue), 8+ MLB futures value bets, 0 daily NBA/NHL value (investigating)*
+*🏒 NHL STANDINGS: COL 100pts, DAL 96pts, CAR 94pts, BUF 92pts — bubble is WILD (PIT/MTL/BOS/DET all 84pts)*
+*🏀 NBA STANDINGS: OKC 56-15, SAS 53-18, DET 51-19, BOS 47-23, LAL 46-25, NYK 46-25*
 *MLB OPENING DAY: 5 DAYS (March 27)*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*

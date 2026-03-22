@@ -410,8 +410,10 @@ const MULTI_SEASON_CACHE = path.join(__dirname, 'historical-multi-season-cache.j
 async function getMultiSeasonTrainingData(seasons = null) {
   if (!seasons) {
     seasons = [
+      { startDate: '2022-04-07', endDate: '2022-10-02', label: '2022' },
       { startDate: '2023-03-30', endDate: '2023-10-01', label: '2023' },
       { startDate: '2024-04-01', endDate: '2024-09-29', label: '2024' },
+      { startDate: '2025-03-27', endDate: '2025-09-28', label: '2025' },
     ];
   }
   

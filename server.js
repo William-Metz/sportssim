@@ -52,6 +52,8 @@ let lineupMonitor = null;
 try { lineupMonitor = require('./services/lineup-monitor'); } catch (e) { console.error('[server] Lineup Monitor not loaded:', e.message); }
 let dailySlate = null;
 try { dailySlate = require('./services/daily-slate'); } catch (e) { console.error('[server] Daily Slate service not loaded:', e.message); }
+let consensusEngine = null;
+try { consensusEngine = require('./services/consensus-engine'); } catch (e) { console.error('[server] Consensus Engine not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -115,7 +117,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '47.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading'] });
+  res.json({ status: 'ok', version: '48.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','4-season-training-data'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -4378,6 +4380,66 @@ app.post('/api/scanner/stop', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== CONSENSUS ENGINE ENDPOINTS ====================
+
+// Single game consensus: ALL models compared
+app.get('/api/consensus/:away/:home', async (req, res) => {
+  if (!consensusEngine) return res.status(503).json({ error: 'Consensus Engine not loaded' });
+  try {
+    const { away, home } = req.params;
+    const result = await consensusEngine.getMLBConsensus(away.toUpperCase(), home.toUpperCase());
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Consensus value scan: find bets where ALL models agree on an edge
+app.get('/api/consensus/value/scan', async (req, res) => {
+  if (!consensusEngine) return res.status(503).json({ error: 'Consensus Engine not loaded' });
+  try {
+    const minConsensus = parseInt(req.query.minConsensus) || 55;
+    const minEdge = parseFloat(req.query.minEdge) || 0.03;
+    
+    // Fetch live MLB odds to get games + book prices
+    const liveOdds = await fetchOdds('baseball_mlb');
+    if (!liveOdds || liveOdds.length === 0) {
+      return res.json({ bets: [], note: 'No MLB games with live odds (MLB season not started yet — Opening Day March 27)' });
+    }
+    
+    const nameMap = buildNameMap(mlb.TEAMS || mlb.getTeams(), {
+      'diamondbacks': 'ARI', 'd-backs': 'ARI', 'white sox': 'CWS', 'red sox': 'BOS',
+      'blue jays': 'TOR', 'padres': 'SD', 'giants': 'SF', 'rays': 'TB', 'royals': 'KC',
+    });
+    
+    const games = [];
+    for (const oddsGame of liveOdds) {
+      const awayAbbr = resolveTeam(nameMap, oddsGame.away_team);
+      const homeAbbr = resolveTeam(nameMap, oddsGame.home_team);
+      if (!awayAbbr || !homeAbbr) continue;
+      
+      const bestLine = { homeML: null, awayML: null, total: null };
+      for (const bk of (oddsGame.bookmakers || [])) {
+        const line = extractBookLine(bk, oddsGame.home_team);
+        if (line.homeML && (bestLine.homeML === null || line.homeML > bestLine.homeML)) bestLine.homeML = line.homeML;
+        if (line.awayML && (bestLine.awayML === null || line.awayML > bestLine.awayML)) bestLine.awayML = line.awayML;
+        if (line.total && !bestLine.total) bestLine.total = line.total;
+      }
+      
+      games.push({
+        away: awayAbbr,
+        home: homeAbbr,
+        bookHomeML: bestLine.homeML,
+        bookAwayML: bestLine.awayML,
+        bookHomeProb: bestLine.homeML ? mlToProb(bestLine.homeML) : 0.5,
+        bookAwayProb: bestLine.awayML ? mlToProb(bestLine.awayML) : 0.5,
+        bookTotal: bestLine.total,
+      });
+    }
+    
+    const result = await consensusEngine.getConsensusValueBets(games, minConsensus, minEdge);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== OPENING WEEK UNDERS ENDPOINTS ====================
 
 app.get('/api/opening-week/status', (req, res) => {
@@ -4597,7 +4659,7 @@ app.get('/api/playoffs/preview', async (req, res) => {
     
     res.json({
       timestamp: new Date().toISOString(),
-      version: '47.0.0',
+      version: '48.0.0',
       playoffsStart: '2026-04-12',
       daysUntilPlayoffs: bracket.daysUntilPlayoffs,
       simulations: sims,
@@ -4881,7 +4943,7 @@ app.get('/api/opening-week/f5-scan', async (req, res) => {
     
     res.json({
       timestamp: new Date().toISOString(),
-      version: '47.0.0',
+      version: '48.0.0',
       openingDay: '2026-03-26',
       openingWeekEnd: '2026-04-02',
       totalGames: results.length,

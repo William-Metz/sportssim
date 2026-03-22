@@ -55,7 +55,7 @@ except ImportError:
 try:
     import lightgbm as lgb
     HAS_LGB = True
-except ImportError:
+except (ImportError, OSError):
     HAS_LGB = False
 
 MODEL_DIR = Path(__file__).parent / 'ml-models'

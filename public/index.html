@@ -179,6 +179,7 @@ function buildTabs() {
     tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
   }
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
+  tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -219,6 +220,7 @@ function showTab(id) {
   else if (id === 'f5-unders') loadF5UndersTab();
   else if (id === 'lineups') loadLineupsTab();
   else if (id === 'daily-slate') loadDailySlateTab();
+  else if (id === 'consensus') loadConsensusTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
