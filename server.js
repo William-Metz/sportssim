@@ -35,6 +35,7 @@ const mlBridge = require('./services/ml-bridge');
 const arbitrage = require('./services/arbitrage');
 const playoffSeries = require('./services/playoff-series');
 const statcast = require('./services/statcast');
+const negBinomial = require('./services/neg-binomial');
 const historicalGames = require('./services/historical-games');
 const polymarketValue = require('./services/polymarket-value');
 const preseasonTuning = require('./services/preseason-tuning');
@@ -102,7 +103,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '33.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v2','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium'] });
+  res.json({ status: 'ok', version: '34.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -629,6 +630,71 @@ app.get('/api/model/mlb/preseason-tuning', (req, res) => {
       });
     }
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== NEGATIVE BINOMIAL ENDPOINTS ====================
+
+// Compare Poisson vs Negative Binomial for a matchup
+app.get('/api/model/mlb/nb-compare', (req, res) => {
+  try {
+    const { away, home, awayPitcher, homePitcher } = req.query;
+    if (!away || !home) return res.status(400).json({ error: 'away and home required' });
+    
+    // Get prediction to extract expected runs
+    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), { 
+      awayPitcher, homePitcher, monteCarlo: false 
+    });
+    if (pred.error) return res.status(400).json(pred);
+    
+    const comparison = negBinomial.compareModels(pred.awayExpRuns, pred.homeExpRuns, {
+      park: pred.factors?.parkEffect ? undefined : undefined, // use default
+      isPreseason: !!pred.factors?.earlySeasonRegression,
+    });
+    
+    res.json({
+      matchup: `${away.toUpperCase()} @ ${home.toUpperCase()}`,
+      awayExpRuns: pred.awayExpRuns,
+      homeExpRuns: pred.homeExpRuns,
+      projectedTotal: pred.totalRuns,
+      ...comparison,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get NB totals for a matchup (full breakdown with special markets)
+app.get('/api/model/mlb/nb-totals', (req, res) => {
+  try {
+    const { away, home, awayPitcher, homePitcher } = req.query;
+    if (!away || !home) return res.status(400).json({ error: 'away and home required' });
+    
+    const pred = mlb.predict(away.toUpperCase(), home.toUpperCase(), { 
+      awayPitcher, homePitcher, monteCarlo: false 
+    });
+    if (pred.error) return res.status(400).json(pred);
+    
+    const teams = mlb.getTeams();
+    const homeTeam = teams[home.toUpperCase()];
+    const awayTeam = teams[away.toUpperCase()];
+    
+    const nbTotals = negBinomial.calculateNBTotals(pred.awayExpRuns, pred.homeExpRuns, {
+      park: homeTeam?.park,
+      homeBullpenEra: homeTeam?.bullpenEra,
+      awayBullpenEra: awayTeam?.bullpenEra,
+      isPreseason: !!pred.factors?.earlySeasonRegression,
+      awayPitcherRating: pred.awayPitcher?.rating || 50,
+      homePitcherRating: pred.homePitcher?.rating || 50,
+    });
+    
+    res.json({
+      matchup: `${away.toUpperCase()} @ ${home.toUpperCase()}`,
+      ...nbTotals,
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NB service status
+app.get('/api/model/mlb/nb-status', (req, res) => {
+  res.json(negBinomial.getStatus());
 });
 
 // ==================== NHL ENDPOINTS ====================
@@ -3697,7 +3763,7 @@ app.post('/api/scanner/stop', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v33.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v34.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -3817,4 +3883,21 @@ app.listen(PORT, '0.0.0.0', () => {
       console.error('⚠️ Line snapshot failed:', e.message);
     }
   }, lineMovement.SNAPSHOT_INTERVAL);
+
+  // Auto-refresh live data every 2 hours to keep standings/stats current
+  const DATA_REFRESH_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
+  setInterval(async () => {
+    try {
+      console.log('🔄 Periodic data refresh starting...');
+      await Promise.all([
+        liveData.refreshAll(true),
+        rollingStats.refreshAll(true),
+        injuries.refreshAll(true)
+      ]);
+      console.log('✅ Periodic data refresh complete');
+    } catch (e) {
+      console.error('⚠️ Periodic data refresh failed:', e.message);
+    }
+  }, DATA_REFRESH_INTERVAL);
+  console.log('   ⏰ Auto data refresh: every 2 hours');
 });

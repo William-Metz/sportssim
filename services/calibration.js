@@ -22,35 +22,45 @@
 
 const CALIBRATION_CURVES = {
   mlb: [
-    // MLB V2 Point-in-Time Calibration (2023→2024 backtest, 200 games)
-    // Model is UNDERCONFIDENT: compressed probabilities, wins more than it predicts
-    // Backtest data (5% buckets, N≥3):
-    //   50% pred → 53.8% actual (N=26)
-    //   55% pred → 61.3% actual (N=62)
-    //   60% pred → 75.9% actual (N=58)
-    //   65% pred → 73.5% actual (N=34) — slight non-monotonicity, smoothed
-    //   70% pred → 81.3% actual (N=16)
-    //   75% pred → 75.0% actual (N=4, tiny sample — regress)
-    // 
-    // Smoothed monotonic curve (underconfidence correction):
-    { raw: 0.15, cal: 0.06 },
-    { raw: 0.20, cal: 0.10 },
-    { raw: 0.25, cal: 0.16 },
-    { raw: 0.30, cal: 0.22 },
-    { raw: 0.35, cal: 0.28 },
-    { raw: 0.40, cal: 0.35 },
-    { raw: 0.45, cal: 0.42 },
-    { raw: 0.50, cal: 0.54 },   // 26 games: actual 53.8%
-    { raw: 0.525, cal: 0.58 },
-    { raw: 0.55, cal: 0.61 },   // 62 games: actual 61.3%
-    { raw: 0.575, cal: 0.68 },
-    { raw: 0.60, cal: 0.74 },   // 58 games: actual 75.9% (smoothed to 74% for monotonicity)
-    { raw: 0.625, cal: 0.77 },
-    { raw: 0.65, cal: 0.79 },   // 34 games: actual 73.5% → smoothed to 79% (monotonic)
-    { raw: 0.70, cal: 0.82 },   // 16 games: actual 81.3%
-    { raw: 0.75, cal: 0.86 },   // 4 games: regressed toward trend
-    { raw: 0.80, cal: 0.90 },
-    { raw: 0.85, cal: 0.93 },
+    // MLB V3 Calibration — 2375 REAL 2024 games (full season audit)
+    // ========================================================================
+    // CRITICAL FIX: V2 curve was built from 200-game biased backtest — said
+    // model was underconfident (60% pred → 74% actual). WRONG.
+    // Full 2375-game audit shows model is OVERCONFIDENT at high probabilities:
+    //   50-55% pred → 52.9% actual ✅ (well-calibrated, N=569)
+    //   55-60% pred → 55.2% actual (slight overconfidence, N=576)
+    //   60-65% pred → 59.1% actual (overconfident by ~3%, N=464)
+    //   65-70% pred → 62.5% actual (overconfident by ~5%, N=320)
+    //   70-75% pred → 58.0% actual (MASSIVELY overconfident! -14.7%, N=245)
+    //   75-80% pred → 72.1% actual (overconfident by ~3%, N=201)
+    //
+    // The 70-75% bucket is the worst — likely driven by CWS/COL extreme games
+    // where model assigns 75%+ but upsets happen ~40% of the time.
+    //
+    // Strategy: compress high-confidence predictions toward 50%.
+    // MLB is fundamentally ~60:40 max for any game — even CWS has ~30% upset rate.
+    { raw: 0.15, cal: 0.12 },
+    { raw: 0.20, cal: 0.17 },
+    { raw: 0.25, cal: 0.22 },
+    { raw: 0.30, cal: 0.27 },
+    { raw: 0.35, cal: 0.32 },
+    { raw: 0.40, cal: 0.38 },
+    { raw: 0.45, cal: 0.44 },
+    { raw: 0.50, cal: 0.50 },   // perfect at 50% (by definition)
+    { raw: 0.525, cal: 0.525 }, // 569 games: actual 52.9% at avg 52.75% pred → nearly perfect
+    { raw: 0.55, cal: 0.54 },   // 576 games: actual 55.2% at avg 57.7% pred → slight overcalibration
+    { raw: 0.575, cal: 0.555 },
+    { raw: 0.60, cal: 0.57 },   // 464 games: actual 59.1% at avg 62.5% pred
+    { raw: 0.625, cal: 0.585 },
+    { raw: 0.65, cal: 0.60 },   // 320 games: actual 62.5% at avg 67.7% pred
+    { raw: 0.675, cal: 0.605 },
+    { raw: 0.70, cal: 0.61 },   // 245 games: actual 58.0% at avg 72.7% pred — HUGE overcal
+    { raw: 0.725, cal: 0.63 },  // smoothed — 70-75% range is chaotic, regress heavily
+    { raw: 0.75, cal: 0.66 },   // 201 games: actual 72.1% at avg 75.5% pred — recovers a bit
+    { raw: 0.78, cal: 0.72 },   // extrapolated
+    { raw: 0.80, cal: 0.75 },   // MLB cap — no game truly > 75% favorite
+    { raw: 0.85, cal: 0.78 },
+    { raw: 0.90, cal: 0.80 },
   ],
   
   nba: [

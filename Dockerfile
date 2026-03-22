@@ -1,8 +1,10 @@
-FROM node:20-alpine
+FROM node:20-slim
 
-# Install Python3 + pip for ML engine
-RUN apk add --no-cache python3 py3-pip py3-numpy py3-scipy && \
-    pip3 install --break-system-packages scikit-learn pandas
+# Install Python3 with ML dependencies for the ML bridge
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python3-pip python3-numpy python3-scipy && \
+    pip3 install --break-system-packages --no-cache-dir scikit-learn pandas && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY package*.json ./

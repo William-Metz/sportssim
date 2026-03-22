@@ -277,16 +277,6 @@
       "team": "Dallas Mavericks",
       "injuries": [
         {
-          "player": "Daniel Gafford",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Gafford will start Saturday's game against the Clippers.",
-          "returnDate": "2026-03-22T01:41Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Caleb Martin",
           "position": "F",
           "status": "Out",
@@ -329,7 +319,7 @@
       ],
       "totalImpact": 3.5,
       "outCount": 4,
-      "dtdCount": 1,
+      "dtdCount": 0,
       "starPlayersOut": [
         {
           "player": "Kyrie Irving",
@@ -644,6 +634,16 @@
       "team": "Los Angeles Lakers",
       "injuries": [
         {
+          "player": "Luka Doncic",
+          "position": "G",
+          "status": "Suspension",
+          "detail": "Doncic will be suspended for Monday's game against Detroit after picking up his 16th technical foul Saturday against the Magic.",
+          "returnDate": "2026-03-22T01:56Z",
+          "impact": 5,
+          "isOut": false,
+          "isDayToDay": false
+        },
+        {
           "player": "Maxi Kleber",
           "position": "F",
           "status": "Out",
@@ -820,6 +820,16 @@
       "team": "Milwaukee Bucks",
       "injuries": [
         {
+          "player": "Kyle Kuzma",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Kuzma will not return to Saturday's game against the Suns with right Achilles tightness.",
+          "returnDate": "2026-03-22T03:54Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Bobby Portis",
           "position": "F",
           "status": "Out",
@@ -862,7 +872,7 @@
       ],
       "totalImpact": 5,
       "outCount": 4,
-      "dtdCount": 0,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Giannis Antetokounmpo",
@@ -1062,6 +1072,16 @@
       "team": "Philadelphia 76ers",
       "injuries": [
         {
+          "player": "Dominick Barlow",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Barlow suffered an ankle sprain and was unable to return to Saturday's game against the Jazz, Tony Jones of The Athletic reports.",
+          "returnDate": "2026-03-22T02:35Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Joel Embiid",
           "position": "C",
           "status": "Out",
@@ -1114,7 +1134,7 @@
       ],
       "totalImpact": 7.5,
       "outCount": 4,
-      "dtdCount": 0,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Joel Embiid",
@@ -3414,7 +3434,7 @@
           "player": "Kutter Crawford",
           "position": "SP",
           "status": "Out",
-          "detail": "Crawford (wrist) will throw three innings in a minor league game at Fort Myers on Monday, MLB.com reports.",
+          "detail": "Crawford (wrist) will throw three innings in a minor-league game in Fort Myers on Monday, MLB.com reports.",
           "returnDate": "2026-03-21T17:08Z",
           "impact": 0,
           "isOut": true,
@@ -5090,21 +5110,21 @@
       "team": "San Diego Padres",
       "injuries": [
         {
+          "player": "Sung-Mun Song",
+          "position": "3B",
+          "status": "Out",
+          "detail": "Kevin Acee of The San Diego Union-Tribune reports Saturday that Song will open the 2026 regular season on the injured list due to a right oblique strain.",
+          "returnDate": "2026-03-22T03:46Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Jason Adam",
           "position": "RP",
           "status": "Day-To-Day",
-          "detail": "Adam pitched a perfect inning with one strikeout against Colorado in a Cactus League appearance Friday.",
+          "detail": "Adam (quadriceps) pitched a perfect inning with one strikeout against Colorado in a Cactus League appearance Friday.",
           "returnDate": "2026-03-21T18:50Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Sung-Mun Song",
-          "position": "3B",
-          "status": "Day-To-Day",
-          "detail": "Kevin Acee of The San Diego Union-Tribune reports Saturday that Song will open the 2026 regular season on the injured list due to a right oblique strain.",
-          "returnDate": "2026-03-21T17:53Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -5191,8 +5211,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 7,
-      "dtdCount": 3,
+      "outCount": 8,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "SF": {
@@ -5360,7 +5380,7 @@
           "player": "Lars Nootbaar",
           "position": "LF",
           "status": "Out",
-          "detail": "Nootbaar (heel) will start the 2026 regular season on the Cardinals' injured list, William Ladson of MLB.com reports.",
+          "detail": "Nootbaar (heel) will start the 2026 regular season on the injured list, William Ladson of MLB.com reports.",
           "returnDate": "2026-03-21T14:54Z",
           "impact": 0,
           "isOut": true,
@@ -5749,8 +5769,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774143999494,
-    "nhl": 1774143999622,
-    "mlb": 1774143999802
+    "nba": 1774152419948,
+    "nhl": 1774152420383,
+    "mlb": 1774152420544
   }
 }

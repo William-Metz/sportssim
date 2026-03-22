@@ -23,7 +23,11 @@ const path = require('path');
 const CACHE_FILE = path.join(__dirname, 'alt-lines-cache.json');
 const CACHE_TTL = 15 * 60 * 1000; // 15 min cache (alt lines move slower)
 
-// ==================== POISSON MATH ====================
+// Import Negative Binomial for upgraded scoring model
+let negBinomial = null;
+try { negBinomial = require('./neg-binomial'); } catch (e) { /* fallback to Poisson */ }
+
+// ==================== SCORING MODEL ====================
 
 function poissonPMF(lambda, k) {
   if (k < 0) return 0;
@@ -33,17 +37,39 @@ function poissonPMF(lambda, k) {
 }
 
 /**
- * Build full score probability matrix using Poisson distributions
+ * Build full score probability matrix.
+ * Uses Negative Binomial when available (better overdispersion), falls back to Poisson.
  * Returns P(away=a, home=h) for all a,h in [0, maxRuns)
  */
-function buildScoreMatrix(awayLambda, homeLambda, maxRuns = 20) {
+function buildScoreMatrix(awayLambda, homeLambda, maxRuns = 20, opts = {}) {
+  const useNB = negBinomial && opts.useNegBin !== false;
+  const r = useNB ? (opts.r || negBinomial.getGameR(opts)) : null;
+  
   const matrix = [];
+  let matrixSum = 0;
   for (let a = 0; a < maxRuns; a++) {
     matrix[a] = [];
     for (let h = 0; h < maxRuns; h++) {
-      matrix[a][h] = poissonPMF(awayLambda, a) * poissonPMF(homeLambda, h);
+      if (useNB) {
+        matrix[a][h] = negBinomial.negBinPMF(a, awayLambda, r) * negBinomial.negBinPMF(h, homeLambda, r);
+      } else {
+        matrix[a][h] = poissonPMF(awayLambda, a) * poissonPMF(homeLambda, h);
+      }
+      matrixSum += matrix[a][h];
     }
   }
+  
+  // Normalize NB matrix (doesn't sum to exactly 1 with finite max)
+  if (useNB && matrixSum > 0 && matrixSum < 0.995) {
+    for (let a = 0; a < maxRuns; a++) {
+      for (let h = 0; h < maxRuns; h++) {
+        matrix[a][h] /= matrixSum;
+      }
+    }
+  }
+  
+  matrix._model = useNB ? 'negative-binomial' : 'poisson';
+  matrix._r = r;
   return matrix;
 }
 
@@ -84,14 +110,18 @@ function spreadProb(matrix, spread, maxRuns = 20) {
 
 /**
  * Calculate team total probability (one team's runs over/under a line)
+ * Uses NB when available for better overdispersion modeling
  */
-function teamTotalProb(lambda, line) {
+function teamTotalProb(lambda, line, opts = {}) {
   let overProb = 0, underProb = 0, pushProb = 0;
   const maxRuns = 20;
-  for (let r = 0; r < maxRuns; r++) {
-    const prob = poissonPMF(lambda, r);
-    if (r > line) overProb += prob;
-    else if (r < line) underProb += prob;
+  const useNB = negBinomial && opts.useNegBin !== false;
+  const r = useNB ? (opts.r || negBinomial.R_BASE) : null;
+  
+  for (let k = 0; k < maxRuns; k++) {
+    const prob = useNB ? negBinomial.negBinPMF(k, lambda, r) : poissonPMF(lambda, k);
+    if (k > line) overProb += prob;
+    else if (k < line) underProb += prob;
     else pushProb += prob;
   }
   return { over: overProb, under: underProb, push: pushProb };

@@ -3,11 +3,9 @@
 ## 🚨 URGENT
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| 026 | **CRITICAL: Fix NBA totals bug** | ✅ DONE | P0 | Was dividing expectedTotal by 2 → model said 117 instead of 233 |
-| 027 | **NBA spread compression** | ✅ DONE | P0 | Capped at ±18, added rolling/injury rebalance |
-| 028 | Deploy NBA model fixes | ✅ DONE | P0 | Committed + pushed v23.0 — auto-deploys via GH Actions |
-| 029 | Backtest NBA with fixed model | ✅ DONE | P1 | Rebuilt with 2024-25 point-in-time data, param sweep, 71.6% ML, totals +27.3% ROI |
-| 030 | MLB Opening Day ready-check | ✅ DONE | P0 | All Day 1 starters confirmed, DK lines updated, Poisson win prob, pitcher fix |
+| 039 | **CRITICAL: Fix Fly.io Deploy** | ✅ DONE | P0 | Dockerfile was using Alpine + scikit-learn (needs gcc). Switched to node:20-slim (Debian). ALL deploys since v25.0 failed! |
+| 040 | **Verify NBA totals fix in production** | ⏳ DEPLOYING | P0 | NBA model shows 121 instead of ~235 in prod — code fix exists but never deployed due to 039 |
+| 041 | **Add periodic data auto-refresh** | ✅ DONE | P1 | Live data was 32+ hrs stale. Added 2hr setInterval for refreshAll. Also refreshes on startup. |
 
 ## Active Sprint
 | ID | Task | Status | Priority | Notes |
@@ -16,7 +14,8 @@
 | 007 | NBA backtest (500+ games) | 🔄 PARTIAL | P1 | 176 games done, need more data |
 | 022 | NHL backtest expansion | ⏳ QUEUED | P2 | Add more games for validation |
 | 036 | MLB preseason model tuning | ✅ DONE | P1 | Spring training signals, roster changes, new-team pitcher penalties, OD starter premium |
-| 037 | Automated daily scan cron | ⏳ QUEUED | P2 | Auto-run value scans, picks, Polymarket checks daily and cache results |
+| 037 | Automated daily scan cron | ✅ DONE | P2 | Auto-scanner service built + dashboard tab functional |
+| 038 | Opening Day Playbook endpoint | ✅ DONE | P0 | /api/opening-day-playbook aggregates ALL signals, Kelly sizing, game grades |
 
 ## Completed
 | ID | Task | Completed | Result |
@@ -52,8 +51,8 @@
 | 033 | CLV tracking pipeline | 2026-03-21 | Auto-records picks from value detection, records closing lines, auto-grades, tracks edge over time |
 | 034 | Model calibration audit | 2026-03-21 | NBA calibration curve fitted from 176-game backtest — 60% pred → 50% actual, 80% → 87%, 90% → 93% |
 | 032 | Statcast integration | 2026-03-22 | Real Baseball Savant xERA/xwOBA for 853 pitchers + 651 batters + 30 teams. Wired into predict(), pitcherExpectedRA(), dashboard tab. Regression detection for betting edge. |
-| 036 | MLB preseason model tuning | 2026-03-22 | Spring training signals, 12 roster changes, 8 new-team pitcher penalties, OD starter premium (5.8 IP), bullpen uncertainty, preseason-tuning.js service |
-| 035 | Polymarket Value Bridge | 2026-03-22 | Model vs market edge detection, cross-market arbitrage scanner, championship futures value, 6 dashboard sub-tabs, wired into /api/value/all |
+| 037 | Auto-scanner dashboard tab | 2026-03-22 | Auto Scanner dashboard tab functional, start/stop/force-scan controls |
+| 038 | Opening Day Playbook | 2026-03-22 | Full war room: analytical+ML+Statcast+weather+umpire+preseason signals, Kelly sizing, game grades A+-D, Action Board |
 
 ## Backlog
 - NFL win totals futures model
@@ -90,6 +89,7 @@
 | #10 | 2026-03-21 22:40 | **MLB Poisson + NBA Calibration v23.0** — TWO CRITICAL MODEL FIXES: (1) MLB predict() now uses Poisson-based win probability instead of Log5 — directly models score distributions from expected runs, more accurate for single games. Fixed pitcher RA double-counting: pitcherExpectedRA() returns neutral RA/9, then offense+park applied ONCE. Preseason regression awareness. Tighter probability caps (22-78%). (2) NBA SPREAD_TO_PROB_FACTOR fixed from 7.5→15 — was mapping 16pt spreads to 99.3% instead of real-world 92%. Every NBA value bet was inflated. Also: Opening Day starters fully updated from ESPN (all 11 Day 1 games confirmed), added Misiorowski+Kikuchi to pitcher DB, DK lines for ARI@LAD & CLE@SEA. Tasks 028, 030 completed. |
 | #11 | 2026-03-22 01:20 | **Polymarket Value Bridge v30.0** — NEW SERVICE: `services/polymarket-value.js` bridges our NBA/MLB/NHL model predictions with Polymarket crowd prices to find +EV prediction market bets. Features: (1) Auto-matches Polymarket questions to model predictions via 300+ team aliases. (2) Calculates true edge with Kelly sizing for all +EV bets. (3) Cross-market arbitrage scanner — compares sportsbook lines to Polymarket prices, finds guaranteed profit opportunities. (4) Championship futures value — power rating simulations vs market odds. (5) Wired into `/api/value/all` combined endpoint — Polymarket value bets now appear alongside sportsbook edges. (6) Dashboard Polymarket tab redesigned with 6 sub-tabs: Model Edge (default), Cross-Market Arb, Futures Value, Featured, Movers, Games. API endpoints: `/api/polymarket/value`, `/api/polymarket/arbitrage`, `/api/polymarket/futures-value`. Task 035 completed. |
 | #12 | 2026-03-22 02:00 | **MLB Preseason Tuning v31.0** — OPENING DAY READY: New `services/preseason-tuning.js` wired into MLB model. (1) Spring training signals for all 30 teams — offense/pitching/chemistry ratings weighted at ~3-6% based on team signal strength. (2) 12 key roster changes tracked: Crochet→BOS, Gray→BOS, Peralta→NYM, Ozuna→PIT, Lowe→PIT, Valdez→DET, Kikuchi→LAA, Severino→OAK, Rogers→BAL, Castellanos→SD, and departure impacts. (3) 8 new-team pitcher penalties: pitchers on new teams get 4-6% performance penalty for Opening Day (unfamiliar catchers, new mound, etc.). (4) Opening Day starter premium: starters go 5.8 IP vs 5.5 regular season (bullpens not trusted yet). (5) Bullpen uncertainty ratings by team. (6) All wired into `predict()` — runs automatically during preseason. (7) Dashboard roster changes section added. (8) New API: `/api/model/mlb/preseason-tuning`. Task 036 completed. |
+| #13 | 2026-03-22 04:00 | **CRITICAL DEPLOY FIX + Auto-Refresh v34.0** — Planning session discovered ALL Fly.io deploys have been FAILING since v25.0 (5+ commits). Root cause: Dockerfile used `node:20-alpine` with `apk add py3-scipy && pip3 install scikit-learn` — scikit-learn needs C compiler (gcc/meson) which Alpine doesn't include. Every push to main triggered GH Actions → test passed → deploy FAILED. This means the NBA totals bug fix (v21.0), spread calibration (v23.0), Statcast integration (v26.0), Polymarket bridge (v30.0), and Opening Day Playbook (v33.0) NEVER DEPLOYED TO PRODUCTION. Fix: switched to `node:20-slim` (Debian-based) where pip install works natively. Also added 2-hour periodic data auto-refresh — production data was 32+ hours stale because server only refreshed on startup. Tasks 039, 041 completed. |
 
 ---
 
@@ -130,6 +130,7 @@
 
 ---
 *Last updated: 2026-03-22*
-*MLB OPENING DAY: 4 DAYS*
+*MLB OPENING DAY: 5 DAYS*
 *NBA PLAYOFFS: 21 DAYS*
-*Next priorities: Automated daily scan cron (037), NHL backtest expansion (022), Python ML engine training improvements, Dashboard UI polish*
+*🚨 DEPLOY FIX: Dockerfile switched to node:20-slim — all features from v25-v33 deploying for first time*
+*Next priorities: Verify deploy success (040), monitor NBA totals in prod, live data refresh working, NHL backtest expansion (022)*

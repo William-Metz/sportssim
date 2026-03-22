@@ -1,0 +1,91 @@
+{
+  "generatedAt": "2026-03-22T03:29:14.166Z",
+  "gamesAnalyzed": 2375,
+  "overallAccuracy": 0.5811,
+  "homeWinRate": 0.5246,
+  "totalRuns": {
+    "bias": -0.023,
+    "mae": 3.407,
+    "rmse": 4.298,
+    "avgPredicted": 8.73,
+    "avgActual": 8.75
+  },
+  "calibration": {
+    "0.50-0.55": {
+      "games": 569,
+      "predictedAvg": 0.5275,
+      "actualWinRate": 0.529,
+      "correction": 1.0029
+    },
+    "0.55-0.60": {
+      "games": 576,
+      "predictedAvg": 0.5769,
+      "actualWinRate": 0.5521,
+      "correction": 0.957
+    },
+    "0.60-0.65": {
+      "games": 464,
+      "predictedAvg": 0.6248,
+      "actualWinRate": 0.5905,
+      "correction": 0.9452
+    },
+    "0.65-0.70": {
+      "games": 766,
+      "predictedAvg": 0.6797,
+      "actualWinRate": 0.6358,
+      "correction": 0.9354
+    }
+  },
+  "corrections": [
+    {
+      "midpoint": 52.75,
+      "actualRate": 52.900000000000006,
+      "correction": 1.0029,
+      "games": 569
+    },
+    {
+      "midpoint": 57.69,
+      "actualRate": 55.21,
+      "correction": 0.957,
+      "games": 576
+    },
+    {
+      "midpoint": 62.480000000000004,
+      "actualRate": 59.050000000000004,
+      "correction": 0.9452,
+      "games": 464
+    },
+    {
+      "midpoint": 67.97,
+      "actualRate": 63.580000000000005,
+      "correction": 0.9354,
+      "games": 766
+    }
+  ],
+  "byMonth": {
+    "2024-04": {
+      "accuracy": 0.6103,
+      "games": 390
+    },
+    "2024-05": {
+      "accuracy": 0.5839,
+      "games": 411
+    },
+    "2024-06": {
+      "accuracy": 0.6005,
+      "games": 408
+    },
+    "2024-07": {
+      "accuracy": 0.5233,
+      "games": 365
+    },
+    "2024-08": {
+      "accuracy": 0.5894,
+      "games": 414
+    },
+    "2024-09": {
+      "accuracy": 0.5736,
+      "games": 387
+    }
+  }
+}

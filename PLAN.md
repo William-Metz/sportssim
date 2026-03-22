@@ -186,8 +186,11 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-21*
+*Last updated: 2026-03-22*
 *Current phase: 2.5 — Model Accuracy & Calibration*
-*CRITICAL FIX: NBA total bug resolved (was outputting ~117 instead of ~233)*
-*MLB OPENING DAY: 6 DAYS (March 27)*
-*NBA PLAYOFFS: 22 DAYS (April 12)*
+*🚨 CRITICAL: Fly.io deploys have been FAILING since v25.0 — Dockerfile Python/scikit-learn build broken on Alpine*
+*🔧 FIX: Switched to node:20-slim (Debian) + added 2hr auto-data-refresh interval*
+*NBA totals bug: code fixed locally but NEVER DEPLOYED — production still shows ~121 instead of ~235*
+*MLB OPENING DAY: 5 DAYS (March 27)*
+*NBA PLAYOFFS: 21 DAYS (April 12)*
+*NHL PLAYOFFS: 28 DAYS (April 19)*

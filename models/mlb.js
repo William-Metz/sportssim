@@ -27,6 +27,10 @@ try { umpireService = require('../services/umpire-tendencies'); } catch (e) { /*
 try { statcastService = require('../services/statcast'); } catch (e) { /* no statcast */ }
 try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) { /* no preseason tuning */ }
 
+// Negative Binomial model — upgrades Poisson for overdispersion in MLB scoring
+let negBinomial = null;
+try { negBinomial = require('../services/neg-binomial'); } catch (e) { /* fallback to Poisson */ }
+
 /**
  * Get current team data — live if available, static fallback
  * For MLB: during regular season, merge live W/L/runs with static pitching/advanced stats
@@ -699,7 +703,8 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     };
   }
 
-  // Ensure sane bounds
+  // Ensure sane bounds — CALIBRATION v3: tighter cap reflecting MLB variance
+  // Audit: even the most extreme matchups (LAD@OAK, ATL@CWS) only win ~72% at best
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
   homeRaG = Math.max(1.5, Math.min(10, homeRaG));
 
@@ -718,16 +723,37 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const awayExpF5 = awayExpRuns * f5Factor;
   const homeExpF5 = homeExpRuns * f5Factor;
   
-  // Win probability: Poisson-based (more accurate for single game predictions)
-  // Poisson directly models the scoring distribution from expected runs
-  const poissonProbs = poissonWinProb(awayExpRuns, homeExpRuns);
+  // Win probability: Negative Binomial when available (handles overdispersion),
+  // fallback to Poisson. NB better captures variance in extreme matchups.
+  // Build game context for NB overdispersion parameter
+  const nbOpts = {
+    park: home.park,
+    homeBullpenEra: home.bullpenEra,
+    awayBullpenEra: away.bullpenEra,
+    isPreseason: isPreseasonPredict,
+    weatherMultiplier: (weatherData && weatherData.multiplier) ? weatherData.multiplier : 1.0,
+    awayPitcherRating: awayPitcher ? (awayPitcher.rating || 50) : 50,
+    homePitcherRating: homePitcher ? (homePitcher.rating || 50) : 50,
+  };
+  
+  let baseWinProbs;
+  let gameR = null;
+  if (negBinomial) {
+    gameR = negBinomial.getGameR(nbOpts);
+    baseWinProbs = negBinomial.negBinWinProb(awayExpRuns, homeExpRuns, gameR);
+  } else {
+    baseWinProbs = poissonWinProb(awayExpRuns, homeExpRuns);
+  }
   
   // Apply home advantage as a probability shift
   // In MLB, home teams win ~54% overall. Our expected runs already include park factors,
   // so home advantage here is just the residual (batting last, familiarity, etc.)
   // Typical residual HCA beyond park factors is ~1-2% 
   const HCA_SHIFT = 0.018; // ~1.8% home advantage beyond park factors
-  let homeWinProb = Math.min(0.75, Math.max(0.25, poissonProbs.home + HCA_SHIFT));
+  // CALIBRATION v3: Audit of 2375 2024 games shows model is overconfident at extremes.
+  // 70-75% model predictions only win 58% of the time. Cap raw output at 0.68 before
+  // any additional adjustments. MLB is fundamentally a high-variance sport.
+  let homeWinProb = Math.min(0.68, Math.max(0.32, baseWinProbs.home + HCA_SHIFT));
   let awayWinProb = 1 - homeWinProb;
   
   // Pitcher quality differential bonus
@@ -745,7 +771,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     // Regular season: 0.05 per 100 rating diff, Preseason: 0.08
     const isPreseasonGame = (awayRegression > 0 || homeRegression > 0);
     const pitcherWeight = isPreseasonGame ? 0.08 : 0.05;
-    homeWinProb = Math.min(0.78, Math.max(0.22, homeWinProb + ratingDiff * pitcherWeight));
+    homeWinProb = Math.min(0.68, Math.max(0.32, homeWinProb + ratingDiff * pitcherWeight));
     awayWinProb = 1 - homeWinProb;
   }
   
@@ -756,7 +782,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     const rollingMom = ((homeRolling.momentum || 0) - (awayRolling.momentum || 0)) * 0.01;
     momAdj += rollingMom;
   }
-  homeWinProb = Math.min(0.78, Math.max(0.22, homeWinProb + momAdj));
+  homeWinProb = Math.min(0.68, Math.max(0.32, homeWinProb + momAdj));
   awayWinProb = 1 - homeWinProb;
   
   // Total runs
@@ -771,8 +797,38 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const homeML = probToML(homeWinProb);
   const awayML = probToML(awayWinProb);
 
-  // Poisson totals
-  const poissonTotals = calculatePoissonTotals(awayExpRuns, homeExpRuns);
+  // Totals — use Negative Binomial when available (better overdispersion), fallback to Poisson
+  let poissonTotals = calculatePoissonTotals(awayExpRuns, homeExpRuns);
+  let nbTotals = null;
+  if (negBinomial) {
+    nbTotals = negBinomial.calculateNBTotals(awayExpRuns, homeExpRuns, nbOpts);
+    // Merge NB totals into the main totals object — NB is more accurate for O/U
+    // Keep Poisson for backwards compatibility but add NB data
+    poissonTotals.model = 'negative-binomial+poisson';
+    poissonTotals.nbR = gameR;
+    poissonTotals.nbOverdispersion = nbTotals.overdispersion;
+    // Override O/U probabilities with NB values (more accurate)
+    if (nbTotals.lines) {
+      for (const [line, data] of Object.entries(nbTotals.lines)) {
+        if (poissonTotals.lines && poissonTotals.lines[line]) {
+          poissonTotals.lines[line].nbOver = data.over;
+          poissonTotals.lines[line].nbUnder = data.under;
+          poissonTotals.lines[line].nbOverML = data.overML;
+          poissonTotals.lines[line].nbUnderML = data.underML;
+          // Use NB as the primary O/U probability
+          poissonTotals.lines[line].over = data.over;
+          poissonTotals.lines[line].under = data.under;
+          poissonTotals.lines[line].overML = data.overML;
+          poissonTotals.lines[line].underML = data.underML;
+        }
+      }
+    }
+    // Add NB-specific features
+    poissonTotals.teamTotals = nbTotals.teamTotals;
+    poissonTotals.specialMarkets = nbTotals.specialMarkets;
+    poissonTotals.variance = nbTotals.variance;
+    poissonTotals.topScores = nbTotals.topScores;
+  }
   
   const result = {
     away: awayAbbr, home: homeAbbr,
