@@ -212,6 +212,7 @@ async function generateDailyPicks(opts = {}) {
     propsSvc,
     umpireSvc,        // NEW: umpire tendencies service
     calibrationSvc,   // NEW: probability calibration service
+    mlBridgeSvc,      // ML ensemble engine for blended predictions
     bankroll = 1000,
     kellyFraction = 0.5, // half-Kelly default
     minEdge = 0.02,
@@ -372,6 +373,26 @@ async function generateDailyPicks(opts = {}) {
       }
 
       const gameId = `${awayAbbr}@${homeAbbr}`;
+
+      // ==================== ML ENSEMBLE BLENDING ====================
+      // Blend ML engine probabilities into prediction for sharper edges
+      if (mlBridgeSvc && sportKey === 'MLB') {
+        try {
+          const mlResult = await mlBridgeSvc.enhancedPredict(awayAbbr, homeAbbr);
+          if (mlResult && mlResult.ml && mlResult.blendedHomeWinProb) {
+            prediction.mlHomeWinProb = mlResult.ml.homeWinProb;
+            prediction.mlAwayWinProb = mlResult.ml.awayWinProb;
+            prediction.blendedHomeWinProb = mlResult.blendedHomeWinProb;
+            prediction.blendedAwayWinProb = mlResult.blendedAwayWinProb;
+            prediction.mlModelAgreement = mlResult.ml.modelAgreement;
+            prediction.mlConfidence = mlResult.ml.confidence;
+            prediction.predictionSource = 'ml+analytical';
+            if (mlResult.ml.predictedTotal && prediction.totalRuns) {
+              prediction.mlTotalRuns = mlResult.ml.predictedTotal;
+            }
+          }
+        } catch (mlErr) { /* ML is optional — analytical still solid */ }
+      }
 
       // ==================== MONEYLINE VALUE ====================
       // Use blended probs (analytical + MC + calibration) when available

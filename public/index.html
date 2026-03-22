@@ -158,6 +158,7 @@ function buildTabs() {
   tabs.push({ id: 'sgp', label: '🎲 SGP Builder' });
   tabs.push({ id: 'polymarket', label: '🔮 Polymarket' });
   tabs.push({ id: 'ml', label: '🧠 ML Engine' });
+  tabs.push({ id: 'edge-scanner', label: '🎯 Edge Scanner' });
   tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
@@ -191,6 +192,7 @@ function showTab(id) {
   else if (id === 'statcast') loadStatcastTab();
   else if (id === 'arb') loadArbTab();
   else if (id === 'ml') loadMLTab();
+  else if (id === 'edge-scanner') loadEdgeScanner();
   else if (id === 'tracker') loadTracker();
   else if (id === 'playoffs') loadPlayoffsTab();
 }
@@ -2397,7 +2399,7 @@ async function loadSGPTab() {
   }
 }
 
-let polyView = 'featured'; // 'featured', 'movers', 'games'
+let polyView = 'value'; // 'value', 'featured', 'movers', 'games', 'futures', 'arbitrage'
 
 async function loadPolymarket() {
   const wrap = document.getElementById('tab-content');
@@ -2405,16 +2407,28 @@ async function loadPolymarket() {
   html += '<p style="color:var(--text3);font-size:13px;margin-bottom:12px">Real-time sports prediction markets from Polymarket. Find edge where the crowd is wrong.</p>';
   
   html += '<div class="sub-tabs" style="margin-bottom:16px">';
-  html += `<button class="tab ${polyView==='featured'?'active':''}" onclick="polyView='featured';loadPolymarket()">🏆 Featured Markets</button>`;
-  html += `<button class="tab ${polyView==='movers'?'active':''}" onclick="polyView='movers';loadPolymarket()">📊 Price Movers</button>`;
-  html += `<button class="tab ${polyView==='games'?'active':''}" onclick="polyView='games';loadPolymarket()">🎮 Daily Games</button>`;
+  html += `<button class="tab ${polyView==='value'?'active':''}" onclick="polyView='value';loadPolymarket()">🎯 Model Edge</button>`;
+  html += `<button class="tab ${polyView==='arbitrage'?'active':''}" onclick="polyView='arbitrage';loadPolymarket()">⚡ Cross-Market Arb</button>`;
+  html += `<button class="tab ${polyView==='futures'?'active':''}" onclick="polyView='futures';loadPolymarket()">🏆 Futures Value</button>`;
+  html += `<button class="tab ${polyView==='featured'?'active':''}" onclick="polyView='featured';loadPolymarket()">📊 Featured</button>`;
+  html += `<button class="tab ${polyView==='movers'?'active':''}" onclick="polyView='movers';loadPolymarket()">📈 Movers</button>`;
+  html += `<button class="tab ${polyView==='games'?'active':''}" onclick="polyView='games';loadPolymarket()">🎮 Games</button>`;
   html += '</div>';
   
   html += '<div id="poly-content"><div class="loading"><div class="spinner"></div></div></div>';
   wrap.innerHTML = html;
   
   try {
-    if (polyView === 'featured') {
+    if (polyView === 'value') {
+      const data = await api('/api/polymarket/value');
+      document.getElementById('poly-content').innerHTML = renderPolyValue(data);
+    } else if (polyView === 'arbitrage') {
+      const data = await api('/api/polymarket/arbitrage');
+      document.getElementById('poly-content').innerHTML = renderPolyArbitrage(data);
+    } else if (polyView === 'futures') {
+      const data = await api('/api/polymarket/futures-value');
+      document.getElementById('poly-content').innerHTML = renderPolyFuturesValue(data);
+    } else if (polyView === 'featured') {
       const data = await api('/api/polymarket/scan');
       polyData = data;
       document.getElementById('poly-content').innerHTML = renderPolyFeatured(data);
@@ -2428,6 +2442,218 @@ async function loadPolymarket() {
   } catch (e) {
     document.getElementById('poly-content').innerHTML = `<p style="color:var(--neg)">Error loading Polymarket data: ${e.message}</p>`;
   }
+}
+
+function renderPolyValue(data) {
+  if (!data) return '<p>No data</p>';
+  if (data.error) return `<p style="color:var(--neg)">${data.error}</p>`;
+  
+  let html = '';
+  
+  // Summary card
+  html += `<div class="card" style="background:linear-gradient(135deg,rgba(80,200,120,0.15),rgba(130,80,223,0.1));border:1px solid rgba(80,200,120,0.3);padding:16px;margin-bottom:16px">`;
+  html += `<div style="display:flex;justify-content:space-between;align-items:center">`;
+  html += `<div><strong style="font-size:18px">🎯 Model vs Market Edge Scanner</strong><br><span style="color:var(--text3)">Our models vs Polymarket crowd prices</span></div>`;
+  html += `<div style="text-align:right"><span style="font-size:24px;font-weight:700;color:var(--pos)">${data.valueBetsFound || 0}</span><br><span style="color:var(--text3)">value bets found</span></div>`;
+  html += `</div>`;
+  html += `<div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap">`;
+  html += `<span class="badge" style="background:rgba(130,80,223,0.2);color:#a880ff">📊 ${data.totalMarkets || 0} markets scanned</span>`;
+  html += `<span class="badge" style="background:rgba(80,200,120,0.2);color:#80cc80">✅ ${data.matched || 0} matched to models</span>`;
+  html += `<span class="badge" style="background:rgba(255,150,50,0.2);color:#ffaa50">❓ ${data.unmatched || 0} unmatched</span>`;
+  html += `</div></div>`;
+  
+  // Value bets
+  const valueBets = data.valueBets || [];
+  if (valueBets.length === 0) {
+    html += `<div class="card" style="padding:20px;text-align:center;color:var(--text3)">`;
+    html += `<p style="font-size:16px">No value bets found right now</p>`;
+    html += `<p style="font-size:13px">This means Polymarket prices are currently in line with our models. Check back when more markets are active.</p>`;
+    html += `</div>`;
+    return html;
+  }
+  
+  // Filter: value vs fade
+  const buys = valueBets.filter(v => v.rawEdge > 0);
+  const fades = valueBets.filter(v => v.rawEdge < 0);
+  
+  // Value bets (positive edge — BUY opportunities)
+  if (buys.length > 0) {
+    html += `<div class="card" style="margin-bottom:16px;padding:16px">`;
+    html += `<h3 style="margin:0 0 12px 0;color:var(--pos)">🟢 BUY — Model Says Underpriced (${buys.length})</h3>`;
+    html += `<div style="display:flex;flex-direction:column;gap:8px">`;
+    
+    for (const bet of buys.slice(0, 15)) {
+      html += renderValueBetCard(bet, 'buy');
+    }
+    html += `</div></div>`;
+  }
+  
+  // Fade bets (negative edge — FADE opportunities)
+  if (fades.length > 0) {
+    html += `<div class="card" style="margin-bottom:16px;padding:16px">`;
+    html += `<h3 style="margin:0 0 12px 0;color:var(--neg)">🔴 FADE — Model Says Overpriced (${fades.length})</h3>`;
+    html += `<div style="display:flex;flex-direction:column;gap:8px">`;
+    
+    for (const bet of fades.slice(0, 10)) {
+      html += renderValueBetCard(bet, 'fade');
+    }
+    html += `</div></div>`;
+  }
+  
+  return html;
+}
+
+function renderValueBetCard(bet, type) {
+  const edgeColor = bet.rawEdge > 0 ? 'var(--pos)' : 'var(--neg)';
+  const bgColor = bet.rawEdge > 0 ? 'rgba(80,200,120,0.05)' : 'rgba(200,80,80,0.05)';
+  
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:${bgColor};border-radius:8px;border-left:3px solid ${edgeColor};cursor:pointer" onclick="window.open('${bet.url}','_blank')">`;
+  html += `<div style="flex:1;min-width:0">`;
+  html += `<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${bet.signal || ''} ${bet.question}</div>`;
+  html += `<div style="display:flex;gap:12px;margin-top:4px;font-size:12px;flex-wrap:wrap">`;
+  html += `<span style="color:var(--text3)">${(bet.sport || '').toUpperCase()}</span>`;
+  html += `<span>Market: <strong>${bet.impliedProb}%</strong></span>`;
+  if (bet.modelProb) html += `<span>Model: <strong style="color:${edgeColor}">${bet.modelProb}%</strong></span>`;
+  html += `<span>Outcome: <strong>${bet.outcome}</strong></span>`;
+  if (bet.volume24hr) html += `<span style="color:var(--text3)">$${formatNumber(bet.volume24hr)} vol</span>`;
+  html += `</div>`;
+  if (bet.kelly && type === 'buy') {
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:3px">Kelly: ${(bet.kelly.half * 100).toFixed(1)}% (half) • ${(bet.kelly.quarter * 100).toFixed(1)}% (quarter)</div>`;
+  }
+  html += `</div>`;
+  html += `<div style="text-align:right;min-width:70px">`;
+  html += `<span style="font-size:20px;font-weight:700;color:${edgeColor}">${bet.edge > 0 ? '+' : ''}${bet.edge}%</span>`;
+  html += `<br><span style="font-size:11px;color:var(--text3)">edge</span>`;
+  html += `</div></div>`;
+  return html;
+}
+
+function renderPolyArbitrage(data) {
+  if (!data) return '<p>No data</p>';
+  if (data.error) return `<p style="color:var(--neg)">${data.error}</p>`;
+  
+  let html = '';
+  
+  // Summary
+  html += `<div class="card" style="background:linear-gradient(135deg,rgba(255,200,50,0.15),rgba(200,80,80,0.1));border:1px solid rgba(255,200,50,0.3);padding:16px;margin-bottom:16px">`;
+  html += `<div style="display:flex;justify-content:space-between;align-items:center">`;
+  html += `<div><strong style="font-size:18px">⚡ Cross-Market Arbitrage Scanner</strong><br><span style="color:var(--text3)">Polymarket vs traditional sportsbooks</span></div>`;
+  html += `<div style="text-align:right"><span style="font-size:24px;font-weight:700;color:var(--warn)">${data.opportunities || 0}</span><br><span style="color:var(--text3)">discrepancies found</span></div>`;
+  html += `</div>`;
+  html += `<div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap">`;
+  html += `<span class="badge" style="background:rgba(80,150,223,0.2);color:#80b0ff">🎮 ${data.gamesScanned || 0} sportsbook games</span>`;
+  html += `<span class="badge" style="background:rgba(130,80,223,0.2);color:#a880ff">🔮 ${data.polyMarketsScanned || 0} Polymarket markets</span>`;
+  html += `<span class="badge" style="background:rgba(80,200,120,0.2);color:#80cc80">🔗 ${data.matchedGames || 0} matched</span>`;
+  if (data.arbitrageFound > 0) html += `<span class="badge" style="background:rgba(255,50,50,0.2);color:#ff6060">🚨 ${data.arbitrageFound} TRUE ARBS</span>`;
+  html += `</div></div>`;
+  
+  const results = data.results || [];
+  if (results.length === 0) {
+    html += `<div class="card" style="padding:20px;text-align:center;color:var(--text3)">`;
+    html += `<p style="font-size:16px">No cross-market discrepancies found</p>`;
+    html += `<p style="font-size:13px">Polymarket and sportsbook lines are currently aligned. Arb opportunities are fleeting — check back frequently.</p>`;
+    html += `</div>`;
+    return html;
+  }
+  
+  html += `<div style="display:flex;flex-direction:column;gap:12px">`;
+  for (const opp of results) {
+    const isArb = opp.isArbitrage;
+    html += `<div class="card" style="padding:14px;border-left:3px solid ${isArb ? 'var(--neg)' : 'var(--warn)'}">`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">`;
+    html += `<strong style="font-size:15px">${isArb ? '🚨 ARB: ' : '📊 '} ${opp.game}</strong>`;
+    html += `<span style="font-size:18px;font-weight:700;color:var(--warn)">${opp.discrepancy}% gap</span>`;
+    html += `</div>`;
+    
+    // Side by side comparison
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">`;
+    
+    // Sportsbook side
+    html += `<div style="padding:10px;background:rgba(80,150,223,0.1);border-radius:8px">`;
+    html += `<div style="font-size:12px;color:var(--text3);margin-bottom:4px">📕 Sportsbook</div>`;
+    html += `<div style="font-size:13px">Home: <strong>${opp.sportsbook.homeProb}%</strong> (${opp.sportsbook.homeML > 0 ? '+' : ''}${opp.sportsbook.homeML})</div>`;
+    html += `<div style="font-size:13px">Away: <strong>${opp.sportsbook.awayProb}%</strong> (${opp.sportsbook.awayML > 0 ? '+' : ''}${opp.sportsbook.awayML})</div>`;
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:4px">Best: ${opp.sportsbook.bestHomeBook} / ${opp.sportsbook.bestAwayBook}</div>`;
+    html += `</div>`;
+    
+    // Polymarket side
+    html += `<div style="padding:10px;background:rgba(130,80,223,0.1);border-radius:8px">`;
+    html += `<div style="font-size:12px;color:var(--text3);margin-bottom:4px">🔮 Polymarket</div>`;
+    html += `<div style="font-size:13px">Home: <strong>${opp.polymarket.homePrice}%</strong> (${opp.polymarket.homeML > 0 ? '+' : ''}${opp.polymarket.homeML})</div>`;
+    html += `<div style="font-size:13px">Away: <strong>${opp.polymarket.awayPrice}%</strong> (${opp.polymarket.awayML > 0 ? '+' : ''}${opp.polymarket.awayML})</div>`;
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:4px">$${formatNumber(opp.polymarket.liquidity)} liq • $${formatNumber(opp.polymarket.volume24hr)} vol</div>`;
+    html += `</div>`;
+    
+    html += `</div>`;
+    
+    // Best play
+    html += `<div style="padding:8px;background:rgba(255,200,50,0.1);border-radius:6px;font-size:13px">`;
+    html += `<strong>Best Play:</strong> ${opp.bestPlay.team} ${opp.bestPlay.side} on <strong>${opp.bestPlay.where}</strong> — ${opp.bestPlay.edge > 0 ? '+' : ''}${opp.bestPlay.edge}% edge`;
+    if (isArb && opp.arbReturn) html += ` • <strong style="color:var(--pos)">Guaranteed ${opp.arbReturn}% return</strong>`;
+    html += `</div>`;
+    
+    html += `</div>`;
+  }
+  html += `</div>`;
+  
+  return html;
+}
+
+function renderPolyFuturesValue(data) {
+  if (!data) return '<p>No data</p>';
+  if (data.error) return `<p style="color:var(--neg)">${data.error}</p>`;
+  
+  let html = '';
+  
+  // Summary
+  html += `<div class="card" style="background:linear-gradient(135deg,rgba(255,180,50,0.15),rgba(130,80,223,0.1));border:1px solid rgba(255,180,50,0.3);padding:16px;margin-bottom:16px">`;
+  html += `<div style="display:flex;justify-content:space-between;align-items:center">`;
+  html += `<div><strong style="font-size:18px">🏆 Championship Futures Value</strong><br><span style="color:var(--text3)">Power ratings vs Polymarket championship odds</span></div>`;
+  html += `<div style="text-align:right"><span style="font-size:24px;font-weight:700;color:var(--pos)">${data.valueFound || 0}</span><br><span style="color:var(--text3)">value futures</span></div>`;
+  html += `</div></div>`;
+  
+  const results = data.results || [];
+  if (results.length === 0) {
+    html += `<div class="card" style="padding:20px;text-align:center;color:var(--text3)">`;
+    html += `<p style="font-size:16px">No championship futures found on Polymarket</p>`;
+    html += `</div>`;
+    return html;
+  }
+  
+  // Group by sport
+  const bySport = {};
+  for (const r of results) {
+    const s = r.sport || 'OTHER';
+    if (!bySport[s]) bySport[s] = [];
+    bySport[s].push(r);
+  }
+  
+  const sportEmojis = { NBA: '🏀', MLB: '⚾', NHL: '🏒', NFL: '🏈' };
+  
+  for (const [sport, futures] of Object.entries(bySport)) {
+    html += `<div class="card" style="margin-bottom:16px;padding:16px">`;
+    html += `<h3 style="margin:0 0 12px 0">${sportEmojis[sport] || '🏅'} ${sport} Championship Futures</h3>`;
+    
+    html += `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">`;
+    html += `<tr style="border-bottom:1px solid var(--bg3)"><th style="text-align:left;padding:8px">Team</th><th>Record</th><th>Market</th><th>Model</th><th>Edge</th><th>Signal</th><th>Kelly</th></tr>`;
+    
+    for (const f of futures) {
+      const edgeColor = f.edge > 0 ? 'var(--pos)' : f.edge < 0 ? 'var(--neg)' : 'var(--text3)';
+      html += `<tr style="border-bottom:1px solid var(--bg3);cursor:pointer" onclick="window.open('${f.url}','_blank')">`;
+      html += `<td style="padding:8px;font-weight:600">${f.team} (${f.teamAbbr})</td>`;
+      html += `<td style="padding:8px;text-align:center;color:var(--text3)">${f.record || '-'}</td>`;
+      html += `<td style="padding:8px;text-align:center">${f.marketPrice}%</td>`;
+      html += `<td style="padding:8px;text-align:center;font-weight:600;color:${edgeColor}">${f.modelProb}%</td>`;
+      html += `<td style="padding:8px;text-align:center;font-weight:700;color:${edgeColor}">${f.edge > 0 ? '+' : ''}${f.edge}%</td>`;
+      html += `<td style="padding:8px;text-align:center">${f.signal || '-'}</td>`;
+      html += `<td style="padding:8px;text-align:center;color:var(--text3)">${f.kelly ? (f.kelly.half * 100).toFixed(1) + '%' : '-'}</td>`;
+      html += `</tr>`;
+    }
+    
+    html += `</table></div></div>`;
+  }
+  
+  return html;
 }
 
 function renderPolyFeatured(data) {
@@ -3334,6 +3560,88 @@ async function calcArb() {
   }
 }
 
+// ==================== EDGE SCANNER TAB ====================
+let edgeScanSport = 'mlb';
+async function loadEdgeScanner() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">🔍 Scanning for edges...</div>';
+  
+  try {
+    const data = await fetch(`/api/edge-scanner/${edgeScanSport}`).then(r => r.json());
+    if (data.error) throw new Error(data.error);
+    
+    let html = '<div style="padding:20px">';
+    html += '<h2 style="margin-bottom:8px">🎯 ML Edge Scanner</h2>';
+    html += '<p style="color:#94a3b8;margin-bottom:16px">Compares Analytical + ML Ensemble + Monte Carlo vs Book Prices</p>';
+    
+    // Sport selector
+    html += '<div style="display:flex;gap:8px;margin-bottom:20px">';
+    ['mlb', 'nba', 'nhl'].forEach(s => {
+      const label = s === 'mlb' ? '⚾ MLB' : s === 'nba' ? '🏀 NBA' : '🏒 NHL';
+      const active = s === edgeScanSport;
+      html += `<button onclick="edgeScanSport='${s}';loadEdgeScanner()" style="padding:8px 20px;border-radius:8px;border:1px solid ${active?'#6366f1':'#334155'};background:${active?'#6366f1':'#1e293b'};color:white;cursor:pointer;font-size:14px">${label}</button>`;
+    });
+    html += '</div>';
+    
+    // Summary stats
+    const strong = data.strongEdges || [];
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">';
+    html += `<div style="background:#1e293b;padding:16px;border-radius:12px;text-align:center"><div style="font-size:28px;font-weight:bold">${data.totalGames}</div><div style="color:#94a3b8;font-size:12px">Games Scanned</div></div>`;
+    html += `<div style="background:#1e293b;padding:16px;border-radius:12px;text-align:center"><div style="font-size:28px;font-weight:bold;color:#22c55e">${strong.length}</div><div style="color:#94a3b8;font-size:12px">Strong Edges (5%+)</div></div>`;
+    html += `<div style="background:#1e293b;padding:16px;border-radius:12px;text-align:center"><div style="font-size:28px;font-weight:bold;color:${data.mlEnabled?'#22c55e':'#f59e0b'}">${data.mlEnabled?'✅':'⚠️'}</div><div style="color:#94a3b8;font-size:12px">ML Engine</div></div>`;
+    html += '</div>';
+    
+    // Edge table
+    if (data.edges && data.edges.length > 0) {
+      html += '<div style="overflow-x:auto">';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<thead><tr style="border-bottom:2px solid #334155;text-align:left">';
+      html += '<th style="padding:10px 8px">Game</th>';
+      html += '<th style="padding:10px 8px">Pick</th>';
+      html += '<th style="padding:10px 8px">Edge</th>';
+      html += '<th style="padding:10px 8px">Model Prob</th>';
+      html += '<th style="padding:10px 8px">Book Prob</th>';
+      html += '<th style="padding:10px 8px">ML</th>';
+      html += '<th style="padding:10px 8px">Agreement</th>';
+      html += '<th style="padding:10px 8px">Sources</th>';
+      html += '</tr></thead><tbody>';
+      
+      for (const e of data.edges) {
+        const edge = e.bestPick.edge;
+        const edgeColor = edge >= 0.05 ? '#22c55e' : edge >= 0.03 ? '#eab308' : edge >= 0.01 ? '#94a3b8' : '#ef4444';
+        const edgeEmoji = edge >= 0.07 ? '🔥🔥' : edge >= 0.05 ? '🔥' : edge >= 0.03 ? '✅' : edge > 0 ? '📊' : '❌';
+        
+        html += `<tr style="border-bottom:1px solid #1e293b;${edge >= 0.05 ? 'background:#0f2a1c' : ''}">`;
+        html += `<td style="padding:10px 8px;font-weight:bold">${e.game}</td>`;
+        html += `<td style="padding:10px 8px">${e.bestPick.team} ${e.bestPick.side.toUpperCase()} ${e.bestPick.ml > 0 ? '+' : ''}${e.bestPick.ml}</td>`;
+        html += `<td style="padding:10px 8px;color:${edgeColor};font-weight:bold">${edgeEmoji} ${(edge * 100).toFixed(1)}%</td>`;
+        html += `<td style="padding:10px 8px">${(e.bestPick.modelProb * 100).toFixed(1)}%</td>`;
+        html += `<td style="padding:10px 8px;color:#94a3b8">${(e.bestPick.bookProb * 100).toFixed(1)}%</td>`;
+        html += `<td style="padding:10px 8px">${e.bestPick.ml}</td>`;
+        html += `<td style="padding:10px 8px;text-align:center">${e.modelAgreement}</td>`;
+        
+        // Source comparison mini-chart
+        let sourceInfo = '';
+        if (e.sources.analytical) sourceInfo += `A:${(e.sources.analytical.homeWinProb*100).toFixed(0)}%`;
+        if (e.sources.ml) sourceInfo += ` ML:${(e.sources.ml.homeWinProb*100).toFixed(0)}%`;
+        if (e.sources.monteCarlo) sourceInfo += ` MC:${(e.sources.monteCarlo.homeWinProb*100).toFixed(0)}%`;
+        if (e.sources.book) sourceInfo += ` BK:${(e.sources.book.homeWinProb*100).toFixed(0)}%`;
+        html += `<td style="padding:10px 8px;font-size:11px;color:#94a3b8">${sourceInfo}</td>`;
+        html += '</tr>';
+      }
+      
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div style="text-align:center;padding:40px;color:#94a3b8">No games found for this sport. Markets may not be open yet.</div>';
+    }
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444">Error: ${e.message}<br><button onclick="loadEdgeScanner()" style="margin-top:12px;padding:8px 24px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer">Retry</button></div>`;
+  }
+}
+
 async function loadTracker() {
   const wrap = document.getElementById('tab-content');
   let html = '<div class="section">';
@@ -3979,6 +4287,291 @@ async function analyzeSeries() {
     resultDiv.innerHTML = html;
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:#ff4444">Error: ${err.message}</p>`;
+  }
+}
+
+// ==================== ML ENGINE v2.0 TAB ====================
+
+let mlView = 'status';
+
+async function loadMLTab() {
+  const wrap = document.getElementById('tab-content');
+  let html = '<h2>🧠 ML Engine v2.0 — Statcast-Enhanced</h2>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+  html += `<button class="tab ${mlView==='status'?'active':''}" onclick="mlView='status';loadMLTab()">📊 Status</button>`;
+  html += `<button class="tab ${mlView==='opening-day'?'active':''}" onclick="mlView='opening-day';loadMLTab()">⚾ ML Opening Day</button>`;
+  html += `<button class="tab ${mlView==='predict'?'active':''}" onclick="mlView='predict';loadMLTab()">🎯 Predict</button>`;
+  html += `<button class="tab ${mlView==='train'?'active':''}" onclick="mlView='train';loadMLTab()">🏋️ Train</button>`;
+  html += `<button class="tab ${mlView==='compare'?'active':''}" onclick="mlView='compare';loadMLTab()">🔄 Compare</button>`;
+  html += '</div>';
+
+  if (mlView === 'status') {
+    try {
+      const [status, histStatus] = await Promise.all([
+        api('/api/ml/status'),
+        api('/api/historical/status'),
+      ]);
+      
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      
+      // Bridge status
+      html += '<div class="card">';
+      html += '<h3>🔗 ML Bridge</h3>';
+      html += `<div style="margin:8px 0"><span style="color:${status.bridge?.trained ? '#22c55e' : '#f59e0b'}">● ${status.bridge?.trained ? 'TRAINED' : 'NOT TRAINED'}</span></div>`;
+      if (status.bridge?.lastResult) {
+        const lr = status.bridge.lastResult;
+        html += `<div style="font-size:14px;color:#aaa">Games: <strong>${lr.games}</strong></div>`;
+        html += `<div style="font-size:14px;color:#aaa">Accuracy: <strong>${lr.accuracy ? (lr.accuracy * 100).toFixed(1) + '%' : 'N/A'}</strong></div>`;
+        html += `<div style="font-size:14px;color:#aaa">Brier Score: <strong>${lr.brierScore || 'N/A'}</strong></div>`;
+        if (lr.topFeatures) {
+          html += '<div style="margin-top:8px;font-size:12px;color:#888"><strong>Top Features:</strong></div>';
+          lr.topFeatures.forEach(f => {
+            html += `<div style="font-size:11px;color:#aaa;padding:2px 0">• ${f.feature}: ${f.importance.toFixed(4)}</div>`;
+          });
+        }
+      }
+      html += '</div>';
+      
+      // Historical data status
+      html += '<div class="card">';
+      html += '<h3>📚 Training Data</h3>';
+      html += `<div style="font-size:14px;color:#aaa">Games cached: <strong>${histStatus.games || 0}</strong></div>`;
+      html += `<div style="font-size:14px;color:#aaa">Home win%: <strong>${histStatus.homeWinPct || 'N/A'}%</strong></div>`;
+      html += `<div style="font-size:14px;color:#aaa">Avg total: <strong>${histStatus.avgTotal || 'N/A'}</strong></div>`;
+      html += `<div style="font-size:14px;color:#aaa">One-run%: <strong>${histStatus.oneRunPct || 'N/A'}%</strong></div>`;
+      html += `<div style="font-size:14px;color:#aaa">Last fetch: <strong>${histStatus.lastFetch || 'Never'}</strong></div>`;
+      html += `<div style="margin-top:12px"><button class="refresh-btn" onclick="fetchHistorical()" style="padding:8px 16px">📥 Fetch 2024 MLB Season Data</button></div>`;
+      html += '</div>';
+      
+      // Engine status
+      html += '<div class="card" style="grid-column:1/-1">';
+      html += '<h3>⚙️ Python ML Engine</h3>';
+      html += `<div style="font-size:14px;color:#aaa">Status: <strong>${status.engine?.status || 'unknown'}</strong></div>`;
+      html += `<div style="font-size:14px;color:#aaa">Features: <strong>${status.engine?.features?.length || 0}</strong> (including Statcast v2)</div>`;
+      html += `<div style="font-size:14px;color:#aaa">Has Totals Model: <strong>${status.engine?.hasTotals ? 'Yes' : 'No'}</strong></div>`;
+      
+      // New v2 features highlight
+      html += '<div style="margin-top:12px;padding:12px;background:var(--bg3);border-radius:8px;border-left:3px solid #22c55e">';
+      html += '<div style="font-size:13px;font-weight:bold;color:#22c55e;margin-bottom:6px">v2.0 Statcast Features</div>';
+      html += '<div style="font-size:12px;color:#aaa">• Pitcher xERA regression signals • Team xwOBA offensive edge</div>';
+      html += '<div style="font-size:12px;color:#aaa">• Statcast composite scoring • Lucky/Unlucky pitcher flags</div>';
+      html += '<div style="font-size:12px;color:#aaa">• xERA vs ERA gap analysis • Pitcher xwOBA allowed</div>';
+      html += '<div style="font-size:12px;color:#aaa">• Statcast matchup interactions • Historical ESPN data expansion</div>';
+      html += '</div>';
+      
+      html += '</div>';
+      html += '</div>';
+    } catch (e) {
+      html += `<div class="card"><p style="color:#ff4444">Error: ${e.message}</p></div>`;
+    }
+  }
+  
+  else if (mlView === 'opening-day') {
+    try {
+      html += '<div style="text-align:center;margin:12px 0"><div class="spinner"></div><p>Loading ML-Enhanced Opening Day predictions...</p></div>';
+      wrap.innerHTML = html;
+      
+      const data = await api('/api/ml/opening-day');
+      html = '<h2>🧠 ML Engine v2.0 — Statcast-Enhanced</h2>';
+      html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">';
+      html += `<button class="tab" onclick="mlView='status';loadMLTab()">📊 Status</button>`;
+      html += `<button class="tab active" onclick="mlView='opening-day';loadMLTab()">⚾ ML Opening Day</button>`;
+      html += `<button class="tab" onclick="mlView='predict';loadMLTab()">🎯 Predict</button>`;
+      html += `<button class="tab" onclick="mlView='train';loadMLTab()">🏋️ Train</button>`;
+      html += `<button class="tab" onclick="mlView='compare';loadMLTab()">🔄 Compare</button>`;
+      html += '</div>';
+      
+      // Header
+      html += `<div class="card" style="text-align:center;background:linear-gradient(135deg,#22c55e15,#3b82f615)">`;
+      html += `<h3 style="margin:0 0 8px 0">🤖 ML-Enhanced Opening Day Picks</h3>`;
+      html += `<div style="font-size:14px;color:#aaa">${data.daysUntil} days until Opening Day | ${data.games?.length || 0} games analyzed</div>`;
+      html += `<div style="font-size:12px;color:#888;margin-top:4px">ML Status: ${data.mlStatus?.trained ? '✅ Trained' : '⚠️ Not trained'}</div>`;
+      html += '</div>';
+      
+      // Best bets section
+      if (data.bestBets?.length > 0) {
+        html += '<div class="card" style="border-left:3px solid #22c55e">';
+        html += '<h3>💰 ML Best Bets (3%+ edge)</h3>';
+        for (const g of data.bestBets) {
+          const bestSide = g.edge?.bestSide || 'home';
+          const bestEdge = bestSide === 'home' ? g.edge?.homeEdge : g.edge?.awayEdge;
+          const bestTeam = bestSide === 'home' ? g.home : g.away;
+          const bestML = bestSide === 'home' ? g.dkLine?.homeML : g.dkLine?.awayML;
+          const bestProb = bestSide === 'home' ? g.blended?.homeWinProb : g.blended?.awayWinProb;
+          
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--bg3);border-radius:8px;margin:6px 0">`;
+          html += `<div>`;
+          html += `<strong>${g.away} @ ${g.home}</strong>`;
+          html += `<div style="font-size:12px;color:#888">${g.date} ${g.time || ''}</div>`;
+          html += `</div>`;
+          html += `<div style="text-align:right">`;
+          html += `<div style="font-size:16px;font-weight:bold;color:#22c55e">${bestTeam} ${bestML > 0 ? '+' : ''}${bestML || 'N/A'}</div>`;
+          html += `<div style="font-size:12px;color:#aaa">Edge: <strong style="color:#22c55e">${bestEdge > 0 ? '+' : ''}${bestEdge?.toFixed(1) || 0}%</strong> | Model: ${bestProb ? (bestProb * 100).toFixed(1) + '%' : 'N/A'}</div>`;
+          html += `</div></div>`;
+        }
+        html += '</div>';
+      }
+      
+      // All games
+      html += '<div class="card">';
+      html += '<h3>📋 All Opening Day Matchups</h3>';
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<tr style="border-bottom:1px solid #333;color:#888"><th style="text-align:left;padding:8px">Game</th><th>Analytical</th><th>ML</th><th>Blended</th><th>DK Line</th><th>Edge</th></tr>';
+      
+      for (const g of data.games || []) {
+        const homeEdge = g.edge?.homeEdge || 0;
+        const awayEdge = g.edge?.awayEdge || 0;
+        const maxEdge = Math.max(homeEdge, awayEdge);
+        const edgeColor = maxEdge >= 5 ? '#22c55e' : maxEdge >= 2 ? '#eab308' : '#888';
+        
+        html += '<tr style="border-bottom:1px solid #222">';
+        html += `<td style="padding:8px"><strong>${g.away} @ ${g.home}</strong><br><span style="font-size:11px;color:#888">${g.starters?.away || '?'} vs ${g.starters?.home || '?'}</span></td>`;
+        html += `<td style="text-align:center">${g.analytical?.homeWinProb ? (g.analytical.homeWinProb * 100).toFixed(0) + '%' : '-'}</td>`;
+        html += `<td style="text-align:center">${g.ml?.homeWinProb ? (g.ml.homeWinProb * 100).toFixed(0) + '%' : '-'}</td>`;
+        html += `<td style="text-align:center;font-weight:bold">${g.blended?.homeWinProb ? (g.blended.homeWinProb * 100).toFixed(0) + '%' : '-'}</td>`;
+        html += `<td style="text-align:center;font-size:12px">${g.dkLine ? `${g.dkLine.homeML > 0 ? '+' : ''}${g.dkLine.homeML}` : '-'}</td>`;
+        html += `<td style="text-align:center;color:${edgeColor};font-weight:bold">${maxEdge > 0 ? '+' + maxEdge.toFixed(1) + '%' : '-'}</td>`;
+        html += '</tr>';
+      }
+      
+      html += '</table></div></div>';
+    } catch (e) {
+      html += `<div class="card"><p style="color:#ff4444">Error: ${e.message}</p></div>`;
+    }
+  }
+  
+  else if (mlView === 'predict') {
+    html += '<div class="card">';
+    html += '<h3>🎯 ML Prediction</h3>';
+    html += '<div style="display:flex;gap:8px;margin-bottom:12px">';
+    html += '<input id="ml-away" placeholder="Away (e.g. NYY)" style="flex:1;padding:8px;background:var(--bg3);color:var(--fg);border:1px solid #333;border-radius:6px">';
+    html += '<input id="ml-home" placeholder="Home (e.g. LAD)" style="flex:1;padding:8px;background:var(--bg3);color:var(--fg);border:1px solid #333;border-radius:6px">';
+    html += '<button onclick="runMLPredict()" style="padding:8px 20px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer">Predict</button>';
+    html += '</div>';
+    html += '<div id="ml-predict-result"></div>';
+    html += '</div>';
+  }
+  
+  else if (mlView === 'train') {
+    html += '<div class="card">';
+    html += '<h3>🏋️ Train ML Model</h3>';
+    html += '<p style="color:#aaa;font-size:14px">Trains the ensemble model (LR + GBM + RF) with Statcast features on all available data.</p>';
+    html += '<button onclick="trainMLModel()" style="padding:12px 24px;background:#22c55e;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px">🚀 Train Model</button>';
+    html += '<div id="ml-train-result" style="margin-top:12px"></div>';
+    html += '</div>';
+  }
+  
+  else if (mlView === 'compare') {
+    html += '<div class="card">';
+    html += '<h3>🔄 Model Comparison</h3>';
+    html += '<div style="display:flex;gap:8px;margin-bottom:12px">';
+    html += '<input id="cmp-away" placeholder="Away (e.g. PIT)" style="flex:1;padding:8px;background:var(--bg3);color:var(--fg);border:1px solid #333;border-radius:6px">';
+    html += '<input id="cmp-home" placeholder="Home (e.g. NYM)" style="flex:1;padding:8px;background:var(--bg3);color:var(--fg);border:1px solid #333;border-radius:6px">';
+    html += '<button onclick="compareModels()" style="padding:8px 20px;background:#8b5cf6;color:white;border:none;border-radius:6px;cursor:pointer">Compare</button>';
+    html += '</div>';
+    html += '<div id="ml-compare-result"></div>';
+    html += '</div>';
+  }
+
+  wrap.innerHTML = html;
+}
+
+async function fetchHistorical() {
+  const wrap = document.getElementById('tab-content');
+  const btn = wrap.querySelector('.refresh-btn');
+  if (btn) btn.textContent = '⏳ Fetching...';
+  try {
+    const result = await api('/api/historical/fetch');
+    alert(`Fetched ${result.games} games! Home win rate: ${result.homeWinRate}%, Avg total: ${result.avgTotal}`);
+    loadMLTab();
+  } catch (e) {
+    alert('Error: ' + e.message);
+    loadMLTab();
+  }
+}
+
+async function trainMLModel() {
+  const el = document.getElementById('ml-train-result');
+  el.innerHTML = '<div class="spinner" style="margin:8px 0"></div> Training...';
+  try {
+    const result = await api('/api/ml/train');
+    let html = '<div style="padding:12px;background:var(--bg3);border-radius:8px">';
+    html += `<div style="color:#22c55e;font-weight:bold;margin-bottom:8px">✅ Model Trained!</div>`;
+    html += `<div style="font-size:14px;color:#aaa">Games: ${result.games} | Accuracy: ${result.ensemble?.accuracy ? (result.ensemble.accuracy * 100).toFixed(1) + '%' : 'N/A'}</div>`;
+    html += `<div style="font-size:14px;color:#aaa">Brier: ${result.ensemble?.brier_score?.toFixed(4) || 'N/A'} | Log Loss: ${result.ensemble?.log_loss?.toFixed(4) || 'N/A'}</div>`;
+    if (result.top_features) {
+      html += '<div style="margin-top:8px;font-size:12px;font-weight:bold;color:#aaa">Top Features:</div>';
+      result.top_features.slice(0, 10).forEach((f, i) => {
+        const bar = Math.min(200, f.importance * 1000);
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:2px 0;font-size:12px">`;
+        html += `<span style="width:180px;color:#aaa">${i+1}. ${f.feature}</span>`;
+        html += `<div style="background:#3b82f6;height:8px;width:${bar}px;border-radius:4px"></div>`;
+        html += `<span style="color:#888">${f.importance.toFixed(4)}</span>`;
+        html += '</div>';
+      });
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<p style="color:#ff4444">Error: ${e.message}</p>`;
+  }
+}
+
+async function runMLPredict() {
+  const away = document.getElementById('ml-away').value.toUpperCase();
+  const home = document.getElementById('ml-home').value.toUpperCase();
+  if (!away || !home) return alert('Enter team abbreviations');
+  
+  const el = document.getElementById('ml-predict-result');
+  el.innerHTML = '<div class="spinner" style="margin:8px 0"></div>';
+  try {
+    const result = await api(`/api/ml/predict?away=${away}&home=${home}`);
+    let html = '<div style="padding:12px;background:var(--bg3);border-radius:8px">';
+    html += `<h4 style="margin:0 0 8px 0">${away} @ ${home}</h4>`;
+    
+    if (result.blendedHomeWinProb) {
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:8px">`;
+      html += `<div><div style="font-size:11px;color:#888">Blended</div><div style="font-size:20px;font-weight:bold">${(result.blendedHomeWinProb * 100).toFixed(1)}%</div><div style="font-size:12px;color:#888">${home} win</div></div>`;
+      if (result.ml) {
+        html += `<div><div style="font-size:11px;color:#888">ML Raw</div><div style="font-size:20px;font-weight:bold;color:#3b82f6">${(result.ml.homeWinProb * 100).toFixed(1)}%</div><div style="font-size:12px;color:#888">Agreement: ${result.ml.modelAgreement}</div></div>`;
+      }
+      html += `<div><div style="font-size:11px;color:#888">Analytical</div><div style="font-size:20px;font-weight:bold;color:#888">${result.homeWinProb ? (result.homeWinProb * 100).toFixed(1) + '%' : 'N/A'}</div></div>`;
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<p style="color:#ff4444">Error: ${e.message}</p>`;
+  }
+}
+
+async function compareModels() {
+  const away = document.getElementById('cmp-away').value.toUpperCase();
+  const home = document.getElementById('cmp-home').value.toUpperCase();
+  if (!away || !home) return alert('Enter team abbreviations');
+  
+  const el = document.getElementById('ml-compare-result');
+  el.innerHTML = '<div class="spinner" style="margin:8px 0"></div>';
+  try {
+    const result = await api(`/api/ml/compare/${away}/${home}`);
+    let html = '<div style="padding:12px;background:var(--bg3);border-radius:8px">';
+    html += `<h4 style="margin:0 0 12px 0">${result.game}</h4>`;
+    
+    const methods = result.comparison;
+    for (const [key, val] of Object.entries(methods)) {
+      const homeProb = typeof val.homeWinProb === 'number' ? (val.homeWinProb * 100).toFixed(1) + '%' : val.homeWinProb;
+      html += `<div style="padding:8px;border-bottom:1px solid #333">`;
+      html += `<div style="font-weight:bold;color:#aaa">${key.replace(/_/g, ' ')}</div>`;
+      html += `<div style="font-size:14px">${home} win: <strong>${homeProb}</strong></div>`;
+      html += `<div style="font-size:11px;color:#666">${val.source}</div>`;
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = `<p style="color:#ff4444">Error: ${e.message}</p>`;
   }
 }
 

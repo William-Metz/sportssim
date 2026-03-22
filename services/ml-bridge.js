@@ -18,15 +18,19 @@ const PYTHON_SCRIPT = path.join(__dirname, 'ml-engine.py');
 const PYTHON_BIN = '/usr/bin/python3';
 
 // Service imports (optional — graceful degradation)
-let mlb, pitchers, rollingStats, injuryService;
+let mlb, pitchers, rollingStats, injuryService, statcastService, historicalGames;
 try { mlb = require('../models/mlb'); } catch (e) {}
 try { pitchers = require('../models/mlb-pitchers'); } catch (e) {}
 try { rollingStats = require('../services/rolling-stats'); } catch (e) {}
 try { injuryService = require('../services/injuries'); } catch (e) {}
+try { statcastService = require('../services/statcast'); } catch (e) {}
+try { historicalGames = require('../services/historical-games'); } catch (e) {}
 
-// Backtest data
+// Backtest data — use V2 point-in-time data for training features
 let backtestGames;
-try { backtestGames = require('../models/backtest-mlb').GAMES; } catch (e) { backtestGames = []; }
+try { backtestGames = require('../models/backtest-mlb-v2').GAMES; } catch (e) { 
+  try { backtestGames = require('../models/backtest-mlb').GAMES; } catch (e2) { backtestGames = []; }
+}
 
 // ==================== PYTHON COMMUNICATION ====================
 
@@ -150,6 +154,37 @@ function extractGameFeatures(awayAbbr, homeAbbr, opts = {}) {
     features.homeInjuryAdj = homeInj?.adjFactor || 0;
   }
   
+  // Statcast — the REAL edge
+  if (statcastService) {
+    // Pitcher xERA/xwOBA data
+    if (opts.awayPitcher) {
+      const pitcherName = typeof opts.awayPitcher === 'string' ? opts.awayPitcher : opts.awayPitcher?.name;
+      if (pitcherName) {
+        const sc = statcastService.getStatcastPitcherAdjustment(pitcherName);
+        if (sc) {
+          features.awayPitcherXera = sc.xera;
+          features.awayPitcherXwoba = sc.xwoba;
+        }
+      }
+    }
+    if (opts.homePitcher) {
+      const pitcherName = typeof opts.homePitcher === 'string' ? opts.homePitcher : opts.homePitcher?.name;
+      if (pitcherName) {
+        const sc = statcastService.getStatcastPitcherAdjustment(pitcherName);
+        if (sc) {
+          features.homePitcherXera = sc.xera;
+          features.homePitcherXwoba = sc.xwoba;
+        }
+      }
+    }
+    
+    // Team batting xwOBA
+    const awayBatting = statcastService.getTeamBattingStatcast(awayAbbr);
+    const homeBatting = statcastService.getTeamBattingStatcast(homeAbbr);
+    if (awayBatting) features.awayTeamXwoba = awayBatting.xwoba;
+    if (homeBatting) features.homeTeamXwoba = homeBatting.xwoba;
+  }
+  
   return features;
 }
 
@@ -217,11 +252,40 @@ function backtestToTrainingData(games) {
 // ==================== PUBLIC API ====================
 
 /**
- * Train ML model from our backtest data.
+ * Train ML model from our backtest data + historical ESPN data.
+ * Uses expanded dataset for better generalization.
  * Returns training metrics and model info.
  */
 async function train(sport = 'mlb') {
-  const data = backtestToTrainingData(backtestGames);
+  // Start with backtest data
+  let data = backtestToTrainingData(backtestGames);
+  
+  // Add historical ESPN data if available
+  if (historicalGames) {
+    try {
+      const historicalData = await historicalGames.getTrainingData({
+        startDate: '2024-04-01',
+        endDate: '2024-09-29',
+        maxGames: 3000, // Use ALL available games — more data = better model
+      });
+      if (historicalData.length > 0) {
+        console.log(`[ml-bridge] Adding ${historicalData.length} historical games to training data`);
+        // Deduplicate by away/home/date if possible
+        const existingKeys = new Set(data.map(g => `${g.away}_${g.home}_${g.awayScore}_${g.homeScore}`));
+        for (const hg of historicalData) {
+          const key = `${hg.away}_${hg.home}_${hg.awayScore}_${hg.homeScore}`;
+          if (!existingKeys.has(key)) {
+            data.push(hg);
+            existingKeys.add(key);
+          }
+        }
+        console.log(`[ml-bridge] Total training data: ${data.length} games`);
+      }
+    } catch (e) {
+      console.error('[ml-bridge] Historical data fetch failed:', e.message);
+    }
+  }
+  
   if (data.length === 0) {
     return { error: 'No training data available' };
   }
@@ -277,10 +341,19 @@ async function status(sport = 'mlb') {
 /**
  * Get ML-enhanced prediction for a single game.
  * Blends ML output with our analytical model for best-of-both-worlds.
+ * Uses asyncPredict when available for full signal integration (rest/travel/MC/weather).
  */
 async function enhancedPredict(awayAbbr, homeAbbr, opts = {}) {
-  // Get analytical prediction
-  const analytical = mlb ? mlb.predict(awayAbbr, homeAbbr, opts) : null;
+  // Get analytical prediction — prefer async path for MLB (includes rest/travel + MC)
+  let analytical = null;
+  try {
+    if (mlb && mlb.asyncPredict) {
+      analytical = await mlb.asyncPredict(awayAbbr, homeAbbr, opts);
+    } else if (mlb) {
+      analytical = mlb.predict(awayAbbr, homeAbbr, opts);
+    }
+    if (analytical && analytical.error) analytical = null;
+  } catch (e) { /* analytical failed */ }
   
   // Get ML prediction
   const features = extractGameFeatures(awayAbbr, homeAbbr, opts);

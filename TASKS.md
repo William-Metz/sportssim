@@ -13,7 +13,7 @@
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
 | 031 | NBA playoff series pricing model | ✅ DONE | P1 | Full MC + binomial series sim, bracket projector, championship odds, series analyzer |
-| 032 | pybaseball Statcast integration | ⏳ QUEUED | P1 | Pitch-level data for MLB — spin rate, exit velo, xBA, xERA |
+| 032 | pybaseball Statcast integration | ✅ DONE | P1 | Real Baseball Savant data: 853 pitchers + 651 batters + 30 teams, xERA/xwOBA wired into predictions |
 | 033 | CLV tracking pipeline | ✅ DONE | P1 | Full CLV tracker: auto-records picks, closing lines, auto-grades, tracks edge over time |
 | 034 | Model calibration audit | ✅ DONE | P2 | NBA calibration curve fitted from 176-game 2024-25 backtest, now matches reality |
 | 007 | NBA backtest (500+ games) | 🔄 PARTIAL | P1 | 176 games done, need more data |
@@ -52,6 +52,7 @@
 | 030 | MLB Opening Day ready-check | 2026-03-21 | All 11 Day 1 starters confirmed, DK lines for all games, Poisson win prob, pitcher RA fix |
 | 033 | CLV tracking pipeline | 2026-03-21 | Auto-records picks from value detection, records closing lines, auto-grades, tracks edge over time |
 | 034 | Model calibration audit | 2026-03-21 | NBA calibration curve fitted from 176-game backtest — 60% pred → 50% actual, 80% → 87%, 90% → 93% |
+| 032 | Statcast integration | 2026-03-22 | Real Baseball Savant xERA/xwOBA for 853 pitchers + 651 batters + 30 teams. Wired into predict(), pitcherExpectedRA(), dashboard tab. Regression detection for betting edge. |
 
 ## Backlog
 - NFL win totals futures model
@@ -125,7 +126,7 @@
 - Total: $203.80 wagered, +$20.77 expected profit, 10.2% ROI
 
 ---
-*Last updated: 2026-03-21*
+*Last updated: 2026-03-22*
 *MLB OPENING DAY: 5 DAYS*
-*NBA PLAYOFFS: 22 DAYS*
-*Next priorities: NBA backtest validation (029), Statcast integration (032), CLV pipeline (033), Playoff series model (031), Model calibration audit (034)*
+*NBA PLAYOFFS: 21 DAYS*
+*Next priorities: NHL backtest expansion (022), Polymarket odds integration, Python ML engine training, Dashboard UI improvements*

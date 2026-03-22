@@ -1,15 +1,17 @@
 /**
- * Model Probability Calibration Service — SportsSim v17.0
+ * Model Probability Calibration Service — SportsSim v27.0
  * 
- * PROBLEM: Our models predict well (76.5% MLB accuracy) but the RAW probabilities
- * are horribly compressed — model says 60% when actual is ~87%. This means:
- *   - Kelly sizing is WRONG (calculates tiny edges when real edges are huge)
- *   - Value detection misses real value bets
- *   - Bankroll allocation is suboptimal
+ * PROBLEM: Our models predict decently but the RAW probabilities are compressed —
+ * the model says 55% when actual win rate is 61%, says 60% when actual is 76%.
+ * This means: Kelly sizing is WRONG, value detection underestimates real edges,
+ * and bankroll allocation is suboptimal.
  * 
- * SOLUTION: Piecewise linear calibration using backtest data.
- * We fit a mapping from raw model probability → calibrated probability
- * using historical backtest data where we know actual outcomes.
+ * SOLUTION: Piecewise linear calibration using REAL point-in-time backtest data.
+ * 
+ * V27 CRITICAL FIX: MLB calibration was built from look-ahead biased V1 backtest
+ * (2025 projected stats → 2024 games = 89% WR, completely fake).
+ * Now rebuilt from V2 point-in-time backtest (2023 stats → 2024 games = 69% accuracy).
+ * The model is UNDERCONFIDENT: it says 60% but wins 76% of the time.
  * 
  * After calibration, probabilities are normalized per-game so they sum to 1.
  */
@@ -20,26 +22,35 @@
 
 const CALIBRATION_CURVES = {
   mlb: [
-    // MLB model is HIGHLY compressed: 50%→23% actual, 60%→87% actual
-    // This is a very steep S-curve through the 50-60% range
-    { raw: 0.15, cal: 0.03 },
-    { raw: 0.20, cal: 0.05 },
-    { raw: 0.25, cal: 0.08 },
-    { raw: 0.30, cal: 0.11 },
-    { raw: 0.35, cal: 0.15 },
-    { raw: 0.40, cal: 0.19 },
-    { raw: 0.45, cal: 0.21 },
-    { raw: 0.50, cal: 0.23 },   // 92 games: actual 22.8%
-    { raw: 0.52, cal: 0.35 },
-    { raw: 0.54, cal: 0.50 },
-    { raw: 0.56, cal: 0.65 },
-    { raw: 0.58, cal: 0.77 },
-    { raw: 0.60, cal: 0.87 },   // 70 games: actual 87.1%
-    { raw: 0.65, cal: 0.93 },
-    { raw: 0.70, cal: 0.96 },   // 16 games: actual 100% (regressed)
-    { raw: 0.75, cal: 0.97 },
-    { raw: 0.80, cal: 0.98 },
-    { raw: 0.85, cal: 0.99 },
+    // MLB V2 Point-in-Time Calibration (2023→2024 backtest, 200 games)
+    // Model is UNDERCONFIDENT: compressed probabilities, wins more than it predicts
+    // Backtest data (5% buckets, N≥3):
+    //   50% pred → 53.8% actual (N=26)
+    //   55% pred → 61.3% actual (N=62)
+    //   60% pred → 75.9% actual (N=58)
+    //   65% pred → 73.5% actual (N=34) — slight non-monotonicity, smoothed
+    //   70% pred → 81.3% actual (N=16)
+    //   75% pred → 75.0% actual (N=4, tiny sample — regress)
+    // 
+    // Smoothed monotonic curve (underconfidence correction):
+    { raw: 0.15, cal: 0.06 },
+    { raw: 0.20, cal: 0.10 },
+    { raw: 0.25, cal: 0.16 },
+    { raw: 0.30, cal: 0.22 },
+    { raw: 0.35, cal: 0.28 },
+    { raw: 0.40, cal: 0.35 },
+    { raw: 0.45, cal: 0.42 },
+    { raw: 0.50, cal: 0.54 },   // 26 games: actual 53.8%
+    { raw: 0.525, cal: 0.58 },
+    { raw: 0.55, cal: 0.61 },   // 62 games: actual 61.3%
+    { raw: 0.575, cal: 0.68 },
+    { raw: 0.60, cal: 0.74 },   // 58 games: actual 75.9% (smoothed to 74% for monotonicity)
+    { raw: 0.625, cal: 0.77 },
+    { raw: 0.65, cal: 0.79 },   // 34 games: actual 73.5% → smoothed to 79% (monotonic)
+    { raw: 0.70, cal: 0.82 },   // 16 games: actual 81.3%
+    { raw: 0.75, cal: 0.86 },   // 4 games: regressed toward trend
+    { raw: 0.80, cal: 0.90 },
+    { raw: 0.85, cal: 0.93 },
   ],
   
   nba: [

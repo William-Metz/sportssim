@@ -7,6 +7,7 @@ const backtest = require('./models/backtest');
 const mlb = require('./models/mlb');
 const mlbPitchers = require('./models/mlb-pitchers');
 const mlbBacktest = require('./models/backtest-mlb');
+const mlbBacktestV2 = require('./models/backtest-mlb-v2');
 const mlbOpeningDay = require('./models/mlb-opening-day');
 const nhl = require('./models/nhl');
 const nhlBacktest = require('./models/backtest-nhl');
@@ -34,6 +35,8 @@ const mlBridge = require('./services/ml-bridge');
 const arbitrage = require('./services/arbitrage');
 const playoffSeries = require('./services/playoff-series');
 const statcast = require('./services/statcast');
+const historicalGames = require('./services/historical-games');
+const polymarketValue = require('./services/polymarket-value');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -97,7 +100,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '26.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','backtest-v2-point-in-time','playoff-series-pricing','championship-simulator','statcast-integration'] });
+  res.json({ status: 'ok', version: '30.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v2','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -409,7 +412,33 @@ app.get('/api/value/mlb', async (req, res) => {
       const rawPred = await mlb.asyncPredict(awayAbbr, homeAbbr, opts);
       if (!rawPred || rawPred.error) continue;
       // Apply probability calibration for accurate edge detection
-      const pred = calibration.calibratePrediction(rawPred, 'mlb');
+      const calPred = calibration.calibratePrediction(rawPred, 'mlb');
+
+      // ML-enhanced prediction: blend analytical + ML ensemble for sharper edges
+      let pred = calPred;
+      try {
+        const mlResult = await mlBridge.enhancedPredict(awayAbbr, homeAbbr, opts);
+        if (mlResult && mlResult.ml && mlResult.blendedHomeWinProb) {
+          // Override with ML-blended probabilities (55% ML + 45% analytical)
+          pred = {
+            ...calPred,
+            homeWinProb: mlResult.blendedHomeWinProb,
+            awayWinProb: mlResult.blendedAwayWinProb,
+            blendedHomeWinProb: mlResult.blendedHomeWinProb,
+            blendedAwayWinProb: mlResult.blendedAwayWinProb,
+            ml: mlResult.ml,
+            predictionSource: 'ml+analytical+calibrated',
+            // Preserve MC data from analytical path
+            monteCarlo: calPred.monteCarlo,
+            totalRuns: calPred.totalRuns,
+          };
+          // If ML has its own totals prediction, blend it too
+          if (mlResult.ml.predictedTotal && calPred.totalRuns) {
+            pred.mlTotalRuns = mlResult.ml.predictedTotal;
+            pred.blendedTotalRuns = calPred.totalRuns * 0.6 + mlResult.ml.predictedTotal * 0.4;
+          }
+        }
+      } catch (mlErr) { /* ML optional — analytical is still solid */ }
 
       const books = game.bookmakers || [];
       for (const bk of books) {
@@ -436,19 +465,39 @@ app.get('/api/value/mlb', async (req, res) => {
               homeWinProb: pred.blendedHomeWinProb || pred.homeWinProb, 
               awayWinProb: pred.blendedAwayWinProb || pred.awayWinProb, 
               total: pred.totalRuns,
-              mcTotal: pred.monteCarlo?.totalRuns?.mean || null
+              mlTotal: pred.mlTotalRuns || null,
+              blendedTotal: pred.blendedTotalRuns || null,
+              mcTotal: pred.monteCarlo?.totalRuns?.mean || null,
+              source: pred.predictionSource || 'analytical'
             }
           });
         });
       }
     }
     valueBets.sort((a, b) => b.edge - a.edge);
-    res.json({ valueBets, count: valueBets.length, updated: new Date().toISOString() });
+    res.json({ valueBets, count: valueBets.length, updated: new Date().toISOString(), mlEnabled: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/backtest/mlb', (req, res) => {
-  try { res.json(mlbBacktest.runBacktest()); }
+  try { 
+    // V2 point-in-time backtest is the new default
+    if (req.query.version === 'v1') {
+      res.json(mlbBacktest.runBacktest()); 
+    } else {
+      res.json(mlbBacktestV2.runBacktest()); 
+    }
+  }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/backtest/mlb/v2', (req, res) => {
+  try { res.json(mlbBacktestV2.runBacktest()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/backtest/mlb/sweep', (req, res) => {
+  try { res.json(mlbBacktestV2.paramSweep()); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -659,12 +708,26 @@ app.get('/api/backtest/nhl', (req, res) => {
 app.get('/api/value/all', async (req, res) => {
   try {
     const results = await Promise.allSettled([
-      fetch_value_bets('nba'), fetch_value_bets('mlb'), fetch_value_bets('nhl')
+      fetch_value_bets('nba'), fetch_value_bets('mlb'), fetch_value_bets('nhl'),
+      polymarketValue.scanForValue({ minEdge: 0.03 }).then(r => 
+        (r.valueBets || []).filter(v => v.rawEdge > 0).map(v => ({
+          sport: (v.sport || 'POLY').toUpperCase(),
+          game: v.question,
+          book: 'Polymarket',
+          pick: `${v.outcome} @ ${v.impliedProb}%`,
+          market: v.marketType || 'prediction-market',
+          edge: v.edge,
+          confidence: v.confidence,
+          modelProb: v.modelProb,
+          url: v.url,
+          source: 'polymarket',
+        }))
+      ).catch(() => [])
     ]);
     const all = [];
     results.forEach(r => { if (r.status === 'fulfilled') all.push(...r.value); });
     all.sort((a, b) => b.edge - a.edge);
-    res.json({ valueBets: all, count: all.length, updated: new Date().toISOString() });
+    res.json({ valueBets: all, count: all.length, updated: new Date().toISOString(), includesPolymarket: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -911,7 +974,7 @@ app.get('/api/summary', async (req, res) => {
     let mlbBT = { roi: 0, totalGames: 0 };
     let nhlBT = { roi: 0, totalGames: 0 };
     try { nbaBT = backtest.runBacktest(); } catch (_) {}
-    try { mlbBT = mlbBacktest.runBacktest(); } catch (_) {}
+    try { mlbBT = mlbBacktestV2.runBacktest(); } catch (_) {}
     try { nhlBT = nhlBacktest.runBacktest(); } catch (_) {}
     res.json({
       gamesTracked: games.length,
@@ -982,7 +1045,7 @@ app.get('/api/mlb/predict', async (req, res) => {
 
 app.get('/api/mlb/backtest', (req, res) => {
   try {
-    const result = mlbBacktest.runBacktest();
+    const result = req.query.version === 'v1' ? mlbBacktest.runBacktest() : mlbBacktestV2.runBacktest();
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1691,6 +1754,57 @@ app.get('/api/polymarket/futures/:sport', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== POLYMARKET VALUE BRIDGE ====================
+
+// Model vs Market value scan — THE MONEY FINDER
+app.get('/api/polymarket/value', async (req, res) => {
+  try {
+    const sport = req.query.sport || null;
+    const minEdge = parseFloat(req.query.minEdge) || 0.03;
+    const result = await polymarketValue.scanForValue({ sport, minEdge });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Cross-market arbitrage: Polymarket vs sportsbooks
+app.get('/api/polymarket/arbitrage', async (req, res) => {
+  try {
+    // Fetch sportsbook odds from The Odds API
+    const oddsData = [];
+    const sports = ['basketball_nba', 'baseball_mlb', 'icehockey_nhl'];
+    
+    for (const sportKey of sports) {
+      if (!ODDS_API_KEY) break;
+      try {
+        const fetch = require('node-fetch');
+        const url = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h&oddsFormat=american`;
+        const resp = await fetch(url, { timeout: 10000 });
+        if (resp.ok) {
+          const data = await resp.json();
+          oddsData.push(...data);
+        }
+      } catch (e) { /* skip this sport */ }
+    }
+    
+    const result = await polymarketValue.crossMarketScan(oddsData);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Championship futures value scan
+app.get('/api/polymarket/futures-value', async (req, res) => {
+  try {
+    const sport = req.query.sport || null;
+    const result = await polymarketValue.scanFuturesValue(sport);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Polymarket value bridge status
+app.get('/api/polymarket/value/status', (req, res) => {
+  res.json(polymarketValue.getStatus());
+});
+
 // ==================== PLAYOFF SERIES PRICING ====================
 
 // Full bracket projection with first-round series analysis
@@ -1879,6 +1993,7 @@ app.get('/api/picks/today', async (req, res) => {
       propsSvc: playerProps,
       umpireSvc: umpireService,
       calibrationSvc: calibration,
+      mlBridgeSvc: mlBridge,
       bankroll,
       kellyFraction,
       minEdge,
@@ -1916,6 +2031,7 @@ app.get('/api/picks/best', async (req, res) => {
         weatherSvc: weather,
         umpireSvc: umpireService,
         calibrationSvc: calibration,
+        mlBridgeSvc: mlBridge,
         bankroll: parseFloat(req.query.bankroll) || 1000,
         kellyFraction: 0.5,
         minEdge: 0.03 // higher threshold for "best" picks
@@ -2678,6 +2794,130 @@ app.get('/api/ml/compare/:away/:home', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== HISTORICAL DATA + ML TRAINING DATA ====================
+
+app.get('/api/historical/status', (req, res) => {
+  res.json(historicalGames.getStats());
+});
+
+app.get('/api/historical/fetch', async (req, res) => {
+  try {
+    const { start, end, max } = req.query;
+    const data = await historicalGames.getTrainingData({
+      startDate: start || '2024-04-01',
+      endDate: end || '2024-09-29',
+      maxGames: max ? parseInt(max) : null,
+    });
+    res.json({ 
+      games: data.length, 
+      sample: data.slice(0, 5),
+      homeWinRate: +(data.filter(g => g.homeWon).length / data.length * 100).toFixed(1),
+      avgTotal: +(data.reduce((s, g) => s + (g.actualTotal || 0), 0) / data.length).toFixed(1),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ML-Enhanced Opening Day predictions (combines analytical + ML + Statcast)
+app.get('/api/ml/opening-day', async (req, res) => {
+  try {
+    const projections = await mlbOpeningDay.getProjections();
+    const mlPredictions = [];
+    
+    for (const game of projections) {
+      try {
+        const mlResult = await mlBridge.enhancedPredict(game.away, game.home, {
+          awayPitcher: game.awayPitcher || game.confirmedStarters?.away,
+          homePitcher: game.homePitcher || game.confirmedStarters?.home,
+        });
+        
+        mlPredictions.push({
+          away: game.away,
+          home: game.home,
+          date: game.date,
+          time: game.time,
+          analytical: {
+            homeWinProb: game.homeWinProb,
+            awayWinProb: game.awayWinProb,
+            totalRuns: game.totalRuns || game.expectedTotal,
+          },
+          ml: mlResult.ml || null,
+          blended: {
+            homeWinProb: mlResult.blendedHomeWinProb || game.homeWinProb,
+            awayWinProb: mlResult.blendedAwayWinProb || game.awayWinProb,
+          },
+          starters: game.confirmedStarters,
+          dkLine: game.dkLine,
+          edge: calculateEdge(
+            mlResult.blendedHomeWinProb || game.homeWinProb,
+            game.dkLine
+          ),
+          statcast: mlResult.statcast || null,
+        });
+      } catch (e) {
+        // ML failed for this game — use analytical only
+        mlPredictions.push({
+          away: game.away,
+          home: game.home,
+          date: game.date,
+          time: game.time,
+          analytical: {
+            homeWinProb: game.homeWinProb,
+            awayWinProb: game.awayWinProb,
+            totalRuns: game.totalRuns || game.expectedTotal,
+          },
+          ml: null,
+          blended: {
+            homeWinProb: game.homeWinProb,
+            awayWinProb: game.awayWinProb,
+          },
+          starters: game.confirmedStarters,
+          dkLine: game.dkLine,
+          edge: calculateEdge(game.homeWinProb, game.dkLine),
+          mlError: e.message,
+        });
+      }
+    }
+    
+    // Sort by absolute edge (best bets first)
+    mlPredictions.sort((a, b) => {
+      const aEdge = Math.max(Math.abs(a.edge?.homeEdge || 0), Math.abs(a.edge?.awayEdge || 0));
+      const bEdge = Math.max(Math.abs(b.edge?.homeEdge || 0), Math.abs(b.edge?.awayEdge || 0));
+      return bEdge - aEdge;
+    });
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      openingDay: '2026-03-26',
+      daysUntil: Math.ceil((new Date('2026-03-26') - new Date()) / (1000 * 60 * 60 * 24)),
+      games: mlPredictions,
+      mlStatus: mlBridge.getStatus(),
+      bestBets: mlPredictions.filter(g => {
+        const maxEdge = Math.max(Math.abs(g.edge?.homeEdge || 0), Math.abs(g.edge?.awayEdge || 0));
+        return maxEdge >= 3;
+      }).slice(0, 5),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+function calculateEdge(homeWinProb, dkLine) {
+  if (!dkLine || !homeWinProb) return { homeEdge: 0, awayEdge: 0 };
+  
+  function mlToProb(ml) {
+    if (ml < 0) return (-ml) / (-ml + 100);
+    return 100 / (ml + 100);
+  }
+  
+  const bookHomeProb = mlToProb(dkLine.homeML);
+  const bookAwayProb = mlToProb(dkLine.awayML);
+  const awayWinProb = 1 - homeWinProb;
+  
+  return {
+    homeEdge: +((homeWinProb - bookHomeProb) * 100).toFixed(1),
+    awayEdge: +((awayWinProb - bookAwayProb) * 100).toFixed(1),
+    bestSide: (homeWinProb - bookHomeProb) > (awayWinProb - bookAwayProb) ? 'home' : 'away',
+  };
+}
+
 // ==================== ARBITRAGE / LOW-HOLD SCANNER ====================
 
 app.get('/api/arb/scan', async (req, res) => {
@@ -2744,6 +2984,151 @@ app.get('/api/arb/calc', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// ==================== ML-ENHANCED EDGE SCANNER ====================
+
+// Ultimate edge scanner: compares analytical, ML, MC, and book prices
+// This is where the money is — disagreements between models are the signal
+app.get('/api/edge-scanner/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    const sportKey = sport === 'nba' ? 'basketball_nba' : sport === 'mlb' ? 'baseball_mlb' : sport === 'nhl' ? 'ice_hockey_nhl' : null;
+    if (!sportKey) return res.status(400).json({ error: 'Sport must be nba, mlb, or nhl' });
+
+    const model = sport === 'nba' ? nba : sport === 'mlb' ? mlb : nhl;
+    const nameMap = buildNameMap(model.TEAMS || model.getTeams(), {
+      'diamondbacks': 'ARI', 'd-backs': 'ARI', 'white sox': 'CWS', 'red sox': 'BOS', 'blue jays': 'TOR',
+      'trail blazers': 'POR', 'blazers': 'POR', 'timberwolves': 'MIN', '76ers': 'PHI'
+    });
+    
+    const liveOdds = await fetchOdds(sportKey);
+    const edges = [];
+
+    for (const game of liveOdds) {
+      const awayAbbr = resolveTeam(nameMap, game.away_team);
+      const homeAbbr = resolveTeam(nameMap, game.home_team);
+      if (!awayAbbr || !homeAbbr) continue;
+
+      // Get analytical prediction
+      let analyticalPred = null;
+      try {
+        if (sport === 'mlb' && mlb.asyncPredict) {
+          analyticalPred = await mlb.asyncPredict(awayAbbr, homeAbbr);
+        } else {
+          analyticalPred = model.predict(awayAbbr, homeAbbr);
+        }
+        if (analyticalPred?.error) analyticalPred = null;
+        // Calibrate
+        if (analyticalPred && calibration) {
+          analyticalPred = calibration.calibratePrediction(analyticalPred, sport);
+        }
+      } catch (e) { /* skip */ }
+      if (!analyticalPred) continue;
+
+      // Get ML prediction
+      let mlPred = null;
+      if (sport === 'mlb') {
+        try {
+          const mlResult = await mlBridge.enhancedPredict(awayAbbr, homeAbbr);
+          if (mlResult?.ml) mlPred = mlResult;
+        } catch (e) { /* ML optional */ }
+      }
+
+      // Extract best book lines
+      const bestBook = extractBookLine(game.bookmakers?.[0], game.home_team);
+      if (!bestBook) continue;
+
+      // Multi-source probability comparison
+      const sources = {
+        analytical: {
+          homeWinProb: analyticalPred.homeWinProb,
+          awayWinProb: analyticalPred.awayWinProb,
+        },
+        book: {
+          homeWinProb: bestBook.homeML ? mlToProb(bestBook.homeML) : null,
+          awayWinProb: bestBook.awayML ? mlToProb(bestBook.awayML) : null,
+        },
+      };
+
+      if (mlPred?.ml) {
+        sources.ml = {
+          homeWinProb: mlPred.ml.homeWinProb,
+          awayWinProb: mlPred.ml.awayWinProb,
+          confidence: mlPred.ml.confidence,
+          modelAgreement: mlPred.ml.modelAgreement,
+        };
+        sources.blended = {
+          homeWinProb: mlPred.blendedHomeWinProb,
+          awayWinProb: mlPred.blendedAwayWinProb,
+        };
+      }
+
+      if (analyticalPred.monteCarlo) {
+        sources.monteCarlo = {
+          homeWinProb: analyticalPred.monteCarlo.homeWinProb,
+          awayWinProb: analyticalPred.monteCarlo.awayWinProb,
+          totalRuns: analyticalPred.monteCarlo.totalRuns?.mean,
+        };
+      }
+
+      // Calculate edges from all sources vs books
+      const blended = sources.blended || sources.analytical;
+      const bookHome = sources.book.homeWinProb || 0.5;
+      const bookAway = sources.book.awayWinProb || 0.5;
+
+      const homeEdge = blended.homeWinProb - bookHome;
+      const awayEdge = blended.awayWinProb - bookAway;
+      const maxEdge = Math.max(Math.abs(homeEdge), Math.abs(awayEdge));
+
+      // Model agreement score: how many sources agree on the pick direction
+      let agreementCount = 0;
+      const pickDirection = homeEdge > awayEdge ? 'home' : 'away';
+      if (pickDirection === 'home') {
+        if (sources.analytical.homeWinProb > bookHome) agreementCount++;
+        if (sources.ml?.homeWinProb > bookHome) agreementCount++;
+        if (sources.monteCarlo?.homeWinProb > bookHome) agreementCount++;
+      } else {
+        if (sources.analytical.awayWinProb > bookAway) agreementCount++;
+        if (sources.ml?.awayWinProb > bookAway) agreementCount++;
+        if (sources.monteCarlo?.awayWinProb > bookAway) agreementCount++;
+      }
+
+      edges.push({
+        game: `${awayAbbr} @ ${homeAbbr}`,
+        commence: game.commence_time,
+        sources,
+        bestPick: {
+          side: pickDirection,
+          team: pickDirection === 'home' ? homeAbbr : awayAbbr,
+          edge: +(pickDirection === 'home' ? homeEdge : awayEdge).toFixed(4),
+          ml: pickDirection === 'home' ? bestBook.homeML : bestBook.awayML,
+          modelProb: +(pickDirection === 'home' ? blended.homeWinProb : blended.awayWinProb).toFixed(4),
+          bookProb: +(pickDirection === 'home' ? bookHome : bookAway).toFixed(4),
+        },
+        modelAgreement: `${agreementCount}/${sources.ml ? 3 : sources.monteCarlo ? 2 : 1}`,
+        maxEdge: +maxEdge.toFixed(4),
+        totalAnalytical: analyticalPred.totalRuns || null,
+        totalMC: analyticalPred.monteCarlo?.totalRuns?.mean || null,
+        totalML: mlPred?.ml?.predictedTotal || null,
+      });
+    }
+
+    // Sort by max edge
+    edges.sort((a, b) => b.maxEdge - a.maxEdge);
+
+    res.json({
+      sport: sport.toUpperCase(),
+      timestamp: new Date().toISOString(),
+      totalGames: edges.length,
+      edges,
+      strongEdges: edges.filter(e => e.maxEdge >= 0.05),
+      mlEnabled: sport === 'mlb',
+      note: 'Edge = model probability - book implied probability. Positive = value bet. Model agreement shows how many independent models agree on the pick direction.',
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Quick helper for edge scanner (mlToProb already defined above)
 
 // ==================== STATCAST ENDPOINTS ====================
 
@@ -2840,6 +3225,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
   console.log(`   Polymarket: scanner active`);
+  console.log(`   Polymarket Value Bridge: model vs market edge detection active`);
   console.log(`   Bet tracker: ${betTracker.getStatus().totalBets} bets tracked, ${betTracker.getStatus().pending} pending`);
   const umpStatus = umpireService.getStatus();
   console.log(`   Umpire tendencies: ${umpStatus.umpires} umpires (${umpStatus.overUmpires} over, ${umpStatus.underUmpires} under, ${umpStatus.neutralUmpires} neutral)`);
@@ -2850,7 +3236,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   Alt lines scanner: alt totals, alt spreads, team totals, F5 lines — Poisson-powered`);
   console.log(`   Arbitrage scanner: cross-book arbs, low-hold, middles, stale lines`);
   console.log(`   🧠 ML Engine: Python sklearn ensemble (LR + GradientBoosting + RandomForest)`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE, ARBITRAGE SCANNER, STATCAST INTEGRATION`);
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE v2 (STATCAST), ARBITRAGE SCANNER, STATCAST INTEGRATION, HISTORICAL DATA EXPANSION`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats + statcast...');

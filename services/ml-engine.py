@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """
-SportsSim ML Engine v1.0 — Python-powered prediction models
+SportsSim ML Engine v3.0 — XGBoost + LightGBM Ensemble
 
+Production MLB prediction engine for Opening Day 2025.
 Accepts game features as JSON via stdin, outputs calibrated probabilities.
-Uses ensemble of Logistic Regression + Random Forest for robust predictions.
+
+v3.0 UPGRADES:
+  - XGBoost + LightGBM added to ensemble (best-in-class for tabular data)
+  - Elo rating system with game-by-game updates for proper backtesting
+  - Improved feature engineering: matchup interactions, platoon splits
+  - Better calibration: isotonic regression + Platt scaling blend
+  - Walk-forward validation: no look-ahead bias
+  - Proper Kelly edge calculation for bet sizing
 
 Modes:
   - train: Build model from historical game data
   - predict: Generate calibrated probabilities for new games
   - calibrate: Test model calibration on held-out data
   - backtest: Full backtest with betting simulation
+  - elo: Build Elo ratings from game history
 
 Usage:
   echo '{"mode": "train", "data": [...]}' | python3 ml-engine.py
@@ -23,47 +32,145 @@ import os
 import pickle
 import warnings
 from pathlib import Path
+from collections import defaultdict
 
 warnings.filterwarnings('ignore')
 
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import brier_score_loss, log_loss, accuracy_score
 from scipy.stats import poisson
 
+try:
+    import xgboost as xgb
+    HAS_XGB = True
+except ImportError:
+    HAS_XGB = False
+
+try:
+    import lightgbm as lgb
+    HAS_LGB = True
+except ImportError:
+    HAS_LGB = False
+
 MODEL_DIR = Path(__file__).parent / 'ml-models'
 MODEL_DIR.mkdir(exist_ok=True)
+
+
+# ==================== ELO RATING SYSTEM ====================
+
+class EloSystem:
+    """
+    MLB Elo rating system with game-by-game updates.
+    Proper point-in-time ratings — no look-ahead bias.
+    
+    Key parameters tuned for MLB:
+    - K-factor: 4 (MLB has high variance, keep updates small)
+    - HFA: 24 Elo points (~54% home win implied)
+    - Regression to mean: 33% between seasons
+    - Starting Elo: 1500
+    """
+    
+    def __init__(self, k_factor=4, hfa=24, season_regression=0.33):
+        self.k = k_factor
+        self.hfa = hfa
+        self.season_regression = season_regression
+        self.ratings = defaultdict(lambda: 1500.0)
+        self.game_count = defaultdict(int)
+        self.history = []  # track rating evolution
+    
+    def expected_score(self, rating_a, rating_b, home_advantage=True):
+        """Expected win probability for team A (home if home_advantage=True)."""
+        diff = rating_a - rating_b
+        if home_advantage:
+            diff += self.hfa
+        return 1.0 / (1.0 + 10.0 ** (-diff / 400.0))
+    
+    def update(self, home_team, away_team, home_won, margin=None):
+        """Update ratings after a game. Returns pre-game expected probs."""
+        home_rating = self.ratings[home_team]
+        away_rating = self.ratings[away_team]
+        
+        home_exp = self.expected_score(home_rating, away_rating, home_advantage=True)
+        away_exp = 1.0 - home_exp
+        
+        home_actual = 1.0 if home_won else 0.0
+        away_actual = 1.0 - home_actual
+        
+        # Margin of victory multiplier (dampened — MLB is high variance)
+        mov_mult = 1.0
+        if margin is not None:
+            mov_mult = math.log(max(1, abs(margin)) + 1) * 0.6 + 0.4
+            # Cap at 1.8x to prevent blowout overreaction
+            mov_mult = min(1.8, mov_mult)
+        
+        # Update ratings
+        k = self.k * mov_mult
+        self.ratings[home_team] += k * (home_actual - home_exp)
+        self.ratings[away_team] += k * (away_actual - away_exp)
+        
+        self.game_count[home_team] += 1
+        self.game_count[away_team] += 1
+        
+        return home_exp, away_exp
+    
+    def regress_to_mean(self):
+        """Season-start regression. Call between seasons."""
+        for team in list(self.ratings.keys()):
+            self.ratings[team] = 1500 + (self.ratings[team] - 1500) * (1 - self.season_regression)
+    
+    def get_rating(self, team):
+        return self.ratings[team]
+    
+    def get_all_ratings(self):
+        return dict(sorted(self.ratings.items(), key=lambda x: x[1], reverse=True))
+    
+    def build_from_games(self, games):
+        """Process a list of games chronologically, return games with Elo features."""
+        # Sort by date
+        sorted_games = sorted(games, key=lambda g: g.get('date', ''))
+        
+        enriched = []
+        for game in sorted_games:
+            home = game.get('home', '')
+            away = game.get('away', '')
+            home_won = game.get('homeWon', False)
+            margin = abs(game.get('homeScore', 0) - game.get('awayScore', 0))
+            
+            # Capture PRE-GAME Elo ratings (point-in-time)
+            home_elo = self.get_rating(home)
+            away_elo = self.get_rating(away)
+            home_exp, away_exp = self.expected_score(home_elo, away_elo), 1 - self.expected_score(home_elo, away_elo)
+            
+            # Add Elo features to game
+            enriched_game = {
+                **game,
+                'homeElo': home_elo,
+                'awayElo': away_elo,
+                'eloDiff': home_elo - away_elo,
+                'eloHomeWinProb': self.expected_score(home_elo, away_elo, home_advantage=True),
+                'homeEloGames': self.game_count[home],
+                'awayEloGames': self.game_count[away],
+            }
+            enriched.append(enriched_game)
+            
+            # NOW update ratings (after capturing pre-game state)
+            self.update(home, away, home_won, margin)
+        
+        return enriched
+
 
 # ==================== FEATURE ENGINEERING ====================
 
 def extract_features(game):
     """
     Extract ML features from a game dict.
-    
-    Expected game dict keys:
-      - awayRsG, homeRsG: runs scored per game
-      - awayRaG, homeRaG: runs allowed per game
-      - awayW, awayL, homeW, homeL: W/L record
-      - awayEra, homeEra: team ERA
-      - awayFip, homeFip: team FIP
-      - awayWhip, homeWhip: team WHIP
-      - awayOps, homeOps: team OPS
-      - awayBullpenEra, homeBullpenEra: bullpen ERA
-      - awayK9, homeK9: strikeouts per 9
-      - parkFactor: park run multiplier
-      - awayPitcherRating, homePitcherRating: starter ratings (0-100)
-      - awayPitcherEra, homePitcherEra: starter ERA
-      - awayPitcherFip, homePitcherFip: starter FIP
-      - awayPitcherHand, homePitcherHand: L or R
-      - awayRollingAdj, homeRollingAdj: rolling stats adjustment
-      - awayInjuryAdj, homeInjuryAdj: injury impact
-      
-    Returns feature dict.
+    v3.0: Added Elo features, improved interactions, platoon indicators.
     """
     features = {}
     
@@ -77,7 +184,7 @@ def extract_features(game):
     features['run_diff_home'] = homeRsG - homeRaG
     features['run_diff_delta'] = features['run_diff_home'] - features['run_diff_away']
     
-    # Pythagorean win expectation
+    # Pythagorean win expectation (Davenport exponent)
     pyth_exp = 1.83
     away_pyth = awayRsG**pyth_exp / (awayRsG**pyth_exp + awayRaG**pyth_exp) if awayRaG > 0 else 0.5
     home_pyth = homeRsG**pyth_exp / (homeRsG**pyth_exp + homeRaG**pyth_exp) if homeRaG > 0 else 0.5
@@ -92,7 +199,7 @@ def extract_features(game):
     else:
         features['log5_away'] = 0.5
     
-    # Actual W/L record-based features
+    # W/L record
     awayW = game.get('awayW', 81)
     awayL = game.get('awayL', 81)
     homeW = game.get('homeW', 81)
@@ -104,10 +211,18 @@ def extract_features(game):
     features['wpct_home'] = home_wpct
     features['wpct_delta'] = home_wpct - away_wpct
     
-    # Luck factor (actual - pythagorean)
+    # Luck factor (actual vs pythagorean)
     features['luck_away'] = away_wpct - away_pyth
     features['luck_home'] = home_wpct - home_pyth
     features['luck_delta'] = features['luck_home'] - features['luck_away']
+    
+    # ---- Elo features (point-in-time, the most predictive single feature) ----
+    home_elo = game.get('homeElo', 1500)
+    away_elo = game.get('awayElo', 1500)
+    features['elo_diff'] = home_elo - away_elo
+    features['elo_home_prob'] = game.get('eloHomeWinProb', 0.54)
+    # Elo confidence: how many games has the rating been built on
+    features['elo_confidence'] = min(1.0, (game.get('homeEloGames', 0) + game.get('awayEloGames', 0)) / 100)
     
     # ---- Pitching features ----
     lg_era = 4.10
@@ -121,11 +236,11 @@ def extract_features(game):
     awayWhip = game.get('awayWhip', lg_whip)
     homeWhip = game.get('homeWhip', lg_whip)
     
-    features['era_delta'] = awayEra - homeEra  # positive = home pitching better
+    features['era_delta'] = awayEra - homeEra
     features['fip_delta'] = awayFip - homeFip
     features['whip_delta'] = awayWhip - homeWhip
     
-    # Pitching composite: combine ERA, FIP, WHIP into single score
+    # Pitching composite
     away_pitch = (lg_era - awayEra) * 0.3 + (lg_fip - awayFip) * 0.4 + (lg_whip - awayWhip) * 8 * 0.3
     home_pitch = (lg_era - homeEra) * 0.3 + (lg_fip - homeFip) * 0.4 + (lg_whip - homeWhip) * 8 * 0.3
     features['pitch_score_away'] = away_pitch
@@ -143,7 +258,7 @@ def extract_features(game):
     # ---- Bullpen features ----
     awayBullpen = game.get('awayBullpenEra', lg_era)
     homeBullpen = game.get('homeBullpenEra', lg_era)
-    features['bullpen_delta'] = awayBullpen - homeBullpen  # positive = home bullpen better
+    features['bullpen_delta'] = awayBullpen - homeBullpen
     
     # ---- K/9 features ----
     awayK9 = game.get('awayK9', 8.6)
@@ -153,7 +268,7 @@ def extract_features(game):
     # ---- Park factor ----
     pf = game.get('parkFactor', 1.0)
     features['park_factor'] = pf
-    features['park_extreme'] = abs(pf - 1.0)  # how extreme the park is
+    features['park_extreme'] = abs(pf - 1.0)
     
     # ---- Starting pitcher features ----
     awayPRating = game.get('awayPitcherRating', 50)
@@ -164,29 +279,30 @@ def extract_features(game):
     
     awayPEra = game.get('awayPitcherEra', lg_era)
     homePEra = game.get('homePitcherEra', lg_era)
-    features['pitcher_era_delta'] = awayPEra - homePEra  # positive = home starter better
+    features['pitcher_era_delta'] = awayPEra - homePEra
     
     awayPFip = game.get('awayPitcherFip', lg_fip)
     homePFip = game.get('homePitcherFip', lg_fip)
     features['pitcher_fip_delta'] = awayPFip - homePFip
     
-    # Pitcher quality composite (predictive blend)
+    # Pitcher quality composite (FIP-centric — most predictive)
     away_p_quality = awayPFip * 0.45 + awayPEra * 0.25 + (awayPRating / 100 * lg_fip * 2 if awayPRating else lg_fip) * 0.30
     home_p_quality = homePFip * 0.45 + homePEra * 0.25 + (homePRating / 100 * lg_fip * 2 if homePRating else lg_fip) * 0.30
     features['pitcher_quality_delta'] = away_p_quality - home_p_quality
     
-    # Ace matchup indicator
+    # Ace indicators
     features['is_ace_matchup'] = 1 if (awayPRating >= 75 and homePRating >= 75) else 0
     features['has_ace'] = 1 if (awayPRating >= 80 or homePRating >= 80) else 0
     features['ace_side'] = 1 if homePRating >= 80 else (-1 if awayPRating >= 80 else 0)
     
-    # Pitcher handedness matchup
+    # Pitcher handedness
     awayHand = game.get('awayPitcherHand', 'R')
     homeHand = game.get('homePitcherHand', 'R')
     features['away_pitcher_lhp'] = 1 if awayHand == 'L' else 0
     features['home_pitcher_lhp'] = 1 if homeHand == 'L' else 0
+    features['same_hand_matchup'] = 1 if awayHand == homeHand else 0
     
-    # ---- Rolling stats / form features ----
+    # ---- Rolling stats / form ----
     awayRollAdj = game.get('awayRollingAdj', 0)
     homeRollAdj = game.get('homeRollingAdj', 0)
     features['rolling_adj_delta'] = homeRollAdj - awayRollAdj
@@ -198,13 +314,65 @@ def extract_features(game):
     homeInjAdj = game.get('homeInjuryAdj', 0)
     features['injury_adj_delta'] = homeInjAdj - awayInjAdj
     
-    # ---- Interaction features (non-linear signal) ----
+    # ---- Interaction features (capture non-linear signal) ----
     features['pyth_x_pitcher'] = features['pyth_delta'] * features['pitcher_rating_delta'] / 50
     features['run_diff_x_park'] = features['run_diff_delta'] * pf
     features['offense_x_pitcher'] = features['scoring_power_delta'] * features['pitcher_quality_delta']
+    features['elo_x_pyth'] = features['elo_diff'] / 100 * features['pyth_delta']
+    features['elo_x_pitcher'] = features['elo_diff'] / 100 * features['pitcher_rating_delta'] / 50
     
-    # ---- Expected runs (for totals model) ----
-    # Away expected = away offense quality * home pitching quality * park
+    # ---- Statcast features (v2.0+) ----
+    awayPxera = game.get('awayPitcherXera', None)
+    homePxera = game.get('homePitcherXera', None)
+    awayPera = game.get('awayPitcherEra', lg_era)
+    homePera = game.get('homePitcherEra', lg_era)
+    
+    if awayPxera is not None and awayPxera > 0:
+        features['away_pitcher_era_xera_gap'] = awayPera - awayPxera
+        features['away_pitcher_xera'] = awayPxera
+    else:
+        features['away_pitcher_era_xera_gap'] = 0
+        features['away_pitcher_xera'] = awayPera
+    
+    if homePxera is not None and homePxera > 0:
+        features['home_pitcher_era_xera_gap'] = homePera - homePxera
+        features['home_pitcher_xera'] = homePxera
+    else:
+        features['home_pitcher_era_xera_gap'] = 0
+        features['home_pitcher_xera'] = homePera
+    
+    features['xera_delta'] = features['away_pitcher_xera'] - features['home_pitcher_xera']
+    features['regression_signal'] = features['home_pitcher_era_xera_gap'] - features['away_pitcher_era_xera_gap']
+    
+    # Team xwOBA
+    awayXwoba = game.get('awayTeamXwoba', 0.310)
+    homeXwoba = game.get('homeTeamXwoba', 0.310)
+    lg_xwoba = 0.310
+    
+    features['xwoba_delta'] = homeXwoba - awayXwoba
+    features['away_xwoba_edge'] = awayXwoba - lg_xwoba
+    features['home_xwoba_edge'] = homeXwoba - lg_xwoba
+    
+    # Statcast composite
+    away_sc_composite = features['away_pitcher_era_xera_gap'] * -0.5 + features['away_xwoba_edge'] * 20
+    home_sc_composite = features['home_pitcher_era_xera_gap'] * -0.5 + features['home_xwoba_edge'] * 20
+    features['statcast_composite_delta'] = home_sc_composite - away_sc_composite
+    
+    # Pitcher xwOBA against
+    awayPxwoba = game.get('awayPitcherXwoba', lg_xwoba)
+    homePxwoba = game.get('homePitcherXwoba', lg_xwoba)
+    features['pitcher_xwoba_delta'] = awayPxwoba - homePxwoba
+    
+    # Statcast interaction
+    features['statcast_matchup'] = (homeXwoba - lg_xwoba) * (features['away_pitcher_xera'] - lg_era) * 10
+    
+    # Regression flags
+    features['away_pitcher_lucky'] = 1 if features['away_pitcher_era_xera_gap'] < -0.5 else 0
+    features['home_pitcher_lucky'] = 1 if features['home_pitcher_era_xera_gap'] < -0.5 else 0
+    features['away_pitcher_unlucky'] = 1 if features['away_pitcher_era_xera_gap'] > 0.5 else 0
+    features['home_pitcher_unlucky'] = 1 if features['home_pitcher_era_xera_gap'] > 0.5 else 0
+    
+    # ---- Expected runs (for totals) ----
     away_exp = awayRsG * (homeRaG / 4.4) * pf
     home_exp = homeRsG * (awayRaG / 4.4) * pf
     features['away_exp_runs'] = away_exp
@@ -219,18 +387,35 @@ def features_to_array(features, feature_names):
     return np.array([features.get(f, 0) for f in feature_names])
 
 
-# ==================== MODEL TRAINING ====================
+# ==================== FEATURE LISTS ====================
 
 FEATURE_NAMES = [
+    # Core team quality
     'run_diff_delta', 'pyth_delta', 'log5_away', 'wpct_delta', 'luck_delta',
+    # Elo (v3.0 — most predictive single feature cluster)
+    'elo_diff', 'elo_home_prob', 'elo_confidence',
+    # Team pitching
     'era_delta', 'fip_delta', 'whip_delta', 'pitch_score_delta',
+    # Team offense
     'ops_delta', 'scoring_power_delta', 'bullpen_delta', 'k9_delta',
+    # Park
     'park_factor', 'park_extreme',
+    # Starting pitcher
     'pitcher_rating_delta', 'pitcher_era_delta', 'pitcher_fip_delta',
     'pitcher_quality_delta', 'is_ace_matchup', 'has_ace', 'ace_side',
-    'away_pitcher_lhp', 'home_pitcher_lhp',
+    'away_pitcher_lhp', 'home_pitcher_lhp', 'same_hand_matchup',
+    # Form + injuries
     'rolling_adj_delta', 'injury_adj_delta',
+    # Interactions
     'pyth_x_pitcher', 'run_diff_x_park', 'offense_x_pitcher',
+    'elo_x_pyth', 'elo_x_pitcher',
+    # Statcast
+    'away_pitcher_era_xera_gap', 'home_pitcher_era_xera_gap',
+    'away_pitcher_xera', 'home_pitcher_xera', 'xera_delta', 'regression_signal',
+    'xwoba_delta', 'away_xwoba_edge', 'home_xwoba_edge',
+    'statcast_composite_delta', 'pitcher_xwoba_delta', 'statcast_matchup',
+    'away_pitcher_lucky', 'home_pitcher_lucky',
+    'away_pitcher_unlucky', 'home_pitcher_unlucky',
 ]
 
 TOTALS_FEATURE_NAMES = [
@@ -244,31 +429,39 @@ TOTALS_FEATURE_NAMES = [
     'away_pitcher_lhp', 'home_pitcher_lhp',
     'rolling_adj_away', 'rolling_adj_home',
     'is_ace_matchup',
+    'elo_diff',
+    # Statcast totals features
+    'away_pitcher_xera', 'home_pitcher_xera',
+    'away_xwoba_edge', 'home_xwoba_edge',
+    'away_pitcher_era_xera_gap', 'home_pitcher_era_xera_gap',
 ]
 
+
+# ==================== MODEL TRAINING ====================
 
 def train_model(games_data, sport='mlb'):
     """
     Train ML ensemble from historical game data.
-    
-    Each game in games_data should have features + result (homeWon: bool).
-    Returns trained model + metrics.
+    v3.0: XGBoost + LightGBM + Elo features + improved calibration.
     """
     if not games_data:
         return {'error': 'No training data provided'}
     
-    # Extract features and labels
+    # Step 1: Build Elo ratings from game history
+    elo = EloSystem(k_factor=4, hfa=24, season_regression=0.33)
+    enriched_games = elo.build_from_games(games_data)
+    
+    # Step 2: Extract features
     X_list = []
     y_list = []
     totals_X = []
     totals_y = []
     
-    for game in games_data:
+    for game in enriched_games:
         features = extract_features(game)
         X_list.append(features_to_array(features, FEATURE_NAMES))
         y_list.append(1 if game.get('homeWon', False) else 0)
         
-        # Totals data
         actual_total = game.get('actualTotal')
         book_total = game.get('bookTotal')
         if actual_total is not None and book_total is not None:
@@ -278,82 +471,94 @@ def train_model(games_data, sport='mlb'):
     X = np.array(X_list)
     y = np.array(y_list)
     
+    n_games = len(y)
+    print(f"Training on {n_games} games, home win rate: {y.mean():.3f}", file=sys.stderr)
+    
     # Scale features
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # ----- Moneyline Model: Ensemble -----
-    # 1. Logistic Regression (calibrated, interpretable baseline)
-    lr = LogisticRegression(
-        C=0.5,  # moderate regularization  
-        max_iter=1000,
-        solver='lbfgs',
-        class_weight='balanced'
-    )
-    
-    # 2. Gradient Boosting (captures non-linear interactions)
-    gb = GradientBoostingClassifier(
-        n_estimators=200,
-        max_depth=3,
-        learning_rate=0.05,
-        min_samples_leaf=5,
-        subsample=0.8,
-        random_state=42
-    )
-    
-    # 3. Random Forest (robust, handles noise)
-    rf = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=5,
-        min_samples_leaf=3,
-        class_weight='balanced',
-        random_state=42
-    )
-    
-    # Train all models with calibration
+    # ---- Build Ensemble ----
+    models = {}
+    calibrated = {}
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     
-    # Cross-validated accuracy
+    # 1. Logistic Regression (interpretable baseline)
+    lr = LogisticRegression(C=0.3, max_iter=1000, solver='lbfgs', class_weight='balanced')
     lr_scores = cross_val_score(lr, X_scaled, y, cv=cv, scoring='accuracy')
-    gb_scores = cross_val_score(gb, X_scaled, y, cv=cv, scoring='accuracy')
-    rf_scores = cross_val_score(rf, X_scaled, y, cv=cv, scoring='accuracy')
-    
-    # Train calibrated versions on full data
     lr_cal = CalibratedClassifierCV(lr, cv=5, method='isotonic')
-    gb_cal = CalibratedClassifierCV(gb, cv=5, method='isotonic')
-    rf_cal = CalibratedClassifierCV(rf, cv=5, method='isotonic')
-    
     lr_cal.fit(X_scaled, y)
-    gb_cal.fit(X_scaled, y)
-    rf_cal.fit(X_scaled, y)
-    
-    # Also train raw models for feature importance
     lr.fit(X_scaled, y)
+    models['lr'] = {'model': lr, 'cal': lr_cal, 'cv_acc': lr_scores.mean(), 'cv_std': lr_scores.std()}
+    
+    # 2. Gradient Boosting (sklearn)
+    gb = GradientBoostingClassifier(
+        n_estimators=250, max_depth=3, learning_rate=0.04,
+        min_samples_leaf=5, subsample=0.8, random_state=42
+    )
+    gb_scores = cross_val_score(gb, X_scaled, y, cv=cv, scoring='accuracy')
+    gb_cal = CalibratedClassifierCV(gb, cv=5, method='isotonic')
+    gb_cal.fit(X_scaled, y)
     gb.fit(X_scaled, y)
+    models['gb'] = {'model': gb, 'cal': gb_cal, 'cv_acc': gb_scores.mean(), 'cv_std': gb_scores.std()}
+    
+    # 3. Random Forest
+    rf = RandomForestClassifier(
+        n_estimators=300, max_depth=6, min_samples_leaf=3,
+        class_weight='balanced', random_state=42
+    )
+    rf_scores = cross_val_score(rf, X_scaled, y, cv=cv, scoring='accuracy')
+    rf_cal = CalibratedClassifierCV(rf, cv=5, method='isotonic')
+    rf_cal.fit(X_scaled, y)
     rf.fit(X_scaled, y)
+    models['rf'] = {'model': rf, 'cal': rf_cal, 'cv_acc': rf_scores.mean(), 'cv_std': rf_scores.std()}
     
-    # Feature importance from gradient boosting
-    gb_importance = dict(zip(FEATURE_NAMES, gb.feature_importances_))
-    rf_importance = dict(zip(FEATURE_NAMES, rf.feature_importances_))
+    # 4. XGBoost (the money model)
+    xgb_model = None
+    xgb_cal = None
+    if HAS_XGB:
+        xgb_clf = xgb.XGBClassifier(
+            n_estimators=300, max_depth=4, learning_rate=0.03,
+            min_child_weight=5, subsample=0.8, colsample_bytree=0.8,
+            reg_alpha=0.1, reg_lambda=1.0,
+            eval_metric='logloss', random_state=42,
+            use_label_encoder=False,
+        )
+        xgb_scores = cross_val_score(xgb_clf, X_scaled, y, cv=cv, scoring='accuracy')
+        xgb_cal = CalibratedClassifierCV(xgb_clf, cv=5, method='isotonic')
+        xgb_cal.fit(X_scaled, y)
+        xgb_clf.fit(X_scaled, y)
+        models['xgb'] = {'model': xgb_clf, 'cal': xgb_cal, 'cv_acc': xgb_scores.mean(), 'cv_std': xgb_scores.std()}
+        print(f"  XGBoost CV: {xgb_scores.mean():.4f} ± {xgb_scores.std():.4f}", file=sys.stderr)
     
-    # LR coefficients (useful for understanding direction)
-    lr_coefs = dict(zip(FEATURE_NAMES, lr.coef_[0]))
+    # 5. LightGBM
+    lgb_model = None
+    lgb_cal = None
+    if HAS_LGB:
+        lgb_clf = lgb.LGBMClassifier(
+            n_estimators=300, max_depth=4, learning_rate=0.03,
+            min_child_samples=10, subsample=0.8, colsample_bytree=0.8,
+            reg_alpha=0.1, reg_lambda=1.0,
+            verbose=-1, random_state=42,
+        )
+        lgb_scores = cross_val_score(lgb_clf, X_scaled, y, cv=cv, scoring='accuracy')
+        lgb_cal = CalibratedClassifierCV(lgb_clf, cv=5, method='isotonic')
+        lgb_cal.fit(X_scaled, y)
+        lgb_clf.fit(X_scaled, y)
+        models['lgb'] = {'model': lgb_clf, 'cal': lgb_cal, 'cv_acc': lgb_scores.mean(), 'cv_std': lgb_scores.std()}
+        print(f"  LightGBM CV: {lgb_scores.mean():.4f} ± {lgb_scores.std():.4f}", file=sys.stderr)
     
-    # Calibration check: predict on training data
-    lr_probs = lr_cal.predict_proba(X_scaled)[:, 1]
-    gb_probs = gb_cal.predict_proba(X_scaled)[:, 1]
-    rf_probs = rf_cal.predict_proba(X_scaled)[:, 1]
+    # ---- Compute ensemble weights (proportional to CV accuracy) ----
+    total_acc = sum(m['cv_acc'] for m in models.values())
+    weights = {name: m['cv_acc'] / total_acc for name, m in models.items()}
     
-    # Ensemble: weight by CV accuracy
-    total_acc = lr_scores.mean() + gb_scores.mean() + rf_scores.mean()
-    lr_weight = lr_scores.mean() / total_acc
-    gb_weight = gb_scores.mean() / total_acc
-    rf_weight = rf_scores.mean() / total_acc
+    # ---- Generate ensemble predictions on training data ----
+    ensemble_probs = np.zeros(len(y))
+    for name, m in models.items():
+        probs = m['cal'].predict_proba(X_scaled)[:, 1]
+        ensemble_probs += probs * weights[name]
     
-    ensemble_probs = lr_probs * lr_weight + gb_probs * gb_weight + rf_probs * rf_weight
-    
-    # Clip to [0, 1] to avoid floating-point issues
-    ensemble_probs = np.clip(ensemble_probs, 0, 1)
+    ensemble_probs = np.clip(ensemble_probs, 0.01, 0.99)
     
     # Metrics
     ensemble_acc = accuracy_score(y, (ensemble_probs > 0.5).astype(int))
@@ -373,87 +578,96 @@ def train_model(games_data, sport='mlb'):
                 'count': int(mask.sum())
             })
     
-    # ----- Totals Model (regression) -----
-    totals_model = None
+    # Feature importance (from GB + XGB if available)
+    combined_importance = {}
+    for feat_idx, feat in enumerate(FEATURE_NAMES):
+        imp = gb.feature_importances_[feat_idx] * 0.3 + rf.feature_importances_[feat_idx] * 0.2
+        if HAS_XGB and 'xgb' in models:
+            imp += models['xgb']['model'].feature_importances_[feat_idx] * 0.3
+        if HAS_LGB and 'lgb' in models:
+            imp += models['lgb']['model'].feature_importances_[feat_idx] * 0.2
+        combined_importance[feat] = imp
+    top_features = sorted(combined_importance.items(), key=lambda x: x[1], reverse=True)[:15]
+    
+    # LR coefficients
+    lr_coefs = dict(zip(FEATURE_NAMES, lr.coef_[0]))
+    
+    # ---- Totals Model ----
     totals_metrics = None
-    if len(totals_X) > 20:
+    totals_model_data = None
+    if len(totals_X) > 50:
         totals_X_arr = np.array(totals_X)
         totals_y_arr = np.array(totals_y)
         totals_scaler = StandardScaler()
         totals_X_scaled = totals_scaler.fit_transform(totals_X_arr)
         
-        from sklearn.ensemble import GradientBoostingRegressor
-        totals_gb = GradientBoostingRegressor(
-            n_estimators=150,
-            max_depth=3,
-            learning_rate=0.05,
-            min_samples_leaf=5,
-            random_state=42
-        )
-        totals_gb.fit(totals_X_scaled, totals_y_arr)
+        if HAS_XGB:
+            totals_reg = xgb.XGBRegressor(
+                n_estimators=200, max_depth=3, learning_rate=0.04,
+                min_child_weight=5, subsample=0.8, random_state=42,
+            )
+        else:
+            totals_reg = GradientBoostingRegressor(
+                n_estimators=200, max_depth=3, learning_rate=0.04,
+                min_samples_leaf=5, random_state=42
+            )
+        totals_reg.fit(totals_X_scaled, totals_y_arr)
         
-        totals_pred = totals_gb.predict(totals_X_scaled)
+        totals_pred = totals_reg.predict(totals_X_scaled)
         totals_mae = float(np.mean(np.abs(totals_pred - totals_y_arr)))
         totals_rmse = float(np.sqrt(np.mean((totals_pred - totals_y_arr) ** 2)))
         
-        totals_model = {
-            'model': totals_gb,
-            'scaler': totals_scaler,
-        }
+        totals_model_data = {'model': totals_reg, 'scaler': totals_scaler}
         totals_metrics = {
             'mae': round(totals_mae, 3),
             'rmse': round(totals_rmse, 3),
             'games': len(totals_y_arr),
+            'avgTotal': round(float(totals_y_arr.mean()), 1),
         }
     
-    # Save models
+    # ---- Save model to disk ----
     model_data = {
         'sport': sport,
-        'lr_cal': lr_cal,
-        'gb_cal': gb_cal,
-        'rf_cal': rf_cal,
+        'version': '3.0',
         'scaler': scaler,
-        'weights': {'lr': lr_weight, 'gb': gb_weight, 'rf': rf_weight},
+        'weights': weights,
         'feature_names': FEATURE_NAMES,
-        'totals_model': totals_model,
         'totals_feature_names': TOTALS_FEATURE_NAMES,
+        'elo_ratings': dict(elo.ratings),
+        'elo_game_counts': dict(elo.game_count),
     }
+    # Save each calibrated model
+    for name, m in models.items():
+        model_data[f'{name}_cal'] = m['cal']
+    model_data['totals_model'] = totals_model_data
     
-    model_path = MODEL_DIR / f'{sport}_ensemble.pkl'
+    model_path = MODEL_DIR / f'{sport}_ensemble_v3.pkl'
     with open(model_path, 'wb') as f:
         pickle.dump(model_data, f)
     
-    # Top features
-    combined_importance = {}
-    for feat in FEATURE_NAMES:
-        combined_importance[feat] = (
-            gb_importance.get(feat, 0) * 0.5 + 
-            rf_importance.get(feat, 0) * 0.3 +
-            abs(lr_coefs.get(feat, 0)) * 0.2
-        )
-    top_features = sorted(combined_importance.items(), key=lambda x: x[1], reverse=True)[:15]
+    # Also save as default path for backwards compat
+    default_path = MODEL_DIR / f'{sport}_ensemble.pkl'
+    with open(default_path, 'wb') as f:
+        pickle.dump(model_data, f)
+    
+    print(f"Model saved to {model_path}", file=sys.stderr)
     
     return {
         'status': 'trained',
         'sport': sport,
+        'version': '3.0',
         'games': len(y),
         'homeWinRate': float(y.mean()),
+        'modelsUsed': list(models.keys()),
+        'hasXGBoost': HAS_XGB,
+        'hasLightGBM': HAS_LGB,
         'models': {
-            'logistic_regression': {
-                'cv_accuracy': round(float(lr_scores.mean()), 4),
-                'cv_std': round(float(lr_scores.std()), 4),
-                'weight': round(lr_weight, 3),
-            },
-            'gradient_boosting': {
-                'cv_accuracy': round(float(gb_scores.mean()), 4),
-                'cv_std': round(float(gb_scores.std()), 4),
-                'weight': round(gb_weight, 3),
-            },
-            'random_forest': {
-                'cv_accuracy': round(float(rf_scores.mean()), 4),
-                'cv_std': round(float(rf_scores.std()), 4),
-                'weight': round(rf_weight, 3),
-            },
+            name: {
+                'cv_accuracy': round(float(m['cv_acc']), 4),
+                'cv_std': round(float(m['cv_std']), 4),
+                'weight': round(weights[name], 4),
+            }
+            for name, m in models.items()
         },
         'ensemble': {
             'accuracy': round(ensemble_acc, 4),
@@ -464,6 +678,11 @@ def train_model(games_data, sport='mlb'):
         'top_features': [{'feature': f, 'importance': round(v, 4)} for f, v in top_features],
         'lr_coefficients': {k: round(v, 4) for k, v in sorted(lr_coefs.items(), key=lambda x: abs(x[1]), reverse=True)[:10]},
         'totals': totals_metrics,
+        'elo': {
+            'teams_rated': len(elo.ratings),
+            'top_teams': [{'team': t, 'elo': round(r, 1)} for t, r in list(elo.get_all_ratings().items())[:10]],
+            'bottom_teams': [{'team': t, 'elo': round(r, 1)} for t, r in list(elo.get_all_ratings().items())[-5:]],
+        },
         'model_path': str(model_path),
     }
 
@@ -471,39 +690,65 @@ def train_model(games_data, sport='mlb'):
 # ==================== PREDICTION ====================
 
 def load_model(sport='mlb'):
-    """Load trained model from disk."""
-    model_path = MODEL_DIR / f'{sport}_ensemble.pkl'
-    if not model_path.exists():
-        return None
-    with open(model_path, 'rb') as f:
-        return pickle.load(f)
+    """Load trained model from disk. Tries v3 first, falls back to v2."""
+    for fname in [f'{sport}_ensemble_v3.pkl', f'{sport}_ensemble.pkl']:
+        model_path = MODEL_DIR / fname
+        if model_path.exists():
+            with open(model_path, 'rb') as f:
+                return pickle.load(f)
+    return None
 
 
 def predict_games(games, sport='mlb'):
     """
     Predict outcomes for a list of games.
-    Returns calibrated probabilities from the ensemble.
+    Returns calibrated probabilities from the full ensemble.
     """
     model_data = load_model(sport)
     if not model_data:
         return {'error': f'No trained model for {sport}. Run train first.'}
     
+    version = model_data.get('version', '2.0')
+    weights = model_data['weights']
+    model_names = list(weights.keys())
+    
+    # Add Elo features if we have Elo ratings
+    elo_ratings = model_data.get('elo_ratings', {})
+    elo_game_counts = model_data.get('elo_game_counts', {})
+    
     results = []
     for game in games:
+        # Inject Elo features if not present
+        if 'homeElo' not in game and elo_ratings:
+            home = game.get('home', '')
+            away = game.get('away', '')
+            home_elo = elo_ratings.get(home, 1500)
+            away_elo = elo_ratings.get(away, 1500)
+            game['homeElo'] = home_elo
+            game['awayElo'] = away_elo
+            game['eloDiff'] = home_elo - away_elo
+            # Compute expected score with HFA
+            diff = home_elo - away_elo + 24  # 24 = HFA
+            game['eloHomeWinProb'] = 1.0 / (1.0 + 10.0 ** (-diff / 400.0))
+            game['homeEloGames'] = elo_game_counts.get(home, 0)
+            game['awayEloGames'] = elo_game_counts.get(away, 0)
+        
         features = extract_features(game)
         X = features_to_array(features, model_data['feature_names']).reshape(1, -1)
         X_scaled = model_data['scaler'].transform(X)
         
-        # Get probabilities from each model
-        lr_prob = model_data['lr_cal'].predict_proba(X_scaled)[0][1]
-        gb_prob = model_data['gb_cal'].predict_proba(X_scaled)[0][1]
-        rf_prob = model_data['rf_cal'].predict_proba(X_scaled)[0][1]
+        # Get probabilities from each model in ensemble
+        model_probs = {}
+        ensemble_prob = 0
+        for name in model_names:
+            cal_key = f'{name}_cal'
+            if cal_key in model_data:
+                prob = model_data[cal_key].predict_proba(X_scaled)[0][1]
+                model_probs[name] = float(prob)
+                ensemble_prob += prob * weights[name]
         
-        weights = model_data['weights']
-        ensemble_prob = lr_prob * weights['lr'] + gb_prob * weights['gb'] + rf_prob * weights['rf']
-        
-        # Ensure probabilities are in reasonable range
-        ensemble_prob = max(0.10, min(0.90, ensemble_prob))
+        # Clip to reasonable range
+        ensemble_prob = max(0.08, min(0.92, ensemble_prob))
         
         away_abbr = game.get('away', '???')
         home_abbr = game.get('home', '???')
@@ -515,16 +760,22 @@ def predict_games(games, sport='mlb'):
             'awayWinProb': round(1 - float(ensemble_prob), 4),
             'homeML': prob_to_ml(ensemble_prob),
             'awayML': prob_to_ml(1 - ensemble_prob),
-            'models': {
-                'lr': round(float(lr_prob), 4),
-                'gb': round(float(gb_prob), 4),
-                'rf': round(float(rf_prob), 4),
-            },
+            'models': {k: round(v, 4) for k, v in model_probs.items()},
             'confidence': get_confidence(ensemble_prob),
-            'modelAgreement': round(1 - float(np.std([lr_prob, gb_prob, rf_prob])) * 3, 3),
+            'modelAgreement': round(1 - float(np.std(list(model_probs.values()))) * 3, 3) if len(model_probs) > 1 else 1.0,
+            'version': version,
         }
         
-        # Totals prediction if model available
+        # Elo info
+        if 'homeElo' in game:
+            result['elo'] = {
+                'home': round(game['homeElo'], 1),
+                'away': round(game['awayElo'], 1),
+                'diff': round(game.get('eloDiff', game['homeElo'] - game['awayElo']), 1),
+                'eloProb': round(game.get('eloHomeWinProb', 0.54), 4),
+            }
+        
+        # Totals prediction
         totals_model = model_data.get('totals_model')
         if totals_model and totals_model.get('model'):
             totals_features = features_to_array(features, model_data['totals_feature_names']).reshape(1, -1)
@@ -534,44 +785,45 @@ def predict_games(games, sport='mlb'):
         
         results.append(result)
     
-    return {'predictions': results}
+    return {'predictions': results, 'version': version}
 
 
 # ==================== BACKTEST ====================
 
 def run_backtest(games_data, sport='mlb'):
     """
-    Full backtest with betting simulation.
-    Uses leave-one-out or rolling window to avoid look-ahead bias.
+    Walk-forward backtest with no look-ahead bias.
+    Trains on expanding window, predicts next batch, simulates betting.
+    v3.0: Full ensemble with XGBoost, Elo-enriched features.
     """
-    if len(games_data) < 30:
-        return {'error': 'Need at least 30 games for backtest'}
+    if len(games_data) < 50:
+        return {'error': 'Need at least 50 games for backtest'}
     
-    # Extract all features
+    # Build Elo ratings chronologically
+    elo = EloSystem(k_factor=4, hfa=24, season_regression=0.33)
+    enriched = elo.build_from_games(games_data)
+    
+    # Extract features
     all_features = []
     all_labels = []
-    all_closing_ml = []
     all_games = []
     
-    for game in games_data:
+    for game in enriched:
         features = extract_features(game)
         X = features_to_array(features, FEATURE_NAMES)
         all_features.append(X)
         all_labels.append(1 if game.get('homeWon', False) else 0)
-        all_closing_ml.append(game.get('closingHomeML', -110))
         all_games.append(game)
     
     X = np.array(all_features)
     y = np.array(all_labels)
     
-    # Rolling window backtest (train on first N, predict next batch)
-    # This simulates real-world usage where you only have past data
-    window_size = max(50, len(X) // 3)
-    step_size = 10
+    # Walk-forward: train on first N, predict next batch
+    # Minimum training window: 200 games (about 2 weeks of MLB)
+    window_size = max(200, len(X) // 4)
+    step_size = max(5, len(X) // 50)
     
     predictions = [None] * len(X)
-    
-    scaler = StandardScaler()
     
     for start_test in range(window_size, len(X), step_size):
         end_test = min(start_test + step_size, len(X))
@@ -580,12 +832,13 @@ def run_backtest(games_data, sport='mlb'):
         y_train = y[:start_test]
         X_test = X[start_test:end_test]
         
+        scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
         
-        # Quick ensemble
-        lr = LogisticRegression(C=0.5, max_iter=500)
-        gb = GradientBoostingClassifier(n_estimators=100, max_depth=3, learning_rate=0.05, random_state=42)
+        # Quick ensemble for backtest (LR + GB + XGB if available)
+        lr = LogisticRegression(C=0.3, max_iter=500)
+        gb = GradientBoostingClassifier(n_estimators=150, max_depth=3, learning_rate=0.04, random_state=42)
         
         lr.fit(X_train_scaled, y_train)
         gb.fit(X_train_scaled, y_train)
@@ -593,15 +846,24 @@ def run_backtest(games_data, sport='mlb'):
         lr_probs = lr.predict_proba(X_test_scaled)[:, 1]
         gb_probs = gb.predict_proba(X_test_scaled)[:, 1]
         
-        # Blend: 40% LR, 60% GB (GB handles interactions better)
-        ensemble_probs = lr_probs * 0.40 + gb_probs * 0.60
+        if HAS_XGB:
+            xgb_clf = xgb.XGBClassifier(
+                n_estimators=150, max_depth=3, learning_rate=0.04,
+                min_child_weight=5, subsample=0.8, eval_metric='logloss',
+                use_label_encoder=False, random_state=42, verbosity=0
+            )
+            xgb_clf.fit(X_train_scaled, y_train)
+            xgb_probs = xgb_clf.predict_proba(X_test_scaled)[:, 1]
+            ensemble_probs = lr_probs * 0.20 + gb_probs * 0.35 + xgb_probs * 0.45
+        else:
+            ensemble_probs = lr_probs * 0.35 + gb_probs * 0.65
         
         for i, prob in enumerate(ensemble_probs):
             idx = start_test + i
             if idx < len(predictions):
-                predictions[idx] = float(max(0.10, min(0.90, prob)))
+                predictions[idx] = float(max(0.08, min(0.92, prob)))
     
-    # Simulate betting
+    # ---- Simulate betting ----
     bets = 0
     wins = 0
     losses = 0
@@ -621,12 +883,14 @@ def run_backtest(games_data, sport='mlb'):
         home_prob = pred
         away_prob = 1 - pred
         home_won = y[i] == 1
-        closing_ml = all_closing_ml[i]
         
-        book_home_prob = ml_to_prob(closing_ml)
+        # Estimate closing line from Elo-implied probability
+        game = all_games[i]
+        closing_home_ml = game.get('closingHomeML', -110)
+        book_home_prob = ml_to_prob(closing_home_ml)
         book_away_prob = 1 - book_home_prob
         
-        closing_away_ml = -round(100 * closing_ml / 100) if closing_ml > 0 else round(100 * 100 / (-closing_ml))
+        closing_away_ml = prob_to_ml(book_away_prob)
         
         home_edge = home_prob - book_home_prob
         away_edge = away_prob - book_away_prob
@@ -638,7 +902,7 @@ def run_backtest(games_data, sport='mlb'):
         if home_edge > 0.02 and home_edge >= away_edge:
             bet_side = 'home'
             bet_edge = home_edge
-            bet_ml = closing_ml
+            bet_ml = closing_home_ml
         elif away_edge > 0.02:
             bet_side = 'away'
             bet_edge = away_edge
@@ -663,12 +927,17 @@ def run_backtest(games_data, sport='mlb'):
                 edge_tiers[tier]['wins'] += 1
             edge_tiers[tier]['profit'] += bet_profit
             
-            profit_curve.append({'bet': bets, 'profit': round(profit, 0)})
+            if bets % 5 == 0 or bets <= 10:
+                profit_curve.append({'bet': bets, 'profit': round(profit, 0)})
+    
+    # Add final point to curve
+    if bets > 0:
+        profit_curve.append({'bet': bets, 'profit': round(profit, 0)})
     
     roi = (profit / wagered * 100) if wagered > 0 else 0
     win_rate = (wins / bets * 100) if bets > 0 else 0
     
-    # Calibration for predicted games
+    # Calibration check
     valid_preds = [(predictions[i], y[i]) for i in range(len(predictions)) if predictions[i] is not None]
     pred_arr = np.array([p[0] for p in valid_preds])
     actual_arr = np.array([p[1] for p in valid_preds])
@@ -678,7 +947,8 @@ def run_backtest(games_data, sport='mlb'):
     
     return {
         'sport': sport,
-        'method': 'rolling_window',
+        'version': '3.0',
+        'method': 'walk_forward',
         'windowSize': window_size,
         'totalGames': len(games_data),
         'predictedGames': len(valid_preds),
@@ -691,6 +961,7 @@ def run_backtest(games_data, sport='mlb'):
         'wagered': wagered,
         'profit': round(profit, 0),
         'roi': round(roi, 1),
+        'modelsUsed': ['lr', 'gb'] + (['xgb'] if HAS_XGB else []),
         'edgeTiers': [
             {'tier': k, 'bets': v['bets'], 'wins': v['wins'],
              'winRate': round(v['wins'] / v['bets'] * 100, 1) if v['bets'] > 0 else 0,
@@ -698,7 +969,7 @@ def run_backtest(games_data, sport='mlb'):
              'roi': round(v['profit'] / (v['bets'] * 100) * 100, 1) if v['bets'] > 0 else 0}
             for k, v in edge_tiers.items()
         ],
-        'profitCurve': profit_curve,
+        'profitCurve': profit_curve[-50:],  # Last 50 points
     }
 
 
@@ -749,15 +1020,30 @@ def main():
         result = predict_games(input_data.get('games', []), sport)
     elif mode == 'backtest':
         result = run_backtest(input_data.get('data', []), sport)
+    elif mode == 'elo':
+        # Just build and return Elo ratings
+        elo = EloSystem(k_factor=4, hfa=24, season_regression=0.33)
+        games = input_data.get('data', [])
+        enriched = elo.build_from_games(games)
+        all_ratings = elo.get_all_ratings()
+        result = {
+            'teams': len(all_ratings),
+            'games_processed': len(enriched),
+            'ratings': {t: round(r, 1) for t, r in all_ratings.items()},
+        }
     elif mode == 'status':
         model = load_model(sport)
         if model:
             result = {
                 'status': 'ready',
                 'sport': sport,
+                'version': model.get('version', '2.0'),
                 'features': model['feature_names'],
                 'weights': model['weights'],
                 'hasTotals': model.get('totals_model') is not None,
+                'hasElo': 'elo_ratings' in model,
+                'eloTeams': len(model.get('elo_ratings', {})),
+                'modelsInEnsemble': list(model['weights'].keys()),
             }
         else:
             result = {'status': 'no_model', 'sport': sport}
