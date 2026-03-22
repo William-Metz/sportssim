@@ -5178,59 +5178,145 @@ app.get('/api/opening-day-playbook', async (req, res) => {
         }
       }
 
-      // 11b. F5 ANALYSIS (first 5 innings)
+      // 11b. F5 ANALYSIS (first 5 innings) — UPGRADED to NB model (v60.0)
       try {
-        const awayExpRuns = entry.signals.analytical?.awayExpRuns || 4.3;
-        const homeExpRuns = entry.signals.analytical?.homeExpRuns || 4.3;
-        const f5Factor = 0.565;
-        let owReduction = 1.0;
+        // Use asyncPredict to get the NB F5 model data
+        const fullPred = await mlb.asyncPredict(game.away, game.home, {
+          awayPitcher: game.awayStarter?.name,
+          homePitcher: game.homeStarter?.name,
+        });
         
-        if (openingWeekUnders) {
-          const owAdj = openingWeekUnders.getOpeningWeekAdjustment(game.date, game.park || '', {
-            homeStarterTier: 2,
-            awayStarterTier: 2,
-          });
-          if (owAdj && owAdj.reduction) owReduction = 1 - owAdj.reduction;
-        }
-        
-        const awayF5 = awayExpRuns * f5Factor * owReduction;
-        const homeF5 = homeExpRuns * f5Factor * owReduction;
-        const f5Total = +(awayF5 + homeF5).toFixed(2);
-        
-        // Poisson F5 under probability for common lines
-        const f5Lines = {};
-        for (const line of [4.5, 5.0, 5.5]) {
-          let underP = 0;
-          for (let a = 0; a <= 12; a++) {
-            for (let h = 0; h <= 12; h++) {
-              if (a + h < line) {
-                underP += poissonPMF(a, awayF5) * poissonPMF(h, homeF5);
-              }
+        if (fullPred && fullPred.f5 && fullPred.f5.model === 'negative-binomial-f5') {
+          const f5 = fullPred.f5;
+          const f5Lines = {};
+          for (const line of [4.5, 5.0, 5.5]) {
+            const lineData = f5.totals?.[line];
+            if (lineData) {
+              f5Lines[line] = { 
+                underPct: +(lineData.under * 100).toFixed(1), 
+                overPct: +(lineData.over * 100).toFixed(1),
+                underML: lineData.underML,
+                overML: lineData.overML,
+              };
             }
           }
-          f5Lines[line] = { underPct: +(underP * 100).toFixed(1), overPct: +((1 - underP) * 100).toFixed(1) };
+          
+          entry.signals.f5 = {
+            model: 'negative-binomial',
+            expectedTotal: f5.total,
+            awayF5Runs: f5.awayRuns,
+            homeF5Runs: f5.homeRuns,
+            homeWinProb: f5.homeWinProb,
+            awayWinProb: f5.awayWinProb,
+            drawProb: f5.drawProb,
+            threeWayML: f5.threeWay,
+            twoWayML: f5.twoWay,
+            lines: f5Lines,
+            bestUnder: f5.total < 4.5 ? 'U4.5' : f5.total < 5.0 ? 'U5.0' : 'U5.5',
+            runLines: f5.runLines || null,
+            teamTotals: f5.teamTotals || null,
+          };
+          
+          // F5 under bet (if strong signal)
+          const bestF5Line = f5.total < 4.75 ? 4.5 : f5.total < 5.25 ? 5.0 : 5.5;
+          const f5UnderData = f5.totals?.[bestF5Line];
+          if (f5UnderData && f5UnderData.under > 0.55) {
+            entry.bets.push({
+              type: 'F5_TOTAL',
+              pick: `F5 UNDER ${bestF5Line}`,
+              modelProb: +(f5UnderData.under * 100).toFixed(1),
+              fairML: f5UnderData.underML,
+              confidence: f5UnderData.under >= 0.62 ? 'HIGH' : f5UnderData.under >= 0.57 ? 'MEDIUM' : 'LOW',
+              model: 'negative-binomial-f5',
+              edge: +((f5UnderData.under - 0.5) * 100).toFixed(1),
+              weatherSupport: entry.signals.weather?.impact === 'UNDER' ? '✅ Weather agrees (cold/wind-in)' : '➖',
+              pitcherSupport: (game.awayStarter?.rating >= 70 && game.homeStarter?.rating >= 70) ? '✅ Both aces' : 
+                              (game.awayStarter?.rating >= 70 || game.homeStarter?.rating >= 70) ? '📊 One ace' : '➖',
+            });
+          }
+          
+          // Run line analysis from NB model
+          if (fullPred.altRunLines) {
+            entry.signals.runLines = {
+              model: 'negative-binomial',
+              home: fullPred.altRunLines.home,
+              away: fullPred.altRunLines.away,
+              marginDist: fullPred.altRunLines.marginDist,
+            };
+          }
+          
+          // Conviction score from NB model
+          if (fullPred.conviction) {
+            entry.signals.conviction = fullPred.conviction;
+          }
+        } else {
+          // Fallback to old Poisson F5 if NB not available
+          const awayExpRuns = entry.signals.analytical?.awayExpRuns || 4.3;
+          const homeExpRuns = entry.signals.analytical?.homeExpRuns || 4.3;
+          const f5Factor = 0.565;
+          let owReduction = 1.0;
+          
+          if (openingWeekUnders) {
+            const owAdj = openingWeekUnders.getOpeningWeekAdjustment(game.date, game.park || '', {
+              homeStarterTier: 2,
+              awayStarterTier: 2,
+            });
+            if (owAdj && owAdj.reduction) owReduction = 1 - owAdj.reduction;
+          }
+          
+          const awayF5 = awayExpRuns * f5Factor * owReduction;
+          const homeF5 = homeExpRuns * f5Factor * owReduction;
+          const f5Total = +(awayF5 + homeF5).toFixed(2);
+          
+          const f5Lines = {};
+          for (const line of [4.5, 5.0, 5.5]) {
+            let underP = 0;
+            for (let a = 0; a <= 12; a++) {
+              for (let h = 0; h <= 12; h++) {
+                if (a + h < line) {
+                  underP += poissonPMF(a, awayF5) * poissonPMF(h, homeF5);
+                }
+              }
+            }
+            f5Lines[line] = { underPct: +(underP * 100).toFixed(1), overPct: +((1 - underP) * 100).toFixed(1) };
+          }
+          
+          entry.signals.f5 = {
+            model: 'poisson-fallback',
+            expectedTotal: f5Total,
+            awayF5Runs: +awayF5.toFixed(2),
+            homeF5Runs: +homeF5.toFixed(2),
+            openingWeekReduction: +((1 - owReduction) * 100).toFixed(1) + '%',
+            lines: f5Lines,
+            bestUnder: f5Total < 4.5 ? 'U4.5' : f5Total < 5.0 ? 'U5.0' : 'U5.5',
+          };
         }
-        
-        entry.signals.f5 = {
-          expectedTotal: f5Total,
-          awayF5Runs: +awayF5.toFixed(2),
-          homeF5Runs: +homeF5.toFixed(2),
-          openingWeekReduction: +((1 - owReduction) * 100).toFixed(1) + '%',
-          lines: f5Lines,
-          bestUnder: f5Total < 4.5 ? 'U4.5' : f5Total < 5.0 ? 'U5.0' : 'U5.5',
-        };
       } catch (e) { /* F5 optional */ }
 
-      // 12. OVERALL GAME RATING
+      // 12. OVERALL GAME RATING (upgraded with conviction v60.0)
       const totalSignals = Object.keys(entry.signals).filter(k => !k.includes('Error')).length;
       const hasBets = entry.bets.length > 0;
       const maxEdge = hasBets ? Math.max(...entry.bets.map(b => b.edge || 0)) : 0;
+      const convictionGrade = entry.signals.conviction?.grade;
+      
+      // Use conviction grade if available, otherwise fall back to edge-based grading
+      let grade;
+      if (convictionGrade && entry.signals.conviction?.score >= 50) {
+        grade = convictionGrade; // Trust the conviction engine
+      } else {
+        grade = maxEdge >= 8 ? 'A+' : maxEdge >= 6 ? 'A' : maxEdge >= 4 ? 'B' : maxEdge >= 2 ? 'C' : 'D';
+      }
       
       entry.gameRating = {
         signalCount: totalSignals,
         betCount: entry.bets.length,
         maxEdge,
-        grade: maxEdge >= 8 ? 'A+' : maxEdge >= 6 ? 'A' : maxEdge >= 4 ? 'B' : maxEdge >= 2 ? 'C' : 'D',
+        grade,
+        conviction: entry.signals.conviction ? {
+          score: entry.signals.conviction.score,
+          grade: entry.signals.conviction.grade,
+          action: entry.signals.conviction.action,
+        } : null,
         totalWager: entry.bets.reduce((s, b) => s + (b.wager || 0), 0),
         totalEV: +entry.bets.reduce((s, b) => s + (b.ev || 0), 0).toFixed(2),
       };
