@@ -1559,31 +1559,41 @@
       "team": "Washington Wizards",
       "injuries": [
         {
+          "player": "Leaky Black",
+          "position": "F",
+          "status": "Out",
+          "detail": "Black (ankle) has been ruled out for Sunday's game against the Knicks.",
+          "returnDate": "2026-03-22T16:43Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Tre Johnson",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Johnson (foot) has been downgraded to out for Saturday's game against Oklahoma City.",
-          "returnDate": "2026-03-22T13:16Z",
+          "status": "Out",
+          "detail": "Johnson (foot) has been ruled out for Sunday's game against New York.",
+          "returnDate": "2026-03-22T16:40Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Trae Young",
           "position": "G",
           "status": "Out",
-          "detail": "The Wizards announced Saturday that Young (quadriceps) is also working throw lower-back irritation, Josh Robbins of The Athletic reports.",
-          "returnDate": "2026-03-21T15:12Z",
+          "detail": "Young (quadriceps/back) has been ruled out for Sunday's game against the Knicks.",
+          "returnDate": "2026-03-22T16:38Z",
           "impact": 3.5,
           "isOut": true,
           "isDayToDay": false
         },
         {
-          "player": "Leaky Black",
-          "position": "F",
+          "player": "Alex Sarr",
+          "position": "C",
           "status": "Out",
-          "detail": "Black (ankle) will not play Saturday against the Thunder.",
-          "returnDate": "2026-03-20T20:50Z",
+          "detail": "Sarr has been ruled out for Sunday's game against the Knicks due to left big toe capsulitis.",
+          "returnDate": "2026-03-22T16:36Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1630,14 +1640,14 @@
         }
       ],
       "totalImpact": 7.5,
-      "outCount": 6,
-      "dtdCount": 1,
+      "outCount": 8,
+      "dtdCount": 0,
       "starPlayersOut": [
         {
           "player": "Trae Young",
           "impact": 3.5,
           "status": "Out",
-          "detail": "The Wizards announced Saturday that Young (quadriceps) is also working throw lower-back irritation, Josh Robbins of The Athletic reports.",
+          "detail": "Young (quadriceps/back) has been ruled out for Sunday's game against the Knicks.",
           "isOut": true,
           "isDayToDay": false
         },
@@ -1764,24 +1774,24 @@
       "team": "Calgary Flames",
       "injuries": [
         {
-          "player": "Yan Kuznetsov",
-          "position": "D",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-21T09:48Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Connor Zary",
           "position": "C",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-21T04:23Z",
+          "status": "Out",
+          "detail": "Zary (upper body) is day-to-day and isn't expected to play against Tampa Bay on Sunday, Pat Steinberg of Sportsnet 960 The Fan reports.",
+          "returnDate": "2026-03-22T16:43Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
+          "player": "Yan Kuznetsov",
+          "position": "D",
+          "status": "Out",
+          "detail": "Kuznetsov (upper body) will miss Sunday's game against the Lightning but is close to a return, Pat Steinberg of Sportsnet 960 The Fan reports.",
+          "returnDate": "2026-03-22T16:42Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Jonathan Huberdeau",
@@ -1805,8 +1815,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 2,
-      "dtdCount": 2,
+      "outCount": 4,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "CAR": {
@@ -1913,12 +1923,12 @@
         {
           "player": "Ross Colton",
           "position": "C",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-21T09:48Z",
+          "status": "Out",
+          "detail": "Colton (upper body) isn't in the lineup for Sunday's game against the Capitals, Corey Masisak of The Denver Post reports.",
+          "returnDate": "2026-03-22T16:14Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Logan O'Connor",
@@ -1942,8 +1952,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 2,
-      "dtdCount": 1,
+      "outCount": 3,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "DAL": {
@@ -2352,8 +2362,18 @@
           "player": "Brett Pesce",
           "position": "D",
           "status": "Out",
-          "detail": "Pesce (lower body) is considered week-to-week, Mike Morreale of NHL.com reports Friday.",
-          "returnDate": "2026-03-06T20:42Z",
+          "detail": "Pesce (lower body) is questionable to return to the lineup before the end of the 2025-26 regular season, Amanda Stein of the Devils' official site reports Sunday.",
+          "returnDate": "2026-03-22T16:33Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
+          "player": "Stefan Noesen",
+          "position": "RW",
+          "status": "Injured Reserve",
+          "detail": "Noesen (knee) has been ruled out for the rest of the season, Kristy Flannery of The Hockey News reports Sunday.",
+          "returnDate": "2026-03-22T16:31Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -2364,16 +2384,6 @@
           "status": "Injured Reserve",
           "detail": "MacEwen had knee surgery and will be lost for the remainder of the season, Kristy Flannery of The Hockey News reports Saturday.",
           "returnDate": "2026-01-10T18:44Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Stefan Noesen",
-          "position": "RW",
-          "status": "Injured Reserve",
-          "detail": "ir",
-          "returnDate": "2026-01-10T17:56Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -3203,6 +3213,16 @@
       "team": "Atlanta Braves",
       "injuries": [
         {
+          "player": "Daysbel Hernandez",
+          "position": "RP",
+          "status": "Day-To-Day",
+          "detail": "Hernandez (shoulder) threw a live batting practice session Monday but has yet to make his Grapefruit League debut, Chad Bishop of The Atlanta Journal-Constitution reports.",
+          "returnDate": "2026-03-22T15:48Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Jurickson Profar",
           "position": "LF",
           "status": "Suspension",
@@ -3231,16 +3251,6 @@
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
-        },
-        {
-          "player": "Daysbel Hernandez",
-          "position": "RP",
-          "status": "Day-To-Day",
-          "detail": "Atlanta transferred Hernandez (shoulder) from the 15-day injured list to the 60-day IL on Sunday.",
-          "returnDate": "2026-02-23T14:52Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
         },
         {
           "player": "Hurston Waldrep",
@@ -3491,16 +3501,6 @@
           "isDayToDay": false
         },
         {
-          "player": "Alec Gamboa",
-          "position": "P",
-          "status": "Day-To-Day",
-          "detail": "Manager Alex Cora said Saturday that Gamboa is dealing with an elbow injury and will be shut down for at least three days, Matt Kawahara of the Houston Chronicle reports.",
-          "returnDate": "2026-02-28T15:06Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Anthony Seigler",
           "position": "2B",
           "status": "Day-To-Day",
@@ -3533,7 +3533,7 @@
       ],
       "totalImpact": 0,
       "outCount": 8,
-      "dtdCount": 3,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "CHC": {
@@ -4104,16 +4104,6 @@
           "isDayToDay": true
         },
         {
-          "player": "Mike Burrows",
-          "position": "SP",
-          "status": "Day-To-Day",
-          "detail": "Burrows pitched two innings in Sunday's Grapefruit League matchup against the Cardinals, allowing no runs on one hit and a walk while striking out two.",
-          "returnDate": "2026-03-21T19:03Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Bennett Sousa",
           "position": "RP",
           "status": "Out",
@@ -4196,12 +4186,32 @@
       ],
       "totalImpact": 0,
       "outCount": 6,
-      "dtdCount": 4,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "KC": {
       "team": "Kansas City Royals",
       "injuries": [
+        {
+          "player": "Stephen Kolek",
+          "position": "SP",
+          "status": "Out",
+          "detail": "Kolek (oblique) threw a second bullpen Saturday and could pitch in minor-league spring training games in another week, MLB.com reports.",
+          "returnDate": "2026-03-22T16:17Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
+          "player": "Michael Massey",
+          "position": "2B",
+          "status": "Day-To-Day",
+          "detail": "Massey (calf) will not travel to Texas for Monday and Tuesday's exhibitions and will instead remain in Arizona to see action in minor-league games and test his running ability to gauge his availabilit",
+          "returnDate": "2026-03-22T16:01Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
         {
           "player": "Matt Strahm",
           "position": "RP",
@@ -4211,26 +4221,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Michael Massey",
-          "position": "2B",
-          "status": "Day-To-Day",
-          "detail": "Massey may not be available for Opening Day due to a calf strain, Anne Rogers of MLB.com reports.",
-          "returnDate": "2026-03-18T22:49Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Stephen Kolek",
-          "position": "SP",
-          "status": "Out",
-          "detail": "Kolek (oblique) threw a bullpen session Wednesday, Anne Rogers of MLB.com reports.",
-          "returnDate": "2026-03-18T22:47Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "James McArthur",
@@ -4647,6 +4637,16 @@
       "team": "Minnesota Twins",
       "injuries": [
         {
+          "player": "Julian Merryweather",
+          "position": "RP",
+          "status": "Day-To-Day",
+          "detail": "The Twins reassigned Merryweather (hamstring) to minor-league camp Monday.",
+          "returnDate": "2026-03-22T16:00Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Travis Adams",
           "position": "RP",
           "status": "Out",
@@ -4662,16 +4662,6 @@
           "status": "Out",
           "detail": "Festa (shoulder impingement) threw Thursday at 60 feet and Friday at 75 feet, the St. Paul Pioneer Press reports.",
           "returnDate": "2026-03-21T04:54Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Julian Merryweather",
-          "position": "RP",
-          "status": "Out",
-          "detail": "The Twins reassigned Merryweather (hamstring) to minor-league camp Monday.",
-          "returnDate": "2026-03-16T15:34Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -4718,8 +4708,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 6,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "NYM": {
@@ -4913,6 +4903,16 @@
       "team": "Philadelphia Phillies",
       "injuries": [
         {
+          "player": "Daniel Robert",
+          "position": "RP",
+          "status": "Out",
+          "detail": "The Phillies announced Wednesday that Robert will be delayed at the start of spring training due to a cardiovascular issue, Matt Gelb of The Athletic reports.",
+          "returnDate": "2026-03-22T16:06Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Max Lazar",
           "position": "RP",
           "status": "Out",
@@ -4931,16 +4931,6 @@
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
-        },
-        {
-          "player": "Dylan Moore",
-          "position": "2B",
-          "status": "Day-To-Day",
-          "detail": "Moore (foot) signed a major-league contract with the Phillies on Saturday, Will Sammon of The Athletic reports.",
-          "returnDate": "2026-03-21T22:16Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
         },
         {
           "player": "Zack Wheeler",
@@ -5003,16 +4993,6 @@
           "isDayToDay": true
         },
         {
-          "player": "Daniel Robert",
-          "position": "RP",
-          "status": "Day-To-Day",
-          "detail": "The Phillies announced Wednesday that Robert will be delayed at the start of spring training due to a cardiovascular issue, Matt Gelb of The Athletic reports.",
-          "returnDate": "2026-02-23T18:56Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Christian McGowan",
           "position": "RP",
           "status": "Out",
@@ -5024,8 +5004,8 @@
         }
       ],
       "totalImpact": 0.4,
-      "outCount": 6,
-      "dtdCount": 4,
+      "outCount": 7,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Zack Wheeler",
@@ -5749,8 +5729,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774194161497,
-    "nhl": 1774194162076,
-    "mlb": 1774194162335
+    "nba": 1774198926404,
+    "nhl": 1774198927253,
+    "mlb": 1774198928290
   }
 }

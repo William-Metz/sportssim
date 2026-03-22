@@ -518,6 +518,29 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   awayRaG += awayRollingAdj * rollingWeight + awayInjuryAdj * injuryWeight;
   homeRaG += homeRollingAdj * rollingWeight + homeInjuryAdj * injuryWeight;
 
+  // ==================== CATCHER FRAMING ADJUSTMENT ====================
+  // Elite framers save ~18 runs/season vs poor framers who cost ~10 runs/season
+  // Per-game impact: ~0.05-0.11 runs per team, or ~0.15 total runs gap max
+  // On Opening Day this is proportionally larger because starters pitch deeper
+  let catcherFramingData = null;
+  if (lineupFetcher && lineupFetcher.getCatcherFramingAdjustment) {
+    try {
+      catcherFramingData = lineupFetcher.getCatcherFramingAdjustment(homeAbbr, awayAbbr);
+      if (catcherFramingData) {
+        // Apply to expected runs: good catcher helps their pitcher give up fewer runs
+        // homeRAAdj is NEGATIVE for good framers (fewer runs allowed by home pitcher)
+        // So adding homeRAAdj to awayRaG means: away team scores LESS against home pitcher with good catcher
+        // Scale: 70% (conservative — some framing already in pitcher stats)
+        const framingScale = 0.70;
+        
+        // Home catcher framing → affects runs scored by AWAY team (off home pitching)
+        awayRaG += catcherFramingData.homeRAAdj * framingScale;
+        // Away catcher framing → affects runs scored by HOME team (off away pitching) 
+        homeRaG += catcherFramingData.awayRAAdj * framingScale;
+      }
+    } catch (e) { /* catcher framing optional */ }
+  }
+
   // ==================== WEATHER ADJUSTMENT ====================
   // Weather impacts run scoring at outdoor parks
   let weatherData = null;
@@ -911,6 +934,16 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       homeRest: homeRestData ? { adj: +homeRestAdj.toFixed(3), factors: homeRestData.factors, daysSinceLast: homeRestData.daysSinceLast, consecutiveHome: homeRestData.consecutiveHome, confidence: homeRestData.confidence } : null,
       awayBullpenFatigue: awayBullpenFatigue ? { multiplier: awayBullpenFatigue.multiplier, status: awayBullpenFatigue.status, factors: awayBullpenFatigue.factors } : null,
       homeBullpenFatigue: homeBullpenFatigue ? { multiplier: homeBullpenFatigue.multiplier, status: homeBullpenFatigue.status, factors: homeBullpenFatigue.factors } : null,
+      catcherFraming: catcherFramingData ? {
+        homeCatcher: catcherFramingData.homeCatcher,
+        awayCatcher: catcherFramingData.awayCatcher,
+        homeFramingRuns: catcherFramingData.homeFramingRuns,
+        awayFramingRuns: catcherFramingData.awayFramingRuns,
+        framingGap: catcherFramingData.framingGap,
+        homeEdge: +catcherFramingData.homeEdge.toFixed(3),
+        totalRunsAdj: +catcherFramingData.totalRunsAdj.toFixed(2),
+        note: catcherFramingData.note
+      } : null,
       earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null,
       earlySeasonCalibration: isEarlySeason ? { hcaShift: HCA_SHIFT, maxWinProb: MAX_WIN_PROB, minWinProb: MIN_WIN_PROB, note: 'Tighter caps + reduced HCA for early season (49.2% HWR in first 2 weeks)' } : null,
       preseasonTuning: (awayPreseasonInfo || homePreseasonInfo) ? {
@@ -1313,43 +1346,139 @@ function kellySize(modelProb, ml) {
   return Math.max(0, kelly);
 }
 
-// ==================== ASYNC PREDICT (with rest/travel) ====================
+// ==================== ASYNC PREDICT (with rest/travel + weather + umpire) ====================
+
+// Lazy-load weather service for async operations
+let weatherService = null;
+try { weatherService = require('../services/weather'); } catch (e) { /* no weather */ }
 
 /**
- * Async version of predict that fetches rest/travel data automatically
- * Use this from server endpoints for the most accurate predictions
+ * Async version of predict that fetches ALL async signals automatically:
+ *   - Rest/travel adjustments
+ *   - Confirmed lineup data
+ *   - LIVE WEATHER (Open-Meteo) — adjusts run totals for temp/wind/humidity
+ *   - Umpire assignments (when available from DailyFaceoff/etc)
+ * 
+ * Use this from server endpoints for the most accurate predictions.
+ * This is THE canonical prediction path — all value detection, auto-scanner,
+ * and daily picks should use asyncPredict() to get the full signal stack.
  */
 async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
-  // Fetch rest/travel data if not already provided
+  const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+  
+  // Fetch all async signals in parallel for speed
+  const fetchPromises = [];
+  
+  // 1. Rest/travel data
   if (!opts.restTravel && restTravel) {
-    try {
-      const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
-      opts.restTravel = await restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate);
-    } catch (e) { /* rest/travel optional */ }
+    fetchPromises.push(
+      restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate)
+        .then(data => { opts.restTravel = data; })
+        .catch(() => { /* rest/travel optional */ })
+    );
   }
   
-  // Fetch lineup data if not already provided
+  // 2. Lineup data
   if (!opts.lineup && lineupFetcher) {
-    try {
-      const dateStr = opts.gameDate || new Date().toISOString().split('T')[0];
-      opts.lineup = await lineupFetcher.getLineupAdjustments(awayAbbr, homeAbbr, dateStr);
-    } catch (e) { /* lineup data optional */ }
+    fetchPromises.push(
+      lineupFetcher.getLineupAdjustments(awayAbbr, homeAbbr, gameDate)
+        .then(data => { opts.lineup = data; })
+        .catch(() => { /* lineup data optional */ })
+    );
   }
   
+  // 3. WEATHER — auto-fetch live weather for the home park
+  // This is critical for outdoor stadiums: temp/wind/humidity shift totals by ±10-15%
+  if (!opts.weather && weatherService && weatherService.getWeatherForPark) {
+    fetchPromises.push(
+      weatherService.getWeatherForPark(homeAbbr)
+        .then(data => {
+          if (data && !data.error && data.multiplier) {
+            opts.weather = data;
+          }
+        })
+        .catch(() => { /* weather optional */ })
+    );
+  }
+  
+  // 4. UMPIRE — auto-fetch today's umpire assignments if available
+  if (!opts.umpire && umpireService && umpireService.fetchTodaysAssignments) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const assignments = await umpireService.fetchTodaysAssignments();
+          if (assignments && assignments.games) {
+            // Find the umpire for this specific matchup
+            for (const game of assignments.games) {
+              const gameTeams = [game.away, game.home].map(t => t?.toUpperCase());
+              if (gameTeams.includes(awayAbbr) && gameTeams.includes(homeAbbr)) {
+                if (game.umpireData || game.homePlateUmpire) {
+                  const umpName = game.homePlateUmpire || game.umpireData?.name;
+                  if (umpName) {
+                    const ump = umpireService.getUmpire(umpName);
+                    if (ump) {
+                      const umpAdj = umpireService.calcTotalRunsMultiplier(ump);
+                      opts.umpire = {
+                        name: ump.name,
+                        zone: ump.zone,
+                        ...umpAdj
+                      };
+                    }
+                  }
+                }
+                break;
+              }
+            }
+          }
+        } catch (e) { /* umpire optional */ }
+      })()
+    );
+  }
+  
+  // Wait for all parallel fetches to complete
+  await Promise.all(fetchPromises);
+  
+  // Run the core prediction with all signals
   const result = predict(awayAbbr, homeAbbr, opts);
+  
+  // Tag the result so we know full signal stack was used
+  result._asyncSignals = {
+    restTravel: !!opts.restTravel,
+    lineup: !!(opts.lineup && opts.lineup.hasData),
+    weather: !!(opts.weather && opts.weather.multiplier && opts.weather.multiplier !== 1.0),
+    umpire: !!opts.umpire,
+    weatherDetail: opts.weather ? {
+      multiplier: opts.weather.multiplier,
+      description: opts.weather.description,
+      park: opts.weather.park,
+      dome: opts.weather.dome
+    } : null,
+    umpireDetail: opts.umpire ? {
+      name: opts.umpire.name,
+      zone: opts.umpire.zone,
+      multiplier: opts.umpire.multiplier
+    } : null
+  };
   
   // Apply Opening Week unders adjustment to totals
   let openingWeekUnders = null;
   try { openingWeekUnders = require('../services/opening-week-unders'); } catch (e) { /* optional */ }
   
   if (openingWeekUnders && result.totalRuns) {
-    const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
     const homeTeam = getTeams()[homeAbbr];
     const homePark = homeTeam?.park || '';
     
+    // Determine pitcher tiers from resolved pitcher info
+    const homeStarterTier = result.homePitcher?.tier === 'ACE' ? 1 : 
+                            result.homePitcher?.tier === 'FRONTLINE' ? 2 :
+                            result.homePitcher?.rating >= 50 ? 3 : 4;
+    const awayStarterTier = result.awayPitcher?.tier === 'ACE' ? 1 :
+                            result.awayPitcher?.tier === 'FRONTLINE' ? 2 :
+                            result.awayPitcher?.rating >= 50 ? 3 : 4;
+    
     const owAdj = openingWeekUnders.getOpeningWeekAdjustment(gameDate, homePark, {
-      homeStarterTier: opts.homeStarterTier || 3,
-      awayStarterTier: opts.awayStarterTier || 3
+      homeStarterTier: opts.homeStarterTier || homeStarterTier,
+      awayStarterTier: opts.awayStarterTier || awayStarterTier
     });
     
     if (owAdj.active && owAdj.reduction > 0) {
@@ -1372,15 +1501,59 @@ async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
 }
 
 /**
- * Async matchup analysis with rest/travel
+ * Async matchup analysis with full signal stack (rest/travel + weather + umpire)
  */
 async function asyncMatchup(awayAbbr, homeAbbr, opts = {}) {
+  const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+  
+  const fetchPromises = [];
+  
   if (!opts.restTravel && restTravel) {
-    try {
-      const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
-      opts.restTravel = await restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate);
-    } catch (e) { /* rest/travel optional */ }
+    fetchPromises.push(
+      restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate)
+        .then(data => { opts.restTravel = data; })
+        .catch(() => {})
+    );
   }
+  
+  if (!opts.weather && weatherService && weatherService.getWeatherForPark) {
+    fetchPromises.push(
+      weatherService.getWeatherForPark(homeAbbr)
+        .then(data => {
+          if (data && !data.error && data.multiplier) {
+            opts.weather = data;
+          }
+        })
+        .catch(() => {})
+    );
+  }
+  
+  if (!opts.umpire && umpireService && umpireService.fetchTodaysAssignments) {
+    fetchPromises.push(
+      (async () => {
+        try {
+          const assignments = await umpireService.fetchTodaysAssignments();
+          if (assignments && assignments.games) {
+            for (const game of assignments.games) {
+              const gameTeams = [game.away, game.home].map(t => t?.toUpperCase());
+              if (gameTeams.includes(awayAbbr) && gameTeams.includes(homeAbbr)) {
+                if (game.homePlateUmpire) {
+                  const ump = umpireService.getUmpire(game.homePlateUmpire);
+                  if (ump) {
+                    const umpAdj = umpireService.calcTotalRunsMultiplier(ump);
+                    opts.umpire = { name: ump.name, zone: ump.zone, ...umpAdj };
+                  }
+                }
+                break;
+              }
+            }
+          }
+        } catch (e) { /* optional */ }
+      })()
+    );
+  }
+  
+  await Promise.all(fetchPromises);
   
   return analyzeMatchup(awayAbbr, homeAbbr, opts);
 }

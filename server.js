@@ -64,6 +64,10 @@ let weatherForecast = null;
 try { weatherForecast = require('./services/weather-forecast'); } catch (e) { console.error('[server] Weather Forecast not loaded:', e.message); }
 let seedingFuturesBridge = null;
 try { seedingFuturesBridge = require('./services/seeding-futures-bridge'); } catch (e) { console.error('[server] Seeding Futures Bridge not loaded:', e.message); }
+let nfl = null;
+try { nfl = require('./models/nfl'); } catch (e) { console.error('[server] NFL model not loaded:', e.message); }
+let odPreflight = null;
+try { odPreflight = require('./services/opening-day-preflight'); } catch (e) { console.error('[server] OD Preflight not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -130,7 +134,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '55.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model'] });
+  res.json({ status: 'ok', version: '58.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -1032,6 +1036,161 @@ app.get('/api/backtest/nhl', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== NFL ENDPOINTS ====================
+
+// NFL Power Ratings
+app.get('/api/model/nfl/ratings', (req, res) => {
+  try {
+    if (!nfl) return res.status(500).json({ error: 'NFL model not loaded' });
+    const ratings = nfl.generatePowerRatings();
+    const sorted = Object.entries(ratings)
+      .sort((a, b) => b[1].projWins - a[1].projWins)
+      .map(([abbr, r]) => ({ abbr, ...r }));
+    res.json({ ratings: sorted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// NFL Game Prediction
+app.get('/api/model/nfl/predict', (req, res) => {
+  try {
+    if (!nfl) return res.status(500).json({ error: 'NFL model not loaded' });
+    const { away, home, neutral } = req.query;
+    if (!away || !home) return res.status(400).json({ error: 'Need away and home params' });
+    const pred = nfl.predict(away.toUpperCase(), home.toUpperCase(), { neutral: neutral === 'true' });
+    res.json(pred);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// NFL Season Simulation
+let nflSimCache = null;
+let nflSimCacheTime = 0;
+const NFL_SIM_CACHE_MS = 30 * 60 * 1000; // 30 min cache
+
+app.get('/api/nfl/season-sim', (req, res) => {
+  try {
+    if (!nfl) return res.status(500).json({ error: 'NFL model not loaded' });
+    const force = req.query.force === 'true';
+    const numSims = Math.min(parseInt(req.query.sims) || 10000, 50000);
+    
+    if (!force && nflSimCache && Date.now() - nflSimCacheTime < NFL_SIM_CACHE_MS) {
+      return res.json({ cached: true, ...nflSimCache });
+    }
+    
+    const results = nfl.simulateSeason(numSims);
+    const valueBets = nfl.findWinTotalValue(results);
+    const ratings = nfl.generatePowerRatings();
+    
+    // Build division standings
+    const divisions = {};
+    for (const [divName, divTeams] of Object.entries(nfl.DIVISIONS)) {
+      divisions[divName] = divTeams.map(abbr => ({
+        abbr,
+        name: results[abbr].name,
+        projWins: results[abbr].projWins,
+        simAvgWins: results[abbr].simAvgWins,
+        divWinPct: results[abbr].divWinPct,
+        playoffPct: results[abbr].playoffPct,
+        sbChampPct: results[abbr].sbChampPct,
+        powerRating: ratings[abbr].powerRating,
+      })).sort((a, b) => b.simAvgWins - a.simAvgWins);
+    }
+    
+    // Rankings
+    const rankings = Object.entries(results)
+      .sort((a, b) => b[1].simAvgWins - a[1].simAvgWins)
+      .map(([abbr, r], i) => ({
+        rank: i + 1,
+        abbr,
+        name: r.name,
+        conf: r.conf,
+        div: r.div,
+        projWins: r.projWins,
+        simAvgWins: r.simAvgWins,
+        simStdDev: r.simStdDev,
+        p10: r.p10,
+        p90: r.p90,
+        divWinPct: r.divWinPct,
+        playoffPct: r.playoffPct,
+        confChampPct: r.confChampPct,
+        sbChampPct: r.sbChampPct,
+        marketLine: nfl.MARKET_LINES[abbr]?.line,
+      }));
+    
+    const response = {
+      numSims,
+      timestamp: new Date().toISOString(),
+      rankings,
+      divisions,
+      valueBets,
+      topSBContenders: rankings.filter(r => r.sbChampPct >= 2).sort((a, b) => b.sbChampPct - a.sbChampPct),
+    };
+    
+    nflSimCache = response;
+    nflSimCacheTime = Date.now();
+    res.json(response);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// NFL Win Total Value Bets
+app.get('/api/nfl/win-totals', (req, res) => {
+  try {
+    if (!nfl) return res.status(500).json({ error: 'NFL model not loaded' });
+    const results = nfl.simulateSeason(10000);
+    const valueBets = nfl.findWinTotalValue(results);
+    res.json({ valueBets, count: valueBets.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// NFL Team Detail
+app.get('/api/nfl/team/:abbr', (req, res) => {
+  try {
+    if (!nfl) return res.status(500).json({ error: 'NFL model not loaded' });
+    const abbr = req.params.abbr.toUpperCase();
+    const ratings = nfl.generatePowerRatings();
+    const rating = ratings[abbr];
+    if (!rating) return res.status(404).json({ error: `Unknown team: ${abbr}` });
+    
+    const results = nfl.simulateSeason(5000);
+    const team = results[abbr];
+    const market = nfl.MARKET_LINES[abbr];
+    
+    let valueBet = null;
+    if (market) {
+      const { overProb, underProb } = nfl.calcOverUnderProb(team.winDistribution, market.line);
+      const overImplied = nfl.oddsToProb(market.overJuice);
+      const underImplied = 1 - overImplied + 0.04;
+      const overEdge = overProb - overImplied;
+      const underEdge = underProb - underImplied;
+      valueBet = {
+        line: market.line,
+        bestSide: overEdge > underEdge ? 'OVER' : 'UNDER',
+        edge: +(Math.max(overEdge, underEdge) * 100).toFixed(1),
+        overProb: +(overProb * 100).toFixed(1),
+        underProb: +(underProb * 100).toFixed(1),
+      };
+    }
+    
+    res.json({
+      abbr,
+      rating,
+      simResults: team,
+      marketLine: market,
+      valueBet,
+      offseasonAdj: nfl.OFFSEASON_ADJUSTMENTS[abbr] || 0,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== COMBINED ====================
 
 app.get('/api/value/all', async (req, res) => {
@@ -1118,7 +1277,26 @@ app.get('/api/value/all', async (req, res) => {
           kelly: b.kellyPct,
           source: 'futures-scanner',
         }));
-      }).catch(() => [])
+      }).catch(() => []),
+      // NFL Win Total Futures
+      Promise.resolve().then(() => {
+        try {
+          if (!nfl) return [];
+          const simResults = nfl.simulateSeason(5000);
+          const valueBets = nfl.findWinTotalValue(simResults);
+          return valueBets.slice(0, 15).map(v => ({
+            sport: 'NFL',
+            game: `${v.name} Win Total`,
+            book: 'DraftKings',
+            pick: `${v.side} ${v.line}`,
+            market: 'nfl-win-total',
+            edge: v.edge / 100,
+            confidence: v.confidence,
+            modelProb: v.modelProb,
+            source: 'nfl-model',
+          }));
+        } catch (e) { return []; }
+      })
     ]);
     const all = [];
     results.forEach(r => { if (r.status === 'fulfilled') all.push(...r.value); });
@@ -1256,13 +1434,21 @@ async function getAllOdds() {
         try {
           if (s.sport === 'NBA') pred = nba.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
           else if (s.sport === 'MLB') {
-            // Fetch weather for MLB games
-            const mlbOpts = {};
+            // Use asyncPredict for full signal stack (weather + rest + lineup + umpire + OW unders)
             try {
-              const wd = await weather.getWeatherForPark(homeAbbr || 'UNK');
-              if (wd && !wd.error) { mlbOpts.weather = wd; gameWeather = wd; }
-            } catch (e) { /* weather optional */ }
-            pred = mlb.predict(awayAbbr || 'UNK', homeAbbr || 'UNK', mlbOpts);
+              pred = await mlb.asyncPredict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+              if (pred && pred._asyncSignals?.weatherDetail) {
+                gameWeather = pred._asyncSignals.weatherDetail;
+              }
+            } catch (e) {
+              // Fallback to sync predict with just weather
+              const mlbOpts = {};
+              try {
+                const wd = await weather.getWeatherForPark(homeAbbr || 'UNK');
+                if (wd && !wd.error) { mlbOpts.weather = wd; gameWeather = wd; }
+              } catch (we) { /* weather optional */ }
+              pred = mlb.predict(awayAbbr || 'UNK', homeAbbr || 'UNK', mlbOpts);
+            }
             // Calibrate MLB probabilities
             if (pred && !pred.error) pred = calibration.calibratePrediction(pred, 'mlb');
           }
@@ -1435,15 +1621,14 @@ app.get('/api/mlb/ratings', (req, res) => {
 });
 
 app.get('/api/mlb/predict', async (req, res) => {
-  const { away, home } = req.query;
+  const { away, home, awayPitcher, homePitcher } = req.query;
   if (!away || !home) return res.status(400).json({ error: 'away and home required' });
   try {
     const opts = {};
-    try {
-      const wd = await weather.getWeatherForPark(home.toUpperCase());
-      if (wd && !wd.error) opts.weather = wd;
-    } catch (e) { /* weather optional */ }
-    const rawPred = mlb.predict(away.toUpperCase(), home.toUpperCase(), opts);
+    if (awayPitcher) opts.awayPitcher = awayPitcher;
+    if (homePitcher) opts.homePitcher = homePitcher;
+    // Use asyncPredict for full signal stack (weather + rest + lineup + umpire + OW unders)
+    const rawPred = await mlb.asyncPredict(away.toUpperCase(), home.toUpperCase(), opts);
     if (rawPred.error) return res.status(400).json(rawPred);
     const pred = calibration.calibratePrediction(rawPred, 'mlb');
     res.json(pred);
@@ -4964,6 +5149,77 @@ app.get('/api/opening-day-playbook', async (req, res) => {
 // Comprehensive system check to ensure everything works before March 27
 // Run on March 26 or any time to verify readiness
 
+// ==================== OPENING DAY PRE-FLIGHT CHECK ====================
+app.get('/api/opening-day/preflight', async (req, res) => {
+  try {
+    if (!odPreflight) return res.status(503).json({ error: 'Preflight module not loaded' });
+    const report = await odPreflight.runPreflight();
+    res.json(report);
+  } catch (e) {
+    res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) });
+  }
+});
+
+// ==================== CATCHER FRAMING API ====================
+app.get('/api/mlb/catchers/framing', (req, res) => {
+  try {
+    const framingDB = lineupFetcher.CATCHER_FRAMING || {};
+    const teamMap = lineupFetcher.TEAM_OD_CATCHERS || {};
+    
+    // Build team-level view
+    const teams = {};
+    for (const [team, catcherName] of Object.entries(teamMap)) {
+      const catcher = framingDB[catcherName];
+      teams[team] = {
+        catcher: catcherName,
+        framingRuns: catcher?.framingRuns || 0,
+        tier: catcher?.tier || 'unknown',
+        perGameImpact: catcher ? +(catcher.framingRuns / 162).toFixed(3) : 0
+      };
+    }
+    
+    // Sort by framing impact
+    const ranked = Object.entries(teams)
+      .sort((a, b) => b[1].framingRuns - a[1].framingRuns)
+      .map(([team, data], i) => ({ rank: i + 1, team, ...data }));
+    
+    res.json({
+      totalCatchers: Object.keys(framingDB).length,
+      teamsCovered: Object.keys(teamMap).length,
+      rankings: ranked,
+      insight: 'Elite framers (Patrick Bailey, Adley Rutschman) save ~0.10-0.11 runs/game. ' +
+               'Poor framers (Yainer Diaz, Salvador Perez) COST ~0.04-0.05 runs/game. ' +
+               'In a SF@HOU matchup, catcher framing alone shifts the total by ~0.15 runs.'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/mlb/catchers/matchup', (req, res) => {
+  try {
+    const { away, home } = req.query;
+    if (!away || !home) return res.status(400).json({ error: 'Provide ?away=XXX&home=XXX' });
+    
+    if (!lineupFetcher.getCatcherFramingAdjustment) {
+      return res.status(503).json({ error: 'Catcher framing not available' });
+    }
+    
+    const adj = lineupFetcher.getCatcherFramingAdjustment(home.toUpperCase(), away.toUpperCase());
+    res.json({
+      matchup: `${away.toUpperCase()}@${home.toUpperCase()}`,
+      ...adj,
+      bettingNote: adj.framingGap > 10 ? 
+        `SIGNIFICANT framing edge for ${home.toUpperCase()} catcher — ${adj.homeCatcher} is ${adj.homeFramingRuns > 0 ? 'elite' : 'poor'} framer. Consider totals lean.` :
+        adj.framingGap < -10 ?
+        `SIGNIFICANT framing edge for ${away.toUpperCase()} catcher — ${adj.awayCatcher} is ${adj.awayFramingRuns > 0 ? 'elite' : 'poor'} framer. Consider totals lean.` :
+        'Similar framing quality — minimal impact on totals'
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/opening-day/validate', async (req, res) => {
   try {
     const checks = {
@@ -5943,7 +6199,7 @@ app.get('/api/daily-slate/status', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v47.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v56.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -5951,6 +6207,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   MLB Opening Day games: ${mlbOpeningDay.OPENING_DAY_GAMES.length}`);
   console.log(`   MLB Schedule: ESPN confirmed starters service active`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
+  if (nfl) console.log(`   NFL teams: ${Object.keys(nfl.TEAMS).length} (win totals model active, ${Object.keys(nfl.MARKET_LINES).length} market lines)`);
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
   console.log(`   Polymarket: scanner active`);
   console.log(`   Polymarket Value Bridge: model vs market edge detection active`);

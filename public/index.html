@@ -183,6 +183,8 @@ function buildTabs() {
     tabs.push({ id: 'nhl-playoffs', label: '🏒 NHL Playoffs' });
     tabs.push({ id: 'nhl-goalies', label: '🥅 NHL Goalies' });
   }
+  // NFL always visible — preseason futures model
+  tabs.push({ id: 'nfl-futures', label: '🏈 NFL Futures' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -237,6 +239,7 @@ function showTab(id) {
   else if (id === 'od-validate') loadODValidateTab();
   else if (id === 'od-weather') loadODWeatherTab();
   else if (id === 'seeding-futures') loadSeedingFuturesTab();
+  else if (id === 'nfl-futures') loadNFLFuturesTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -8092,6 +8095,190 @@ async function loadSeedingFuturesTab() {
     wrap.innerHTML = html;
   } catch (e) {
     wrap.innerHTML = `<div class="card"><h2>❌ Error loading seeding futures</h2><p>${e.message}</p></div>`;
+  }
+}
+
+// ==================== NFL FUTURES TAB ====================
+let nflView = 'value';
+async function loadNFLFuturesTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<h2>🏈 NFL Win Totals Futures</h2><p>Loading NFL season simulation...</p>';
+  
+  try {
+    const res = await fetch('/api/nfl/season-sim');
+    const data = await res.json();
+    
+    let html = '<h2>🏈 NFL Win Totals Futures Model</h2>';
+    html += '<p style="color:#888">Pythagorean power ratings + 35% mean regression + offseason adjustments. 10K Monte Carlo sims. Draft April 24 — early mover window NOW.</p>';
+    
+    // Sub-tabs
+    html += '<div class="tabs" style="margin-bottom:16px">';
+    html += `<button class="tab ${nflView==='value'?'active':''}" onclick="nflView='value';loadNFLFuturesTab()">💰 Value Bets</button>`;
+    html += `<button class="tab ${nflView==='rankings'?'active':''}" onclick="nflView='rankings';loadNFLFuturesTab()">📊 Power Rankings</button>`;
+    html += `<button class="tab ${nflView==='divisions'?'active':''}" onclick="nflView='divisions';loadNFLFuturesTab()">🏟️ Divisions</button>`;
+    html += `<button class="tab ${nflView==='superbowl'?'active':''}" onclick="nflView='superbowl';loadNFLFuturesTab()">🏆 Super Bowl</button>`;
+    html += `<button class="tab ${nflView==='predict'?'active':''}" onclick="nflView='predict';loadNFLFuturesTab()">🎯 Predictor</button>`;
+    html += '</div>';
+    
+    if (nflView === 'value') {
+      // Value bets view
+      html += '<h3>💰 Win Total Value Bets (Model Edge vs Market)</h3>';
+      if (data.valueBets.length === 0) {
+        html += '<p>No value bets found.</p>';
+      } else {
+        html += '<table><thead><tr><th>Team</th><th>Line</th><th>Side</th><th>Model Prob</th><th>Edge</th><th>Sim Wins</th><th>Fair Odds</th><th>Conf</th></tr></thead><tbody>';
+        for (const v of data.valueBets) {
+          const edgeColor = v.edge >= 15 ? '#4ade80' : v.edge >= 8 ? '#fbbf24' : '#94a3b8';
+          const confColor = v.confidence === 'HIGH' ? '#4ade80' : v.confidence === 'MEDIUM' ? '#fbbf24' : '#94a3b8';
+          html += `<tr>
+            <td><strong>${v.team}</strong> ${v.name}</td>
+            <td>${v.line}</td>
+            <td style="color:${v.side==='OVER'?'#4ade80':'#f87171'};font-weight:bold">${v.side}</td>
+            <td>${v.modelProb}%</td>
+            <td style="color:${edgeColor};font-weight:bold">+${v.edge}%</td>
+            <td>${v.simAvgWins}</td>
+            <td>${v.fairOdds > 0 ? '+' : ''}${v.fairOdds}</td>
+            <td style="color:${confColor}">${v.confidence}</td>
+          </tr>`;
+        }
+        html += '</tbody></table>';
+      }
+      
+      // Summary stats
+      const highConf = data.valueBets.filter(v => v.confidence === 'HIGH');
+      html += `<div style="margin-top:16px;padding:12px;background:#1a1a2e;border-radius:8px">`;
+      html += `<strong>📊 Summary:</strong> ${data.valueBets.length} value bets found | ${highConf.length} HIGH confidence | `;
+      html += `${data.valueBets.filter(v => v.side === 'OVER').length} OVERs, ${data.valueBets.filter(v => v.side === 'UNDER').length} UNDERs`;
+      html += `</div>`;
+    
+    } else if (nflView === 'rankings') {
+      // Power rankings view
+      html += '<h3>📊 NFL Power Rankings (2026 Projected)</h3>';
+      html += '<table><thead><tr><th>#</th><th>Team</th><th>Conf</th><th>Proj W</th><th>Sim Avg W</th><th>P10-P90</th><th>Playoff %</th><th>Div Win %</th><th>SB %</th><th>Market Line</th></tr></thead><tbody>';
+      for (const r of data.rankings) {
+        const playoffColor = r.playoffPct >= 70 ? '#4ade80' : r.playoffPct >= 40 ? '#fbbf24' : '#94a3b8';
+        html += `<tr>
+          <td>${r.rank}</td>
+          <td><strong>${r.abbr}</strong> ${r.name}</td>
+          <td>${r.conf}</td>
+          <td>${r.projWins}</td>
+          <td>${r.simAvgWins}</td>
+          <td>${r.p10}-${r.p90}</td>
+          <td style="color:${playoffColor}">${r.playoffPct}%</td>
+          <td>${r.divWinPct}%</td>
+          <td>${r.sbChampPct}%</td>
+          <td>${r.marketLine || '-'}</td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+    
+    } else if (nflView === 'divisions') {
+      // Division view
+      html += '<h3>🏟️ Division Projections</h3>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">';
+      for (const [divName, teams] of Object.entries(data.divisions)) {
+        html += `<div style="background:#1a1a2e;border-radius:8px;padding:16px">`;
+        html += `<h4>${divName}</h4>`;
+        html += '<table style="width:100%"><thead><tr><th>Team</th><th>Proj W</th><th>Div %</th><th>Playoff %</th><th>SB %</th></tr></thead><tbody>';
+        for (const t of teams) {
+          html += `<tr>
+            <td><strong>${t.abbr}</strong></td>
+            <td>${t.simAvgWins}</td>
+            <td>${t.divWinPct}%</td>
+            <td>${t.playoffPct}%</td>
+            <td>${t.sbChampPct}%</td>
+          </tr>`;
+        }
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+    
+    } else if (nflView === 'superbowl') {
+      // Super Bowl contenders
+      html += '<h3>🏆 Super Bowl LXI Contenders</h3>';
+      const contenders = data.rankings.filter(r => r.sbChampPct >= 1).sort((a, b) => b.sbChampPct - a.sbChampPct);
+      
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">';
+      for (const c of contenders) {
+        const barWidth = Math.max(5, c.sbChampPct * 4);
+        html += `<div style="background:#1a1a2e;border-radius:8px;padding:12px">`;
+        html += `<div style="font-weight:bold;font-size:1.1em">${c.abbr} ${c.name}</div>`;
+        html += `<div style="margin:4px 0;background:#333;border-radius:4px;height:20px;position:relative">
+          <div style="background:linear-gradient(90deg,#4ade80,#22c55e);width:${barWidth}%;height:100%;border-radius:4px"></div>
+          <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:0.85em">${c.sbChampPct}%</span>
+        </div>`;
+        html += `<div style="font-size:0.85em;color:#888">Playoff: ${c.playoffPct}% | Conf: ${c.confChampPct}% | Proj: ${c.simAvgWins}W</div>`;
+        html += `</div>`;
+      }
+      html += '</div>';
+      
+      // AFC vs NFC
+      const afcTotal = contenders.filter(c => c.conf === 'AFC').reduce((s, c) => s + c.sbChampPct, 0);
+      const nfcTotal = contenders.filter(c => c.conf === 'NFC').reduce((s, c) => s + c.sbChampPct, 0);
+      html += `<div style="margin-top:16px;padding:12px;background:#1a1a2e;border-radius:8px">`;
+      html += `<strong>Conference Edge:</strong> AFC ${afcTotal.toFixed(1)}% vs NFC ${nfcTotal.toFixed(1)}%`;
+      html += `</div>`;
+    
+    } else if (nflView === 'predict') {
+      // Predictor
+      html += '<h3>🎯 NFL Game Predictor</h3>';
+      html += '<div style="display:flex;gap:12px;margin-bottom:16px">';
+      html += '<select id="nfl-away" style="padding:8px;background:#1a1a2e;color:white;border:1px solid #333;border-radius:4px">';
+      const teams = data.rankings.map(r => r.abbr).sort();
+      for (const t of teams) html += `<option value="${t}">${t}</option>`;
+      html += '</select>';
+      html += '<span style="padding:8px">@</span>';
+      html += '<select id="nfl-home" style="padding:8px;background:#1a1a2e;color:white;border:1px solid #333;border-radius:4px">';
+      for (const t of teams) html += `<option value="${t}" ${t === 'KC' ? 'selected' : ''}>${t}</option>`;
+      html += '</select>';
+      html += '<button onclick="runNFLPredict()" style="padding:8px 16px;background:#4ade80;color:black;border:none;border-radius:4px;cursor:pointer;font-weight:bold">Predict</button>';
+      html += '</div>';
+      html += '<div id="nfl-predict-result"></div>';
+    }
+    
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<h2>🏈 NFL Futures</h2><p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
+async function runNFLPredict() {
+  const away = document.getElementById('nfl-away').value;
+  const home = document.getElementById('nfl-home').value;
+  const resultDiv = document.getElementById('nfl-predict-result');
+  resultDiv.innerHTML = 'Predicting...';
+  
+  try {
+    const res = await fetch(\`/api/model/nfl/predict?away=\${away}&home=\${home}\`);
+    const pred = await res.json();
+    
+    if (pred.error) {
+      resultDiv.innerHTML = `<p style="color:red">${pred.error}</p>`;
+      return;
+    }
+    
+    const favored = pred.spread < 0 ? pred.away : pred.home;
+    const spreadAbs = Math.abs(pred.spread).toFixed(1);
+    
+    let html = '<div style="background:#1a1a2e;border-radius:8px;padding:20px;margin-top:12px">';
+    html += `<h3 style="margin-top:0">${pred.away} @ ${pred.home}</h3>`;
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;text-align:center">';
+    
+    html += `<div><div style="font-size:0.8em;color:#888">SPREAD</div><div style="font-size:1.5em;font-weight:bold">${favored} -${spreadAbs}</div></div>`;
+    html += `<div><div style="font-size:0.8em;color:#888">TOTAL</div><div style="font-size:1.5em;font-weight:bold">${pred.total}</div></div>`;
+    html += `<div><div style="font-size:0.8em;color:#888">HOME WIN PROB</div><div style="font-size:1.5em;font-weight:bold;color:${pred.homeWinProb > 0.5 ? '#4ade80' : '#f87171'}">${(pred.homeWinProb * 100).toFixed(1)}%</div></div>`;
+    
+    html += '</div>';
+    
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">';
+    html += `<div style="background:#222;padding:8px;border-radius:4px"><strong>${pred.away}</strong><br>Rating: ${pred.awayRating} | Proj: ${pred.awayProjWins}W<br>Exp Pts: ${pred.awayExpPts}</div>`;
+    html += `<div style="background:#222;padding:8px;border-radius:4px"><strong>${pred.home}</strong><br>Rating: ${pred.homeRating} | Proj: ${pred.homeProjWins}W<br>Exp Pts: ${pred.homeExpPts}</div>`;
+    html += '</div>';
+    
+    html += '</div>';
+    resultDiv.innerHTML = html;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }
 }
 
