@@ -6,17 +6,17 @@
         {
           "player": "Jalen Johnson",
           "position": "F",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Johnson (shoulder) has been ruled out for Saturday's game against the Warriors.",
-          "returnDate": "2026-03-21T22:19Z",
+          "returnDate": "2026-03-22T04:42Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         }
       ],
       "totalImpact": 0,
-      "outCount": 1,
-      "dtdCount": 0,
+      "outCount": 0,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "BOS": {
@@ -422,6 +422,16 @@
       "team": "Golden State Warriors",
       "injuries": [
         {
+          "player": "Kristaps Porzingis",
+          "position": "C",
+          "status": "Day-To-Day",
+          "detail": "Porzingis (back) won't suit up for Saturday's game against Atlanta.",
+          "returnDate": "2026-03-22T04:45Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Gary Payton II",
           "position": "G",
           "status": "Out",
@@ -447,16 +457,6 @@
           "status": "Out",
           "detail": "Moody (undisclosed) has been making good progress in his recovery and will be incorporated into live action drills in the coming days, the Warriors announced Saturday.",
           "returnDate": "2026-03-21T21:20Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Kristaps Porzingis",
-          "position": "C",
-          "status": "Out",
-          "detail": "Porzingis (back) won't suit up for Saturday's game against Atlanta.",
-          "returnDate": "2026-03-21T17:11Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -493,8 +493,8 @@
         }
       ],
       "totalImpact": 8,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 6,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Stephen Curry",
@@ -5769,8 +5769,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774154833627,
-    "nhl": 1774154833798,
-    "mlb": 1774154833941
+    "nba": 1774165652793,
+    "nhl": 1774165653721,
+    "mlb": 1774165654816
   }
 }

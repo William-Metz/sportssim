@@ -120,55 +120,82 @@ function getTeamStrengths() {
   const strengths = {};
   const PYTH_EXP = 1.83;
   
+  // DK consensus lines as Bayesian prior — if our model deviates >8W from DK, we're probably wrong
+  // Market lines embed thousands of hours of analysis; we should trust them as a prior
+  // and only deviate where we have specific, quantifiable edge
+  const DK_CONSENSUS = {
+    'LAD': 97.5, 'ATL': 91.5, 'NYY': 90.5, 'PHI': 89.5, 'BAL': 88.5, 'HOU': 87.5,
+    'SD': 86.5, 'BOS': 85.5, 'SEA': 84.5, 'NYM': 84.5, 'MIL': 84.5, 'DET': 83.5,
+    'CLE': 82.5, 'TEX': 82.5, 'MIN': 81.5, 'CHC': 81.5, 'ARI': 80.5, 'TOR': 79.5,
+    'SF': 78.5, 'KC': 78.5, 'STL': 77.5, 'CIN': 76.5, 'TB': 76.5, 'PIT': 74.5,
+    'LAA': 72.5, 'WSH': 70.5, 'MIA': 66.5, 'OAK': 63.5, 'COL': 62.5, 'CWS': 58.5,
+  };
+  
   for (const [abbr, team] of Object.entries(teams)) {
     const rsG = team.rsG || 4.5;
     const raG = team.raG || 4.5;
     
-    // Pythagorean win expectation
+    // Pythagorean win expectation from 2025 base stats
     let pyth = Math.pow(rsG, PYTH_EXP) / (Math.pow(rsG, PYTH_EXP) + Math.pow(raG, PYTH_EXP));
     
-    // Preseason regression (first 2-3 weeks, projections revert ~35% to .500)
-    // As games are played this gets less aggressive
-    const preseasonRegression = 0.20; // lighter now that we trust our model
-    pyth = pyth * (1 - preseasonRegression) + 0.5 * preseasonRegression;
+    // Apply preseason roster adjustment to the RS/RA BEFORE computing Pythagorean
+    // This is more correct: adjust the run environment, then compute expected wins
+    let adjRS = rsG;
+    let adjRA = raG;
     
-    // Apply preseason tuning if available (spring training signals, roster changes)
     if (preseasonTuning) {
       try {
         const tuning = preseasonTuning.getTeamAdjustment(abbr);
         if (tuning) {
-          // offAdj = runs scored per game change (positive = scores more)
-          // defAdj = runs allowed per game change (negative = allows fewer, better pitching)
-          // Net impact on run differential per game:
-          //   + offAdj (team scores more) - defAdj (lower defAdj = allows fewer)
-          // Using Pythagorean: 10 runs of seasonal differential ≈ 1 win ≈ 0.00617 win pct
-          // But offAdj/defAdj are PER GAME, so multiply by 162 for season total
-          const offPerGame = tuning.offAdj || 0;
-          const defPerGame = tuning.defAdj || 0; // Negative = team allows FEWER runs (good)
-          const netRunDiffPerGame = offPerGame - defPerGame; // Positive = better team
-          const seasonRunDiff = netRunDiffPerGame * 162;
-          const winAdj = seasonRunDiff / 10 / 162; // Convert to win pct change
-          pyth = Math.max(0.25, Math.min(0.75, pyth + winAdj));
+          // Apply roster changes to runs scored/allowed directly
+          // But scale down by 60% — offseason WAR projections are typically 40-50% uncertain
+          // (injuries, regression, new team chemistry, etc.)
+          const ROSTER_CONFIDENCE = 0.40; // We trust only 40% of projected roster impact
+          adjRS += (tuning.offAdj || 0) * ROSTER_CONFIDENCE;
+          adjRA += (tuning.defAdj || 0) * ROSTER_CONFIDENCE;
         }
       } catch (e) {}
     }
     
+    // Recompute Pythagorean with adjusted runs
+    pyth = Math.pow(adjRS, PYTH_EXP) / (Math.pow(adjRS, PYTH_EXP) + Math.pow(adjRA, PYTH_EXP));
+    
+    // Preseason regression: heavier for extreme teams, lighter for .500 teams
+    // Research: prior year W-L explains ~60% of next year variance (Marcel method)
+    // So regress 40% toward .500
+    const preseasonRegression = 0.40;
+    pyth = pyth * (1 - preseasonRegression) + 0.5 * preseasonRegression;
+    
+    // Bayesian blend with market consensus (DK lines)
+    // Our model has edge but isn't infallible. Weight: 40% our model, 60% market consensus
+    // This is the Bayesian optimal blend for preseason — markets are VERY efficient for futures
+    const dkWinPct = DK_CONSENSUS[abbr] ? DK_CONSENSUS[abbr] / 162 : null;
+    if (dkWinPct) {
+      const MODEL_WEIGHT = 0.40; // How much we trust our model vs market
+      pyth = pyth * MODEL_WEIGHT + dkWinPct * (1 - MODEL_WEIGHT);
+    }
+    
     // Statcast-based adjustment: teams with Statcast xRuns >> actual runs will regress UP
+    // This is OUR unique edge — Statcast data isn't fully priced into futures
     if (statcastService) {
       try {
         const teamStatcast = statcastService.getTeamStatcast(abbr);
         if (teamStatcast && teamStatcast.xRunDiff) {
           // xRunDiff = expected runs - actual runs. Positive = underperforming (likely to improve)
-          const statcastAdj = teamStatcast.xRunDiff * 0.003; // conservative
-          pyth = Math.max(0.25, Math.min(0.75, pyth + statcastAdj));
+          // This is where we GET OUR EDGE — Statcast disagreements with actual results
+          const statcastAdj = teamStatcast.xRunDiff * 0.005; // Aggressive on our unique data
+          pyth = Math.max(0.30, Math.min(0.70, pyth + statcastAdj));
         }
       } catch (e) {}
     }
     
+    // Final bounds: no team projects below 55W or above 107W
+    pyth = Math.max(55 / 162, Math.min(107 / 162, pyth));
+    
     strengths[abbr] = {
       winPct: +pyth.toFixed(4),
-      rsG: rsG,
-      raG: raG,
+      rsG: adjRS,
+      raG: adjRA,
       projectedWins: Math.round(pyth * 162),
       projectedLosses: 162 - Math.round(pyth * 162),
       name: team.name || abbr,
@@ -827,7 +854,9 @@ function generateReport(numSims = 10000) {
       schedule: 'Approximate 162-game schedule with proper division/league/interleague splits',
       playoffs: 'Full bracket simulation (WC round BO3, DS BO5, CS BO7, WS BO7)',
       hca: '~54% home win rate (historical MLB average)',
-      regression: '20% regression to .500 for preseason uncertainty',
+      regression: '40% regression to .500 + 60/40 Bayesian blend with DK market consensus',
+      rosterConfidence: '40% of projected roster impact applied (offseason projections are ~50% uncertain)',
+      edgeSource: 'Statcast xRun disagreements + roster analytics vs market consensus',
       oddsSource: 'DraftKings (pre-Opening Day)',
     },
   };
