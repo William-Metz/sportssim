@@ -36,6 +36,7 @@ const mlBridge = require('./services/ml-bridge');
 const arbitrage = require('./services/arbitrage');
 const playoffSeries = require('./services/playoff-series');
 const nhlPlayoffSeries = require('./services/nhl-playoff-series');
+const nbaSeedingSim = require('./services/nba-seeding-sim');
 const statcast = require('./services/statcast');
 const negBinomial = require('./services/neg-binomial');
 const historicalGames = require('./services/historical-games');
@@ -125,7 +126,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '53.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan'] });
+  res.json({ status: 'ok', version: '54.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -2595,6 +2596,110 @@ app.get('/api/nhl-playoffs/preview', async (req, res) => {
     });
   } catch (e) {
     console.error('NHL Playoff preview error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== NBA SEEDING SIMULATOR ====================
+
+// Full seeding simulation — Monte Carlo remaining schedule
+app.get('/api/nba/seeding-sim', async (req, res) => {
+  try {
+    const sims = Math.min(parseInt(req.query.sims) || 5000, 20000);
+    const fresh = req.query.fresh === 'true';
+    
+    if (fresh) nbaSeedingSim.clearCache();
+    const result = await nbaSeedingSim.getCachedSimulation(sims);
+    res.json(result);
+  } catch (e) {
+    console.error('NBA Seeding sim error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Conference standings projection
+app.get('/api/nba/seeding-sim/conference/:conf', async (req, res) => {
+  try {
+    const conf = req.params.conf === 'west' ? 'West' : 'East';
+    const result = await nbaSeedingSim.getCachedSimulation(5000);
+    res.json({
+      conference: conf,
+      standings: result.conferences[conf],
+      divisionWinners: Object.entries(result.divisionWinners)
+        .filter(([div]) => {
+          const confDivs = nbaSeedingSim.CONFERENCES[conf];
+          return confDivs && confDivs[div];
+        })
+        .reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {}),
+      timestamp: result.generatedAt
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Team-specific seeding projection
+app.get('/api/nba/seeding-sim/team/:team', async (req, res) => {
+  try {
+    const team = req.params.team.toUpperCase();
+    const result = await nbaSeedingSim.getCachedSimulation(5000);
+    const teamData = result.teams[team];
+    if (!teamData) return res.status(404).json({ error: `Team ${team} not found` });
+    
+    res.json({
+      team: teamData,
+      conference: teamData.conference,
+      conferenceStandings: result.conferences[teamData.conference],
+      timestamp: result.generatedAt
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Key seeding battles
+app.get('/api/nba/seeding-sim/battles', async (req, res) => {
+  try {
+    const result = await nbaSeedingSim.getCachedSimulation(5000);
+    const battles = nbaSeedingSim.getKeyBattles(result);
+    res.json({
+      battles,
+      topBets: result.topBets,
+      matchups: result.matchups,
+      timestamp: result.generatedAt
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Projected playoff matchups
+app.get('/api/nba/seeding-sim/matchups', async (req, res) => {
+  try {
+    const result = await nbaSeedingSim.getCachedSimulation(5000);
+    res.json({
+      matchups: result.matchups,
+      conferences: {
+        East: result.conferences.East.slice(0, 10).map(t => ({
+          seed: t.seed,
+          team: t.abbr,
+          name: t.name,
+          playoffProb: t.playoffProb,
+          playInProb: t.playInProb,
+          mostLikelySeed: t.mostLikelySeed
+        })),
+        West: result.conferences.West.slice(0, 10).map(t => ({
+          seed: t.seed,
+          team: t.abbr,
+          name: t.name,
+          playoffProb: t.playoffProb,
+          playInProb: t.playInProb,
+          mostLikelySeed: t.mostLikelySeed
+        }))
+      },
+      timestamp: result.generatedAt
+    });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });

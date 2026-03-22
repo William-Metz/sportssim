@@ -176,6 +176,7 @@ function buildTabs() {
   }
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
+    tabs.push({ id: 'nba-seeding', label: '🎯 Seeding Sim' });
     tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
   }
   if (currentSport === 'nhl' || currentSport === 'all') {
@@ -229,6 +230,7 @@ function showTab(id) {
   else if (id === 'model-accuracy') loadModelAccuracyTab();
   else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
   else if (id === 'nhl-goalies') loadNHLGoaliesTab();
+  else if (id === 'nba-seeding') loadNBASeedingTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -7479,6 +7481,247 @@ async function loadNHLGoaliesTab() {
   } catch (err) {
     wrap.innerHTML = `<div class="card"><h3>❌ NHL Goalies Error</h3><p>${err.message}</p></div>`;
   }
+}
+
+// ==================== NBA SEEDING SIMULATOR TAB ====================
+
+async function loadNBASeedingTab() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const resp = await fetch(`${API}/api/nba/seeding-sim`);
+    const data = await resp.json();
+    
+    let html = `<div class="card">
+      <h2>🎯 NBA Playoff Seeding Simulator</h2>
+      <p style="color:#94a3b8">Monte Carlo simulation of remaining ${data.schedule?.gamesRemaining || '~170'} games (${data.simulations?.toLocaleString()} sims) | Source: ${data.schedule?.source || 'N/A'} | Duration: ${data.durationMs}ms</p>
+      <div style="display:flex;gap:8px;margin:12px 0;flex-wrap:wrap">
+        <button class="tab active" onclick="showSeedingView('battles',this)">⚔️ Key Battles</button>
+        <button class="tab" onclick="showSeedingView('west',this)">🌅 West</button>
+        <button class="tab" onclick="showSeedingView('east',this)">🌆 East</button>
+        <button class="tab" onclick="showSeedingView('matchups',this)">🏀 Matchups</button>
+        <button class="tab" onclick="showSeedingView('bets',this)">💰 Bets</button>
+        <button class="tab" onclick="showSeedingView('divisions',this)">📊 Divisions</button>
+      </div>
+      <div id="seeding-content"></div>
+    </div>`;
+    
+    wrap.innerHTML = html;
+    
+    // Store data globally for sub-tab switching
+    window._seedingData = data;
+    showSeedingView('battles');
+    
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h3>❌ Seeding Sim Error</h3><p>${err.message}</p></div>`;
+  }
+}
+
+function showSeedingView(view, btn) {
+  if (btn) {
+    document.querySelectorAll('#tab-content .tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  const data = window._seedingData;
+  if (!data) return;
+  
+  const el = document.getElementById('seeding-content');
+  if (!el) return;
+  
+  if (view === 'battles') renderSeedingBattles(el, data);
+  else if (view === 'west') renderConference(el, data, 'West');
+  else if (view === 'east') renderConference(el, data, 'East');
+  else if (view === 'matchups') renderMatchups(el, data);
+  else if (view === 'bets') renderSeedingBets(el, data);
+  else if (view === 'divisions') renderDivisions(el, data);
+}
+
+function renderSeedingBattles(el, data) {
+  // Get key battles
+  const battles = [];
+  for (const [conf, teams] of Object.entries(data.conferences)) {
+    for (let i = 0; i < teams.length - 1; i++) {
+      const t1 = teams[i];
+      const t2 = teams[i + 1];
+      const gap = t1.projected.avgWins - t2.projected.avgWins;
+      if (gap < 2.0 && i < 10) {
+        battles.push({ conf, seeds: `${i+1}/${i+2}`, t1, t2, gap });
+      }
+    }
+  }
+  battles.sort((a, b) => a.gap - b.gap);
+  
+  let html = '<h3>⚔️ Tightest Seeding Battles</h3>';
+  
+  for (const b of battles.slice(0, 12)) {
+    const battleType = b.seeds.split('/').map(Number)[0] < 7 ? '🏀 Playoff' : b.seeds.split('/').map(Number)[0] < 11 ? '🎲 Play-In' : '🎰 Lottery';
+    html += `<div style="background:#1e293b;border-radius:8px;padding:12px;margin:8px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:#fbbf24;font-weight:bold">${b.conf} ${b.seeds} seed battle</span>
+        <span style="font-size:0.85em;color:#94a3b8">${battleType} | Gap: ${b.gap.toFixed(1)}W</span>
+      </div>
+      <div style="display:flex;gap:20px;margin-top:8px">
+        <div style="flex:1">
+          <div style="font-weight:bold;color:#34d399">${b.t1.abbr}</div>
+          <div style="color:#94a3b8;font-size:0.85em">${b.t1.current.w}-${b.t1.current.l} → ${b.t1.projected.avgWins}W proj</div>
+          <div style="color:#94a3b8;font-size:0.85em">Playoff: ${b.t1.playoffProb}% | PlayIn: ${b.t1.playInProb}%</div>
+        </div>
+        <div style="color:#64748b;font-size:1.5em;align-self:center">vs</div>
+        <div style="flex:1;text-align:right">
+          <div style="font-weight:bold;color:#f87171">${b.t2.abbr}</div>
+          <div style="color:#94a3b8;font-size:0.85em">${b.t2.current.w}-${b.t2.current.l} → ${b.t2.projected.avgWins}W proj</div>
+          <div style="color:#94a3b8;font-size:0.85em">Playoff: ${b.t2.playoffProb}% | PlayIn: ${b.t2.playInProb}%</div>
+        </div>
+      </div>
+    </div>`;
+  }
+  
+  el.innerHTML = html;
+}
+
+function renderConference(el, data, conf) {
+  const teams = data.conferences[conf];
+  if (!teams) { el.innerHTML = '<p>No data</p>'; return; }
+  
+  let html = `<h3>${conf === 'West' ? '🌅' : '🌆'} ${conf}ern Conference Projected Standings</h3>`;
+  html += `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.9em">
+    <thead><tr style="border-bottom:1px solid #334155">
+      <th style="text-align:left;padding:6px">#</th>
+      <th style="text-align:left;padding:6px">Team</th>
+      <th style="text-align:center;padding:6px">Now</th>
+      <th style="text-align:center;padding:6px">Left</th>
+      <th style="text-align:center;padding:6px">Proj W</th>
+      <th style="text-align:center;padding:6px">Range</th>
+      <th style="text-align:center;padding:6px">🏀 Playoff</th>
+      <th style="text-align:center;padding:6px">🎲 PlayIn</th>
+      <th style="text-align:center;padding:6px">🥇 #1</th>
+      <th style="text-align:center;padding:6px">⭐ Div Win</th>
+      <th style="text-align:center;padding:6px">Power</th>
+    </tr></thead><tbody>`;
+  
+  for (const t of teams) {
+    const seedNum = t.seed;
+    const rowColor = seedNum <= 6 ? '#0f172a' : seedNum <= 10 ? '#1a1a2e' : '#1e1e1e';
+    const borderLeft = seedNum <= 6 ? '3px solid #34d399' : seedNum <= 10 ? '3px solid #fbbf24' : '3px solid #64748b';
+    const playoffColor = t.playoffProb >= 90 ? '#34d399' : t.playoffProb >= 50 ? '#fbbf24' : '#f87171';
+    
+    html += `<tr style="border-bottom:1px solid #1e293b;background:${rowColor};border-left:${borderLeft}">
+      <td style="padding:6px;font-weight:bold;color:${seedNum <= 6 ? '#34d399' : seedNum <= 10 ? '#fbbf24' : '#94a3b8'}">${seedNum}</td>
+      <td style="padding:6px;font-weight:bold">${t.abbr} <span style="color:#64748b;font-weight:normal;font-size:0.85em">${t.tier}</span></td>
+      <td style="text-align:center;padding:6px">${t.current.w}-${t.current.l}</td>
+      <td style="text-align:center;padding:6px;color:#94a3b8">${t.current.remaining}</td>
+      <td style="text-align:center;padding:6px;font-weight:bold;color:#60a5fa">${t.projected.avgWins}</td>
+      <td style="text-align:center;padding:6px;color:#94a3b8;font-size:0.85em">${t.projected.p10Wins}-${t.projected.p90Wins}</td>
+      <td style="text-align:center;padding:6px;color:${playoffColor};font-weight:bold">${t.playoffProb}%</td>
+      <td style="text-align:center;padding:6px;color:#fbbf24">${t.playInProb}%</td>
+      <td style="text-align:center;padding:6px;color:${t.topSeedProb > 0 ? '#c084fc' : '#334155'}">${t.topSeedProb > 0 ? t.topSeedProb + '%' : '—'}</td>
+      <td style="text-align:center;padding:6px;color:${t.divisionWinnerProb > 0 ? '#60a5fa' : '#334155'}">${t.divisionWinnerProb > 0 ? t.divisionWinnerProb + '%' : '—'}</td>
+      <td style="text-align:center;padding:6px;color:#94a3b8">${t.power.toFixed(1)}</td>
+    </tr>`;
+  }
+  
+  html += '</tbody></table></div>';
+  
+  // Seed probability heatmap for top 10
+  html += '<h3 style="margin-top:20px">📊 Seed Probability Distribution</h3>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8em">';
+  html += '<thead><tr style="border-bottom:1px solid #334155"><th style="padding:4px">Team</th>';
+  for (let s = 1; s <= 15; s++) {
+    html += `<th style="text-align:center;padding:4px">#${s}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  
+  for (const t of teams.slice(0, 12)) {
+    html += `<tr style="border-bottom:1px solid #1e293b"><td style="padding:4px;font-weight:bold">${t.abbr}</td>`;
+    for (let s = 1; s <= 15; s++) {
+      const pct = t.seeds[s] || 0;
+      const intensity = Math.min(1, pct / 50);
+      const bg = pct > 0 ? `rgba(96,165,250,${intensity})` : 'transparent';
+      html += `<td style="text-align:center;padding:4px;background:${bg};color:${pct > 10 ? '#fff' : '#94a3b8'}">${pct > 0 ? pct + '%' : ''}</td>`;
+    }
+    html += '</tr>';
+  }
+  
+  html += '</tbody></table></div>';
+  
+  el.innerHTML = html;
+}
+
+function renderMatchups(el, data) {
+  let html = '<h3>🏀 Projected Round 1 Matchups</h3>';
+  html += '<p style="color:#94a3b8;font-size:0.9em">Most likely playoff matchups based on seeding sim</p>';
+  
+  for (const [key, matchups] of Object.entries(data.matchups || {})) {
+    const [conf, round, num] = key.split('_');
+    html += `<div style="background:#1e293b;border-radius:8px;padding:12px;margin:8px 0">
+      <div style="color:#fbbf24;font-weight:bold;margin-bottom:8px">${conf} Round 1 — Series ${num}</div>`;
+    
+    for (const m of matchups.slice(0, 5)) {
+      const bar = `<div style="background:#334155;border-radius:4px;height:20px;width:200px;display:inline-block;vertical-align:middle">
+        <div style="background:#3b82f6;border-radius:4px;height:100%;width:${m.prob}%"></div>
+      </div>`;
+      html += `<div style="margin:4px 0;display:flex;align-items:center;gap:8px">
+        <span style="width:120px;font-weight:bold">${m.matchup}</span>
+        ${bar}
+        <span style="color:#94a3b8">${m.prob}%</span>
+      </div>`;
+    }
+    
+    html += '</div>';
+  }
+  
+  el.innerHTML = html;
+}
+
+function renderSeedingBets(el, data) {
+  let html = '<h3>💰 Seeding-Based Betting Edges</h3>';
+  html += '<p style="color:#94a3b8;font-size:0.9em">Opportunities from seeding probability vs market expectations</p>';
+  
+  const bets = data.topBets || [];
+  const types = { playoff: '🏀', top_seed: '🥇', division: '📊', play_in_risk: '⚠️', win_total: '📈' };
+  
+  for (const b of bets.slice(0, 20)) {
+    const icon = types[b.type] || '💰';
+    html += `<div style="background:#1e293b;border-radius:8px;padding:10px;margin:6px 0;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <span style="font-weight:bold">${icon} ${b.bet}</span>
+        <div style="color:#94a3b8;font-size:0.85em">${b.note}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="color:#34d399;font-weight:bold;font-size:1.1em">${typeof b.modelProb === 'number' ? b.modelProb.toFixed(1) : b.modelProb}%</div>
+        <div style="color:#94a3b8;font-size:0.8em">${b.conference}</div>
+      </div>
+    </div>`;
+  }
+  
+  if (bets.length === 0) {
+    html += '<p style="color:#94a3b8;text-align:center;padding:20px">No significant seeding edges detected</p>';
+  }
+  
+  el.innerHTML = html;
+}
+
+function renderDivisions(el, data) {
+  let html = '<h3>📊 Division Winner Probabilities</h3>';
+  
+  for (const [div, teams] of Object.entries(data.divisionWinners || {})) {
+    html += `<div style="background:#1e293b;border-radius:8px;padding:12px;margin:8px 0">
+      <div style="color:#fbbf24;font-weight:bold;margin-bottom:8px">${div}</div>`;
+    
+    for (const t of teams) {
+      const bar = `<div style="background:#334155;border-radius:4px;height:16px;width:200px;display:inline-block;vertical-align:middle">
+        <div style="background:#8b5cf6;border-radius:4px;height:100%;width:${t.prob}%"></div>
+      </div>`;
+      html += `<div style="margin:4px 0;display:flex;align-items:center;gap:8px">
+        <span style="width:60px;font-weight:bold">${t.team}</span>
+        ${bar}
+        <span style="color:#94a3b8">${t.prob}%</span>
+      </div>`;
+    }
+    
+    html += '</div>';
+  }
+  
+  el.innerHTML = html;
 }
 
 </script>
