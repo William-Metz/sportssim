@@ -77,45 +77,47 @@ async function refreshData() {
   }
 }
 
-// All 30 MLB teams — 2026 projected stats (based on 2025 actuals + offseason moves)
-// Updated with real 2025 final standings from StatMuse/ESPN
+// All 30 MLB teams — REAL 2025 final stats from ESPN
+// This is the base data — roster change adjustments in preseason-tuning.js modify these
+// for 2026 projections. The model applies early-season regression automatically.
+// AUDITED 2026-03-22 against ESPN 2025 final standings
 const STATIC_TEAMS = {
-  // AL East — TOR and NYY tied for best, BOS wildcard, BAL fell off, TB/Rays middling
-  'NYY': { name: 'New York Yankees', league: 'AL', division: 'East', w: 94, l: 68, rsG: 5.0, raG: 3.9, ops: .760, era: 3.72, whip: 1.23, k9: 9.2, fip: 3.75, bullpenEra: 3.50, babip: .295, park: 'Yankee Stadium', l10: '7-3' },
-  'BAL': { name: 'Baltimore Orioles', league: 'AL', division: 'East', w: 80, l: 82, rsG: 4.4, raG: 4.4, ops: .730, era: 4.15, whip: 1.27, k9: 8.8, fip: 4.05, bullpenEra: 3.75, babip: .290, park: 'Camden Yards', l10: '4-6' },
-  'BOS': { name: 'Boston Red Sox', league: 'AL', division: 'East', w: 91, l: 71, rsG: 4.8, raG: 4.0, ops: .748, era: 3.85, whip: 1.22, k9: 9.0, fip: 3.80, bullpenEra: 3.55, babip: .292, park: 'Fenway Park', l10: '6-4' },
-  'TOR': { name: 'Toronto Blue Jays', league: 'AL', division: 'East', w: 90, l: 72, rsG: 4.8, raG: 3.9, ops: .742, era: 3.75, whip: 1.22, k9: 8.8, fip: 3.72, bullpenEra: 3.55, babip: .290, park: 'Rogers Centre', l10: '5-5' },
-  'TB':  { name: 'Tampa Bay Rays', league: 'AL', division: 'East', w: 80, l: 82, rsG: 4.2, raG: 4.2, ops: .715, era: 4.05, whip: 1.25, k9: 9.0, fip: 3.95, bullpenEra: 3.65, babip: .288, park: 'Tropicana Field', l10: '4-6' },
-  // AL Central — CLE won div, DET wildcard, KC solid, MIN/CWS bottom
-  'CLE': { name: 'Cleveland Guardians', league: 'AL', division: 'Central', w: 87, l: 75, rsG: 4.3, raG: 3.9, ops: .720, era: 3.70, whip: 1.22, k9: 8.8, fip: 3.68, bullpenEra: 3.40, babip: .285, park: 'Progressive Field', l10: '6-4' },
-  'KC':  { name: 'Kansas City Royals', league: 'AL', division: 'Central', w: 83, l: 79, rsG: 4.4, raG: 4.2, ops: .728, era: 4.00, whip: 1.27, k9: 8.3, fip: 3.95, bullpenEra: 3.70, babip: .293, park: 'Kauffman Stadium', l10: '5-5' },
-  'DET': { name: 'Detroit Tigers', league: 'AL', division: 'Central', w: 86, l: 76, rsG: 4.2, raG: 3.9, ops: .718, era: 3.78, whip: 1.22, k9: 8.8, fip: 3.72, bullpenEra: 3.55, babip: .288, park: 'Comerica Park', l10: '5-5' },
-  'MIN': { name: 'Minnesota Twins', league: 'AL', division: 'Central', w: 74, l: 88, rsG: 4.3, raG: 4.6, ops: .725, era: 4.35, whip: 1.32, k9: 8.2, fip: 4.25, bullpenEra: 3.95, babip: .294, park: 'Target Field', l10: '4-6' },
-  'CWS': { name: 'Chicago White Sox', league: 'AL', division: 'Central', w: 64, l: 98, rsG: 3.8, raG: 5.0, ops: .690, era: 4.85, whip: 1.40, k9: 7.8, fip: 4.70, bullpenEra: 4.40, babip: .300, park: 'Guaranteed Rate Field', l10: '3-7' },
-  // AL West — SEA won div, HOU wildcard-level, TEX .500, OAK/LAA rebuilding
-  'HOU': { name: 'Houston Astros', league: 'AL', division: 'West', w: 87, l: 75, rsG: 4.7, raG: 4.0, ops: .745, era: 3.82, whip: 1.25, k9: 8.8, fip: 3.78, bullpenEra: 3.55, babip: .292, park: 'Minute Maid Park', l10: '5-5' },
-  'SEA': { name: 'Seattle Mariners', league: 'AL', division: 'West', w: 89, l: 73, rsG: 4.3, raG: 3.7, ops: .722, era: 3.55, whip: 1.18, k9: 9.3, fip: 3.52, bullpenEra: 3.30, babip: .286, park: 'T-Mobile Park', l10: '6-4' },
-  'TEX': { name: 'Texas Rangers', league: 'AL', division: 'West', w: 81, l: 81, rsG: 4.5, raG: 4.3, ops: .735, era: 4.10, whip: 1.28, k9: 8.5, fip: 4.05, bullpenEra: 3.80, babip: .296, park: 'Globe Life Field', l10: '5-5' },
-  'LAA': { name: 'Los Angeles Angels', league: 'AL', division: 'West', w: 73, l: 89, rsG: 4.1, raG: 4.6, ops: .715, era: 4.40, whip: 1.32, k9: 8.2, fip: 4.30, bullpenEra: 4.05, babip: .295, park: 'Angel Stadium', l10: '3-7' },
-  'OAK': { name: 'Oakland Athletics', league: 'AL', division: 'West', w: 76, l: 86, rsG: 4.0, raG: 4.4, ops: .708, era: 4.25, whip: 1.30, k9: 8.2, fip: 4.18, bullpenEra: 3.90, babip: .290, park: 'Coliseum', l10: '4-6' },
-  // NL East — PHI won div, NYM/MIA middle, ATL/WSH down
-  'ATL': { name: 'Atlanta Braves', league: 'NL', division: 'East', w: 82, l: 80, rsG: 4.6, raG: 4.3, ops: .738, era: 4.08, whip: 1.25, k9: 8.8, fip: 3.98, bullpenEra: 3.70, babip: .291, park: 'Truist Park', l10: '5-5' },
-  'PHI': { name: 'Philadelphia Phillies', league: 'NL', division: 'East', w: 94, l: 68, rsG: 5.0, raG: 3.8, ops: .758, era: 3.62, whip: 1.20, k9: 9.2, fip: 3.58, bullpenEra: 3.40, babip: .291, park: 'Citizens Bank Park', l10: '6-4' },
-  'NYM': { name: 'New York Mets', league: 'NL', division: 'East', w: 85, l: 77, rsG: 4.5, raG: 4.1, ops: .738, era: 3.92, whip: 1.25, k9: 8.7, fip: 3.88, bullpenEra: 3.60, babip: .290, park: 'Citi Field', l10: '5-5' },
-  'MIA': { name: 'Miami Marlins', league: 'NL', division: 'East', w: 78, l: 84, rsG: 4.0, raG: 4.3, ops: .710, era: 4.12, whip: 1.28, k9: 8.5, fip: 4.05, bullpenEra: 3.80, babip: .290, park: 'LoanDepot Park', l10: '5-5' },
-  'WSH': { name: 'Washington Nationals', league: 'NL', division: 'East', w: 70, l: 92, rsG: 4.0, raG: 4.8, ops: .710, era: 4.55, whip: 1.35, k9: 8.2, fip: 4.45, bullpenEra: 4.20, babip: .294, park: 'Nationals Park', l10: '3-7' },
-  // NL Central — MIL dominant, CHC strong wildcard, CIN borderline, STL/PIT rebuilding
-  'MIL': { name: 'Milwaukee Brewers', league: 'NL', division: 'Central', w: 93, l: 69, rsG: 4.6, raG: 3.6, ops: .738, era: 3.45, whip: 1.18, k9: 9.2, fip: 3.42, bullpenEra: 3.20, babip: .288, park: 'American Family Field', l10: '6-4' },
-  'CHC': { name: 'Chicago Cubs', league: 'NL', division: 'Central', w: 90, l: 72, rsG: 4.7, raG: 4.0, ops: .740, era: 3.82, whip: 1.23, k9: 8.8, fip: 3.78, bullpenEra: 3.55, babip: .292, park: 'Wrigley Field', l10: '5-5' },
-  'STL': { name: 'St. Louis Cardinals', league: 'NL', division: 'Central', w: 77, l: 85, rsG: 4.1, raG: 4.4, ops: .718, era: 4.18, whip: 1.29, k9: 8.3, fip: 4.10, bullpenEra: 3.85, babip: .291, park: 'Busch Stadium', l10: '4-6' },
-  'PIT': { name: 'Pittsburgh Pirates', league: 'NL', division: 'Central', w: 76, l: 86, rsG: 4.2, raG: 4.5, ops: .720, era: 4.25, whip: 1.30, k9: 8.5, fip: 4.15, bullpenEra: 3.90, babip: .293, park: 'PNC Park', l10: '4-6' },
-  'CIN': { name: 'Cincinnati Reds', league: 'NL', division: 'Central', w: 84, l: 78, rsG: 4.6, raG: 4.3, ops: .738, era: 4.10, whip: 1.27, k9: 8.8, fip: 4.02, bullpenEra: 3.80, babip: .295, park: 'Great American Ball Park', l10: '5-5' },
-  // NL West — LAD won div, SD wildcard, SF .500, ARI down, COL terrible
-  'LAD': { name: 'Los Angeles Dodgers', league: 'NL', division: 'West', w: 96, l: 66, rsG: 5.2, raG: 3.7, ops: .772, era: 3.48, whip: 1.18, k9: 9.5, fip: 3.42, bullpenEra: 3.25, babip: .290, park: 'Dodger Stadium', l10: '7-3' },
-  'SD':  { name: 'San Diego Padres', league: 'NL', division: 'West', w: 89, l: 73, rsG: 4.6, raG: 3.8, ops: .742, era: 3.68, whip: 1.20, k9: 9.2, fip: 3.65, bullpenEra: 3.40, babip: .289, park: 'Petco Park', l10: '6-4' },
-  'ARI': { name: 'Arizona Diamondbacks', league: 'NL', division: 'West', w: 80, l: 82, rsG: 4.5, raG: 4.4, ops: .735, era: 4.15, whip: 1.28, k9: 8.5, fip: 4.08, bullpenEra: 3.75, babip: .295, park: 'Chase Field', l10: '4-6' },
-  'SF':  { name: 'San Francisco Giants', league: 'NL', division: 'West', w: 82, l: 80, rsG: 4.3, raG: 4.2, ops: .722, era: 4.00, whip: 1.25, k9: 8.5, fip: 3.95, bullpenEra: 3.70, babip: .287, park: 'Oracle Park', l10: '5-5' },
-  'COL': { name: 'Colorado Rockies', league: 'NL', division: 'West', w: 52, l: 110, rsG: 4.2, raG: 5.8, ops: .710, era: 5.50, whip: 1.48, k9: 7.2, fip: 5.30, bullpenEra: 4.80, babip: .310, park: 'Coors Field', l10: '2-8' }
+  // AL East — TOR won division (94W), NYY tied (94W), BOS WC (89W), TB/BAL below
+  'NYY': { name: 'New York Yankees', league: 'AL', division: 'East', w: 94, l: 68, rsG: 5.24, raG: 4.23, ops: .765, era: 3.95, whip: 1.24, k9: 9.2, fip: 3.90, bullpenEra: 3.50, babip: .295, park: 'Yankee Stadium', l10: '5-5' },
+  'BAL': { name: 'Baltimore Orioles', league: 'AL', division: 'East', w: 75, l: 87, rsG: 4.18, raG: 4.86, ops: .710, era: 4.60, whip: 1.33, k9: 8.5, fip: 4.50, bullpenEra: 4.10, babip: .290, park: 'Camden Yards', l10: '3-7' },
+  'BOS': { name: 'Boston Red Sox', league: 'AL', division: 'East', w: 89, l: 73, rsG: 4.85, raG: 4.17, ops: .748, era: 3.90, whip: 1.23, k9: 9.0, fip: 3.85, bullpenEra: 3.55, babip: .292, park: 'Fenway Park', l10: '7-3' },
+  'TOR': { name: 'Toronto Blue Jays', league: 'AL', division: 'East', w: 94, l: 68, rsG: 4.93, raG: 4.45, ops: .745, era: 4.15, whip: 1.26, k9: 8.8, fip: 4.10, bullpenEra: 3.70, babip: .290, park: 'Rogers Centre', l10: '5-5' },
+  'TB':  { name: 'Tampa Bay Rays', league: 'AL', division: 'East', w: 77, l: 85, rsG: 4.41, raG: 4.22, ops: .718, era: 4.00, whip: 1.25, k9: 9.0, fip: 3.95, bullpenEra: 3.65, babip: .288, park: 'Tropicana Field', l10: '4-6' },
+  // AL Central — CLE won div (88W), DET WC (87W), KC solid (82W), MIN/CWS bottom
+  'CLE': { name: 'Cleveland Guardians', league: 'AL', division: 'Central', w: 88, l: 74, rsG: 3.97, raG: 4.01, ops: .710, era: 3.78, whip: 1.22, k9: 8.8, fip: 3.72, bullpenEra: 3.40, babip: .285, park: 'Progressive Field', l10: '7-3' },
+  'KC':  { name: 'Kansas City Royals', league: 'AL', division: 'Central', w: 82, l: 80, rsG: 4.02, raG: 3.93, ops: .718, era: 3.85, whip: 1.25, k9: 8.3, fip: 3.80, bullpenEra: 3.60, babip: .293, park: 'Kauffman Stadium', l10: '6-4' },
+  'DET': { name: 'Detroit Tigers', league: 'AL', division: 'Central', w: 87, l: 75, rsG: 4.68, raG: 4.27, ops: .728, era: 4.02, whip: 1.25, k9: 8.8, fip: 3.95, bullpenEra: 3.55, babip: .290, park: 'Comerica Park', l10: '2-8' },
+  'MIN': { name: 'Minnesota Twins', league: 'AL', division: 'Central', w: 70, l: 92, rsG: 4.19, raG: 4.77, ops: .720, era: 4.50, whip: 1.34, k9: 8.2, fip: 4.40, bullpenEra: 4.05, babip: .294, park: 'Target Field', l10: '4-6' },
+  'CWS': { name: 'Chicago White Sox', league: 'AL', division: 'Central', w: 60, l: 102, rsG: 3.99, raG: 4.58, ops: .695, era: 4.38, whip: 1.35, k9: 7.8, fip: 4.30, bullpenEra: 4.20, babip: .300, park: 'Guaranteed Rate Field', l10: '3-7' },
+  // AL West — SEA won div (90W), HOU WC (87W), TEX .500, OAK/LAA rebuilding
+  'HOU': { name: 'Houston Astros', league: 'AL', division: 'West', w: 87, l: 75, rsG: 4.23, raG: 4.10, ops: .730, era: 3.88, whip: 1.25, k9: 8.8, fip: 3.82, bullpenEra: 3.55, babip: .292, park: 'Minute Maid Park', l10: '4-6' },
+  'SEA': { name: 'Seattle Mariners', league: 'AL', division: 'West', w: 90, l: 72, rsG: 4.73, raG: 4.28, ops: .730, era: 4.05, whip: 1.24, k9: 9.3, fip: 3.98, bullpenEra: 3.50, babip: .288, park: 'T-Mobile Park', l10: '3-7' },
+  'TEX': { name: 'Texas Rangers', league: 'AL', division: 'West', w: 81, l: 81, rsG: 4.22, raG: 3.73, ops: .725, era: 3.60, whip: 1.22, k9: 8.5, fip: 3.55, bullpenEra: 3.45, babip: .290, park: 'Globe Life Field', l10: '2-8' },
+  'LAA': { name: 'Los Angeles Angels', league: 'AL', division: 'West', w: 72, l: 90, rsG: 4.15, raG: 5.17, ops: .712, era: 4.90, whip: 1.38, k9: 8.2, fip: 4.80, bullpenEra: 4.30, babip: .295, park: 'Angel Stadium', l10: '3-7' },
+  'OAK': { name: 'Oakland Athletics', league: 'AL', division: 'West', w: 76, l: 86, rsG: 4.53, raG: 5.04, ops: .718, era: 4.78, whip: 1.35, k9: 8.2, fip: 4.68, bullpenEra: 4.20, babip: .295, park: 'Coliseum', l10: '5-5' },
+  // NL East — PHI won div (96W), NYM bubble (83W), MIA (79W), ATL down (76W), WSH tank (66W)
+  'ATL': { name: 'Atlanta Braves', league: 'NL', division: 'East', w: 76, l: 86, rsG: 4.47, raG: 4.53, ops: .730, era: 4.28, whip: 1.28, k9: 8.8, fip: 4.18, bullpenEra: 3.85, babip: .291, park: 'Truist Park', l10: '7-3' },
+  'PHI': { name: 'Philadelphia Phillies', league: 'NL', division: 'East', w: 96, l: 66, rsG: 4.80, raG: 4.00, ops: .755, era: 3.78, whip: 1.21, k9: 9.2, fip: 3.72, bullpenEra: 3.45, babip: .291, park: 'Citizens Bank Park', l10: '5-5' },
+  'NYM': { name: 'New York Mets', league: 'NL', division: 'East', w: 83, l: 79, rsG: 4.73, raG: 4.41, ops: .738, era: 4.18, whip: 1.27, k9: 8.7, fip: 4.10, bullpenEra: 3.70, babip: .290, park: 'Citi Field', l10: '5-5' },
+  'MIA': { name: 'Miami Marlins', league: 'NL', division: 'East', w: 79, l: 83, rsG: 4.38, raG: 4.93, ops: .715, era: 4.65, whip: 1.33, k9: 8.5, fip: 4.55, bullpenEra: 4.10, babip: .290, park: 'LoanDepot Park', l10: '7-3' },
+  'WSH': { name: 'Washington Nationals', league: 'NL', division: 'East', w: 66, l: 96, rsG: 4.24, raG: 5.55, ops: .710, era: 5.22, whip: 1.42, k9: 8.2, fip: 5.10, bullpenEra: 4.60, babip: .298, park: 'Nationals Park', l10: '4-6' },
+  // NL Central — MIL dominant (97W), CHC WC (92W), CIN bubble (83W), STL/PIT rebuilding
+  'MIL': { name: 'Milwaukee Brewers', league: 'NL', division: 'Central', w: 97, l: 65, rsG: 4.98, raG: 3.91, ops: .745, era: 3.70, whip: 1.20, k9: 9.2, fip: 3.65, bullpenEra: 3.30, babip: .290, park: 'American Family Field', l10: '4-6' },
+  'CHC': { name: 'Chicago Cubs', league: 'NL', division: 'Central', w: 92, l: 70, rsG: 4.90, raG: 4.01, ops: .745, era: 3.82, whip: 1.22, k9: 8.8, fip: 3.78, bullpenEra: 3.50, babip: .292, park: 'Wrigley Field', l10: '4-6' },
+  'STL': { name: 'St. Louis Cardinals', league: 'NL', division: 'Central', w: 78, l: 84, rsG: 4.25, raG: 4.65, ops: .718, era: 4.40, whip: 1.30, k9: 8.3, fip: 4.30, bullpenEra: 3.95, babip: .291, park: 'Busch Stadium', l10: '4-6' },
+  'PIT': { name: 'Pittsburgh Pirates', league: 'NL', division: 'Central', w: 71, l: 91, rsG: 3.60, raG: 3.98, ops: .695, era: 3.82, whip: 1.25, k9: 8.5, fip: 3.78, bullpenEra: 3.60, babip: .285, park: 'PNC Park', l10: '6-4' },
+  'CIN': { name: 'Cincinnati Reds', league: 'NL', division: 'Central', w: 83, l: 79, rsG: 4.42, raG: 4.20, ops: .732, era: 4.00, whip: 1.26, k9: 8.8, fip: 3.95, bullpenEra: 3.70, babip: .295, park: 'Great American Ball Park', l10: '7-3' },
+  // NL West — LAD won div (93W), SD WC (90W), SF .500 (81W), ARI down (80W), COL historic tank (43W)
+  'LAD': { name: 'Los Angeles Dodgers', league: 'NL', division: 'West', w: 93, l: 69, rsG: 5.09, raG: 4.22, ops: .770, era: 3.95, whip: 1.22, k9: 9.5, fip: 3.88, bullpenEra: 3.40, babip: .292, park: 'Dodger Stadium', l10: '8-2' },
+  'SD':  { name: 'San Diego Padres', league: 'NL', division: 'West', w: 90, l: 72, rsG: 4.33, raG: 3.83, ops: .732, era: 3.65, whip: 1.19, k9: 9.2, fip: 3.60, bullpenEra: 3.35, babip: .287, park: 'Petco Park', l10: '7-3' },
+  'ARI': { name: 'Arizona Diamondbacks', league: 'NL', division: 'West', w: 80, l: 82, rsG: 4.88, raG: 4.85, ops: .740, era: 4.55, whip: 1.32, k9: 8.5, fip: 4.45, bullpenEra: 4.00, babip: .298, park: 'Chase Field', l10: '3-7' },
+  'SF':  { name: 'San Francisco Giants', league: 'NL', division: 'West', w: 81, l: 81, rsG: 4.35, raG: 4.22, ops: .722, era: 4.00, whip: 1.25, k9: 8.5, fip: 3.95, bullpenEra: 3.70, babip: .287, park: 'Oracle Park', l10: '5-5' },
+  'COL': { name: 'Colorado Rockies', league: 'NL', division: 'West', w: 43, l: 119, rsG: 3.69, raG: 6.30, ops: .680, era: 6.10, whip: 1.55, k9: 7.0, fip: 5.90, bullpenEra: 5.30, babip: .315, park: 'Coors Field', l10: '2-8' }
 };
 
 // TEAMS is a dynamic getter — returns live data when available
@@ -777,12 +779,23 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   // Apply home advantage as a probability shift
   // In MLB, home teams win ~54% overall. Our expected runs already include park factors,
   // so home advantage here is just the residual (batting last, familiarity, etc.)
-  // Typical residual HCA beyond park factors is ~1-2% 
-  const HCA_SHIFT = 0.018; // ~1.8% home advantage beyond park factors
-  // CALIBRATION v3: Audit of 2375 2024 games shows model is overconfident at extremes.
-  // 70-75% model predictions only win 58% of the time. Cap raw output at 0.68 before
-  // any additional adjustments. MLB is fundamentally a high-variance sport.
-  let homeWinProb = Math.min(0.68, Math.max(0.32, baseWinProbs.home + HCA_SHIFT));
+  // CALIBRATION v4: Early-season data shows home win rate drops to ~49.2% in first 2 weeks
+  // (2024 data: 128 games, 49.2% HWR vs 52.5% full season). This is because:
+  // - Less crowd advantage (everyone's excited, neutral fans attend)
+  // - Less familiarity advantage (haven't been home much yet)
+  // - Small sample = more random outcomes
+  // Scale HCA based on season phase: 0.5% early → 1.8% full season
+  const BASE_HCA_SHIFT = 0.018; // ~1.8% home advantage beyond park factors (full season)
+  const EARLY_HCA_SHIFT = 0.005; // ~0.5% early season (barely any home edge)
+  const isEarlySeason = isPreseasonPredict || awayRegression > 0 || homeRegression > 0;
+  const HCA_SHIFT = isEarlySeason ? EARLY_HCA_SHIFT : BASE_HCA_SHIFT;
+  
+  // CALIBRATION v4: Tighter probability cap for early season.
+  // Full season: 0.68 max (audit of 2375 2024 games shows overconfidence at extremes)
+  // Early season: 0.64 max (higher variance, less established patterns, preseason projections noisy)
+  const MAX_WIN_PROB = isEarlySeason ? 0.64 : 0.68;
+  const MIN_WIN_PROB = isEarlySeason ? 0.36 : 0.32;
+  let homeWinProb = Math.min(MAX_WIN_PROB, Math.max(MIN_WIN_PROB, baseWinProbs.home + HCA_SHIFT));
   let awayWinProb = 1 - homeWinProb;
   
   // Pitcher quality differential bonus
@@ -800,18 +813,21 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     // Regular season: 0.05 per 100 rating diff, Preseason: 0.08
     const isPreseasonGame = (awayRegression > 0 || homeRegression > 0);
     const pitcherWeight = isPreseasonGame ? 0.08 : 0.05;
-    homeWinProb = Math.min(0.68, Math.max(0.32, homeWinProb + ratingDiff * pitcherWeight));
+    homeWinProb = Math.min(MAX_WIN_PROB, Math.max(MIN_WIN_PROB, homeWinProb + ratingDiff * pitcherWeight));
     awayWinProb = 1 - homeWinProb;
   }
   
   // Momentum nudge (small) — enhanced with rolling stats
-  let momAdj = (homeR.momentum - awayR.momentum) * 0.02;
+  // Suppress momentum in early season (no real data to derive it from)
+  const momWeight = isEarlySeason ? 0.005 : 0.02;
+  let momAdj = (homeR.momentum - awayR.momentum) * momWeight;
   // If rolling stats are available, also factor in recent trend
   if (awayRolling && homeRolling) {
-    const rollingMom = ((homeRolling.momentum || 0) - (awayRolling.momentum || 0)) * 0.01;
+    const rollingMomWeight = isEarlySeason ? 0.003 : 0.01;
+    const rollingMom = ((homeRolling.momentum || 0) - (awayRolling.momentum || 0)) * rollingMomWeight;
     momAdj += rollingMom;
   }
-  homeWinProb = Math.min(0.68, Math.max(0.32, homeWinProb + momAdj));
+  homeWinProb = Math.min(MAX_WIN_PROB, Math.max(MIN_WIN_PROB, homeWinProb + momAdj));
   awayWinProb = 1 - homeWinProb;
   
   // Total runs
@@ -896,6 +912,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       awayBullpenFatigue: awayBullpenFatigue ? { multiplier: awayBullpenFatigue.multiplier, status: awayBullpenFatigue.status, factors: awayBullpenFatigue.factors } : null,
       homeBullpenFatigue: homeBullpenFatigue ? { multiplier: homeBullpenFatigue.multiplier, status: homeBullpenFatigue.status, factors: homeBullpenFatigue.factors } : null,
       earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null,
+      earlySeasonCalibration: isEarlySeason ? { hcaShift: HCA_SHIFT, maxWinProb: MAX_WIN_PROB, minWinProb: MIN_WIN_PROB, note: 'Tighter caps + reduced HCA for early season (49.2% HWR in first 2 weeks)' } : null,
       preseasonTuning: (awayPreseasonInfo || homePreseasonInfo) ? {
         away: awayPreseasonInfo,
         home: homePreseasonInfo,

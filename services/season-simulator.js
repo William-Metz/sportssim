@@ -136,11 +136,18 @@ function getTeamStrengths() {
     if (preseasonTuning) {
       try {
         const tuning = preseasonTuning.getTeamAdjustment(abbr);
-        if (tuning && tuning.offAdj) {
-          // Convert run adjustments to win pct adjustment
-          // Rough: 10 runs ≈ 1 win over 162 games ≈ 0.006 win pct
-          const runAdj = (tuning.offAdj - tuning.defAdj) * 162;
-          const winAdj = runAdj * 0.006;
+        if (tuning) {
+          // offAdj = runs scored per game change (positive = scores more)
+          // defAdj = runs allowed per game change (negative = allows fewer, better pitching)
+          // Net impact on run differential per game:
+          //   + offAdj (team scores more) - defAdj (lower defAdj = allows fewer)
+          // Using Pythagorean: 10 runs of seasonal differential ≈ 1 win ≈ 0.00617 win pct
+          // But offAdj/defAdj are PER GAME, so multiply by 162 for season total
+          const offPerGame = tuning.offAdj || 0;
+          const defPerGame = tuning.defAdj || 0; // Negative = team allows FEWER runs (good)
+          const netRunDiffPerGame = offPerGame - defPerGame; // Positive = better team
+          const seasonRunDiff = netRunDiffPerGame * 162;
+          const winAdj = seasonRunDiff / 10 / 162; // Convert to win pct change
           pyth = Math.max(0.25, Math.min(0.75, pyth + winAdj));
         }
       } catch (e) {}
