@@ -43,6 +43,9 @@ const preseasonTuning = require('./services/preseason-tuning');
 const autoScanner = require('./services/auto-scanner');
 const seasonSimulator = require('./services/season-simulator');
 const nbaRestTank = require('./services/nba-rest-tank');
+const futuresScanner = require('./services/futures-scanner');
+let openingWeekUnders = null;
+try { openingWeekUnders = require('./services/opening-week-unders'); } catch (e) { console.error('[server] Opening Week Unders service not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -106,7 +109,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '38.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection'] });
+  res.json({ status: 'ok', version: '42.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -1072,7 +1075,22 @@ app.get('/api/value/all', async (req, res) => {
           });
           return futuresBets;
         } catch (e) { return []; }
-      })
+      }),
+      // Live championship futures from The Odds API (NBA/NHL/MLB)
+      futuresScanner.scanAllFutures({ nba, nhl, mlb }, ODDS_API_KEY, { minEdge: 0.03, sims: 5000 }).then(r => {
+        return (r.allValueBets || []).map(b => ({
+          sport: b.sport.toUpperCase(),
+          game: `${b.teamName} Championship`,
+          book: b.bestBook,
+          pick: `${b.team} (${b.bestOdds > 0 ? '+' : ''}${b.bestOdds})`,
+          market: 'championship-futures',
+          edge: b.edge / 100,
+          confidence: b.confidence,
+          modelProb: b.modelProb,
+          kelly: b.kellyPct,
+          source: 'futures-scanner',
+        }));
+      }).catch(() => [])
     ]);
     const all = [];
     results.forEach(r => { if (r.status === 'fulfilled') all.push(...r.value); });
@@ -2243,6 +2261,112 @@ app.get('/api/playoffs/value', (req, res) => {
     const values = playoffSeries.findSeriesValue(nba, matchups);
     res.json({ valueBets: values, count: values.length, timestamp: new Date().toISOString() });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== CHAMPIONSHIP FUTURES VALUE SCANNER ====================
+
+// Scan all sports for championship futures value
+app.get('/api/futures/scan', async (req, res) => {
+  try {
+    const opts = {
+      minEdge: parseFloat(req.query.minEdge) || 0.03,
+      bankroll: parseInt(req.query.bankroll) || 1000,
+      kellyFraction: parseFloat(req.query.kelly) || 0.25,
+      sims: Math.min(parseInt(req.query.sims) || 10000, 50000)
+    };
+    const results = await futuresScanner.scanAllFutures(
+      { nba, nhl, mlb },
+      ODDS_API_KEY,
+      opts
+    );
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Scan specific sport
+app.get('/api/futures/scan/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    const opts = {
+      minEdge: parseFloat(req.query.minEdge) || 0.03,
+      bankroll: parseInt(req.query.bankroll) || 1000,
+      kellyFraction: parseFloat(req.query.kelly) || 0.25,
+      sims: Math.min(parseInt(req.query.sims) || 10000, 50000)
+    };
+    
+    // Get model probs for the specific sport
+    let modelProbs = {};
+    
+    if (sport === 'nba') {
+      const sim = playoffSeries.simulateFullPlayoffs(nba, opts.sims);
+      if (sim && sim.championshipOdds) {
+        for (const team of sim.championshipOdds) {
+          modelProbs[team.team] = team.probability;
+        }
+      }
+    } else if (sport === 'nhl') {
+      const teams = nhl.getTeams();
+      let totalPower = 0;
+      const ratings = {};
+      for (const [abbr, team] of Object.entries(teams)) {
+        const winPct = team.w / Math.max(1, team.w + team.l + (team.otl || 0));
+        const power = Math.pow(winPct, 3);
+        ratings[abbr] = power;
+        totalPower += power;
+      }
+      const sorted = Object.entries(ratings).sort((a, b) => b[1] - a[1]).slice(0, 16);
+      const playoffPower = sorted.reduce((sum, [, p]) => sum + p, 0);
+      for (const [abbr, power] of sorted) {
+        modelProbs[abbr] = power / playoffPower;
+      }
+    } else if (sport === 'mlb') {
+      try {
+        const seasonSim = require('./services/season-simulator');
+        const simResult = seasonSim.getReport();
+        if (simResult && simResult.worldSeries) {
+          for (const team of simResult.worldSeries) {
+            modelProbs[team.team] = team.probability / 100;
+          }
+        }
+      } catch (e) {
+        const teams = mlb.getTeams();
+        let totalPower = 0;
+        const ratings = {};
+        for (const [abbr, team] of Object.entries(teams)) {
+          const power = Math.pow(team.power || 1, 2);
+          ratings[abbr] = power;
+          totalPower += power;
+        }
+        for (const [abbr, power] of Object.entries(ratings)) {
+          modelProbs[abbr] = power / totalPower;
+        }
+      }
+    }
+    
+    const futuresData = await futuresScanner.fetchFuturesOdds(sport, ODDS_API_KEY);
+    const result = futuresScanner.findFuturesValue(sport, modelProbs, futuresData, opts);
+    result.modelProbCount = Object.keys(modelProbs).length;
+    
+    // Include full odds data for dashboard
+    result.allTeamOdds = futuresData.teams || [];
+    result.modelProbs = modelProbs;
+    
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get raw futures odds (no model comparison)
+app.get('/api/futures/odds/:sport', async (req, res) => {
+  try {
+    const sport = req.params.sport.toLowerCase();
+    const data = await futuresScanner.fetchFuturesOdds(sport, ODDS_API_KEY);
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Futures scanner status
+app.get('/api/futures/status', (req, res) => {
+  res.json(futuresScanner.getStatus());
 });
 
 // ==================== BET TRACKER API ====================
@@ -4101,8 +4225,71 @@ app.post('/api/scanner/stop', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== OPENING WEEK UNDERS ENDPOINTS ====================
+
+app.get('/api/opening-week/status', (req, res) => {
+  if (!openingWeekUnders) return res.status(503).json({ error: 'Opening Week Unders service not loaded' });
+  res.json(openingWeekUnders.getStatus());
+});
+
+app.get('/api/opening-week/parks', (req, res) => {
+  if (!openingWeekUnders) return res.status(503).json({ error: 'Opening Week Unders service not loaded' });
+  try {
+    const parks = openingWeekUnders.getParkBreakdown();
+    res.json({ parks, note: 'Opening Day totals reduction by park. Higher = stronger UNDER lean.' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/opening-week/adjustment', (req, res) => {
+  if (!openingWeekUnders) return res.status(503).json({ error: 'Opening Week Unders service not loaded' });
+  const { date, park, homeStarter, awayStarter, total } = req.query;
+  const gameDate = date || '2026-03-27';
+  const homePark = park || 'Unknown';
+  const homeStarterTier = parseInt(homeStarter) || 3;
+  const awayStarterTier = parseInt(awayStarter) || 3;
+  
+  const adj = openingWeekUnders.getOpeningWeekAdjustment(gameDate, homePark, { homeStarterTier, awayStarterTier });
+  
+  if (total) {
+    const totalNum = parseFloat(total);
+    const result = openingWeekUnders.adjustTotal(totalNum, gameDate, homePark, { homeStarterTier, awayStarterTier });
+    res.json({ ...result, adjustment: adj });
+  } else {
+    res.json(adj);
+  }
+});
+
+app.get('/api/opening-week/scan', (req, res) => {
+  if (!openingWeekUnders) return res.status(503).json({ error: 'Opening Week Unders service not loaded' });
+  try {
+    // Build game list from Opening Day games
+    const games = mlbOpeningDay.OPENING_DAY_GAMES.map(g => {
+      // Get park for home team
+      const homeTeam = mlb.getTeams()[g.home];
+      return {
+        home: g.home,
+        away: g.away,
+        date: g.date || '2026-03-27',
+        park: homeTeam?.park || '',
+        homeStarterTier: g.homeStarterTier || 2,
+        awayStarterTier: g.awayStarterTier || 2,
+        modelTotal: g.modelTotal || null,
+        bookTotal: g.bookTotal || null
+      };
+    });
+    
+    const results = openingWeekUnders.scanOpeningDayUnders(games);
+    res.json({ 
+      games: results.length, 
+      results,
+      summary: `${results.filter(r => r.grade === 'A' || r.grade === 'B+').length} strong UNDER candidates on Opening Day`,
+      note: 'Historical Opening Day unders: 57.3%. Cold parks + ace matchups = 62-65% hit rate.'
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v34.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v39.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);

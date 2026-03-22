@@ -120,8 +120,8 @@ const ROSTER_CHANGES = {
     moves: ['Josh Bell (1B) signed', 'Taj Bradley (SP) from TB', 'Mick Abel (SP) from PHI', 'James Outman (OF) from LAD']
   },
   'CWS': {
-    rsG_adj: 0.40, raG_adj: 0.05,
-    note: 'Lost Crochet to BOS but added MUNETAKA MURAKAMI (3B/DH, 56 HR in NPB — elite power). Curtis Mead (3B from TB), Kyle Teel (C), Miguel Vargas (INF from LAD), Jordan Hicks (SP). From 60-102 disaster — Murakami alone could add 0.3+ RS/G. Still bad pitching (4.38 ERA base) but offense has legit upside now.',
+    rsG_adj: 0.20, raG_adj: 0.15,
+    note: 'Lost Crochet (ace) to BOS = HUGE pitching downgrade (+0.15 raG). Added Murakami (3B/DH, 56 HR NPB) but NPB-to-MLB transition typically loses 30-40% power. Realistic: Murakami adds ~0.15 RS/G, not 0.30+. Curtis Mead, Kyle Teel, Miguel Vargas are replacement-level. Jordan Hicks (SP from SF) replaces Crochet partially. Net: still bottom-3 team, maybe 65-70W range. Organizational dysfunction persists.',
     moves: ['Lost Garrett Crochet to BOS', 'Munetaka Murakami (3B/DH) from NPB', 'Curtis Mead (3B) from TB', 'Kyle Teel (C) promoted', 'Miguel Vargas (INF) from LAD', 'Jordan Hicks (SP) from SF']
   },
 
@@ -147,9 +147,9 @@ const ROSTER_CHANGES = {
     moves: ['Yusei Kikuchi (SP) signed', 'Lost Taylor Ward to BAL', 'Lost Patrick Sandoval to BOS']
   },
   'OAK': {
-    rsG_adj: 0.0, raG_adj: 0.0,
-    note: 'Luis Severino OD starter. Still rebuilding. Low expectations.',
-    moves: ['Luis Severino (SP) signed']
+    rsG_adj: -0.05, raG_adj: 0.20,
+    note: 'Lost Mason Miller (elite closer, 100+mph → SD) + JP Sears (starter → SD). Got Severino (aging, 4.73 ERA in 2024). Bullpen and rotation both got WORSE. Rebuilding in Sacramento. Run prevention was bad (5.04 RA/G base) and now worse without Miller. Realistic: 65-70W.',
+    moves: ['Luis Severino (SP) signed', 'Lost Mason Miller (CL) to SD', 'Lost JP Sears (SP) to SD']
   },
 
   // ===== NL EAST =====

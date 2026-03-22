@@ -174,6 +174,7 @@ function buildTabs() {
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
     tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
+    tabs.push({ id: 'champ-futures', label: '💰 Futures' });
   }
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
@@ -211,6 +212,7 @@ function showTab(id) {
   else if (id === 'playoffs') loadPlayoffsTab();
   else if (id === 'futures') loadFuturesTab();
   else if (id === 'rest-tank') loadRestTankTab();
+  else if (id === 'champ-futures') loadChampFuturesTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -1683,6 +1685,50 @@ async function refreshTrends() {
   }
 }
 
+async function loadOpeningWeekUnders() {
+  try {
+    const data = await api('/api/opening-week/scan');
+    const el = document.getElementById('opening-week-unders-content');
+    if (!el) return;
+    
+    let html = '';
+    html += `<div style="display:grid;gap:8px">`;
+    html += `<div style="text-align:left;margin-bottom:8px;padding:12px;background:rgba(234,179,8,0.1);border-radius:10px">
+      <div style="font-size:14px;font-weight:700;color:#eab308">📊 ${data.summary || 'Opening Week Under Analysis'}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px">${data.note || ''}</div>
+    </div>`;
+    
+    if (data.results && data.results.length > 0) {
+      data.results.forEach(r => {
+        const gradeColor = r.grade === 'A' ? '#22c55e' : r.grade === 'B+' ? '#eab308' : r.grade === 'B' ? 'var(--accent)' : 'var(--text3)';
+        html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border-radius:10px">
+          <div style="font-size:18px;font-weight:900;color:${gradeColor};min-width:32px">${r.grade}</div>
+          <div style="flex:1;text-align:left">
+            <div style="font-size:14px;font-weight:700">${r.matchup}</div>
+            <div style="font-size:11px;color:var(--text2)">${r.park} ${r.adjustment.isIndoor ? '🏠' : '🌧️'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:800;color:${gradeColor}">-${r.adjustment.reductionPct}%</div>
+            <div style="font-size:10px;color:var(--text2)">totals reduction</div>
+          </div>
+          ${r.edge ? `<div style="text-align:right;padding-left:8px;border-left:1px solid var(--border)">
+            <div style="font-size:14px;font-weight:700;color:#eab308">${r.edge.direction} ${r.edge.bookTotal}</div>
+            <div style="font-size:10px;color:var(--text2)">${r.edge.edgeRuns > 0 ? '+' : ''}${r.edge.edgeRuns} runs edge</div>
+          </div>` : ''}
+        </div>`;
+      });
+    } else {
+      html += '<div style="text-align:center;padding:16px;color:var(--text2)">No games to analyze yet. Check back closer to Opening Day!</div>';
+    }
+    
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    const el = document.getElementById('opening-week-unders-content');
+    if (el) el.innerHTML = `<div style="text-align:center;color:var(--text3)">Opening Week analysis unavailable</div>`;
+  }
+}
+
 async function loadOpeningDay() {
   const wrap = document.getElementById('tab-content');
   try {
@@ -1757,6 +1803,24 @@ function renderOpeningDay(data) {
   });
 
   html += `</div></div>`;
+
+  // ==================== OPENING WEEK UNDERS SECTION ====================
+  html += `<div style="background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(234,179,8,0.08));border:2px solid rgba(234,179,8,0.4);border-radius:16px;padding:24px;margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:24px">❄️</span>
+      <div>
+        <div style="font-size:18px;font-weight:800;color:#eab308">OPENING WEEK UNDERS</div>
+        <div style="font-size:12px;color:var(--text2)">Historical edge: Opening Day unders hit 57.3%. Cold parks + ace matchups = 62-65% hit rate.</div>
+      </div>
+    </div>
+    <div id="opening-week-unders-content" style="text-align:center;padding:16px">
+      <div class="spinner"></div>
+      <p style="color:var(--text2);margin-top:8px">Loading Opening Week analysis...</p>
+    </div>
+  </div>`;
+
+  // Load Opening Week Unders data async
+  loadOpeningWeekUnders();
 
   // Roster Changes & New Team Pitchers section
   html += '<div style="background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:24px;margin-bottom:24px">';
@@ -4240,6 +4304,20 @@ async function loadPlayoffsTab() {
       <div id="series-result"></div>
     </div>`;
     
+    // Futures Value section — loads async after main content
+    html += `<div class="card" style="border:1px solid #22c55e">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <h3 style="margin:0;color:#22c55e">💰 Championship Futures Value</h3>
+          <p style="margin:4px 0 0;color:#888;font-size:12px">Model vs sportsbook championship odds • Live from The Odds API</p>
+        </div>
+        <button onclick="loadFuturesValue()" style="padding:6px 14px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:12px">🔄 Scan Futures</button>
+      </div>
+      <div id="futures-value-content">
+        <p style="color:#888;font-size:13px">Click "Scan Futures" to pull live championship odds and find +EV bets across NBA, NHL, and MLB.</p>
+      </div>
+    </div>`;
+    
     // Populate team selects
     wrap.innerHTML = html;
     
@@ -4347,6 +4425,111 @@ async function analyzeSeries() {
     resultDiv.innerHTML = html;
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:#ff4444">Error: ${err.message}</p>`;
+  }
+}
+
+// ==================== FUTURES VALUE SCANNER ====================
+
+async function loadFuturesValue() {
+  const content = document.getElementById('futures-value-content');
+  if (!content) return;
+  content.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:8px;color:#888;font-size:12px">Scanning live championship futures across NBA, NHL, MLB...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/futures/scan?minEdge=0.03&sims=10000`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      content.innerHTML = `<p style="color:#ff4444">Error: ${data.error}</p>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Summary stats
+    const totalBets = data.totalCount || 0;
+    const highConf = data.highConfidence || 0;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px">
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#22c55e">${totalBets}</div>
+        <div style="font-size:10px;color:#888">Value Bets</div>
+      </div>
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#e94560">${highConf}</div>
+        <div style="font-size:10px;color:#888">High Confidence</div>
+      </div>`;
+    
+    // Per-sport summaries
+    for (const sport of ['nba', 'nhl', 'mlb']) {
+      const s = data.sports?.[sport];
+      if (s && !s.error) {
+        html += `<div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:bold;color:#3b82f6">${s.count || 0}</div>
+          <div style="font-size:10px;color:#888">${sport.toUpperCase()} Edges</div>
+        </div>`;
+      }
+    }
+    html += `</div>`;
+    
+    // Value bets table by sport
+    for (const sport of ['nba', 'nhl', 'mlb']) {
+      const s = data.sports?.[sport];
+      if (!s || s.error || !s.valueBets || s.valueBets.length === 0) {
+        if (s?.error) html += `<p style="color:#888;font-size:12px">${sport.toUpperCase()}: ${s.error}</p>`;
+        continue;
+      }
+      
+      const emoji = sport === 'nba' ? '🏀' : sport === 'nhl' ? '🏒' : '⚾';
+      html += `<div style="margin-bottom:16px">
+        <h4 style="margin:0 0 8px;color:#22c55e">${emoji} ${sport.toUpperCase()} Championship Futures</h4>`;
+      
+      if (s.holdPct) html += `<div style="font-size:11px;color:#888;margin-bottom:8px">Market hold: ${s.holdPct} • ${s.books?.length || 0} books • ${s.modelProbCount || 0} teams modeled</div>`;
+      
+      html += `<div style="overflow-x:auto"><table><thead><tr>
+        <th>Team</th><th>Model %</th><th>Book %</th><th>Edge</th><th>Best Odds</th><th>Book</th><th>Kelly</th><th>Wager</th><th>EV</th><th>Conf</th>
+      </tr></thead><tbody>`;
+      
+      for (const bet of s.valueBets) {
+        const edgeColor = bet.edge >= 10 ? '#22c55e' : bet.edge >= 5 ? '#f59e0b' : '#3b82f6';
+        const confColor = bet.confidence === 'HIGH' ? '#22c55e' : bet.confidence === 'MEDIUM' ? '#f59e0b' : '#888';
+        const oddsStr = bet.bestOdds > 0 ? '+' + bet.bestOdds : bet.bestOdds;
+        
+        html += `<tr>
+          <td><strong>${bet.team}</strong> <span style="color:#888;font-size:10px">${bet.teamName}</span></td>
+          <td style="color:#22c55e;font-weight:bold">${bet.modelProb}%</td>
+          <td style="color:#ff4444">${bet.impliedProb}%</td>
+          <td style="color:${edgeColor};font-weight:bold">${bet.edge}%</td>
+          <td style="font-family:monospace;color:${bet.bestOdds > 0 ? '#22c55e' : '#e94560'}">${oddsStr}</td>
+          <td style="font-size:11px;color:#aaa">${bet.bestBook}</td>
+          <td style="font-size:12px">${bet.kellyPct}%</td>
+          <td style="font-weight:bold">$${bet.wager}</td>
+          <td style="color:${bet.expectedValue > 0 ? '#22c55e' : '#ff4444'}">${bet.expectedValue > 0 ? '+' : ''}$${bet.expectedValue}</td>
+          <td style="color:${confColor};font-weight:bold;font-size:11px">${bet.confidence}</td>
+        </tr>`;
+      }
+      
+      html += `</tbody></table></div>`;
+      
+      // Portfolio summary
+      if (s.portfolio) {
+        html += `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;padding:8px;background:var(--bg2);border-radius:8px;font-size:12px">
+          <span>💰 Total Wager: <strong>$${s.portfolio.totalWager}</strong></span>
+          <span>📊 Exposure: <strong>${s.portfolio.exposure}</strong></span>
+          <span>📈 Expected ROI: <strong style="color:#22c55e">${s.portfolio.expectedROI}</strong></span>
+          <span>💵 Expected Value: <strong style="color:#22c55e">+$${s.portfolio.expectedValue}</strong></span>
+        </div>`;
+      }
+      
+      html += `</div>`;
+    }
+    
+    if (totalBets === 0) {
+      html += `<p style="color:#888;font-size:13px">No +EV championship futures found right now. This is normal — check back when lines update.</p>`;
+    }
+    
+    content.innerHTML = html;
+  } catch (err) {
+    content.innerHTML = `<p style="color:#ff4444">Error loading futures: ${err.message}</p>`;
   }
 }
 
@@ -4907,11 +5090,13 @@ function renderFuturesWinTotals(data) {
   html += '<div><h3 style="color:var(--green);margin-bottom:12px">⬆️ OVER Value (${count})</h3>'.replace('${count}', overs.length);
   for (const b of overs) {
     const edgeColor = b.confidence === 'HIGH' ? 'var(--green)' : b.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+    const fgLine = b.fangraphs ? `<div style="font-size:10px;color:${b.fangraphs.startsWith('⚠️') ? '#f59e0b' : '#64748b'};margin-top:2px">${b.fangraphs}</div>` : '';
     html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid var(--green)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <strong>${b.team}</strong> <span style="color:var(--text3);font-size:12px">${b.name}</span>
           <div style="font-size:12px;color:var(--text2);margin-top:2px">${b.bet} | ${b.odds > 0 ? '+' : ''}${b.odds}</div>
+          ${fgLine}
         </div>
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:700;color:${edgeColor}">+${b.edge}%</div>
@@ -4932,11 +5117,13 @@ function renderFuturesWinTotals(data) {
   html += '<div><h3 style="color:var(--red);margin-bottom:12px">⬇️ UNDER Value (${count})</h3>'.replace('${count}', unders.length);
   for (const b of unders) {
     const edgeColor = b.confidence === 'HIGH' ? 'var(--green)' : b.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+    const fgLine = b.fangraphs ? `<div style="font-size:10px;color:${b.fangraphs.startsWith('⚠️') ? '#f59e0b' : '#64748b'};margin-top:2px">${b.fangraphs}</div>` : '';
     html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid var(--red)">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <strong>${b.team}</strong> <span style="color:var(--text3);font-size:12px">${b.name}</span>
           <div style="font-size:12px;color:var(--text2);margin-top:2px">${b.bet} | ${b.odds > 0 ? '+' : ''}${b.odds}</div>
+          ${fgLine}
         </div>
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:700;color:${edgeColor}">+${b.edge}%</div>

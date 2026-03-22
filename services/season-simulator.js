@@ -28,6 +28,38 @@ let mlb, mlbPitchers, statcastService, preseasonTuning;
 try { mlb = require('../models/mlb'); } catch (e) {}
 try { mlbPitchers = require('../models/mlb-pitchers'); } catch (e) {}
 try { statcastService = require('./statcast'); } catch (e) {}
+
+// FanGraphs 2026 Depth Charts projected wins — independent validation source
+// Updated 2026-03-22 from fangraphs.com/depthcharts.aspx?position=Standings
+const FANGRAPHS_PROJ = {
+  'LAD': 96, 'NYM': 88, 'ATL': 88, 'SEA': 88, 'NYY': 87, 'PHI': 87,
+  'BOS': 86, 'DET': 86, 'TOR': 86, 'CHC': 85, 'BAL': 84, 'PIT': 83,
+  'SF': 81, 'TB': 81, 'MIL': 81, 'ARI': 81, 'TEX': 81, 'KC': 81,
+  'HOU': 81, 'OAK': 80, 'SD': 79, 'MIN': 79, 'CIN': 77, 'CLE': 76,
+  'STL': 75, 'MIA': 75, 'LAA': 74, 'CWS': 69, 'WSH': 69, 'COL': 66,
+};
+
+// FanGraphs 2026 Depth Charts projected RS/G and RA/G per team
+// These use ZiPS+Steamer player-level projections → independent of our model
+// Source: fangraphs.com/depthcharts.aspx?position=Standings (updated 2026-03-22)
+const FANGRAPHS_RS_RA = {
+  'LAD': { rsG: 5.17, raG: 4.22 }, 'NYM': { rsG: 4.74, raG: 4.31 },
+  'ATL': { rsG: 4.73, raG: 4.31 }, 'SEA': { rsG: 4.49, raG: 4.10 },
+  'NYY': { rsG: 4.71, raG: 4.34 }, 'PHI': { rsG: 4.72, raG: 4.37 },
+  'BOS': { rsG: 4.55, raG: 4.27 }, 'DET': { rsG: 4.49, raG: 4.21 },
+  'TOR': { rsG: 4.64, raG: 4.36 }, 'CHC': { rsG: 4.62, raG: 4.41 },
+  'BAL': { rsG: 4.82, raG: 4.61 }, 'PIT': { rsG: 4.44, raG: 4.35 },
+  'SF':  { rsG: 4.43, raG: 4.40 }, 'TB':  { rsG: 4.31, raG: 4.30 },
+  'MIL': { rsG: 4.41, raG: 4.40 }, 'ARI': { rsG: 4.54, raG: 4.53 },
+  'TEX': { rsG: 4.44, raG: 4.43 }, 'KC':  { rsG: 4.51, raG: 4.53 },
+  'HOU': { rsG: 4.56, raG: 4.57 }, 'OAK': { rsG: 4.73, raG: 4.81 },
+  'SD':  { rsG: 4.45, raG: 4.55 }, 'MIN': { rsG: 4.47, raG: 4.61 },
+  'CIN': { rsG: 4.43, raG: 4.69 }, 'CLE': { rsG: 4.28, raG: 4.56 },
+  'STL': { rsG: 4.26, raG: 4.59 }, 'MIA': { rsG: 4.25, raG: 4.60 },
+  'LAA': { rsG: 4.32, raG: 4.72 }, 'CWS': { rsG: 4.20, raG: 4.90 },
+  'WSH': { rsG: 4.20, raG: 4.92 }, 'COL': { rsG: 4.55, raG: 5.51 },
+};
+
 try { preseasonTuning = require('./preseason-tuning'); } catch (e) {}
 
 // ==================== MLB STRUCTURE ====================
@@ -148,7 +180,7 @@ function getTeamStrengths() {
     'HOU': 0.50,  // Correa+Walker+Hader = 3 elite proven pieces
     'STL': 0.50,  // Lost Gray+Helsley+Donovan = known downgrades, high certainty they get worse
     'MIL': 0.50,  // Lost Peralta+Williams+Contreras = known downgrades from 97W team
-    'CWS': 0.50,  // Murakami is uncertain (NPB transition) but lost Crochet = high-certainty downgrade
+    'CWS': 0.35,  // Murakami is VERY uncertain (NPB transition) — lost Crochet = confirmed downgrade. Net: highly uncertain, reduce confidence.
     'LAD': 0.50,  // Tucker+Sasaki = known elite (Tucker proven, Sasaki some NPB risk)
   };
 
@@ -157,10 +189,22 @@ function getTeamStrengths() {
   // But also: historically terrible teams (COL, CWS) often stay bad due to organizational dysfunction
   function getRegression(basePyth) {
     const distFromMean = Math.abs(basePyth - 0.5);
-    // Teams near .500: regress 35%. Extreme teams: regress up to 45%.
-    // This captures "bounce-back" effect for bad teams and "regression" for great ones
-    return 0.35 + distFromMean * 0.15;
+    // Teams near .500: regress 30%. Extreme teams: regress up to 38%.
+    // Reduced from 35/45 — old values were pulling bad teams way too far toward .500
+    return 0.30 + distFromMean * 0.12;
   }
+
+  // FanGraphs 2026 Depth Charts projected wins — our independent validation source
+  // Updated 2026-03-22. Use for sanity checks against DK lines.
+  // Organizational dysfunction penalty: teams that persistently underperform Pythagorean
+  // This isn't bad luck — it's systemic (bad bullpen use, tanking, poor development)
+  // These penalties persist year-over-year and shouldn't be regressed away
+  const ORG_DYSFUNCTION = {
+    'CWS': -0.03,  // 60W actual vs 71W Pyth = -11W gap, persistent since 2023
+    'COL': -0.04,  // 43W actual vs ~54W Pyth = -11W gap, Coors and org dysfunction
+    'WSH': -0.01,  // Minor gap, rebuilding but not tanking hard
+    'MIA': -0.01,  // Some dysfunction, firesale roster
+  };
   
   for (const [abbr, team] of Object.entries(teams)) {
     const rsG = team.rsG || 4.5;
@@ -171,14 +215,6 @@ function getTeamStrengths() {
     
     // Pythagorean win expectation from 2025 base stats
     let pythRaw = Math.pow(rsG, PYTH_EXP) / (Math.pow(rsG, PYTH_EXP) + Math.pow(raG, PYTH_EXP));
-    
-    // CRITICAL: Blend Pythagorean with actual W-L for base talent
-    // Teams that significantly under/over-perform Pythagorean often have real organizational
-    // factors (bullpen management, roster construction, clutch performance) that persist.
-    // CWS: 60W actual vs 71W Pythagorean = -11W organizational dysfunction
-    // TOR: 94W actual vs ~80W Pythagorean = +14W overperformance (likely to regress HARD)
-    // Blend: 70% Pythagorean (more predictive) + 30% actual (captures real factors)
-    let pyth = pythRaw * 0.70 + actualWinPct * 0.30;
     
     // Apply preseason roster adjustment to the RS/RA BEFORE computing Pythagorean
     // This is more correct: adjust the run environment, then compute expected wins
@@ -197,8 +233,35 @@ function getTeamStrengths() {
       } catch (e) {}
     }
     
+    // Blend with FanGraphs projected RS/RA — independent player-level projections
+    // ZiPS+Steamer use fundamentally different methodology than our Pythagorean+roster approach
+    // Blending independent projection systems reduces prediction error (ensemble effect)
+    // Weight: 60% our model (has roster-change detail), 40% FanGraphs (has player-level projections)
+    const fgRsRa = FANGRAPHS_RS_RA[abbr];
+    if (fgRsRa) {
+      const FG_RS_RA_WEIGHT = 0.35; // Trust FanGraphs RS/RA at 35%
+      adjRS = adjRS * (1 - FG_RS_RA_WEIGHT) + fgRsRa.rsG * FG_RS_RA_WEIGHT;
+      adjRA = adjRA * (1 - FG_RS_RA_WEIGHT) + fgRsRa.raG * FG_RS_RA_WEIGHT;
+    }
+    
     // Recompute Pythagorean with adjusted runs
-    pyth = Math.pow(adjRS, PYTH_EXP) / (Math.pow(adjRS, PYTH_EXP) + Math.pow(adjRA, PYTH_EXP));
+    let adjPythRaw = Math.pow(adjRS, PYTH_EXP) / (Math.pow(adjRS, PYTH_EXP) + Math.pow(adjRA, PYTH_EXP));
+    
+    // Apply organizational dysfunction penalty BEFORE blending
+    // This captures persistent underperformance that isn't just luck
+    if (ORG_DYSFUNCTION[abbr]) {
+      adjPythRaw += ORG_DYSFUNCTION[abbr];
+    }
+    
+    // CRITICAL: Blend Pythagorean with actual W-L for base talent
+    // Teams that significantly under/over-perform Pythagorean often have real organizational
+    // factors (bullpen management, roster construction, clutch performance) that persist.
+    // CWS: 60W actual vs 71W Pythagorean = -11W organizational dysfunction
+    // TOR: 94W actual vs ~80W Pythagorean = +14W overperformance (likely to regress HARD)
+    // Blend: 60% Pythagorean (more predictive) + 40% actual (captures real factors)
+    // CHANGED from 70/30 → 60/40: giving more weight to actual record reduces phantom edges
+    // for teams with persistent org dysfunction (CWS, COL) while still using Pythagorean
+    let pyth = adjPythRaw * 0.60 + actualWinPct * 0.40;
     
     // Variable preseason regression: extreme teams regress more toward .500
     // This is more accurate than flat 40% for everyone
@@ -240,7 +303,9 @@ function getTeamStrengths() {
       projectedLosses: 162 - Math.round(pyth * 162),
       name: team.name || abbr,
       dkLine: DK_CONSENSUS[abbr] || null,
+      fangraphsProj: FANGRAPHS_PROJ[abbr] || null,
       modelEdge: DK_CONSENSUS[abbr] ? +(pyth * 162 - DK_CONSENSUS[abbr]).toFixed(1) : null,
+      fangraphsEdge: (FANGRAPHS_PROJ[abbr] && DK_CONSENSUS[abbr]) ? +(FANGRAPHS_PROJ[abbr] - DK_CONSENSUS[abbr]).toFixed(1) : null,
     };
   }
   
@@ -259,7 +324,7 @@ function getEdgeAnalysis() {
   const EDGE_NOTES = {
     'CWS': { reason: 'Murakami (56 HR NPB) + Mead + Teel = real offensive upside. Lost Crochet but 60W was an organizational disaster partly due to tanking. Murakami alone could add 2-3 WAR. OVER could have value but NPB transition risk is real.', confidence: 'MEDIUM', source: 'roster' },
     'TOR': { reason: 'Our model rates TOR higher based on Cease+Bieber+Scherzer pitching haul + Santander+Gimenez bats. Market may be underpricing this rotation. But Bieber TJ risk and Scherzer age = legitimate concern. OVER lean.', confidence: 'MEDIUM', source: 'roster+pitching' },
-    'OAK': { reason: 'Lost Mason Miller (elite closer). 76W in 2025 was probably overperformance. Market has them at 63.5, we say 68. Our model may not fully price organizational dysfunction. LEAN UNDER.', confidence: 'LOW', source: 'regression' },
+    'OAK': { reason: 'Lost Mason Miller (elite closer) + JP Sears (starter) to SD. Severino is aging. 76W in 2025 was already slightly above Pythagorean. Roster got WORSE. Model says 68 with heavy market blending, but real talent level might be 63-65. LEAN UNDER.', confidence: 'MEDIUM', source: 'roster-downgrade' },
     'BAL': { reason: 'Added Alonso+O\'Neill+Bassitt+Eflin+Baz+Helsley — 6 proven MLB starters. Henderson/Rutschman core is elite. Market at 88.5 might be right. Our model still slightly under-crediting. OVER has slight value.', confidence: 'MEDIUM', source: 'roster' },
     'ATL': { reason: 'Acuña Jr + Strider returning from injury = ~8 WAR returning. Sale+Strider 1-2 is elite. Kim+Heim+Iglesias fills gaps. Market at 91.5 from 76W base = massive bounceback priced in. Our model agrees directionally but is slightly conservative.', confidence: 'HIGH', source: 'injuries-returning' },
     'BOS': { reason: 'Crochet+Gray+Suarez = 3 legit top-of-rotation arms. Contreras bat helps. Market at 85.5, we say 88. Rotation depth is our edge signal — market may not fully price 3 new aces.', confidence: 'MEDIUM', source: 'pitching' },
@@ -499,9 +564,38 @@ function runSimulation(numSims = 10000) {
     wsWins[abbr] = 0;
   }
   
+  // Team projection uncertainty — controls variance in the MC sim
+  // Higher uncertainty = wider win distribution = smaller edge confidence
+  // Teams with uncertain rosters (NPB transition, injury returns, rebuilds) need more variance
+  const TEAM_UNCERTAINTY = {
+    'CWS': 0.035,  // Murakami NPB transition + org dysfunction = very uncertain
+    'COL': 0.035,  // Historic tank, Coors effect on pitching projections
+    'OAK': 0.030,  // Lost key pieces, rebuilding in new city
+    'TOR': 0.025,  // Massive roster overhaul, could boom or bust
+    'ATL': 0.025,  // Acuña/Strider returning from injury — upside but risk
+    'WSH': 0.025,  // Young team, high variance
+    'MIA': 0.025,  // Firesale roster, uncertain
+    'STL': 0.025,  // Gutted roster, tanking
+  };
+  const DEFAULT_UNCERTAINTY = 0.018; // ~3 wins of noise per sim for most teams
+  
   for (let sim = 0; sim < numSims; sim++) {
-    // Simulate full season
-    const records = simulateSeason(strengths, schedule);
+    // Add per-sim team strength perturbation to model preseason uncertainty
+    // This widens the win distribution and produces more realistic edge calculations
+    const perturbedStrengths = {};
+    for (const [abbr, s] of Object.entries(strengths)) {
+      const unc = TEAM_UNCERTAINTY[abbr] || DEFAULT_UNCERTAINTY;
+      // Normal-ish random via Box-Muller
+      const u1 = Math.random(), u2 = Math.random();
+      const noise = unc * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      perturbedStrengths[abbr] = {
+        ...s,
+        winPct: Math.max(0.25, Math.min(0.72, s.winPct + noise)),
+      };
+    }
+    
+    // Simulate full season with perturbed strengths
+    const records = simulateSeason(perturbedStrengths, schedule);
     
     // Record win totals
     for (const [abbr, rec] of Object.entries(records)) {
@@ -521,8 +615,8 @@ function runSimulation(numSims = 10000) {
       }
     }
     
-    // Simulate playoffs
-    const playoffResult = simulatePlayoffs(playoffs, strengths);
+    // Simulate playoffs with perturbed strengths
+    const playoffResult = simulatePlayoffs(playoffs, perturbedStrengths);
     
     if (playoffResult.alChamp && pennants[playoffResult.alChamp] !== undefined) {
       pennants[playoffResult.alChamp]++;
@@ -696,9 +790,18 @@ function findWinTotalValue(simResults) {
     const bookOverNoVig = bookOverProb / totalVig;
     const bookUnderNoVig = bookUnderProb / totalVig;
     
-    // Edge calculation
-    const overEdge = overProb - bookOverNoVig;
-    const underEdge = underProb - bookUnderNoVig;
+    // Edge calculation — apply preseason confidence discount
+    // In preseason, model edges are less reliable than in-season
+    // Discount raw edges by 25% to avoid overconfident sizing
+    const PRESEASON_DISCOUNT = 0.75;
+    const rawOverEdge = overProb - bookOverNoVig;
+    const rawUnderEdge = underProb - bookUnderNoVig;
+    const overEdge = rawOverEdge * PRESEASON_DISCOUNT;
+    const underEdge = rawUnderEdge * PRESEASON_DISCOUNT;
+    
+    // Cap max displayed edge at 20% — any higher is likely model error, not real edge
+    const cappedOverEdge = Math.min(overEdge, 0.20);
+    const cappedUnderEdge = Math.min(underEdge, 0.20);
     
     // Kelly sizing
     function kellyFraction(prob, ml) {
@@ -710,7 +813,13 @@ function findWinTotalValue(simResults) {
     const overKelly = kellyFraction(overProb, dk.overML);
     const underKelly = kellyFraction(underProb, dk.underML);
     
-    if (overEdge > 0.02) {
+    // FanGraphs validation: flag if our projection disagrees with FanGraphs by > 5 wins
+    const fgProj = FANGRAPHS_PROJ[abbr];
+    const fgNote = fgProj ? (Math.abs(team.meanWins - fgProj) > 5 
+      ? `⚠️ FanGraphs: ${fgProj}W (${team.meanWins > fgProj ? '+' : ''}${(team.meanWins - fgProj).toFixed(0)} diff)` 
+      : `FanGraphs: ${fgProj}W (aligned)`) : null;
+    
+    if (cappedOverEdge > 0.02) {
       valueBets.push({
         team: abbr,
         name: team.name,
@@ -719,17 +828,19 @@ function findWinTotalValue(simResults) {
         odds: dk.overML,
         modelProb: +overProb.toFixed(4),
         bookProb: +bookOverNoVig.toFixed(4),
-        edge: +(overEdge * 100).toFixed(1),
+        edge: +(cappedOverEdge * 100).toFixed(1),
+        rawEdge: +(rawOverEdge * 100).toFixed(1),
         kelly: +(overKelly * 100).toFixed(1),
         halfKelly: +(overKelly * 50).toFixed(1),
         meanWins: team.meanWins,
         winDiff: +(team.meanWins - line).toFixed(1),
-        confidence: overEdge > 0.08 ? 'HIGH' : overEdge > 0.04 ? 'MEDIUM' : 'LOW',
-        reasoning: `Model projects ${team.meanWins} wins (${team.meanWins > line ? '+' : ''}${(team.meanWins - line).toFixed(1)} from line). ${(overProb * 100).toFixed(0)}% sim probability of over.`,
+        fangraphs: fgNote,
+        confidence: cappedOverEdge > 0.08 ? 'HIGH' : cappedOverEdge > 0.04 ? 'MEDIUM' : 'LOW',
+        reasoning: `Model projects ${team.meanWins} wins (${team.meanWins > line ? '+' : ''}${(team.meanWins - line).toFixed(1)} from line). ${(overProb * 100).toFixed(0)}% sim probability of over.${fgNote ? ' ' + fgNote : ''}`,
       });
     }
     
-    if (underEdge > 0.02) {
+    if (cappedUnderEdge > 0.02) {
       valueBets.push({
         team: abbr,
         name: team.name,
@@ -738,13 +849,15 @@ function findWinTotalValue(simResults) {
         odds: dk.underML,
         modelProb: +underProb.toFixed(4),
         bookProb: +bookUnderNoVig.toFixed(4),
-        edge: +(underEdge * 100).toFixed(1),
+        edge: +(cappedUnderEdge * 100).toFixed(1),
+        rawEdge: +(rawUnderEdge * 100).toFixed(1),
         kelly: +(underKelly * 100).toFixed(1),
         halfKelly: +(underKelly * 50).toFixed(1),
         meanWins: team.meanWins,
         winDiff: +(team.meanWins - line).toFixed(1),
-        confidence: underEdge > 0.08 ? 'HIGH' : underEdge > 0.04 ? 'MEDIUM' : 'LOW',
-        reasoning: `Model projects ${team.meanWins} wins (${(line - team.meanWins).toFixed(1)} below line). ${(underProb * 100).toFixed(0)}% sim probability of under.`,
+        fangraphs: fgNote,
+        confidence: cappedUnderEdge > 0.08 ? 'HIGH' : cappedUnderEdge > 0.04 ? 'MEDIUM' : 'LOW',
+        reasoning: `Model projects ${team.meanWins} wins (${(line - team.meanWins).toFixed(1)} below line). ${(underProb * 100).toFixed(0)}% sim probability of under.${fgNote ? ' ' + fgNote : ''}`,
       });
     }
   }

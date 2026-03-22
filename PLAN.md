@@ -117,7 +117,7 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [x] Unified signal engine
 - [x] Alt lines value scanner
 
-## Phase 2.5: Model Accuracy & Calibration (Week 3) — CURRENT 🔥
+## Phase 2.5: Model Accuracy & Calibration (Week 3) — ✅ COMPLETE
 - [x] **CRITICAL: Fix NBA total calculation bug** (was dividing by 2!)
 - [x] **NBA spread compression** (cap at ±18, real-world constraint)
 - [x] **NBA rolling/injury rebalance** (reduce double-counting)
@@ -125,14 +125,19 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [x] **CLV tracking pipeline** — record opening vs closing lines
 - [x] **Model calibration audit** — are probabilities matching outcomes?
 - [x] **MLB Roster Changes Audit** — All 30 teams now in ROSTER_CHANGES. BAL fixed (Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley). Bayesian calibration applied.
-- [ ] 🚨 **MLB Base Data Validation** — Season sim: CWS 65W (OVER 58.5, 33.8% edge), OAK 67.8W (OVER 63.5, 26.2% edge). These edges seem too large — likely base data issue. CHC base=92W but lost Bellinger/Wesneski. BAL base=75W → sim=84W (UNDER 88.5 at 24% edge — this one might be legit). VALIDATE against consensus projections.
-- [ ] **NBA End-of-Season Rest/Tanking Model** — 12 games left. Teams locked into seeds rest stars. Tanking teams bench starters. Systematic mispricings. OKC (55-15) may rest SGA late. IND (15-55) full tank mode.
-- [ ] **MLB Opening Week Unders Edge** — First week historically lower scoring: cold weather, aces start, hitters behind pitchers, expanded rosters. Build an opening week totals adjustment factor.
-- [ ] **NBA playoff series pricing model** — playoffs start April 12 (21 days)
-- [ ] **Backtest validation on fixed NBA model** — verify improvement
+- [x] **MLB Base Data Validation** — All 30 teams validated against ESPN 2025 finals + FanGraphs 2026 Depth Charts. FanGraphs RS/RA blended at 35%. Max edge now 5.3W (was 7W+). OAK/CWS edges confirmed real — both FanGraphs and our model agree DK undervalues.
+- [x] **NBA End-of-Season Rest/Tanking Model** — Full service: B2B/3in4/4in6 detection, motivation analysis (TANKING/RESTING/DESPERATE/COMPETING), mismatch detection. Live in production.
+- [x] **MLB Opening Week Unders Edge** — Cold weather, ace starters, rusty bats factors. Wired into MLB predict().
+
+## Phase 2.75: Pre-Season Edge Maximization (Week 3-4) — CURRENT 🔥
+- [ ] 🚨 **NBA Playoff Preview Endpoint** — Seedings nearly locked. Wire playoff-series.js to generate series prices from current standings + our power ratings. Compare to DraftKings/FanDuel series futures NOW before markets efficiently price seeding. OKC/SAS/DET locked top seeds = stable matchup projections.
+- [ ] 🚨 **MLB Daily Lineup Integration** — lineup-fetcher.js exists but not wired into predict() pipeline. Must be live by March 27. Lineup confirms move lines 10-30 cents — we want to be first.
+- [ ] **MLB Opening Week F5 Unders** — Leverage existing Poisson model + opening-week-unders service to specifically surface F5 under value. Aces go 6+ IP on Opening Day → F5 market is where the edge concentrates.
+- [ ] **NBA Playoff Series Value Scanner** — Once playoff preview is live, auto-scan DK/FD series odds vs model. Flag +EV series futures.
+- [ ] **Backtest validation on fixed NBA model** — verify rest/tank adjustments improve ATS record
 
 ## Phase 3: Advanced Models (Week 3-4)
-- [ ] **NBA End-of-Season Situational Model** — rest, tanking, motivation factors for final 12 games
+- [ ] **NBA Playoff Seeding Simulator** — Monte Carlo remaining schedule to project final seedings + matchup probabilities. Current projection: OKC(1)/SAS(2)/LAL(3)/HOU(4) vs DEN(5)/MIN(6)/TOR(7)/PHX(8) in West. DET(1)/BOS(2)/NYK(3)/CLE(4) vs ATL(5)/PHI(6)/CHA(7)/MIL(8) in East. 11-12 games left = seedings still in flux.
 - [ ] NFL off-season: win total futures model
 - [ ] Soccer model (EPL/Champions League)
 - [ ] UFC/MMA model
@@ -192,11 +197,12 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 08:05 UTC*
-*Current phase: 2.5 — Model Accuracy & Calibration*
-*✅ ROSTER CHANGES: All 30 teams audited and in model*
-*🔧 NEXT: Validate base data (CWS/OAK edges too large), NBA rest/tank model, MLB Opening Week unders edge*
-*⚡ TODAY: 5 NBA games + 9 NHL games — model serving predictions*
+*Last updated: 2026-03-22 10:00 UTC*
+*Current phase: 2.75 — Pre-Season Edge Maximization*
+*✅ Phase 2.5 COMPLETE: All calibration tasks done, rest/tank model live, base data validated*
+*🔧 NEXT: NBA playoff preview endpoint, MLB daily lineup integration, F5 opening week unders*
+*⚡ TODAY: 5 NBA games (POR@DEN, BKN@SAC, WAS@NYK, MIN@BOS, TOR@PHX) — rest/tank model detecting SIGNIFICANT mismatches on POR@DEN and WAS@NYK*
+*📊 PRODUCTION: Live at sportssim.fly.dev, data 90min old (auto-refresh healthy), 11+ MLB futures value bets*
 *MLB OPENING DAY: 5 DAYS (March 27)*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*

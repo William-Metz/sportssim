@@ -1336,7 +1336,39 @@ async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
     } catch (e) { /* lineup data optional */ }
   }
   
-  return predict(awayAbbr, homeAbbr, opts);
+  const result = predict(awayAbbr, homeAbbr, opts);
+  
+  // Apply Opening Week unders adjustment to totals
+  let openingWeekUnders = null;
+  try { openingWeekUnders = require('../services/opening-week-unders'); } catch (e) { /* optional */ }
+  
+  if (openingWeekUnders && result.totalRuns) {
+    const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+    const homeTeam = getTeams()[homeAbbr];
+    const homePark = homeTeam?.park || '';
+    
+    const owAdj = openingWeekUnders.getOpeningWeekAdjustment(gameDate, homePark, {
+      homeStarterTier: opts.homeStarterTier || 3,
+      awayStarterTier: opts.awayStarterTier || 3
+    });
+    
+    if (owAdj.active && owAdj.reduction > 0) {
+      // Adjust the total runs down
+      const adjustedTotal = +(result.totalRuns * (1 - owAdj.reduction)).toFixed(1);
+      result.openingWeek = {
+        active: true,
+        reduction: owAdj.reductionPct,
+        originalTotal: result.totalRuns,
+        adjustedTotal,
+        runsReduced: +(result.totalRuns - adjustedTotal).toFixed(1),
+        factors: owAdj.factors,
+        note: owAdj.note
+      };
+      result.totalRuns = adjustedTotal;
+    }
+  }
+  
+  return result;
 }
 
 /**
