@@ -1,5 +1,485 @@
 {
   "nba": {
+    "CHA": {
+      "l5": {
+        "wins": 4,
+        "losses": 1,
+        "record": "4-1",
+        "avgScored": 121.8,
+        "avgAllowed": 108.4,
+        "diff": 13.4,
+        "winPct": 0.8,
+        "games": 5
+      },
+      "l10": {
+        "wins": 7,
+        "losses": 3,
+        "record": "7-3",
+        "avgScored": 116.6,
+        "avgAllowed": 106.1,
+        "diff": 10.5,
+        "winPct": 0.7,
+        "games": 10
+      },
+      "l15": {
+        "wins": 7,
+        "losses": 3,
+        "record": "7-3",
+        "avgScored": 116.6,
+        "avgAllowed": 106.1,
+        "diff": 10.5,
+        "winPct": 0.7,
+        "games": 10
+      },
+      "momentum": 0.1,
+      "trend": "🔥🔥",
+      "streak": "W3",
+      "rollingOffRating": 4.6,
+      "rollingDefRating": 5.9,
+      "rollingNetRating": 10.5,
+      "recentGames": [
+        {
+          "opponent": "MEM",
+          "scored": 124,
+          "allowed": 101,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "ORL",
+          "scored": 130,
+          "allowed": 111,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "MIA",
+          "scored": 136,
+          "allowed": 106,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-17"
+        },
+        {
+          "opponent": "SAS",
+          "scored": 102,
+          "allowed": 115,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-14"
+        },
+        {
+          "opponent": "SAC",
+          "scored": 117,
+          "allowed": 109,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-12"
+        }
+      ]
+    },
+    "MEM": {
+      "l5": {
+        "wins": 1,
+        "losses": 4,
+        "record": "1-4",
+        "avgScored": 111,
+        "avgAllowed": 123.4,
+        "diff": -12.4,
+        "winPct": 0.2,
+        "games": 5
+      },
+      "l10": {
+        "wins": 1,
+        "losses": 9,
+        "record": "1-9",
+        "avgScored": 114.5,
+        "avgAllowed": 124.7,
+        "diff": -10.2,
+        "winPct": 0.1,
+        "games": 10
+      },
+      "l15": {
+        "wins": 1,
+        "losses": 10,
+        "record": "1-10",
+        "avgScored": 114.1,
+        "avgAllowed": 124,
+        "diff": -9.9,
+        "winPct": 0.091,
+        "games": 11
+      },
+      "momentum": 0.109,
+      "trend": "🧊🧊",
+      "streak": "L2",
+      "rollingOffRating": 2.5,
+      "rollingDefRating": -12.7,
+      "rollingNetRating": -10.2,
+      "recentGames": [
+        {
+          "opponent": "CHA",
+          "scored": 101,
+          "allowed": 124,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "BOS",
+          "scored": 112,
+          "allowed": 117,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "DEN",
+          "scored": 125,
+          "allowed": 118,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "CHI",
+          "scored": 107,
+          "allowed": 132,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-17"
+        },
+        {
+          "opponent": "DET",
+          "scored": 110,
+          "allowed": 126,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-13"
+        }
+      ]
+    },
+    "ORL": {
+      "l5": {
+        "wins": 1,
+        "losses": 4,
+        "record": "1-4",
+        "avgScored": 111.2,
+        "avgAllowed": 117.8,
+        "diff": -6.6,
+        "winPct": 0.2,
+        "games": 5
+      },
+      "l10": {
+        "wins": 6,
+        "losses": 4,
+        "record": "6-4",
+        "avgScored": 118.4,
+        "avgAllowed": 113.9,
+        "diff": 4.5,
+        "winPct": 0.6,
+        "games": 10
+      },
+      "l15": {
+        "wins": 7,
+        "losses": 4,
+        "record": "7-4",
+        "avgScored": 119.1,
+        "avgAllowed": 113.5,
+        "diff": 5.6,
+        "winPct": 0.636,
+        "games": 11
+      },
+      "momentum": -0.436,
+      "trend": "🧊🧊",
+      "streak": "L4",
+      "rollingOffRating": 6.4,
+      "rollingDefRating": -1.9,
+      "rollingNetRating": 4.5,
+      "recentGames": [
+        {
+          "opponent": "LAL",
+          "scored": 104,
+          "allowed": 105,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "CHA",
+          "scored": 111,
+          "allowed": 130,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "OKC",
+          "scored": 108,
+          "allowed": 113,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-17"
+        },
+        {
+          "opponent": "ATL",
+          "scored": 112,
+          "allowed": 124,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-16"
+        },
+        {
+          "opponent": "MIA",
+          "scored": 121,
+          "allowed": 117,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-15"
+        }
+      ]
+    },
+    "LAL": {
+      "l5": {
+        "wins": 5,
+        "losses": 0,
+        "record": "5-0",
+        "avgScored": 118,
+        "avgAllowed": 112.6,
+        "diff": 5.4,
+        "winPct": 1,
+        "games": 5
+      },
+      "l10": {
+        "wins": 9,
+        "losses": 1,
+        "record": "9-1",
+        "avgScored": 120.3,
+        "avgAllowed": 113.3,
+        "diff": 7,
+        "winPct": 0.9,
+        "games": 10
+      },
+      "l15": {
+        "wins": 10,
+        "losses": 1,
+        "record": "10-1",
+        "avgScored": 119.4,
+        "avgAllowed": 112.2,
+        "diff": 7.2,
+        "winPct": 0.909,
+        "games": 11
+      },
+      "momentum": 0.091,
+      "trend": "🔥🔥",
+      "streak": "W9",
+      "rollingOffRating": 8.3,
+      "rollingDefRating": -1.3,
+      "rollingNetRating": 7,
+      "recentGames": [
+        {
+          "opponent": "ORL",
+          "scored": 105,
+          "allowed": 104,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "MIA",
+          "scored": 134,
+          "allowed": 126,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-20"
+        },
+        {
+          "opponent": "HOU",
+          "scored": 124,
+          "allowed": 116,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "HOU",
+          "scored": 100,
+          "allowed": 92,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-17"
+        },
+        {
+          "opponent": "DEN",
+          "scored": 127,
+          "allowed": 125,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-15"
+        }
+      ]
+    },
+    "NOP": {
+      "l5": {
+        "wins": 3,
+        "losses": 2,
+        "record": "3-2",
+        "avgScored": 113.8,
+        "avgAllowed": 107.4,
+        "diff": 6.4,
+        "winPct": 0.6,
+        "games": 5
+      },
+      "l10": {
+        "wins": 6,
+        "losses": 4,
+        "record": "6-4",
+        "avgScored": 117.9,
+        "avgAllowed": 111.7,
+        "diff": 6.2,
+        "winPct": 0.6,
+        "games": 10
+      },
+      "l15": {
+        "wins": 6,
+        "losses": 4,
+        "record": "6-4",
+        "avgScored": 117.9,
+        "avgAllowed": 111.7,
+        "diff": 6.2,
+        "winPct": 0.6,
+        "games": 10
+      },
+      "momentum": 0,
+      "trend": "➡️",
+      "streak": "L1",
+      "rollingOffRating": 5.9,
+      "rollingDefRating": 0.3,
+      "rollingNetRating": 6.2,
+      "recentGames": [
+        {
+          "opponent": "CLE",
+          "scored": 106,
+          "allowed": 111,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "LAC",
+          "scored": 105,
+          "allowed": 99,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-20"
+        },
+        {
+          "opponent": "LAC",
+          "scored": 124,
+          "allowed": 109,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "DAL",
+          "scored": 129,
+          "allowed": 111,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-17"
+        },
+        {
+          "opponent": "HOU",
+          "scored": 105,
+          "allowed": 107,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-14"
+        }
+      ]
+    },
+    "CLE": {
+      "l5": {
+        "wins": 4,
+        "losses": 1,
+        "record": "4-1",
+        "avgScored": 121.4,
+        "avgAllowed": 113.4,
+        "diff": 8,
+        "winPct": 0.8,
+        "games": 5
+      },
+      "l10": {
+        "wins": 6,
+        "losses": 3,
+        "record": "6-3",
+        "avgScored": 117.2,
+        "avgAllowed": 112.7,
+        "diff": 4.5,
+        "winPct": 0.667,
+        "games": 9
+      },
+      "l15": {
+        "wins": 6,
+        "losses": 3,
+        "record": "6-3",
+        "avgScored": 117.2,
+        "avgAllowed": 112.7,
+        "diff": 4.5,
+        "winPct": 0.667,
+        "games": 9
+      },
+      "momentum": 0.133,
+      "trend": "🔥🔥",
+      "streak": "W3",
+      "rollingOffRating": 5.2,
+      "rollingDefRating": -0.7,
+      "rollingNetRating": 4.5,
+      "recentGames": [
+        {
+          "opponent": "NOP",
+          "scored": 111,
+          "allowed": 106,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "CHI",
+          "scored": 115,
+          "allowed": 110,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-20"
+        },
+        {
+          "opponent": "MIL",
+          "scored": 123,
+          "allowed": 116,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-18"
+        },
+        {
+          "opponent": "DAL",
+          "scored": 120,
+          "allowed": 130,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-15"
+        },
+        {
+          "opponent": "DAL",
+          "scored": 138,
+          "allowed": 105,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-13"
+        }
+      ]
+    },
     "WAS": {
       "l5": {
         "wins": 0,
@@ -477,86 +957,6 @@
           "won": true,
           "isHome": true,
           "date": "2026-03-12"
-        }
-      ]
-    },
-    "MEM": {
-      "l5": {
-        "wins": 1,
-        "losses": 4,
-        "record": "1-4",
-        "avgScored": 113.2,
-        "avgAllowed": 122.6,
-        "diff": -9.4,
-        "winPct": 0.2,
-        "games": 5
-      },
-      "l10": {
-        "wins": 1,
-        "losses": 9,
-        "record": "1-9",
-        "avgScored": 115.4,
-        "avgAllowed": 124,
-        "diff": -8.6,
-        "winPct": 0.1,
-        "games": 10
-      },
-      "l15": {
-        "wins": 1,
-        "losses": 9,
-        "record": "1-9",
-        "avgScored": 115.4,
-        "avgAllowed": 124,
-        "diff": -8.6,
-        "winPct": 0.1,
-        "games": 10
-      },
-      "momentum": 0.1,
-      "trend": "🧊🧊",
-      "streak": "L1",
-      "rollingOffRating": 3.4,
-      "rollingDefRating": -12,
-      "rollingNetRating": -8.6,
-      "recentGames": [
-        {
-          "opponent": "BOS",
-          "scored": 112,
-          "allowed": 117,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-21"
-        },
-        {
-          "opponent": "DEN",
-          "scored": 125,
-          "allowed": 118,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "CHI",
-          "scored": 107,
-          "allowed": 132,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-17"
-        },
-        {
-          "opponent": "DET",
-          "scored": 110,
-          "allowed": 126,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-13"
-        },
-        {
-          "opponent": "DAL",
-          "scored": 112,
-          "allowed": 120,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-13"
         }
       ]
     },
@@ -1520,86 +1920,6 @@
         }
       ]
     },
-    "LAL": {
-      "l5": {
-        "wins": 5,
-        "losses": 0,
-        "record": "5-0",
-        "avgScored": 125.4,
-        "avgAllowed": 117.8,
-        "diff": 7.6,
-        "winPct": 1,
-        "games": 5
-      },
-      "l10": {
-        "wins": 9,
-        "losses": 1,
-        "record": "9-1",
-        "avgScored": 120.8,
-        "avgAllowed": 113,
-        "diff": 7.8,
-        "winPct": 0.9,
-        "games": 10
-      },
-      "l15": {
-        "wins": 9,
-        "losses": 1,
-        "record": "9-1",
-        "avgScored": 120.8,
-        "avgAllowed": 113,
-        "diff": 7.8,
-        "winPct": 0.9,
-        "games": 10
-      },
-      "momentum": 0.1,
-      "trend": "🔥🔥",
-      "streak": "W8",
-      "rollingOffRating": 8.8,
-      "rollingDefRating": -1,
-      "rollingNetRating": 7.8,
-      "recentGames": [
-        {
-          "opponent": "MIA",
-          "scored": 134,
-          "allowed": 126,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-20"
-        },
-        {
-          "opponent": "HOU",
-          "scored": 124,
-          "allowed": 116,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "HOU",
-          "scored": 100,
-          "allowed": 92,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-17"
-        },
-        {
-          "opponent": "DEN",
-          "scored": 127,
-          "allowed": 125,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "CHI",
-          "scored": 142,
-          "allowed": 130,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-13"
-        }
-      ]
-    },
     "CHI": {
       "l5": {
         "wins": 1,
@@ -1677,166 +1997,6 @@
           "won": false,
           "isHome": false,
           "date": "2026-03-13"
-        }
-      ]
-    },
-    "CLE": {
-      "l5": {
-        "wins": 3,
-        "losses": 2,
-        "record": "3-2",
-        "avgScored": 123.6,
-        "avgAllowed": 117.8,
-        "diff": 5.8,
-        "winPct": 0.6,
-        "games": 5
-      },
-      "l10": {
-        "wins": 5,
-        "losses": 3,
-        "record": "5-3",
-        "avgScored": 118,
-        "avgAllowed": 113.5,
-        "diff": 4.5,
-        "winPct": 0.625,
-        "games": 8
-      },
-      "l15": {
-        "wins": 5,
-        "losses": 3,
-        "record": "5-3",
-        "avgScored": 118,
-        "avgAllowed": 113.5,
-        "diff": 4.5,
-        "winPct": 0.625,
-        "games": 8
-      },
-      "momentum": -0.025,
-      "trend": "➡️",
-      "streak": "W2",
-      "rollingOffRating": 6,
-      "rollingDefRating": -1.5,
-      "rollingNetRating": 4.5,
-      "recentGames": [
-        {
-          "opponent": "CHI",
-          "scored": 115,
-          "allowed": 110,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-20"
-        },
-        {
-          "opponent": "MIL",
-          "scored": 123,
-          "allowed": 116,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-18"
-        },
-        {
-          "opponent": "DAL",
-          "scored": 120,
-          "allowed": 130,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "DAL",
-          "scored": 138,
-          "allowed": 105,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-13"
-        },
-        {
-          "opponent": "ORL",
-          "scored": 122,
-          "allowed": 128,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-11"
-        }
-      ]
-    },
-    "NOP": {
-      "l5": {
-        "wins": 4,
-        "losses": 1,
-        "record": "4-1",
-        "avgScored": 117,
-        "avgAllowed": 107.4,
-        "diff": 9.6,
-        "winPct": 0.8,
-        "games": 5
-      },
-      "l10": {
-        "wins": 6,
-        "losses": 3,
-        "record": "6-3",
-        "avgScored": 119.2,
-        "avgAllowed": 111.8,
-        "diff": 7.4,
-        "winPct": 0.667,
-        "games": 9
-      },
-      "l15": {
-        "wins": 6,
-        "losses": 3,
-        "record": "6-3",
-        "avgScored": 119.2,
-        "avgAllowed": 111.8,
-        "diff": 7.4,
-        "winPct": 0.667,
-        "games": 9
-      },
-      "momentum": 0.133,
-      "trend": "🔥🔥",
-      "streak": "W3",
-      "rollingOffRating": 7.2,
-      "rollingDefRating": 0.2,
-      "rollingNetRating": 7.4,
-      "recentGames": [
-        {
-          "opponent": "LAC",
-          "scored": 105,
-          "allowed": 99,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-20"
-        },
-        {
-          "opponent": "LAC",
-          "scored": 124,
-          "allowed": 109,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "DAL",
-          "scored": 129,
-          "allowed": 111,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-17"
-        },
-        {
-          "opponent": "HOU",
-          "scored": 105,
-          "allowed": 107,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-14"
-        },
-        {
-          "opponent": "TOR",
-          "scored": 122,
-          "allowed": 111,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-12"
         }
       ]
     },
@@ -2080,166 +2240,6 @@
         }
       ]
     },
-    "CHA": {
-      "l5": {
-        "wins": 4,
-        "losses": 1,
-        "record": "4-1",
-        "avgScored": 117.6,
-        "avgAllowed": 108.4,
-        "diff": 9.2,
-        "winPct": 0.8,
-        "games": 5
-      },
-      "l10": {
-        "wins": 6,
-        "losses": 3,
-        "record": "6-3",
-        "avgScored": 115.8,
-        "avgAllowed": 106.7,
-        "diff": 9.1,
-        "winPct": 0.667,
-        "games": 9
-      },
-      "l15": {
-        "wins": 6,
-        "losses": 3,
-        "record": "6-3",
-        "avgScored": 115.8,
-        "avgAllowed": 106.7,
-        "diff": 9.1,
-        "winPct": 0.667,
-        "games": 9
-      },
-      "momentum": 0.133,
-      "trend": "🔥🔥",
-      "streak": "W2",
-      "rollingOffRating": 3.8,
-      "rollingDefRating": 5.3,
-      "rollingNetRating": 9.1,
-      "recentGames": [
-        {
-          "opponent": "ORL",
-          "scored": 130,
-          "allowed": 111,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "MIA",
-          "scored": 136,
-          "allowed": 106,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-17"
-        },
-        {
-          "opponent": "SAS",
-          "scored": 102,
-          "allowed": 115,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-14"
-        },
-        {
-          "opponent": "SAC",
-          "scored": 117,
-          "allowed": 109,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-12"
-        },
-        {
-          "opponent": "POR",
-          "scored": 103,
-          "allowed": 101,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-11"
-        }
-      ]
-    },
-    "ORL": {
-      "l5": {
-        "wins": 2,
-        "losses": 3,
-        "record": "2-3",
-        "avgScored": 117.6,
-        "avgAllowed": 123,
-        "diff": -5.4,
-        "winPct": 0.4,
-        "games": 5
-      },
-      "l10": {
-        "wins": 7,
-        "losses": 3,
-        "record": "7-3",
-        "avgScored": 120.6,
-        "avgAllowed": 114.3,
-        "diff": 6.3,
-        "winPct": 0.7,
-        "games": 10
-      },
-      "l15": {
-        "wins": 7,
-        "losses": 3,
-        "record": "7-3",
-        "avgScored": 120.6,
-        "avgAllowed": 114.3,
-        "diff": 6.3,
-        "winPct": 0.7,
-        "games": 10
-      },
-      "momentum": -0.3,
-      "trend": "🧊",
-      "streak": "L3",
-      "rollingOffRating": 8.6,
-      "rollingDefRating": -2.3,
-      "rollingNetRating": 6.3,
-      "recentGames": [
-        {
-          "opponent": "CHA",
-          "scored": 111,
-          "allowed": 130,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "OKC",
-          "scored": 108,
-          "allowed": 113,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-17"
-        },
-        {
-          "opponent": "ATL",
-          "scored": 112,
-          "allowed": 124,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-16"
-        },
-        {
-          "opponent": "MIA",
-          "scored": 121,
-          "allowed": 117,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "WAS",
-          "scored": 136,
-          "allowed": 131,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-12"
-        }
-      ]
-    },
     "DAL": {
       "l5": {
         "wins": 2,
@@ -2402,6 +2402,294 @@
     }
   },
   "nhl": {
+    "OTT": {
+      "l5": {
+        "wins": 4,
+        "losses": 1,
+        "otLosses": 0,
+        "record": "4-1-0",
+        "avgScored": 3.6,
+        "avgAllowed": 2.4,
+        "diff": 1.2,
+        "winPct": 0.8,
+        "games": 5
+      },
+      "l10": {
+        "wins": 7,
+        "losses": 3,
+        "otLosses": 1,
+        "record": "7-3-1",
+        "avgScored": 3.7,
+        "avgAllowed": 2.5,
+        "diff": 1.2,
+        "winPct": 0.7,
+        "games": 10
+      },
+      "momentum": 0.1,
+      "trend": "🔥🔥",
+      "streak": "W2",
+      "rollingOffRating": 0.7,
+      "rollingDefRating": 0.5,
+      "rollingNetRating": 1.2,
+      "recentGames": [
+        {
+          "opponent": "TOR",
+          "scored": 5,
+          "allowed": 2,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "NYI",
+          "scored": 3,
+          "allowed": 2,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "WSH",
+          "scored": 1,
+          "allowed": 4,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-18"
+        },
+        {
+          "opponent": "SJS",
+          "scored": 7,
+          "allowed": 4,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-15"
+        },
+        {
+          "opponent": "ANA",
+          "scored": 2,
+          "allowed": 0,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-14"
+        }
+      ]
+    },
+    "TOR": {
+      "l5": {
+        "wins": 1,
+        "losses": 4,
+        "otLosses": 2,
+        "record": "1-4-2",
+        "avgScored": 2.4,
+        "avgAllowed": 3.4,
+        "diff": -1,
+        "winPct": 0.2,
+        "games": 5
+      },
+      "l10": {
+        "wins": 2,
+        "losses": 8,
+        "otLosses": 3,
+        "record": "2-8-3",
+        "avgScored": 2.6,
+        "avgAllowed": 3.9,
+        "diff": -1.3,
+        "winPct": 0.2,
+        "games": 10
+      },
+      "momentum": 0,
+      "trend": "🧊🧊",
+      "streak": "L3",
+      "rollingOffRating": -0.4,
+      "rollingDefRating": -0.9,
+      "rollingNetRating": -1.3,
+      "recentGames": [
+        {
+          "opponent": "OTT",
+          "scored": 2,
+          "allowed": 5,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "CAR",
+          "scored": 3,
+          "allowed": 4,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-20"
+        },
+        {
+          "opponent": "NYI",
+          "scored": 1,
+          "allowed": 3,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-17"
+        },
+        {
+          "opponent": "MIN",
+          "scored": 4,
+          "allowed": 2,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-15"
+        },
+        {
+          "opponent": "BUF",
+          "scored": 2,
+          "allowed": 3,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-14"
+        }
+      ]
+    },
+    "VAN": {
+      "l5": {
+        "wins": 2,
+        "losses": 3,
+        "otLosses": 0,
+        "record": "2-3-0",
+        "avgScored": 2.8,
+        "avgAllowed": 3.8,
+        "diff": -1,
+        "winPct": 0.4,
+        "games": 5
+      },
+      "l10": {
+        "wins": 3,
+        "losses": 7,
+        "otLosses": 1,
+        "record": "3-7-1",
+        "avgScored": 2.7,
+        "avgAllowed": 3.9,
+        "diff": -1.2,
+        "winPct": 0.3,
+        "games": 10
+      },
+      "momentum": 0.1,
+      "trend": "➡️",
+      "streak": "L2",
+      "rollingOffRating": -0.3,
+      "rollingDefRating": -0.9,
+      "rollingNetRating": -1.2,
+      "recentGames": [
+        {
+          "opponent": "STL",
+          "scored": 1,
+          "allowed": 3,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "TBL",
+          "scored": 2,
+          "allowed": 6,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-20"
+        },
+        {
+          "opponent": "FLA",
+          "scored": 5,
+          "allowed": 2,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-18"
+        },
+        {
+          "opponent": "SEA",
+          "scored": 2,
+          "allowed": 5,
+          "won": false,
+          "isHome": true,
+          "date": "2026-03-15"
+        },
+        {
+          "opponent": "NSH",
+          "scored": 4,
+          "allowed": 3,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-13"
+        }
+      ]
+    },
+    "STL": {
+      "l5": {
+        "wins": 3,
+        "losses": 2,
+        "otLosses": 1,
+        "record": "3-2-1",
+        "avgScored": 2.4,
+        "avgAllowed": 1.8,
+        "diff": 0.6,
+        "winPct": 0.6,
+        "games": 5
+      },
+      "l10": {
+        "wins": 6,
+        "losses": 3,
+        "otLosses": 2,
+        "record": "6-3-2",
+        "avgScored": 2.78,
+        "avgAllowed": 1.89,
+        "diff": 0.89,
+        "winPct": 0.667,
+        "games": 9
+      },
+      "momentum": -0.067,
+      "trend": "➡️",
+      "streak": "W1",
+      "rollingOffRating": -0.22,
+      "rollingDefRating": 1.11,
+      "rollingNetRating": 0.89,
+      "recentGames": [
+        {
+          "opponent": "VAN",
+          "scored": 3,
+          "allowed": 1,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-21"
+        },
+        {
+          "opponent": "CGY",
+          "scored": 1,
+          "allowed": 2,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-19"
+        },
+        {
+          "opponent": "WPG",
+          "scored": 2,
+          "allowed": 3,
+          "won": false,
+          "isHome": false,
+          "date": "2026-03-15"
+        },
+        {
+          "opponent": "EDM",
+          "scored": 3,
+          "allowed": 2,
+          "won": true,
+          "isHome": true,
+          "date": "2026-03-14"
+        },
+        {
+          "opponent": "CAR",
+          "scored": 3,
+          "allowed": 1,
+          "won": true,
+          "isHome": false,
+          "date": "2026-03-12"
+        }
+      ]
+    },
     "CBJ": {
       "l5": {
         "wins": 4,
@@ -3698,78 +3986,6 @@
         }
       ]
     },
-    "TOR": {
-      "l5": {
-        "wins": 2,
-        "losses": 3,
-        "otLosses": 2,
-        "record": "2-3-2",
-        "avgScored": 3.2,
-        "avgAllowed": 3.2,
-        "diff": 0,
-        "winPct": 0.4,
-        "games": 5
-      },
-      "l10": {
-        "wins": 2,
-        "losses": 8,
-        "otLosses": 4,
-        "record": "2-8-4",
-        "avgScored": 2.6,
-        "avgAllowed": 3.7,
-        "diff": -1.1,
-        "winPct": 0.2,
-        "games": 10
-      },
-      "momentum": 0.2,
-      "trend": "➡️",
-      "streak": "L2",
-      "rollingOffRating": -0.4,
-      "rollingDefRating": -0.7,
-      "rollingNetRating": -1.1,
-      "recentGames": [
-        {
-          "opponent": "CAR",
-          "scored": 3,
-          "allowed": 4,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-20"
-        },
-        {
-          "opponent": "NYI",
-          "scored": 1,
-          "allowed": 3,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-17"
-        },
-        {
-          "opponent": "MIN",
-          "scored": 4,
-          "allowed": 2,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "BUF",
-          "scored": 2,
-          "allowed": 3,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-14"
-        },
-        {
-          "opponent": "ANA",
-          "scored": 6,
-          "allowed": 4,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-12"
-        }
-      ]
-    },
     "CAR": {
       "l5": {
         "wins": 3,
@@ -3986,78 +4202,6 @@
         }
       ]
     },
-    "VAN": {
-      "l5": {
-        "wins": 2,
-        "losses": 3,
-        "otLosses": 0,
-        "record": "2-3-0",
-        "avgScored": 2.6,
-        "avgAllowed": 3.6,
-        "diff": -1,
-        "winPct": 0.4,
-        "games": 5
-      },
-      "l10": {
-        "wins": 3,
-        "losses": 6,
-        "otLosses": 1,
-        "record": "3-6-1",
-        "avgScored": 2.89,
-        "avgAllowed": 4,
-        "diff": -1.11,
-        "winPct": 0.333,
-        "games": 9
-      },
-      "momentum": 0.067,
-      "trend": "➡️",
-      "streak": "L1",
-      "rollingOffRating": -0.11,
-      "rollingDefRating": -1,
-      "rollingNetRating": -1.11,
-      "recentGames": [
-        {
-          "opponent": "TBL",
-          "scored": 2,
-          "allowed": 6,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-20"
-        },
-        {
-          "opponent": "FLA",
-          "scored": 5,
-          "allowed": 2,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-18"
-        },
-        {
-          "opponent": "SEA",
-          "scored": 2,
-          "allowed": 5,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "NSH",
-          "scored": 4,
-          "allowed": 3,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-13"
-        },
-        {
-          "opponent": "OTT",
-          "scored": 0,
-          "allowed": 2,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-10"
-        }
-      ]
-    },
     "TBL": {
       "l5": {
         "wins": 3,
@@ -4271,78 +4415,6 @@
           "won": false,
           "isHome": true,
           "date": "2026-03-12"
-        }
-      ]
-    },
-    "OTT": {
-      "l5": {
-        "wins": 3,
-        "losses": 2,
-        "otLosses": 0,
-        "record": "3-2-0",
-        "avgScored": 3,
-        "avgAllowed": 2.6,
-        "diff": 0.4,
-        "winPct": 0.6,
-        "games": 5
-      },
-      "l10": {
-        "wins": 6,
-        "losses": 3,
-        "otLosses": 1,
-        "record": "6-3-1",
-        "avgScored": 3.56,
-        "avgAllowed": 2.56,
-        "diff": 1,
-        "winPct": 0.667,
-        "games": 9
-      },
-      "momentum": -0.067,
-      "trend": "➡️",
-      "streak": "W1",
-      "rollingOffRating": 0.56,
-      "rollingDefRating": 0.44,
-      "rollingNetRating": 1,
-      "recentGames": [
-        {
-          "opponent": "NYI",
-          "scored": 3,
-          "allowed": 2,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "WSH",
-          "scored": 1,
-          "allowed": 4,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-18"
-        },
-        {
-          "opponent": "SJS",
-          "scored": 7,
-          "allowed": 4,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "ANA",
-          "scored": 2,
-          "allowed": 0,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-14"
-        },
-        {
-          "opponent": "MTL",
-          "scored": 2,
-          "allowed": 3,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-11"
         }
       ]
     },
@@ -4631,78 +4703,6 @@
           "won": true,
           "isHome": false,
           "date": "2026-03-13"
-        }
-      ]
-    },
-    "STL": {
-      "l5": {
-        "wins": 2,
-        "losses": 3,
-        "otLosses": 2,
-        "record": "2-3-2",
-        "avgScored": 2.4,
-        "avgAllowed": 2.4,
-        "diff": 0,
-        "winPct": 0.4,
-        "games": 5
-      },
-      "l10": {
-        "wins": 5,
-        "losses": 3,
-        "otLosses": 2,
-        "record": "5-3-2",
-        "avgScored": 2.75,
-        "avgAllowed": 2,
-        "diff": 0.75,
-        "winPct": 0.625,
-        "games": 8
-      },
-      "momentum": -0.225,
-      "trend": "🧊",
-      "streak": "L2",
-      "rollingOffRating": -0.25,
-      "rollingDefRating": 1,
-      "rollingNetRating": 0.75,
-      "recentGames": [
-        {
-          "opponent": "CGY",
-          "scored": 1,
-          "allowed": 2,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-19"
-        },
-        {
-          "opponent": "WPG",
-          "scored": 2,
-          "allowed": 3,
-          "won": false,
-          "isHome": false,
-          "date": "2026-03-15"
-        },
-        {
-          "opponent": "EDM",
-          "scored": 3,
-          "allowed": 2,
-          "won": true,
-          "isHome": true,
-          "date": "2026-03-14"
-        },
-        {
-          "opponent": "CAR",
-          "scored": 3,
-          "allowed": 1,
-          "won": true,
-          "isHome": false,
-          "date": "2026-03-12"
-        },
-        {
-          "opponent": "NYI",
-          "scored": 3,
-          "allowed": 4,
-          "won": false,
-          "isHome": true,
-          "date": "2026-03-10"
         }
       ]
     }
@@ -6810,8 +6810,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774138158619,
-    "nhl": 1774138160568,
-    "mlb": 1774138161518
+    "nba": 1774144201031,
+    "nhl": 1774144202818,
+    "mlb": 1774144203951
   }
 }

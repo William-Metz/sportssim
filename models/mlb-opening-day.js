@@ -13,11 +13,13 @@ let injuryService = null;
 let rollingStats = null;
 let restTravel = null;
 let mlbSchedule = null;
+let preseasonTuning = null;
 try { weatherService = require('../services/weather'); } catch (e) {}
 try { injuryService = require('../services/injuries'); } catch (e) {}
 try { rollingStats = require('../services/rolling-stats'); } catch (e) {}
 try { restTravel = require('../services/rest-travel'); } catch (e) {}
 try { mlbSchedule = require('../services/mlb-schedule'); } catch (e) {}
+try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) {}
 
 // ==================== OPENING DAY SCHEDULE ====================
 // Full 2026 Opening Day schedule: March 26-27
@@ -502,6 +504,26 @@ async function getProjections() {
         keyFactors.push(`🏥 ${game.home} missing: ${homeInjuries.starPlayersOut.map(p => p.player).join(', ')}`);
       }
       keyFactors.push('📌 Opening Day: 35% regression to mean (limited sample)');
+      // Add roster change and new-team pitcher factors
+      if (preseasonTuning) {
+        const awayRoster = preseasonTuning.getRosterChangeAdj(game.away);
+        const homeRoster = preseasonTuning.getRosterChangeAdj(game.home);
+        if (awayRoster.rsG_adj !== 0 || awayRoster.raG_adj !== 0) {
+          keyFactors.push(`🔄 ${game.away} roster changes: ${awayRoster.note || 'Offseason moves'}`);
+        }
+        if (homeRoster.rsG_adj !== 0 || homeRoster.raG_adj !== 0) {
+          keyFactors.push(`🔄 ${game.home} roster changes: ${homeRoster.note || 'Offseason moves'}`);
+        }
+        // New team pitcher warnings
+        const awayNewTeam = preseasonTuning.getNewTeamPenalty(awayStarterName);
+        const homeNewTeam = preseasonTuning.getNewTeamPenalty(homeStarterName);
+        if (awayNewTeam > 0) {
+          keyFactors.push(`⚠️ ${awayStarterName} pitching for NEW team (-${(awayNewTeam * 100).toFixed(0)}% performance penalty)`);
+        }
+        if (homeNewTeam > 0) {
+          keyFactors.push(`⚠️ ${homeStarterName} pitching for NEW team (-${(homeNewTeam * 100).toFixed(0)}% performance penalty)`);
+        }
+      }
       if (prediction.monteCarlo) {
         keyFactors.push(`🎲 Monte Carlo: ${(prediction.monteCarlo.homeWinProb * 100).toFixed(1)}% home win (20K sims)`);
       }
@@ -590,6 +612,14 @@ async function getProjections() {
           away: { ...awaySpring, record: awaySTRecord ? `${awaySTRecord.w}-${awaySTRecord.l}` : null },
           home: { ...homeSpring, record: homeSTRecord ? `${homeSTRecord.w}-${homeSTRecord.l}` : null },
         },
+        rosterChanges: preseasonTuning ? {
+          away: preseasonTuning.getRosterChangeAdj(game.away),
+          home: preseasonTuning.getRosterChangeAdj(game.home),
+        } : null,
+        newTeamPitchers: preseasonTuning ? {
+          away: awayStarterName ? { name: awayStarterName, penalty: preseasonTuning.getNewTeamPenalty(awayStarterName) } : null,
+          home: homeStarterName ? { name: homeStarterName, penalty: preseasonTuning.getNewTeamPenalty(homeStarterName) } : null,
+        } : null,
         analysis: {
           favTeam: bestHomeProb > bestAwayProb ? game.home : game.away,
           favProb: +(Math.max(bestHomeProb, bestAwayProb)).toFixed(3),
@@ -703,6 +733,10 @@ async function getProjections() {
     games,
     springTrainingStandings: SPRING_TRAINING_RECORDS,
     features: [
+      '🆕 Preseason tuning v3 — roster changes, spring training signals, new-team pitcher penalties',
+      '🆕 Opening Day starter premium — starters go 5.8 IP vs 5.5 regular season',
+      '🆕 12 offseason roster moves tracked (Crochet→BOS, Ozuna→PIT, Valdez→DET, etc.)',
+      '🆕 8 new-team pitcher penalties for pitchers on new squads',
       '🆕 Real DraftKings opening lines (scraped March 21)',
       '🆕 Model vs Books value detection with EV calculation',
       '🆕 ESPN confirmed starters (as of March 21)',
@@ -717,6 +751,7 @@ async function getProjections() {
       'F5 (first 5 innings) projections',
       'Bullpen fatigue tracking',
       'Probability calibration',
+      'Statcast xERA/xwOBA integration',
     ],
     updated: new Date().toISOString()
   };

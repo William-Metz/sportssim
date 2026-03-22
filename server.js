@@ -37,6 +37,7 @@ const playoffSeries = require('./services/playoff-series');
 const statcast = require('./services/statcast');
 const historicalGames = require('./services/historical-games');
 const polymarketValue = require('./services/polymarket-value');
+const preseasonTuning = require('./services/preseason-tuning');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -100,7 +101,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '30.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v2','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks'] });
+  res.json({ status: 'ok', version: '31.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v2','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -569,6 +570,63 @@ app.get('/api/model/mlb/opening-day', async (req, res) => {
     }
     
     res.json(projections);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== PRESEASON TUNING ENDPOINT ====================
+app.get('/api/model/mlb/preseason-tuning', (req, res) => {
+  try {
+    const team = req.query.team;
+    
+    if (team) {
+      // Single team lookup
+      const abbr = team.toUpperCase();
+      const adjustments = preseasonTuning.getOpeningDayAdjustments(abbr);
+      const bullpenUncertainty = preseasonTuning.getBullpenUncertainty(abbr);
+      const spring = preseasonTuning.SPRING_TRAINING_SIGNALS[abbr] || null;
+      const roster = preseasonTuning.ROSTER_CHANGES[abbr] || null;
+      
+      res.json({
+        team: abbr,
+        adjustments,
+        bullpenUncertainty,
+        springSignal: spring,
+        rosterChanges: roster,
+      });
+    } else {
+      // All teams overview
+      const teams = {};
+      const allTeams = Object.keys(preseasonTuning.SPRING_TRAINING_SIGNALS);
+      
+      for (const abbr of allTeams) {
+        const adj = preseasonTuning.getOpeningDayAdjustments(abbr);
+        const roster = preseasonTuning.ROSTER_CHANGES[abbr];
+        teams[abbr] = {
+          offAdj: adj.offAdj,
+          defAdj: adj.defAdj,
+          chemAdj: adj.chemAdj,
+          spring: adj.info.springSignal ? adj.info.springSignal.note : null,
+          rosterNote: roster ? roster.note : null,
+          moves: roster ? roster.moves : [],
+        };
+      }
+      
+      // Sort by total impact (absolute value of all adjustments)
+      const sorted = Object.entries(teams)
+        .map(([abbr, t]) => ({ abbr, ...t, totalImpact: Math.abs(t.offAdj) + Math.abs(t.defAdj) }))
+        .sort((a, b) => b.totalImpact - a.totalImpact);
+      
+      const newTeamPitchers = Object.entries(preseasonTuning.NEW_TEAM_PITCHERS)
+        .map(([name, info]) => ({ name, ...info }));
+      
+      res.json({
+        title: 'MLB Preseason Tuning Report — Opening Day 2026',
+        description: 'Spring training signals, roster changes, and Opening Day-specific adjustments',
+        teamsWithBiggestChanges: sorted.slice(0, 10),
+        newTeamPitchers,
+        allTeams: teams,
+      });
+    }
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3215,7 +3273,7 @@ app.get('/api/statcast/status', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v26.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v31.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);

@@ -62,11 +62,11 @@
     },
     "CHA": {
       "name": "Charlotte Hornets",
-      "w": 36,
+      "w": 37,
       "l": 34,
-      "ppg": 116,
-      "oppg": 112.2,
-      "diff": 3.8,
+      "ppg": 116.1,
+      "oppg": 112.1,
+      "diff": 4,
       "l10": "7-3",
       "source": "espn-live"
     },
@@ -80,14 +80,14 @@
       "l10": "9-1",
       "source": "espn-live"
     },
-    "MIA": {
-      "name": "Miami Heat",
+    "ORL": {
+      "name": "Orlando Magic",
       "w": 38,
       "l": 32,
-      "ppg": 120.3,
-      "oppg": 117.1,
-      "diff": 3.2,
-      "l10": "7-3",
+      "ppg": 115.3,
+      "oppg": 114.3,
+      "diff": 1,
+      "l10": "6-4",
       "source": "espn-live"
     },
     "PHI": {
@@ -100,13 +100,13 @@
       "l10": "5-5",
       "source": "espn-live"
     },
-    "ORL": {
-      "name": "Orlando Magic",
+    "MIA": {
+      "name": "Miami Heat",
       "w": 38,
-      "l": 31,
-      "ppg": 115.4,
-      "oppg": 114.4,
-      "diff": 1,
+      "l": 32,
+      "ppg": 120.3,
+      "oppg": 117.1,
+      "diff": 3.2,
       "l10": "7-3",
       "source": "espn-live"
     },
@@ -122,12 +122,12 @@
     },
     "CLE": {
       "name": "Cleveland Cavaliers",
-      "w": 43,
+      "w": 44,
       "l": 27,
-      "ppg": 119.1,
-      "oppg": 114.8,
+      "ppg": 119,
+      "oppg": 114.7,
       "diff": 4.3,
-      "l10": "6-4",
+      "l10": "7-3",
       "source": "espn-live"
     },
     "NYK": {
@@ -203,9 +203,9 @@
     "NOP": {
       "name": "New Orleans Pelicans",
       "w": 25,
-      "l": 46,
-      "ppg": 115.6,
-      "oppg": 119.3,
+      "l": 47,
+      "ppg": 115.5,
+      "oppg": 119.2,
       "diff": -3.7,
       "l10": "6-4",
       "source": "espn-live"
@@ -213,10 +213,10 @@
     "MEM": {
       "name": "Memphis Grizzlies",
       "w": 24,
-      "l": 45,
-      "ppg": 115.7,
-      "oppg": 118.6,
-      "diff": -2.9,
+      "l": 46,
+      "ppg": 115.5,
+      "oppg": 118.7,
+      "diff": -3.2,
       "l10": "1-9",
       "source": "espn-live"
     },
@@ -292,11 +292,11 @@
     },
     "LAL": {
       "name": "Los Angeles Lakers",
-      "w": 45,
+      "w": 46,
       "l": 25,
-      "ppg": 116.6,
-      "oppg": 115.1,
-      "diff": 1.5,
+      "ppg": 116.5,
+      "oppg": 114.9,
+      "diff": 1.6,
       "l10": "9-1",
       "source": "espn-live"
     }
@@ -817,21 +817,21 @@
     },
     "STL": {
       "name": "St. Louis Blues",
-      "w": 27,
+      "w": 28,
       "l": 30,
       "otl": 11,
       "gf": 2.62,
-      "ga": 3.29,
-      "gfTotal": 178,
-      "gaTotal": 224,
-      "gp": 68,
-      "l10w": 6,
-      "l10l": 2,
+      "ga": 3.26,
+      "gfTotal": 181,
+      "gaTotal": 225,
+      "gp": 69,
+      "l10w": 7,
+      "l10l": 1,
       "l10otl": 2,
-      "points": 65,
-      "pointPctg": 0.477941,
-      "streak": "OT1",
-      "regulationWins": 24,
+      "points": 67,
+      "pointPctg": 0.485507,
+      "streak": "W1",
+      "regulationWins": 25,
       "source": "nhl-api-live"
     },
     "NYR": {
@@ -894,19 +894,19 @@
     "VAN": {
       "name": "Vancouver Canucks",
       "w": 21,
-      "l": 39,
+      "l": 40,
       "otl": 8,
-      "gf": 2.62,
-      "ga": 3.74,
-      "gfTotal": 178,
-      "gaTotal": 254,
-      "gp": 68,
+      "gf": 2.59,
+      "ga": 3.72,
+      "gfTotal": 179,
+      "gaTotal": 257,
+      "gp": 69,
       "l10w": 3,
       "l10l": 6,
       "l10otl": 1,
       "points": 50,
-      "pointPctg": 0.367647,
-      "streak": "L1",
+      "pointPctg": 0.362319,
+      "streak": "L2",
       "regulationWins": 14,
       "source": "nhl-api-live"
     }
@@ -1244,8 +1244,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774138157474,
-    "nhl": 1774138157722,
-    "mlb": 1774138158125
+    "nba": 1774144199393,
+    "nhl": 1774144199548,
+    "mlb": 1774144199945
   }
 }

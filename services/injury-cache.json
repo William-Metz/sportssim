@@ -52,21 +52,31 @@
       "team": "Brooklyn Nets",
       "injuries": [
         {
+          "player": "Noah Clowney",
+          "position": "F",
+          "status": "Out",
+          "detail": "Clowney (wrist) won't play Sunday in Sacramento, according to Erik Slater of ClutchPoints.com",
+          "returnDate": "2026-03-22T00:37Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
+          "player": "Nic Claxton",
+          "position": "C",
+          "status": "Out",
+          "detail": "Claxton (rest) won't play in Sunday's game in Sacramento, according to Erik Slater of ClutchPoints.com.",
+          "returnDate": "2026-03-22T00:31Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Terance Mann",
           "position": "G",
           "status": "Day-To-Day",
-          "detail": "Mann (illness) is out for Friday's game against the Knicks.",
-          "returnDate": "2026-03-21T03:07Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Noah Clowney",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Clowney (wrist), who's out for Friday's game against the Knicks, is doubtful for Sunday's contest versus the Kings, Brian Lewis of the New York Post reports.",
-          "returnDate": "2026-03-21T03:07Z",
+          "detail": "Mann (illness) is probable for Sunday's game against Sacramento, Erik Slater of ClutchPoints.com reports.",
+          "returnDate": "2026-03-22T00:30Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -103,8 +113,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 2,
+      "outCount": 5,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CHA": {
@@ -267,6 +277,16 @@
       "team": "Dallas Mavericks",
       "injuries": [
         {
+          "player": "Daniel Gafford",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Gafford will start Saturday's game against the Clippers.",
+          "returnDate": "2026-03-22T01:41Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Caleb Martin",
           "position": "F",
           "status": "Out",
@@ -309,7 +329,7 @@
       ],
       "totalImpact": 3.5,
       "outCount": 4,
-      "dtdCount": 0,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Kyrie Irving",
@@ -624,16 +644,6 @@
       "team": "Los Angeles Lakers",
       "injuries": [
         {
-          "player": "Marcus Smart",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Smart subbed out of Saturday's game against Orlando with 9:11 left in the second quarter and went back to the locker room, Dan Woike of The Athletic reports.",
-          "returnDate": "2026-03-21T23:52Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Maxi Kleber",
           "position": "F",
           "status": "Out",
@@ -646,7 +656,7 @@
       ],
       "totalImpact": 0,
       "outCount": 1,
-      "dtdCount": 1,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "MEM": {
@@ -810,24 +820,34 @@
       "team": "Milwaukee Bucks",
       "injuries": [
         {
+          "player": "Bobby Portis",
+          "position": "F",
+          "status": "Out",
+          "detail": "Portis (ribs) is a late scratch for Saturday's game against the Suns.",
+          "returnDate": "2026-03-22T00:39Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Gary Harris",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Harris is questionable to play Saturday against the Suns due to a left groin contusion.",
-          "returnDate": "2026-03-20T23:54Z",
+          "status": "Out",
+          "detail": "Harris (groin) has been ruled out for Saturday's game against the Suns.",
+          "returnDate": "2026-03-22T00:37Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Kevin Porter Jr.",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Porter (knee) is questionable for Saturday's game in Phoenix.",
-          "returnDate": "2026-03-20T23:52Z",
+          "status": "Out",
+          "detail": "Porter (knee) is out for Saturday's game against the Suns.",
+          "returnDate": "2026-03-22T00:37Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Giannis Antetokounmpo",
@@ -841,8 +861,8 @@
         }
       ],
       "totalImpact": 5,
-      "outCount": 1,
-      "dtdCount": 2,
+      "outCount": 4,
+      "dtdCount": 0,
       "starPlayersOut": [
         {
           "player": "Giannis Antetokounmpo",
@@ -1245,34 +1265,24 @@
       "team": "Sacramento Kings",
       "injuries": [
         {
-          "player": "Malik Monk",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Monk won't return to Thursday's game against the 76ers due to a right shoulder injury. He'll finish with four points (1-5 FG, 0-1 3Pt, 2-2 FT), five assists and one rebound in 16 minutes.",
-          "returnDate": "2026-03-20T15:50Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Nique Clifford",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Clifford is out for Thursday's game against the 76ers due to left hamstring soreness.",
-          "returnDate": "2026-03-20T04:35Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Devin Carter",
+          "player": "Russell Westbrook",
           "position": "G",
           "status": "Out",
-          "detail": "Carter (calf) is listed as out for Thursday's game against Philadelphia.",
-          "returnDate": "2026-03-19T00:05Z",
+          "detail": "Westbrook (foot) is out for Sunday's game against the Nets.",
+          "returnDate": "2026-03-22T01:05Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
+        },
+        {
+          "player": "Daeqwon Plowden",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Plowden is listed as questionable for Sunday's game against the Nets due to right foot soreness.",
+          "returnDate": "2026-03-22T01:04Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Drew Eubanks",
@@ -1327,7 +1337,7 @@
       ],
       "totalImpact": 3.5,
       "outCount": 6,
-      "dtdCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Domantas Sabonis",
@@ -1421,16 +1431,6 @@
       "team": "Utah Jazz",
       "injuries": [
         {
-          "player": "John Konchar",
-          "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Konchar (quadriceps) has been upgraded from questionable to probable for Saturday's game against the 76ers, Ben Anderson of KSL News Salt Lake City reports.",
-          "returnDate": "2026-03-21T18:00Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Brice Sensabaugh",
           "position": "F",
           "status": "Out",
@@ -1503,7 +1503,7 @@
       ],
       "totalImpact": 3,
       "outCount": 7,
-      "dtdCount": 1,
+      "dtdCount": 0,
       "starPlayersOut": [
         {
           "player": "Lauri Markkanen",
@@ -2623,6 +2623,16 @@
       "team": "San Jose Sharks",
       "injuries": [
         {
+          "player": "Ryan Reaves",
+          "position": "RW",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T00:26Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Igor Chernyshov",
           "position": "LW",
           "status": "Out",
@@ -2685,7 +2695,7 @@
       ],
       "totalImpact": 0,
       "outCount": 6,
-      "dtdCount": 0,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "SEA": {
@@ -5189,6 +5199,16 @@
       "team": "San Francisco Giants",
       "injuries": [
         {
+          "player": "Hayden Birdsong",
+          "position": "RP",
+          "status": "60-Day-IL",
+          "detail": "The Giants moved Birdsong (forearm) to the 60-day injured list Saturday, Justice delos Santos of The San Jose Mercury News reports.",
+          "returnDate": "2026-03-22T00:06Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Harrison Bader",
           "position": "LF",
           "status": "Day-To-Day",
@@ -5197,16 +5217,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Hayden Birdsong",
-          "position": "RP",
-          "status": "Out",
-          "detail": "Birdsong (forearm/elbow) is scheduled to undergo Tommy John surgery next week, Alex Pavlovic of NBC Sports Bay Area reports.",
-          "returnDate": "2026-03-19T20:46Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Parks Harber",
@@ -5739,8 +5749,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774138157344,
-    "nhl": 1774138157772,
-    "mlb": 1774138157955
+    "nba": 1774143999494,
+    "nhl": 1774143999622,
+    "mlb": 1774143999802
   }
 }

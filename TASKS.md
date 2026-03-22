@@ -12,12 +12,11 @@
 ## Active Sprint
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| 031 | NBA playoff series pricing model | ✅ DONE | P1 | Full MC + binomial series sim, bracket projector, championship odds, series analyzer |
-| 032 | pybaseball Statcast integration | ✅ DONE | P1 | Real Baseball Savant data: 853 pitchers + 651 batters + 30 teams, xERA/xwOBA wired into predictions |
-| 033 | CLV tracking pipeline | ✅ DONE | P1 | Full CLV tracker: auto-records picks, closing lines, auto-grades, tracks edge over time |
-| 034 | Model calibration audit | ✅ DONE | P2 | NBA calibration curve fitted from 176-game 2024-25 backtest, now matches reality |
+| 035 | Polymarket Value Bridge | ✅ DONE | P1 | Model vs market edge detection, cross-market arbitrage, futures value, 6 dashboard sub-tabs |
 | 007 | NBA backtest (500+ games) | 🔄 PARTIAL | P1 | 176 games done, need more data |
 | 022 | NHL backtest expansion | ⏳ QUEUED | P2 | Add more games for validation |
+| 036 | MLB preseason model tuning | ✅ DONE | P1 | Spring training signals, roster changes, new-team pitcher penalties, OD starter premium |
+| 037 | Automated daily scan cron | ⏳ QUEUED | P2 | Auto-run value scans, picks, Polymarket checks daily and cache results |
 
 ## Completed
 | ID | Task | Completed | Result |
@@ -53,6 +52,8 @@
 | 033 | CLV tracking pipeline | 2026-03-21 | Auto-records picks from value detection, records closing lines, auto-grades, tracks edge over time |
 | 034 | Model calibration audit | 2026-03-21 | NBA calibration curve fitted from 176-game backtest — 60% pred → 50% actual, 80% → 87%, 90% → 93% |
 | 032 | Statcast integration | 2026-03-22 | Real Baseball Savant xERA/xwOBA for 853 pitchers + 651 batters + 30 teams. Wired into predict(), pitcherExpectedRA(), dashboard tab. Regression detection for betting edge. |
+| 036 | MLB preseason model tuning | 2026-03-22 | Spring training signals, 12 roster changes, 8 new-team pitcher penalties, OD starter premium (5.8 IP), bullpen uncertainty, preseason-tuning.js service |
+| 035 | Polymarket Value Bridge | 2026-03-22 | Model vs market edge detection, cross-market arbitrage scanner, championship futures value, 6 dashboard sub-tabs, wired into /api/value/all |
 
 ## Backlog
 - NFL win totals futures model
@@ -87,6 +88,8 @@
 | #8 | 2026-03-21 20:00 | **Alt Lines Value Scanner v20.0** — NEW FEATURE: Full alt lines scanner (`services/alt-lines.js`). Uses Poisson score matrix to calculate exact probabilities for ANY line — alt totals (4.5-14.5), alt run lines (-4.5 to +4.5), team totals (0.5-8.5), F5 totals (2.5-8.5), F5 spreads. Live odds scanning via The Odds API to find +EV alt market opportunities. Dashboard "📐 Alt Lines" tab with matchup analyzer (pick any two teams, see all alt line probabilities + sweet spots) and live scan button. Alt markets are less efficiently priced = more edge. API endpoints: `/api/alt-lines/:sport/:away/:home`, `/api/alt-lines/scan/:sport`, `/api/alt-lines/scan`. Task 025 completed. |
 | #9 | 2026-03-21 22:00 | **CRITICAL NBA Model Fix v21.0** — Planning session discovered NBA total calculation bug: `adjTotal = expectedTotal / 2 + paceAdj` was dividing the full game total by 2, outputting ~117 instead of ~233. This caused EVERY NBA total value bet to show as "UNDER" with fake 130+ point edges — completely polluting the value detection API. Fixed formula to `adjTotal = expectedTotal + paceAdj`. Also: added spread compression (cap at ±18 with soft taper beyond), reduced rolling stats double-counting (L10 momentum already in power rating, now 50% weight), capped injury adjustment at 4 pts/team max. MIL without Giannis now shows realistic -16 spread vs PHX instead of absurd -25. Tasks 026, 027 completed. |
 | #10 | 2026-03-21 22:40 | **MLB Poisson + NBA Calibration v23.0** — TWO CRITICAL MODEL FIXES: (1) MLB predict() now uses Poisson-based win probability instead of Log5 — directly models score distributions from expected runs, more accurate for single games. Fixed pitcher RA double-counting: pitcherExpectedRA() returns neutral RA/9, then offense+park applied ONCE. Preseason regression awareness. Tighter probability caps (22-78%). (2) NBA SPREAD_TO_PROB_FACTOR fixed from 7.5→15 — was mapping 16pt spreads to 99.3% instead of real-world 92%. Every NBA value bet was inflated. Also: Opening Day starters fully updated from ESPN (all 11 Day 1 games confirmed), added Misiorowski+Kikuchi to pitcher DB, DK lines for ARI@LAD & CLE@SEA. Tasks 028, 030 completed. |
+| #11 | 2026-03-22 01:20 | **Polymarket Value Bridge v30.0** — NEW SERVICE: `services/polymarket-value.js` bridges our NBA/MLB/NHL model predictions with Polymarket crowd prices to find +EV prediction market bets. Features: (1) Auto-matches Polymarket questions to model predictions via 300+ team aliases. (2) Calculates true edge with Kelly sizing for all +EV bets. (3) Cross-market arbitrage scanner — compares sportsbook lines to Polymarket prices, finds guaranteed profit opportunities. (4) Championship futures value — power rating simulations vs market odds. (5) Wired into `/api/value/all` combined endpoint — Polymarket value bets now appear alongside sportsbook edges. (6) Dashboard Polymarket tab redesigned with 6 sub-tabs: Model Edge (default), Cross-Market Arb, Futures Value, Featured, Movers, Games. API endpoints: `/api/polymarket/value`, `/api/polymarket/arbitrage`, `/api/polymarket/futures-value`. Task 035 completed. |
+| #12 | 2026-03-22 02:00 | **MLB Preseason Tuning v31.0** — OPENING DAY READY: New `services/preseason-tuning.js` wired into MLB model. (1) Spring training signals for all 30 teams — offense/pitching/chemistry ratings weighted at ~3-6% based on team signal strength. (2) 12 key roster changes tracked: Crochet→BOS, Gray→BOS, Peralta→NYM, Ozuna→PIT, Lowe→PIT, Valdez→DET, Kikuchi→LAA, Severino→OAK, Rogers→BAL, Castellanos→SD, and departure impacts. (3) 8 new-team pitcher penalties: pitchers on new teams get 4-6% performance penalty for Opening Day (unfamiliar catchers, new mound, etc.). (4) Opening Day starter premium: starters go 5.8 IP vs 5.5 regular season (bullpens not trusted yet). (5) Bullpen uncertainty ratings by team. (6) All wired into `predict()` — runs automatically during preseason. (7) Dashboard roster changes section added. (8) New API: `/api/model/mlb/preseason-tuning`. Task 036 completed. |
 
 ---
 
@@ -127,6 +130,6 @@
 
 ---
 *Last updated: 2026-03-22*
-*MLB OPENING DAY: 5 DAYS*
+*MLB OPENING DAY: 4 DAYS*
 *NBA PLAYOFFS: 21 DAYS*
-*Next priorities: NHL backtest expansion (022), Polymarket odds integration, Python ML engine training, Dashboard UI improvements*
+*Next priorities: Automated daily scan cron (037), NHL backtest expansion (022), Python ML engine training improvements, Dashboard UI polish*

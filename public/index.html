@@ -1742,6 +1742,50 @@ function renderOpeningDay(data) {
 
   html += `</div></div>`;
 
+  // Roster Changes & New Team Pitchers section
+  html += '<div style="background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(59,130,246,0.02));border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:24px;margin-bottom:24px">';
+  html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">';
+  html += '<span style="font-size:24px">🔄</span>';
+  html += '<div>';
+  html += '<div style="font-size:18px;font-weight:800;color:var(--accent)">KEY ROSTER CHANGES & PRESEASON SIGNALS</div>';
+  html += '<div style="font-size:12px;color:var(--text2)">Major offseason moves affecting Opening Day predictions</div>';
+  html += '</div></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">';
+  
+  // Show games that have roster changes
+  const gamesWithChanges = data.games.filter(g => g.rosterChanges && (g.rosterChanges.away?.note || g.rosterChanges.home?.note));
+  for (const game of gamesWithChanges) {
+    const awayRC = game.rosterChanges ? game.rosterChanges.away : null;
+    const homeRC = game.rosterChanges ? game.rosterChanges.home : null;
+    const awayNTP = game.newTeamPitchers ? game.newTeamPitchers.away : null;
+    const homeNTP = game.newTeamPitchers ? game.newTeamPitchers.home : null;
+    
+    let inner = '';
+    if (awayRC && awayRC.note) {
+      const moveColor = (awayRC.rsG_adj > 0 || awayRC.raG_adj < 0) ? '#22c55e' : (awayRC.rsG_adj < 0 || awayRC.raG_adj > 0) ? '#ef4444' : 'var(--text2)';
+      inner += '<div style="font-size:12px;margin-bottom:6px"><span style="font-weight:700;color:' + moveColor + '">' + game.away + ':</span> ' + awayRC.note + '</div>';
+    }
+    if (homeRC && homeRC.note) {
+      const moveColor = (homeRC.rsG_adj > 0 || homeRC.raG_adj < 0) ? '#22c55e' : (homeRC.rsG_adj < 0 || homeRC.raG_adj > 0) ? '#ef4444' : 'var(--text2)';
+      inner += '<div style="font-size:12px;margin-bottom:6px"><span style="font-weight:700;color:' + moveColor + '">' + game.home + ':</span> ' + homeRC.note + '</div>';
+    }
+    if (awayNTP && awayNTP.penalty > 0) {
+      inner += '<div style="font-size:11px;color:#eab308;margin-top:4px">⚠️ ' + awayNTP.name + ' pitching for NEW team (-' + (awayNTP.penalty*100).toFixed(0) + '%)</div>';
+    }
+    if (homeNTP && homeNTP.penalty > 0) {
+      inner += '<div style="font-size:11px;color:#eab308;margin-top:4px">⚠️ ' + homeNTP.name + ' pitching for NEW team (-' + (homeNTP.penalty*100).toFixed(0) + '%)</div>';
+    }
+    
+    if (inner) {
+      html += '<div style="background:var(--bg2);border-radius:10px;padding:12px">';
+      html += '<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--text)">' + game.away + ' @ ' + game.home + '</div>';
+      html += inner;
+      html += '</div>';
+    }
+  }
+  
+  html += '</div></div>';
+
   // Day 1 and Day 2 headers
   const day1 = data.games.filter(g => g.day === 1);
   const day2 = data.games.filter(g => g.day === 2);

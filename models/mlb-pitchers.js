@@ -17,6 +17,7 @@ const PITCHERS = {
     { name: 'Dean Kremer', team: 'BAL', hand: 'R', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 8.2, bb9: 2.5, hr9: 1.2, ip: 155, war: 1.8 },
     { name: 'Albert Suarez', team: 'BAL', hand: 'R', era: 3.88, fip: 3.75, xfip: 3.82, whip: 1.20, k9: 7.8, bb9: 2.2, hr9: 1.0, ip: 140, war: 2.0 },
     { name: 'Cade Povich', team: 'BAL', hand: 'L', era: 4.35, fip: 4.15, xfip: 4.25, whip: 1.28, k9: 8.5, bb9: 3.0, hr9: 1.1, ip: 130, war: 1.5 },
+    { name: 'Trevor Rogers', team: 'BAL', hand: 'L', era: 1.81, fip: 2.81, xfip: 3.20, whip: 0.90, k9: 8.5, bb9: 2.4, hr9: 0.5, ip: 110, war: 4.5 }, // 2025 breakout with BAL: 9-3, 1.81 ERA in 18 starts — ace-level but only 110 IP (injury concern). Opening Day starter.
   ],
   'BOS': [
     { name: 'Garrett Crochet', team: 'BOS', hand: 'L', era: 3.55, fip: 3.40, xfip: 3.48, whip: 1.08, k9: 12.0, bb9: 2.5, hr9: 0.8, ip: 145, war: 3.5 }, // ACE — acquired from CWS
@@ -38,6 +39,7 @@ const PITCHERS = {
     { name: 'Shane Baz', team: 'TB', hand: 'R', era: 4.15, fip: 3.95, xfip: 4.05, whip: 1.22, k9: 9.8, bb9: 3.0, hr9: 1.1, ip: 130, war: 2.0 },
     { name: 'Taj Bradley', team: 'TB', hand: 'R', era: 4.35, fip: 4.15, xfip: 4.22, whip: 1.25, k9: 9.0, bb9: 3.2, hr9: 1.2, ip: 140, war: 1.5 },
     { name: 'Aaron Civale', team: 'TB', hand: 'R', era: 4.50, fip: 4.30, xfip: 4.38, whip: 1.28, k9: 7.5, bb9: 2.5, hr9: 1.1, ip: 145, war: 1.2 },
+    { name: 'Drew Rasmussen', team: 'TB', hand: 'R', era: 2.76, fip: 3.83, xfip: 3.90, whip: 1.02, k9: 7.6, bb9: 2.2, hr9: 1.1, ip: 150, war: 3.4 }, // 2025 comeback: 10-5, 2.76 ERA in 31 starts. Elite ground ball pitcher. Opening Day starter.
   ],
 
   // ==================== AL CENTRAL ====================
@@ -75,6 +77,7 @@ const PITCHERS = {
     { name: 'Chris Flexen', team: 'CWS', hand: 'R', era: 5.05, fip: 4.82, xfip: 4.90, whip: 1.38, k9: 6.8, bb9: 3.0, hr9: 1.3, ip: 150, war: 0.2 },
     { name: 'Jonathan Cannon', team: 'CWS', hand: 'R', era: 5.22, fip: 4.95, xfip: 5.02, whip: 1.40, k9: 6.5, bb9: 3.2, hr9: 1.4, ip: 130, war: -0.2 },
     { name: 'Drew Thorpe', team: 'CWS', hand: 'R', era: 4.65, fip: 4.42, xfip: 4.50, whip: 1.30, k9: 8.0, bb9: 2.8, hr9: 1.1, ip: 140, war: 1.0 },
+    { name: 'Shane Smith', team: 'CWS', hand: 'R', era: 3.81, fip: 4.09, xfip: 4.15, whip: 1.20, k9: 8.9, bb9: 3.6, hr9: 1.1, ip: 146, war: 3.4 }, // 2025 rookie breakout: 7-8, 3.81 ERA in 29 starts
   ],
 
   // ==================== AL WEST ====================
@@ -113,6 +116,7 @@ const PITCHERS = {
     { name: 'Joey Estes', team: 'OAK', hand: 'R', era: 4.82, fip: 4.58, xfip: 4.65, whip: 1.32, k9: 7.2, bb9: 2.5, hr9: 1.3, ip: 140, war: 0.5 },
     { name: 'Luis Medina', team: 'OAK', hand: 'R', era: 5.15, fip: 4.88, xfip: 4.95, whip: 1.40, k9: 8.5, bb9: 4.0, hr9: 1.2, ip: 120, war: 0.2 },
     { name: 'Osvaldo Bido', team: 'OAK', hand: 'R', era: 4.95, fip: 4.72, xfip: 4.80, whip: 1.35, k9: 7.8, bb9: 3.2, hr9: 1.3, ip: 130, war: 0.5 },
+    { name: 'Luis Severino', team: 'OAK', hand: 'R', era: 4.54, fip: 4.10, xfip: 4.20, whip: 1.30, k9: 6.9, bb9: 2.8, hr9: 0.9, ip: 163, war: 1.3 }, // 2025 with OAK: 8-11, 4.54 ERA in 29 starts. Veteran innings eater. Opening Day starter.
   ],
 
   // ==================== NL EAST ====================
@@ -143,6 +147,7 @@ const PITCHERS = {
     { name: 'Edward Cabrera', team: 'MIA', hand: 'R', era: 4.55, fip: 4.35, xfip: 4.42, whip: 1.30, k9: 9.5, bb9: 3.5, hr9: 1.1, ip: 130, war: 1.0 },
     { name: 'Ryan Weathers', team: 'MIA', hand: 'L', era: 4.82, fip: 4.58, xfip: 4.65, whip: 1.35, k9: 7.8, bb9: 3.2, hr9: 1.2, ip: 120, war: 0.5 },
     { name: 'Max Meyer', team: 'MIA', hand: 'R', era: 4.65, fip: 4.42, xfip: 4.50, whip: 1.28, k9: 8.8, bb9: 3.0, hr9: 1.1, ip: 125, war: 0.8 },
+    { name: 'Sandy Alcantara', team: 'MIA', hand: 'R', era: 5.36, fip: 4.27, xfip: 4.35, whip: 1.27, k9: 7.3, bb9: 2.9, hr9: 1.1, ip: 175, war: 0.5 }, // 2025 return from Tommy John: 11-12, 5.36 ERA in 31 starts. FIP (4.27) much better than ERA — unlucky or still recovering. Former Cy Young winner. Opening Day starter.
   ],
   'WSH': [
     { name: 'MacKenzie Gore', team: 'WSH', hand: 'L', era: 3.72, fip: 3.58, xfip: 3.65, whip: 1.15, k9: 9.5, bb9: 3.0, hr9: 0.9, ip: 170, war: 3.0 },
@@ -150,6 +155,7 @@ const PITCHERS = {
     { name: 'Mitchell Parker', team: 'WSH', hand: 'L', era: 4.35, fip: 4.18, xfip: 4.25, whip: 1.25, k9: 8.5, bb9: 2.8, hr9: 1.0, ip: 150, war: 1.5 },
     { name: 'DJ Herz', team: 'WSH', hand: 'L', era: 4.55, fip: 4.35, xfip: 4.42, whip: 1.28, k9: 10.0, bb9: 3.5, hr9: 1.1, ip: 130, war: 1.2 },
     { name: 'Patrick Corbin', team: 'WSH', hand: 'L', era: 5.22, fip: 4.95, xfip: 5.02, whip: 1.42, k9: 7.0, bb9: 3.0, hr9: 1.5, ip: 155, war: -0.5 },
+    { name: 'Cade Cavalli', team: 'WSH', hand: 'R', era: 4.25, fip: 4.53, xfip: 4.45, whip: 1.48, k9: 7.4, bb9: 2.8, hr9: 1.3, ip: 49, war: -0.2 }, // 2025 rookie: 3-1, 4.25 ERA in 10 starts (48.2 IP). High upside arm, small sample. Opening Day starter.
   ],
 
   // ==================== NL CENTRAL ====================
@@ -206,7 +212,7 @@ const PITCHERS = {
     { name: 'Matt Waldron', team: 'SD', hand: 'R', era: 4.12, fip: 3.95, xfip: 4.02, whip: 1.22, k9: 8.0, bb9: 2.5, hr9: 1.0, ip: 155, war: 2.0 },
   ],
   'ARI': [
-    { name: 'Zac Gallen', team: 'ARI', hand: 'R', era: 3.35, fip: 3.22, xfip: 3.30, whip: 1.08, k9: 9.0, bb9: 2.2, hr9: 0.8, ip: 185, war: 4.5 },
+    { name: 'Zac Gallen', team: 'ARI', hand: 'R', era: 4.83, fip: 4.50, xfip: 4.35, whip: 1.26, k9: 8.2, bb9: 3.1, hr9: 1.5, ip: 192, war: 1.5 }, // 2025 regression: 13-15, 4.83 ERA in 33 starts. FIP 4.50 suggests it's real.
     { name: 'Merrill Kelly', team: 'ARI', hand: 'R', era: 3.62, fip: 3.48, xfip: 3.55, whip: 1.12, k9: 8.5, bb9: 2.0, hr9: 1.0, ip: 180, war: 3.2 },
     { name: 'Brandon Pfaadt', team: 'ARI', hand: 'R', era: 3.88, fip: 3.72, xfip: 3.80, whip: 1.18, k9: 9.2, bb9: 2.5, hr9: 1.1, ip: 175, war: 2.5 },
     { name: 'Eduardo Rodriguez', team: 'ARI', hand: 'L', era: 4.05, fip: 3.88, xfip: 3.95, whip: 1.22, k9: 8.0, bb9: 2.5, hr9: 1.0, ip: 155, war: 2.0 },
@@ -269,18 +275,54 @@ for (const team of Object.keys(PITCHERS)) {
 function getPitcherByName(name) {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
+  
+  // Pass 1: Exact full name match (highest priority)
   for (const team of Object.keys(PITCHERS)) {
     for (const p of PITCHERS[team]) {
-      const pLower = p.name.toLowerCase();
-      // Exact match
-      if (pLower === lower) return { ...p };
-      // Last name match
-      const lastName = pLower.split(' ').pop();
-      if (lastName === lower) return { ...p };
-      // Partial match (contains)
-      if (pLower.includes(lower) || lower.includes(lastName)) return { ...p };
+      if (p.name.toLowerCase() === lower) return { ...p };
     }
   }
+  
+  // Pass 2: Exact last name match (must match full last name)
+  for (const team of Object.keys(PITCHERS)) {
+    for (const p of PITCHERS[team]) {
+      const pParts = p.name.toLowerCase().split(' ');
+      const pLastName = pParts[pParts.length - 1];
+      const inputParts = lower.split(' ');
+      const inputLastName = inputParts[inputParts.length - 1];
+      // Full last name must match exactly
+      if (pLastName === inputLastName && pLastName.length >= 4) return { ...p };
+    }
+  }
+  
+  // Pass 3: First+Last initial match (e.g., "C. Sale" → "Chris Sale")
+  for (const team of Object.keys(PITCHERS)) {
+    for (const p of PITCHERS[team]) {
+      const pParts = p.name.toLowerCase().split(' ');
+      const inputParts = lower.split(' ');
+      if (inputParts.length >= 2 && pParts.length >= 2) {
+        // Check if input is like "c. sale" or "c sale"
+        const inputFirst = inputParts[0].replace('.', '');
+        const inputLast = inputParts[inputParts.length - 1];
+        const pFirst = pParts[0];
+        const pLast = pParts[pParts.length - 1];
+        if (inputFirst.length === 1 && inputFirst === pFirst[0] && inputLast === pLast) {
+          return { ...p };
+        }
+      }
+    }
+  }
+  
+  // Pass 4: If input is a single word (just last name), exact match only
+  if (!lower.includes(' ')) {
+    for (const team of Object.keys(PITCHERS)) {
+      for (const p of PITCHERS[team]) {
+        const pLastName = p.name.toLowerCase().split(' ').pop();
+        if (pLastName === lower) return { ...p };
+      }
+    }
+  }
+  
   return null;
 }
 

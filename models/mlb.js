@@ -1,6 +1,7 @@
-// models/mlb.js — MLB Baseball Model v2.0
+// models/mlb.js — MLB Baseball Model v3.0
 // Pythagorean win expectation, pitcher matchups, park factors, Poisson totals, value detection
-// Enhanced with starting pitcher database integration
+// Enhanced with starting pitcher database integration + Opening Day preseason tuning
+// v3.0: Spring training signals, roster change impact, OD pitcher premium, new-team penalty
 
 const pitchers = require('./mlb-pitchers');
 
@@ -17,12 +18,14 @@ let restTravel = null;
 let monteCarlo = null;
 let umpireService = null;
 let statcastService = null;
+let preseasonTuning = null;
 try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
 try { injuryService = require('../services/injuries'); } catch (e) { /* no injury data */ }
 try { restTravel = require('../services/rest-travel'); } catch (e) { /* no rest/travel */ }
 try { monteCarlo = require('../services/monte-carlo'); } catch (e) { /* no monte carlo */ }
 try { umpireService = require('../services/umpire-tendencies'); } catch (e) { /* no umpire data */ }
 try { statcastService = require('../services/statcast'); } catch (e) { /* no statcast */ }
+try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) { /* no preseason tuning */ }
 
 /**
  * Get current team data — live if available, static fallback
@@ -68,44 +71,45 @@ async function refreshData() {
   }
 }
 
-// All 30 MLB teams — 2025 projected stats
+// All 30 MLB teams — 2026 projected stats (based on 2025 actuals + offseason moves)
+// Updated with real 2025 final standings from StatMuse/ESPN
 const STATIC_TEAMS = {
-  // AL East
-  'NYY': { name: 'New York Yankees', league: 'AL', division: 'East', w: 95, l: 67, rsG: 5.1, raG: 3.8, ops: .763, era: 3.65, whip: 1.22, k9: 9.2, fip: 3.70, bullpenEra: 3.45, babip: .295, park: 'Yankee Stadium', l10: '7-3' },
-  'BAL': { name: 'Baltimore Orioles', league: 'AL', division: 'East', w: 91, l: 71, rsG: 4.8, raG: 3.9, ops: .745, era: 3.78, whip: 1.24, k9: 8.9, fip: 3.82, bullpenEra: 3.55, babip: .290, park: 'Camden Yards', l10: '6-4' },
-  'BOS': { name: 'Boston Red Sox', league: 'AL', division: 'East', w: 85, l: 77, rsG: 4.7, raG: 4.2, ops: .740, era: 4.05, whip: 1.28, k9: 8.5, fip: 4.00, bullpenEra: 3.80, babip: .298, park: 'Fenway Park', l10: '5-5' },
-  'TOR': { name: 'Toronto Blue Jays', league: 'AL', division: 'East', w: 79, l: 83, rsG: 4.3, raG: 4.3, ops: .720, era: 4.15, whip: 1.30, k9: 8.4, fip: 4.10, bullpenEra: 3.90, babip: .292, park: 'Rogers Centre', l10: '4-6' },
-  'TB':  { name: 'Tampa Bay Rays', league: 'AL', division: 'East', w: 76, l: 86, rsG: 4.1, raG: 4.4, ops: .710, era: 4.20, whip: 1.29, k9: 9.0, fip: 4.05, bullpenEra: 3.70, babip: .288, park: 'Tropicana Field', l10: '4-6' },
-  // AL Central
-  'CLE': { name: 'Cleveland Guardians', league: 'AL', division: 'Central', w: 92, l: 70, rsG: 4.5, raG: 3.7, ops: .730, era: 3.55, whip: 1.20, k9: 8.8, fip: 3.60, bullpenEra: 3.30, babip: .285, park: 'Progressive Field', l10: '6-4' },
-  'KC':  { name: 'Kansas City Royals', league: 'AL', division: 'Central', w: 86, l: 76, rsG: 4.6, raG: 4.1, ops: .735, era: 3.95, whip: 1.27, k9: 8.3, fip: 3.90, bullpenEra: 3.65, babip: .293, park: 'Kauffman Stadium', l10: '5-5' },
-  'DET': { name: 'Detroit Tigers', league: 'AL', division: 'Central', w: 82, l: 80, rsG: 4.2, raG: 4.1, ops: .715, era: 3.95, whip: 1.26, k9: 8.6, fip: 3.88, bullpenEra: 3.75, babip: .290, park: 'Comerica Park', l10: '5-5' },
-  'MIN': { name: 'Minnesota Twins', league: 'AL', division: 'Central', w: 80, l: 82, rsG: 4.5, raG: 4.4, ops: .732, era: 4.22, whip: 1.31, k9: 8.4, fip: 4.15, bullpenEra: 3.85, babip: .294, park: 'Target Field', l10: '4-6' },
-  'CWS': { name: 'Chicago White Sox', league: 'AL', division: 'Central', w: 58, l: 104, rsG: 3.6, raG: 5.2, ops: .680, era: 5.00, whip: 1.42, k9: 7.8, fip: 4.85, bullpenEra: 4.50, babip: .300, park: 'Guaranteed Rate Field', l10: '2-8' },
-  // AL West
-  'HOU': { name: 'Houston Astros', league: 'AL', division: 'West', w: 90, l: 72, rsG: 4.9, raG: 3.9, ops: .755, era: 3.75, whip: 1.23, k9: 9.1, fip: 3.72, bullpenEra: 3.50, babip: .292, park: 'Minute Maid Park', l10: '6-4' },
-  'SEA': { name: 'Seattle Mariners', league: 'AL', division: 'West', w: 85, l: 77, rsG: 4.2, raG: 3.8, ops: .718, era: 3.68, whip: 1.22, k9: 9.3, fip: 3.62, bullpenEra: 3.40, babip: .286, park: 'T-Mobile Park', l10: '5-5' },
-  'TEX': { name: 'Texas Rangers', league: 'AL', division: 'West', w: 82, l: 80, rsG: 4.7, raG: 4.3, ops: .742, era: 4.12, whip: 1.29, k9: 8.7, fip: 4.05, bullpenEra: 3.80, babip: .296, park: 'Globe Life Field', l10: '5-5' },
-  'LAA': { name: 'Los Angeles Angels', league: 'AL', division: 'West', w: 73, l: 89, rsG: 4.3, raG: 4.7, ops: .722, era: 4.45, whip: 1.33, k9: 8.2, fip: 4.35, bullpenEra: 4.10, babip: .295, park: 'Angel Stadium', l10: '3-7' },
-  'OAK': { name: 'Oakland Athletics', league: 'AL', division: 'West', w: 65, l: 97, rsG: 3.8, raG: 5.0, ops: .695, era: 4.80, whip: 1.38, k9: 8.0, fip: 4.65, bullpenEra: 4.35, babip: .298, park: 'Coliseum', l10: '3-7' },
-  // NL East
-  'ATL': { name: 'Atlanta Braves', league: 'NL', division: 'East', w: 93, l: 69, rsG: 5.0, raG: 3.8, ops: .758, era: 3.62, whip: 1.21, k9: 9.0, fip: 3.58, bullpenEra: 3.40, babip: .291, park: 'Truist Park', l10: '7-3' },
-  'PHI': { name: 'Philadelphia Phillies', league: 'NL', division: 'East', w: 92, l: 70, rsG: 4.9, raG: 3.9, ops: .752, era: 3.72, whip: 1.23, k9: 9.1, fip: 3.68, bullpenEra: 3.50, babip: .293, park: 'Citizens Bank Park', l10: '6-4' },
-  'NYM': { name: 'New York Mets', league: 'NL', division: 'East', w: 88, l: 74, rsG: 4.7, raG: 4.0, ops: .742, era: 3.85, whip: 1.25, k9: 8.8, fip: 3.80, bullpenEra: 3.55, babip: .290, park: 'Citi Field', l10: '6-4' },
-  'MIA': { name: 'Miami Marlins', league: 'NL', division: 'East', w: 65, l: 97, rsG: 3.7, raG: 4.8, ops: .688, era: 4.62, whip: 1.36, k9: 8.1, fip: 4.50, bullpenEra: 4.20, babip: .296, park: 'LoanDepot Park', l10: '3-7' },
-  'WSH': { name: 'Washington Nationals', league: 'NL', division: 'East', w: 71, l: 91, rsG: 4.0, raG: 4.7, ops: .708, era: 4.48, whip: 1.34, k9: 8.2, fip: 4.40, bullpenEra: 4.15, babip: .294, park: 'Nationals Park', l10: '3-7' },
-  // NL Central
-  'MIL': { name: 'Milwaukee Brewers', league: 'NL', division: 'Central', w: 91, l: 71, rsG: 4.6, raG: 3.8, ops: .738, era: 3.65, whip: 1.22, k9: 9.0, fip: 3.62, bullpenEra: 3.35, babip: .288, park: 'American Family Field', l10: '6-4' },
-  'CHC': { name: 'Chicago Cubs', league: 'NL', division: 'Central', w: 83, l: 79, rsG: 4.5, raG: 4.2, ops: .732, era: 4.02, whip: 1.27, k9: 8.6, fip: 3.95, bullpenEra: 3.70, babip: .292, park: 'Wrigley Field', l10: '5-5' },
-  'STL': { name: 'St. Louis Cardinals', league: 'NL', division: 'Central', w: 78, l: 84, rsG: 4.2, raG: 4.3, ops: .720, era: 4.12, whip: 1.28, k9: 8.5, fip: 4.05, bullpenEra: 3.80, babip: .291, park: 'Busch Stadium', l10: '4-6' },
-  'PIT': { name: 'Pittsburgh Pirates', league: 'NL', division: 'Central', w: 75, l: 87, rsG: 4.0, raG: 4.4, ops: .710, era: 4.22, whip: 1.30, k9: 8.3, fip: 4.15, bullpenEra: 3.90, babip: .293, park: 'PNC Park', l10: '4-6' },
-  'CIN': { name: 'Cincinnati Reds', league: 'NL', division: 'Central', w: 77, l: 85, rsG: 4.4, raG: 4.5, ops: .728, era: 4.30, whip: 1.31, k9: 8.7, fip: 4.20, bullpenEra: 4.00, babip: .297, park: 'Great American Ball Park', l10: '4-6' },
-  // NL West
-  'LAD': { name: 'Los Angeles Dodgers', league: 'NL', division: 'West', w: 98, l: 64, rsG: 5.3, raG: 3.6, ops: .775, era: 3.42, whip: 1.18, k9: 9.5, fip: 3.38, bullpenEra: 3.20, babip: .290, park: 'Dodger Stadium', l10: '8-2' },
-  'SD':  { name: 'San Diego Padres', league: 'NL', division: 'West', w: 88, l: 74, rsG: 4.7, raG: 3.9, ops: .745, era: 3.75, whip: 1.23, k9: 9.2, fip: 3.70, bullpenEra: 3.45, babip: .289, park: 'Petco Park', l10: '6-4' },
-  'ARI': { name: 'Arizona Diamondbacks', league: 'NL', division: 'West', w: 85, l: 77, rsG: 4.8, raG: 4.2, ops: .748, era: 4.02, whip: 1.27, k9: 8.8, fip: 3.95, bullpenEra: 3.65, babip: .295, park: 'Chase Field', l10: '5-5' },
-  'SF':  { name: 'San Francisco Giants', league: 'NL', division: 'West', w: 78, l: 84, rsG: 4.2, raG: 4.3, ops: .718, era: 4.10, whip: 1.28, k9: 8.5, fip: 4.02, bullpenEra: 3.75, babip: .287, park: 'Oracle Park', l10: '4-6' },
-  'COL': { name: 'Colorado Rockies', league: 'NL', division: 'West', w: 62, l: 100, rsG: 4.5, raG: 5.5, ops: .725, era: 5.25, whip: 1.45, k9: 7.5, fip: 5.10, bullpenEra: 4.60, babip: .310, park: 'Coors Field', l10: '2-8' }
+  // AL East — TOR and NYY tied for best, BOS wildcard, BAL fell off, TB/Rays middling
+  'NYY': { name: 'New York Yankees', league: 'AL', division: 'East', w: 94, l: 68, rsG: 5.0, raG: 3.9, ops: .760, era: 3.72, whip: 1.23, k9: 9.2, fip: 3.75, bullpenEra: 3.50, babip: .295, park: 'Yankee Stadium', l10: '7-3' },
+  'BAL': { name: 'Baltimore Orioles', league: 'AL', division: 'East', w: 80, l: 82, rsG: 4.4, raG: 4.4, ops: .730, era: 4.15, whip: 1.27, k9: 8.8, fip: 4.05, bullpenEra: 3.75, babip: .290, park: 'Camden Yards', l10: '4-6' },
+  'BOS': { name: 'Boston Red Sox', league: 'AL', division: 'East', w: 91, l: 71, rsG: 4.8, raG: 4.0, ops: .748, era: 3.85, whip: 1.22, k9: 9.0, fip: 3.80, bullpenEra: 3.55, babip: .292, park: 'Fenway Park', l10: '6-4' },
+  'TOR': { name: 'Toronto Blue Jays', league: 'AL', division: 'East', w: 90, l: 72, rsG: 4.8, raG: 3.9, ops: .742, era: 3.75, whip: 1.22, k9: 8.8, fip: 3.72, bullpenEra: 3.55, babip: .290, park: 'Rogers Centre', l10: '5-5' },
+  'TB':  { name: 'Tampa Bay Rays', league: 'AL', division: 'East', w: 80, l: 82, rsG: 4.2, raG: 4.2, ops: .715, era: 4.05, whip: 1.25, k9: 9.0, fip: 3.95, bullpenEra: 3.65, babip: .288, park: 'Tropicana Field', l10: '4-6' },
+  // AL Central — CLE won div, DET wildcard, KC solid, MIN/CWS bottom
+  'CLE': { name: 'Cleveland Guardians', league: 'AL', division: 'Central', w: 87, l: 75, rsG: 4.3, raG: 3.9, ops: .720, era: 3.70, whip: 1.22, k9: 8.8, fip: 3.68, bullpenEra: 3.40, babip: .285, park: 'Progressive Field', l10: '6-4' },
+  'KC':  { name: 'Kansas City Royals', league: 'AL', division: 'Central', w: 83, l: 79, rsG: 4.4, raG: 4.2, ops: .728, era: 4.00, whip: 1.27, k9: 8.3, fip: 3.95, bullpenEra: 3.70, babip: .293, park: 'Kauffman Stadium', l10: '5-5' },
+  'DET': { name: 'Detroit Tigers', league: 'AL', division: 'Central', w: 86, l: 76, rsG: 4.2, raG: 3.9, ops: .718, era: 3.78, whip: 1.22, k9: 8.8, fip: 3.72, bullpenEra: 3.55, babip: .288, park: 'Comerica Park', l10: '5-5' },
+  'MIN': { name: 'Minnesota Twins', league: 'AL', division: 'Central', w: 74, l: 88, rsG: 4.3, raG: 4.6, ops: .725, era: 4.35, whip: 1.32, k9: 8.2, fip: 4.25, bullpenEra: 3.95, babip: .294, park: 'Target Field', l10: '4-6' },
+  'CWS': { name: 'Chicago White Sox', league: 'AL', division: 'Central', w: 64, l: 98, rsG: 3.8, raG: 5.0, ops: .690, era: 4.85, whip: 1.40, k9: 7.8, fip: 4.70, bullpenEra: 4.40, babip: .300, park: 'Guaranteed Rate Field', l10: '3-7' },
+  // AL West — SEA won div, HOU wildcard-level, TEX .500, OAK/LAA rebuilding
+  'HOU': { name: 'Houston Astros', league: 'AL', division: 'West', w: 87, l: 75, rsG: 4.7, raG: 4.0, ops: .745, era: 3.82, whip: 1.25, k9: 8.8, fip: 3.78, bullpenEra: 3.55, babip: .292, park: 'Minute Maid Park', l10: '5-5' },
+  'SEA': { name: 'Seattle Mariners', league: 'AL', division: 'West', w: 89, l: 73, rsG: 4.3, raG: 3.7, ops: .722, era: 3.55, whip: 1.18, k9: 9.3, fip: 3.52, bullpenEra: 3.30, babip: .286, park: 'T-Mobile Park', l10: '6-4' },
+  'TEX': { name: 'Texas Rangers', league: 'AL', division: 'West', w: 81, l: 81, rsG: 4.5, raG: 4.3, ops: .735, era: 4.10, whip: 1.28, k9: 8.5, fip: 4.05, bullpenEra: 3.80, babip: .296, park: 'Globe Life Field', l10: '5-5' },
+  'LAA': { name: 'Los Angeles Angels', league: 'AL', division: 'West', w: 73, l: 89, rsG: 4.1, raG: 4.6, ops: .715, era: 4.40, whip: 1.32, k9: 8.2, fip: 4.30, bullpenEra: 4.05, babip: .295, park: 'Angel Stadium', l10: '3-7' },
+  'OAK': { name: 'Oakland Athletics', league: 'AL', division: 'West', w: 76, l: 86, rsG: 4.0, raG: 4.4, ops: .708, era: 4.25, whip: 1.30, k9: 8.2, fip: 4.18, bullpenEra: 3.90, babip: .290, park: 'Coliseum', l10: '4-6' },
+  // NL East — PHI won div, NYM/MIA middle, ATL/WSH down
+  'ATL': { name: 'Atlanta Braves', league: 'NL', division: 'East', w: 82, l: 80, rsG: 4.6, raG: 4.3, ops: .738, era: 4.08, whip: 1.25, k9: 8.8, fip: 3.98, bullpenEra: 3.70, babip: .291, park: 'Truist Park', l10: '5-5' },
+  'PHI': { name: 'Philadelphia Phillies', league: 'NL', division: 'East', w: 94, l: 68, rsG: 5.0, raG: 3.8, ops: .758, era: 3.62, whip: 1.20, k9: 9.2, fip: 3.58, bullpenEra: 3.40, babip: .291, park: 'Citizens Bank Park', l10: '6-4' },
+  'NYM': { name: 'New York Mets', league: 'NL', division: 'East', w: 85, l: 77, rsG: 4.5, raG: 4.1, ops: .738, era: 3.92, whip: 1.25, k9: 8.7, fip: 3.88, bullpenEra: 3.60, babip: .290, park: 'Citi Field', l10: '5-5' },
+  'MIA': { name: 'Miami Marlins', league: 'NL', division: 'East', w: 78, l: 84, rsG: 4.0, raG: 4.3, ops: .710, era: 4.12, whip: 1.28, k9: 8.5, fip: 4.05, bullpenEra: 3.80, babip: .290, park: 'LoanDepot Park', l10: '5-5' },
+  'WSH': { name: 'Washington Nationals', league: 'NL', division: 'East', w: 70, l: 92, rsG: 4.0, raG: 4.8, ops: .710, era: 4.55, whip: 1.35, k9: 8.2, fip: 4.45, bullpenEra: 4.20, babip: .294, park: 'Nationals Park', l10: '3-7' },
+  // NL Central — MIL dominant, CHC strong wildcard, CIN borderline, STL/PIT rebuilding
+  'MIL': { name: 'Milwaukee Brewers', league: 'NL', division: 'Central', w: 93, l: 69, rsG: 4.6, raG: 3.6, ops: .738, era: 3.45, whip: 1.18, k9: 9.2, fip: 3.42, bullpenEra: 3.20, babip: .288, park: 'American Family Field', l10: '6-4' },
+  'CHC': { name: 'Chicago Cubs', league: 'NL', division: 'Central', w: 90, l: 72, rsG: 4.7, raG: 4.0, ops: .740, era: 3.82, whip: 1.23, k9: 8.8, fip: 3.78, bullpenEra: 3.55, babip: .292, park: 'Wrigley Field', l10: '5-5' },
+  'STL': { name: 'St. Louis Cardinals', league: 'NL', division: 'Central', w: 77, l: 85, rsG: 4.1, raG: 4.4, ops: .718, era: 4.18, whip: 1.29, k9: 8.3, fip: 4.10, bullpenEra: 3.85, babip: .291, park: 'Busch Stadium', l10: '4-6' },
+  'PIT': { name: 'Pittsburgh Pirates', league: 'NL', division: 'Central', w: 76, l: 86, rsG: 4.2, raG: 4.5, ops: .720, era: 4.25, whip: 1.30, k9: 8.5, fip: 4.15, bullpenEra: 3.90, babip: .293, park: 'PNC Park', l10: '4-6' },
+  'CIN': { name: 'Cincinnati Reds', league: 'NL', division: 'Central', w: 84, l: 78, rsG: 4.6, raG: 4.3, ops: .738, era: 4.10, whip: 1.27, k9: 8.8, fip: 4.02, bullpenEra: 3.80, babip: .295, park: 'Great American Ball Park', l10: '5-5' },
+  // NL West — LAD won div, SD wildcard, SF .500, ARI down, COL terrible
+  'LAD': { name: 'Los Angeles Dodgers', league: 'NL', division: 'West', w: 96, l: 66, rsG: 5.2, raG: 3.7, ops: .772, era: 3.48, whip: 1.18, k9: 9.5, fip: 3.42, bullpenEra: 3.25, babip: .290, park: 'Dodger Stadium', l10: '7-3' },
+  'SD':  { name: 'San Diego Padres', league: 'NL', division: 'West', w: 89, l: 73, rsG: 4.6, raG: 3.8, ops: .742, era: 3.68, whip: 1.20, k9: 9.2, fip: 3.65, bullpenEra: 3.40, babip: .289, park: 'Petco Park', l10: '6-4' },
+  'ARI': { name: 'Arizona Diamondbacks', league: 'NL', division: 'West', w: 80, l: 82, rsG: 4.5, raG: 4.4, ops: .735, era: 4.15, whip: 1.28, k9: 8.5, fip: 4.08, bullpenEra: 3.75, babip: .295, park: 'Chase Field', l10: '4-6' },
+  'SF':  { name: 'San Francisco Giants', league: 'NL', division: 'West', w: 82, l: 80, rsG: 4.3, raG: 4.2, ops: .722, era: 4.00, whip: 1.25, k9: 8.5, fip: 3.95, bullpenEra: 3.70, babip: .287, park: 'Oracle Park', l10: '5-5' },
+  'COL': { name: 'Colorado Rockies', league: 'NL', division: 'West', w: 52, l: 110, rsG: 4.2, raG: 5.8, ops: .710, era: 5.50, whip: 1.48, k9: 7.2, fip: 5.30, bullpenEra: 4.80, babip: .310, park: 'Coors Field', l10: '2-8' }
 };
 
 // TEAMS is a dynamic getter — returns live data when available
@@ -145,22 +149,44 @@ const HOME_ADV = 0.540; // 54% historical home win rate in MLB
 // This prevents overconfident bets on Opening Day.
 function getEarlySeasonRegression(teamData) {
   // Check if this is real regular season data vs preseason projections
-  // Preseason projected teams have round W/L numbers (e.g., 93-69, 86-76)
-  // and rsG/raG from projections, not actual games
   const gp = (teamData.w || 0) + (teamData.l || 0);
   
   // If the team has played a full 162-game season worth of projected data,
   // check if it's actually a projection by seeing if we're near Opening Day
-  // Heuristic: if W + L > 130 and it's clearly not mid-season data (no l10 pattern from real games),
-  // treat as projections with ~20% regression (less certain than in-season data)
   const isProjection = gp >= 130 && !teamData._isLiveData;
   
-  if (isProjection) return 0.20; // 20% regression for preseason projections
+  if (isProjection) return 0.22; // 22% regression for preseason projections
   
   if (gp >= 40) return 0; // full confidence after 40 real games
   if (gp === 0) return 0.35; // truly no data: 35% regression
   // Linear ramp: 35% at 0 games → 0% at 40 games
   return Math.max(0, 0.35 * (1 - gp / 40));
+}
+
+// ==================== OPENING DAY CONFIDENCE ====================
+// On Opening Day (and early season), predictions should have WIDER error bars.
+// Teams haven't established patterns yet — preseason projections have known flaws:
+// - Spring training lineups != Opening Day lineups
+// - Roster moves, new acquisitions haven't been tested in real games
+// - Bullpen roles not established
+// - Hitter timing still not game-ready
+// This function returns a confidence multiplier for edge calculations
+function getPreseasonConfidence(awayTeam, homeTeam) {
+  const awayGP = (awayTeam.w || 0) + (awayTeam.l || 0);
+  const homeGP = (homeTeam.w || 0) + (homeTeam.l || 0);
+  const isAPreseason = awayGP >= 130 && !awayTeam._isLiveData;
+  const isHPreseason = homeGP >= 130 && !homeTeam._isLiveData;
+  
+  if (isAPreseason || isHPreseason) {
+    // Opening Day / preseason: predictions are less reliable
+    // Return a confidence factor (0-1) that should be used to shrink edges
+    return 0.75; // 75% confidence — edges should be reduced by 25%
+  }
+  
+  // Early season with some real data
+  const minGP = Math.min(awayGP, homeGP);
+  if (minGP < 20) return Math.min(1.0, 0.75 + minGP * 0.0125);
+  return 1.0;
 }
 
 // ==================== PLATOON SPLITS ====================
@@ -268,17 +294,22 @@ function resolvePitcher(pitcherInput, teamAbbr) {
   
   // If it's a string name, look up in DB
   if (typeof pitcherInput === 'string') {
-    // Try exact lookup first
+    // Try exact lookup first (using improved getPitcherByName)
     let p = pitchers.getPitcherByName(pitcherInput);
     if (p) return p;
     
-    // Try team-specific search
+    // Try team-specific search with stricter matching
     const rotation = pitchers.getTeamRotation(teamAbbr);
     if (rotation) {
       const lower = pitcherInput.toLowerCase().trim();
       for (const rp of rotation) {
         const rpLower = rp.name.toLowerCase();
-        if (rpLower.includes(lower) || lower.includes(rpLower.split(' ').pop())) return { ...rp };
+        // Exact full name
+        if (rpLower === lower) return { ...rp };
+        // Exact last name match (full last name must match)
+        const rpLastName = rpLower.split(' ').pop();
+        const inputLastName = lower.split(' ').pop();
+        if (rpLastName === inputLastName && rpLastName.length >= 4) return { ...rp };
       }
     }
     return null;
@@ -301,6 +332,15 @@ function pitcherExpectedRA(pitcher, opposingTeam, parkFactor) {
   
   // Base predictive RA: weight FIP/xFIP more than ERA (more predictive)
   let pitcherRA = pFip * 0.35 + pXfip * 0.35 + pEra * 0.30;
+  
+  // Small sample size regression: pitchers with < 150 IP should regress toward league avg
+  // This catches breakout pitchers on small samples (e.g., 1.81 ERA in 110 IP)
+  // and prevents overconfidence on guys with extreme results in limited innings
+  const ip = pitcher.ip || 150; // default to full workload if unknown
+  if (ip < 150) {
+    const regressionFactor = Math.max(0, (150 - ip) / 150) * 0.25; // max 25% regression at 0 IP
+    pitcherRA = pitcherRA * (1 - regressionFactor) + LG_AVG.fip * regressionFactor;
+  }
   
   // Statcast enhancement: if we have xERA data, blend it in
   // xERA is based on exit velocity, launch angle, and barrel rate — 
@@ -353,15 +393,19 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     (opts.homePitcherEra || opts.homePitcherFip ? { era: opts.homePitcherEra, fip: opts.homePitcherFip, xfip: opts.homePitcherFip, whip: opts.homePitcherWhip } : null);
   
   // Calculate expected runs
+  // On Opening Day / preseason, starters go deeper (~5.8 IP vs 5.5 regular season)
+  const isPreseasonPredict = getEarlySeasonRegression(away) > 0 || getEarlySeasonRegression(home) > 0;
+  const starterIP = (isPreseasonPredict && preseasonTuning) ? preseasonTuning.getOpeningDayStarterFraction(true) * 9 : 5.5;
+  const bullpenIP = 9 - starterIP;
   let awayRaG, homeRaG;
   
   if (homePitcher) {
     // Home pitcher faces away offense — how many runs does the away team score?
     // pitcherExpectedRA returns NEUTRAL pitcher RA/9 (no offense/park adjustments)
     const homePitcherRA = pitcherExpectedRA(homePitcher, away, pf);
-    // Blend: starter covers ~5.5 innings, bullpen covers ~3.5
-    const starterRuns = (homePitcherRA / 9) * 5.5;
-    const bullpenRuns = (home.bullpenEra / 9) * 3.5;
+    // Blend: starter covers starterIP innings, bullpen covers bullpenIP
+    const starterRuns = (homePitcherRA / 9) * starterIP;
+    const bullpenRuns = (home.bullpenEra / 9) * bullpenIP;
     const blendedRaG = starterRuns + bullpenRuns;
     // Apply offense quality modifier ONCE and park factor ONCE
     const offMod = away.rsG / LG_AVG.rsG;
@@ -372,8 +416,8 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   
   if (awayPitcher) {
     const awayPitcherRA = pitcherExpectedRA(awayPitcher, home, pf);
-    const starterRuns = (awayPitcherRA / 9) * 5.5;
-    const bullpenRuns = (away.bullpenEra / 9) * 3.5;
+    const starterRuns = (awayPitcherRA / 9) * starterIP;
+    const bullpenRuns = (away.bullpenEra / 9) * bullpenIP;
     const blendedRaG = starterRuns + bullpenRuns;
     const offMod = home.rsG / LG_AVG.rsG;
     homeRaG = blendedRaG * offMod * pf;
@@ -588,6 +632,73 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     }
   }
 
+  // ==================== PRESEASON TUNING ADJUSTMENTS ====================
+  // Spring training signals, roster changes, new-team pitcher penalties, OD factors
+  let awayPreseasonInfo = null, homePreseasonInfo = null;
+  if (preseasonTuning && isPreseason) {
+    // Get Opening Day adjustments for both teams
+    const awayODA = preseasonTuning.getOpeningDayAdjustments(awayAbbr, false);
+    const homeODA = preseasonTuning.getOpeningDayAdjustments(homeAbbr, true);
+    
+    // Apply roster change + spring training adjustments to expected runs
+    // awayRaG = runs the away team is expected to score
+    // awayODA.offAdj = offensive boost for away team (positive = more runs)
+    // awayODA.defAdj = defensive degradation for away team (positive = allows more runs, affects opponent)
+    awayRaG += awayODA.offAdj; // Away team scores more/less based on roster+spring offense
+    homeRaG += homeODA.offAdj; // Home team scores more/less
+    
+    // Defensive adjustments affect the OTHER team's scoring
+    awayRaG += homeODA.defAdj; // If home team pitching got worse (positive defAdj), away scores more
+    homeRaG += awayODA.defAdj; // If away team pitching got worse, home scores more
+    
+    // Chemistry adjustment (very small)
+    awayRaG += awayODA.chemAdj;
+    homeRaG += homeODA.chemAdj;
+    
+    // New-team pitcher penalty: pitchers on new teams perform ~5-8% worse
+    // This worsens the pitcher's effective RA, meaning opponent scores more
+    if (awayPitcher && awayPitcher.name) {
+      const awayNewTeamPenalty = preseasonTuning.getNewTeamPenalty(awayPitcher.name);
+      if (awayNewTeamPenalty > 0) {
+        // Away pitcher is on a new team → home team scores more
+        homeRaG *= (1 + awayNewTeamPenalty);
+      }
+    }
+    if (homePitcher && homePitcher.name) {
+      const homeNewTeamPenalty = preseasonTuning.getNewTeamPenalty(homePitcher.name);
+      if (homeNewTeamPenalty > 0) {
+        // Home pitcher is on a new team → away team scores more
+        awayRaG *= (1 + homeNewTeamPenalty);
+      }
+    }
+    
+    // Store info for response
+    awayPreseasonInfo = {
+      springSignal: awayODA.info.springSignal ? {
+        offense: awayODA.info.springSignal.offense,
+        pitching: awayODA.info.springSignal.pitching,
+        note: awayODA.info.springSignal.note,
+      } : null,
+      rosterChanges: awayODA.info.rosterChanges,
+      moves: awayODA.info.moves,
+      offAdj: awayODA.offAdj,
+      defAdj: awayODA.defAdj,
+      newTeamPitcher: (awayPitcher && awayPitcher.name) ? preseasonTuning.getNewTeamPenalty(awayPitcher.name) : 0,
+    };
+    homePreseasonInfo = {
+      springSignal: homeODA.info.springSignal ? {
+        offense: homeODA.info.springSignal.offense,
+        pitching: homeODA.info.springSignal.pitching,
+        note: homeODA.info.springSignal.note,
+      } : null,
+      rosterChanges: homeODA.info.rosterChanges,
+      moves: homeODA.info.moves,
+      offAdj: homeODA.offAdj,
+      defAdj: homeODA.defAdj,
+      newTeamPitcher: (homePitcher && homePitcher.name) ? preseasonTuning.getNewTeamPenalty(homePitcher.name) : 0,
+    };
+  }
+
   // Ensure sane bounds
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
   homeRaG = Math.max(1.5, Math.min(10, homeRaG));
@@ -624,13 +735,17 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   // This additional bonus is for SMALL factors not captured by run expectancy:
   // - Strikeout pitchers suppress variance (fewer baserunners = fewer big innings)
   // - Elite pitchers go deeper into games (less bullpen exposure)
-  // Scale is SMALL to avoid double-counting: ~0.5% per 10 rating points
+  // On Opening Day, pitcher quality matters MORE because bullpens are equal
+  // and the starter drives the game outcome more than usual.
   if (awayPitcher && homePitcher) {
     const awayPRating = awayPitcher.rating || 50;
     const homePRating = homePitcher.rating || 50;
     const ratingDiff = (homePRating - awayPRating) / 100;
-    // Reduced from 0.15 to 0.05 — pitchers already in expected runs
-    homeWinProb = Math.min(0.78, Math.max(0.22, homeWinProb + ratingDiff * 0.05));
+    // During preseason, starting pitcher carries more weight
+    // Regular season: 0.05 per 100 rating diff, Preseason: 0.08
+    const isPreseasonGame = (awayRegression > 0 || homeRegression > 0);
+    const pitcherWeight = isPreseasonGame ? 0.08 : 0.05;
+    homeWinProb = Math.min(0.78, Math.max(0.22, homeWinProb + ratingDiff * pitcherWeight));
     awayWinProb = 1 - homeWinProb;
   }
   
@@ -696,6 +811,11 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       awayBullpenFatigue: awayBullpenFatigue ? { multiplier: awayBullpenFatigue.multiplier, status: awayBullpenFatigue.status, factors: awayBullpenFatigue.factors } : null,
       homeBullpenFatigue: homeBullpenFatigue ? { multiplier: homeBullpenFatigue.multiplier, status: homeBullpenFatigue.status, factors: homeBullpenFatigue.factors } : null,
       earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null,
+      preseasonTuning: (awayPreseasonInfo || homePreseasonInfo) ? {
+        away: awayPreseasonInfo,
+        home: homePreseasonInfo,
+        note: 'Spring training signals, roster changes, and Opening Day adjustments'
+      } : null,
       statcast: (awayStatcastPitcher || homeStatcastPitcher || awayStatcastBatting || homeStatcastBatting) ? {
         awayPitcher: awayStatcastPitcher ? { name: awayStatcastPitcher.name, era: awayStatcastPitcher.era, xera: awayStatcastPitcher.xera, eraGap: awayStatcastPitcher.eraGap, xwoba: awayStatcastPitcher.xwoba, regression: awayStatcastPitcher.regressionDirection, confidence: awayStatcastPitcher.confidence } : null,
         homePitcher: homeStatcastPitcher ? { name: homeStatcastPitcher.name, era: homeStatcastPitcher.era, xera: homeStatcastPitcher.xera, eraGap: homeStatcastPitcher.eraGap, xwoba: homeStatcastPitcher.xwoba, regression: homeStatcastPitcher.regressionDirection, confidence: homeStatcastPitcher.confidence } : null,
@@ -974,11 +1094,16 @@ function findValue(prediction, bookLine) {
   const edges = [];
   const minEdge = 0.02;
   
+  // Apply preseason confidence — during Opening Day, require larger edges
+  // because our projections are based on preseason data, not real games
+  const hasRegression = prediction.factors?.earlySeasonRegression;
+  const preseasonMinEdge = hasRegression ? 0.035 : minEdge; // Higher bar for preseason
+  
   // Moneyline value
   if (bookLine.homeML) {
     const bookHomeProb = mlToProb(bookLine.homeML);
     const homeEdge = prediction.homeWinProb - bookHomeProb;
-    if (homeEdge > minEdge) {
+    if (homeEdge > preseasonMinEdge) {
       const kelly = kellySize(prediction.homeWinProb, bookLine.homeML);
       edges.push({
         pick: `${prediction.home} ML`, side: 'home', market: 'moneyline',
@@ -993,7 +1118,7 @@ function findValue(prediction, bookLine) {
   if (bookLine.awayML) {
     const bookAwayProb = mlToProb(bookLine.awayML);
     const awayEdge = prediction.awayWinProb - bookAwayProb;
-    if (awayEdge > minEdge) {
+    if (awayEdge > preseasonMinEdge) {
       const kelly = kellySize(prediction.awayWinProb, bookLine.awayML);
       edges.push({
         pick: `${prediction.away} ML`, side: 'away', market: 'moneyline',
@@ -1122,5 +1247,5 @@ module.exports = {
   calculateRatings, predict, predictTotal, analyzeMatchup, findValue, 
   asyncPredict, asyncMatchup,
   pythWinPct, calculatePoissonTotals,
-  resolvePitcher, refreshData
+  resolvePitcher, refreshData, getPreseasonConfidence
 };
