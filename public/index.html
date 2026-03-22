@@ -190,6 +190,7 @@ function buildTabs() {
   // NCAA March Madness tab — always visible during tournament
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
+  tabs.push({ id: 'catcher-framing', label: '🥊 Catcher Framing' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -247,6 +248,7 @@ function showTab(id) {
   else if (id === 'nfl-futures') loadNFLFuturesTab();
   else if (id === 'march-madness') loadMarchMadnessTab();
   else if (id === 'platoon-splits') loadPlatoonSplitsTab();
+  else if (id === 'catcher-framing') loadCatcherFramingTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -8385,6 +8387,246 @@ async function runNFLPredict() {
     
     html += '</div>';
     resultDiv.innerHTML = html;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
+// ==================== CATCHER FRAMING TAB ====================
+
+async function loadCatcherFramingTab() {
+  const c = document.getElementById('content');
+  c.innerHTML = '<div style="text-align:center;padding:60px;color:#94a3b8">Loading catcher framing data...</div>';
+  
+  try {
+    const [leaderboardRes, teamsRes, correctionsRes, scanRes] = await Promise.all([
+      fetch('/api/mlb/framing/leaderboard').then(r => r.json()).catch(() => ({ leaderboard: [] })),
+      fetch('/api/mlb/framing/teams').then(r => r.json()).catch(() => ({ rankings: [] })),
+      fetch('/api/mlb/framing/corrections').then(r => r.json()).catch(() => ({ corrections: [] })),
+      fetch('/api/mlb/framing/scan').then(r => r.json()).catch(() => ({ edges: [] })),
+    ]);
+    
+    const lb = leaderboardRes.leaderboard || [];
+    const teams = teamsRes.rankings || [];
+    const corrections = correctionsRes.corrections || [];
+    const edges = scanRes.edges || [];
+    
+    // Tier colors
+    const tierColor = t => t === 'elite' ? '#22c55e' : t === 'great' ? '#16a34a' : t === 'good' ? '#4ade80' : 
+                           t === 'average' ? '#94a3b8' : t === 'below_avg' ? '#f97316' : 
+                           t === 'poor' ? '#ef4444' : t === 'terrible' ? '#dc2626' : '#64748b';
+    
+    let html = `
+      <div style="padding:16px;max-width:1200px;margin:0 auto">
+        <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;padding:24px;margin-bottom:20px;border:1px solid #334155">
+          <h2 style="margin:0">🥊 Catcher Framing Engine</h2>
+          <p style="color:#94a3b8;margin:8px 0 0">
+            Baseball Savant 2024 framing runs — REAL data for ${lb.length} qualified catchers. 
+            <span style="color:#ef4444;font-weight:bold">${correctionsRes.criticalErrors || 0} CRITICAL corrections</span> from old model.
+          </p>
+          <p style="color:#64748b;font-size:12px;margin:4px 0 0">
+            Top vs bottom framer = ${((lb[0]?.framingRuns || 0) - (lb[lb.length-1]?.framingRuns || 0)).toFixed(0)} framing runs/season = ~${(((lb[0]?.framingRuns || 0) - (lb[lb.length-1]?.framingRuns || 0)) / 162).toFixed(2)} runs/game difference
+          </p>
+        </div>`;
+    
+    // Data corrections section (if any)
+    if (corrections.length > 0) {
+      html += `
+        <div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #ef4444">
+          <h3 style="margin:0 0 12px;color:#ef4444">🚨 Data Corrections (Old Model → Savant)</h3>
+          <p style="color:#94a3b8;font-size:13px;margin:0 0 12px">${correctionsRes.summary || ''}</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+            ${corrections.slice(0, 12).map(c => `
+              <div style="background:#0f172a;border-radius:8px;padding:10px;border:1px solid ${c.wrongDirection ? '#ef4444' : '#f97316'}">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-weight:bold;color:#e2e8f0">${c.name}</span>
+                  <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${c.severity === 'CRITICAL' ? '#ef4444' : c.severity === 'HIGH' ? '#f97316' : '#eab308'}20;color:${c.severity === 'CRITICAL' ? '#ef4444' : c.severity === 'HIGH' ? '#f97316' : '#eab308'}">${c.severity}</span>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:6px;font-size:13px">
+                  <span style="color:#94a3b8">Old: <span style="color:${c.oldFramingRuns >= 0 ? '#22c55e' : '#ef4444'}">${c.oldFramingRuns >= 0 ? '+' : ''}${c.oldFramingRuns}</span></span>
+                  <span style="color:#94a3b8">→</span>
+                  <span style="color:#94a3b8">Savant: <span style="color:${c.newFramingRuns >= 0 ? '#22c55e' : '#ef4444'}">${c.newFramingRuns >= 0 ? '+' : ''}${c.newFramingRuns.toFixed(1)}</span></span>
+                  <span style="color:${Math.abs(c.delta) >= 10 ? '#ef4444' : '#f97316'}">(${c.delta >= 0 ? '+' : ''}${c.delta})</span>
+                </div>
+                ${c.wrongDirection ? '<div style="color:#ef4444;font-size:11px;margin-top:4px">⚠️ WRONG DIRECTION in old model!</div>' : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+    
+    // Today's framing edges
+    if (edges.length > 0) {
+      html += `
+        <div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #334155">
+          <h3 style="margin:0 0 12px;color:#22c55e">🎯 Today's Framing Edges</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px">
+            ${edges.map(e => `
+              <div style="background:#0f172a;border-radius:8px;padding:12px;border:1px solid ${e.isMassiveEdge ? '#22c55e' : e.isEdge ? '#4ade80' : '#334155'}">
+                <div style="font-weight:bold;font-size:15px;margin-bottom:6px">${e.matchup}</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px">
+                  <span>🏠 ${e.homeCatcher} <span style="color:${tierColor(e.homeTier)}">(${e.homeFramingRuns >= 0 ? '+' : ''}${e.homeFramingRuns.toFixed(1)}R)</span></span>
+                  <span style="color:#94a3b8">vs</span>
+                  <span>🚗 ${e.awayCatcher} <span style="color:${tierColor(e.awayTier)}">(${e.awayFramingRuns >= 0 ? '+' : ''}${e.awayFramingRuns.toFixed(1)}R)</span></span>
+                </div>
+                <div style="color:#eab308;font-size:12px;margin-top:6px">Gap: ${Math.abs(e.framingGap).toFixed(1)} runs | ${e.note}</div>
+                ${e.bettingImplications && e.bettingImplications.length > 0 ? 
+                  `<div style="color:#22c55e;font-size:11px;margin-top:4px">${e.bettingImplications.map(i => `💡 ${i.type}: ${i.reason}`).join('<br>')}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+    
+    // Matchup Analyzer
+    html += `
+      <div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #334155">
+        <h3 style="margin:0 0 12px;color:#3b82f6">🔍 Framing Matchup Analyzer</h3>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="framing-away" style="background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:8px;font-size:14px">
+            ${['ARI','ATL','BAL','BOS','CHC','CIN','CLE','COL','CWS','DET','HOU','KC','LAA','LAD','MIA','MIL','MIN','NYM','NYY','OAK','PHI','PIT','SD','SEA','SF','STL','TB','TEX','TOR','WSH'].map(t => `<option value="${t}">${t}</option>`).join('')}
+          </select>
+          <span style="color:#94a3b8">@</span>
+          <select id="framing-home" style="background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:8px;font-size:14px">
+            ${['ARI','ATL','BAL','BOS','CHC','CIN','CLE','COL','CWS','DET','HOU','KC','LAA','LAD','MIA','MIL','MIN','NYM','NYY','OAK','PHI','PIT','SD','SEA','SF','STL','TB','TEX','TOR','WSH'].map(t => `<option value="${t}"${t === 'NYY' ? ' selected' : ''}>${t}</option>`).join('')}
+          </select>
+          <button onclick="analyzeFramingMatchup()" style="background:#3b82f6;color:white;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-weight:bold">Analyze</button>
+        </div>
+        <div id="framing-result" style="margin-top:12px"></div>
+      </div>`;
+    
+    // Team Rankings
+    html += `
+      <div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #334155">
+        <h3 style="margin:0 0 12px;color:#a855f7">🏆 Team Framing Rankings (Primary + Backup Weighted)</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="border-bottom:1px solid #334155;color:#94a3b8">
+                <th style="text-align:left;padding:6px">#</th>
+                <th style="text-align:left;padding:6px">Team</th>
+                <th style="text-align:left;padding:6px">Primary Catcher</th>
+                <th style="text-align:center;padding:6px">Framing Runs</th>
+                <th style="text-align:left;padding:6px">Backup</th>
+                <th style="text-align:center;padding:6px">Backup Runs</th>
+                <th style="text-align:center;padding:6px">Team Weighted</th>
+                <th style="text-align:center;padding:6px">Win Impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${teams.map((t, i) => `
+                <tr style="border-bottom:1px solid #1e293b;${i < 5 ? 'background:#22c55e10' : i >= 25 ? 'background:#ef444410' : ''}">
+                  <td style="padding:6px;color:#64748b">${i + 1}</td>
+                  <td style="padding:6px;font-weight:bold">${t.team}</td>
+                  <td style="padding:6px;color:${tierColor(t.primaryTier)}">${t.primaryCatcher}</td>
+                  <td style="text-align:center;padding:6px;color:${t.primaryFramingRuns >= 0 ? '#22c55e' : '#ef4444'};font-weight:bold">${t.primaryFramingRuns >= 0 ? '+' : ''}${t.primaryFramingRuns}</td>
+                  <td style="padding:6px;color:#94a3b8;font-size:12px">${t.backupCatcher}</td>
+                  <td style="text-align:center;padding:6px;color:${t.backupFramingRuns >= 0 ? '#4ade80' : '#f97316'};font-size:12px">${t.backupFramingRuns >= 0 ? '+' : ''}${t.backupFramingRuns}</td>
+                  <td style="text-align:center;padding:6px;color:${t.weightedTeamFramingRuns >= 0 ? '#22c55e' : '#ef4444'};font-weight:bold">${t.weightedTeamFramingRuns >= 0 ? '+' : ''}${t.weightedTeamFramingRuns}</td>
+                  <td style="text-align:center;padding:6px;color:${t.estimatedWinImpact >= 0 ? '#22c55e' : '#ef4444'}">${t.estimatedWinImpact >= 0 ? '+' : ''}${t.estimatedWinImpact}W</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    
+    // Full Leaderboard
+    html += `
+      <div style="background:#1e293b;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid #334155">
+        <h3 style="margin:0 0 12px;color:#eab308">📊 Savant Framing Leaderboard (2024)</h3>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="border-bottom:1px solid #334155;color:#94a3b8">
+                <th style="text-align:left;padding:6px">#</th>
+                <th style="text-align:left;padding:6px">Catcher</th>
+                <th style="text-align:center;padding:6px">Team '26</th>
+                <th style="text-align:center;padding:6px">Framing Runs</th>
+                <th style="text-align:center;padding:6px">Per Game</th>
+                <th style="text-align:center;padding:6px">Strike Rate</th>
+                <th style="text-align:center;padding:6px">Pitches</th>
+                <th style="text-align:center;padding:6px">Tier</th>
+                <th style="text-align:center;padding:6px">Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lb.map((c, i) => `
+                <tr style="border-bottom:1px solid #1e293b;${c.role === 'starter' ? '' : 'opacity:0.7'}">
+                  <td style="padding:6px;color:#64748b">${i + 1}</td>
+                  <td style="padding:6px;font-weight:bold">${c.name}${c.estimated ? ' *' : ''}</td>
+                  <td style="text-align:center;padding:6px">${c.team2026}</td>
+                  <td style="text-align:center;padding:6px;color:${c.framingRuns >= 0 ? '#22c55e' : '#ef4444'};font-weight:bold">${c.framingRuns >= 0 ? '+' : ''}${c.framingRuns.toFixed(1)}</td>
+                  <td style="text-align:center;padding:6px;color:${c.perGame <= 0 ? '#22c55e' : '#ef4444'}">${(c.perGame * -1).toFixed(3)}</td>
+                  <td style="text-align:center;padding:6px;color:#94a3b8">${(c.strikeRate * 100).toFixed(1)}%</td>
+                  <td style="text-align:center;padding:6px;color:#64748b">${c.pitches?.toLocaleString()}</td>
+                  <td style="text-align:center;padding:6px"><span style="color:${tierColor(c.tier)};font-size:11px;padding:2px 6px;border-radius:4px;background:${tierColor(c.tier)}20">${c.tier}</span></td>
+                  <td style="text-align:center;padding:6px;font-size:11px;color:${c.role === 'starter' ? '#3b82f6' : '#64748b'}">${c.role}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p style="color:#64748b;font-size:11px;margin-top:8px">* Estimated (not qualified). Source: Baseball Savant catcher framing leaderboard, 2024 season.</p>
+      </div>`;
+    
+    // Betting strategy section
+    html += `
+      <div style="background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155">
+        <h3 style="margin:0 0 8px;color:#22c55e">💡 How to Use Catcher Framing for Betting</h3>
+        <div style="color:#94a3b8;font-size:13px;line-height:1.6">
+          <p><strong style="color:#e2e8f0">Totals:</strong> Both catchers with combined framing runs > +10 → lean UNDER. Both < -10 → lean OVER. Elite + poor catcher matchup = 0.2 runs/game total adjustment.</p>
+          <p><strong style="color:#e2e8f0">First 5 (F5):</strong> Framing matters MORE in first 5 innings because starters pitch to their own catcher. Backup catchers rarely start F5.</p>
+          <p><strong style="color:#e2e8f0">Run Lines:</strong> Large framing gaps (15+ runs) can shift run line value by 1-2%.</p>
+          <p><strong style="color:#e2e8f0">Key Insight:</strong> Our old model had J.T. Realmuto at +10 (good framer). Savant says he's actually <strong style="color:#ef4444">-7.1</strong> (terrible!). PHI games were being priced ~0.1 runs wrong on totals.</p>
+        </div>
+      </div>`;
+    
+    html += '</div>';
+    c.innerHTML = html;
+  } catch (err) {
+    c.innerHTML = `<div style="text-align:center;padding:60px;color:#ef4444">Error: ${err.message}</div>`;
+  }
+}
+
+async function analyzeFramingMatchup() {
+  const away = document.getElementById('framing-away').value;
+  const home = document.getElementById('framing-home').value;
+  const resultDiv = document.getElementById('framing-result');
+  
+  try {
+    const data = await fetch(`/api/mlb/framing/${away}/${home}`).then(r => r.json());
+    
+    const tierColor = t => t === 'elite' ? '#22c55e' : t === 'great' ? '#16a34a' : t === 'good' ? '#4ade80' : 
+                           t === 'average' ? '#94a3b8' : t === 'below_avg' ? '#f97316' : 
+                           t === 'poor' ? '#ef4444' : t === 'terrible' ? '#dc2626' : '#64748b';
+    
+    resultDiv.innerHTML = `
+      <div style="background:#0f172a;border-radius:8px;padding:16px;border:1px solid ${data.isMassiveEdge ? '#22c55e' : data.isEdge ? '#4ade80' : '#334155'}">
+        <div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:12px">
+          <div>
+            <div style="color:#94a3b8;font-size:12px">Away Catcher</div>
+            <div style="font-size:18px;font-weight:bold;color:${tierColor(data.awayTier)}">${data.awayCatcher}</div>
+            <div style="font-size:24px;color:${data.awayFramingRuns >= 0 ? '#22c55e' : '#ef4444'}">${data.awayFramingRuns >= 0 ? '+' : ''}${data.awayFramingRuns.toFixed(1)}R</div>
+            <div style="font-size:11px;color:#64748b">${data.awayTier}</div>
+          </div>
+          <div style="display:flex;align-items:center;color:#64748b;font-size:20px">VS</div>
+          <div>
+            <div style="color:#94a3b8;font-size:12px">Home Catcher</div>
+            <div style="font-size:18px;font-weight:bold;color:${tierColor(data.homeTier)}">${data.homeCatcher}</div>
+            <div style="font-size:24px;color:${data.homeFramingRuns >= 0 ? '#22c55e' : '#ef4444'}">${data.homeFramingRuns >= 0 ? '+' : ''}${data.homeFramingRuns.toFixed(1)}R</div>
+            <div style="font-size:11px;color:#64748b">${data.homeTier}</div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:8px;background:#1e293b;border-radius:6px;margin-bottom:8px">
+          <div style="font-size:13px;color:#94a3b8">Framing Gap: <span style="color:${Math.abs(data.framingGap) >= 10 ? '#eab308' : '#94a3b8'};font-weight:bold">${Math.abs(data.framingGap).toFixed(1)} runs</span> ${data.framingGap > 0 ? '(HOME advantage)' : data.framingGap < 0 ? '(AWAY advantage)' : '(even)'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">Total runs adj: ${data.totalRunsAdj.toFixed(3)}/game | Home edge: ${(data.homeEdge * 100).toFixed(2)}%</div>
+        </div>
+        <div style="font-size:13px;color:#eab308">${data.note}</div>
+        ${data.bettingImplications && data.bettingImplications.length > 0 ? 
+          `<div style="margin-top:8px;padding:8px;background:#22c55e10;border-radius:6px">${data.bettingImplications.map(i => `<div style="color:#22c55e;font-size:12px;margin-bottom:4px">💡 <strong>${i.type}</strong> (${i.strength}): ${i.reason}</div>`).join('')}</div>` : ''}
+      </div>
+    `;
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }

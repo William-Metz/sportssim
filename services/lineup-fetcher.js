@@ -65,61 +65,17 @@ const STAR_PLAYERS = {
   'Will Smith': { war: 4.5, position: 'C', bats: 'R', team: 'LAD', impact: 0.08 },
 };
 
-// Catcher framing ratings — runs saved per 200 games (positive = good framing)
-// Source: Baseball Savant framing metrics, projected for 2026
-// EVERY team's Opening Day starter should be here
-const CATCHER_FRAMING = {
-  // === ELITE FRAMERS (12+ runs saved) ===
-  'Patrick Bailey': { framingRuns: 18, team: 'SF', tier: 'elite', openingDay: true },
-  'Adley Rutschman': { framingRuns: 15, team: 'BAL', tier: 'elite', openingDay: true },
-  'Cal Raleigh': { framingRuns: 14, team: 'SEA', tier: 'elite', openingDay: true },
-  'Austin Wells': { framingRuns: 12, team: 'NYY', tier: 'elite', openingDay: true },
-  
-  // === GOOD FRAMERS (6-11 runs saved) ===
-  'Jose Trevino': { framingRuns: 11, team: 'NYY', tier: 'good' },
-  'J.T. Realmuto': { framingRuns: 10, team: 'PHI', tier: 'good', openingDay: true },
-  'Logan O\'Hoppe': { framingRuns: 9, team: 'LAA', tier: 'good', openingDay: true },
-  'Danny Jansen': { framingRuns: 8, team: 'BOS', tier: 'good', openingDay: true },
-  'Jonah Heim': { framingRuns: 7, team: 'TEX', tier: 'good', openingDay: true },
-  'Ryan Jeffers': { framingRuns: 7, team: 'MIN', tier: 'good', openingDay: true },
-  'Bo Naylor': { framingRuns: 6, team: 'CLE', tier: 'good', openingDay: true },
-  'Sean Murphy': { framingRuns: 6, team: 'ATL', tier: 'good', openingDay: true },
-  'Luis Campusano': { framingRuns: 6, team: 'SD', tier: 'good', openingDay: true },
-  
-  // === AVERAGE FRAMERS (0-5 runs saved) ===
-  'Will Smith': { framingRuns: 5, team: 'LAD', tier: 'average', openingDay: true },
-  'Ivan Herrera': { framingRuns: 5, team: 'STL', tier: 'average', openingDay: true },
-  'Gabriel Moreno': { framingRuns: 4, team: 'ARI', tier: 'average', openingDay: true },
-  'Alejandro Kirk': { framingRuns: 4, team: 'TOR', tier: 'average', openingDay: true },
-  'Connor Wong': { framingRuns: 3, team: 'BOS', tier: 'average' },
-  'Tyler Stephenson': { framingRuns: 2, team: 'CIN', tier: 'average', openingDay: true },
-  'Jacob Stallings': { framingRuns: 3, team: 'COL', tier: 'average', openingDay: true },
-  'Korey Lee': { framingRuns: 2, team: 'CWS', tier: 'average', openingDay: true },
-  'Jake Rogers': { framingRuns: 3, team: 'DET', tier: 'average', openingDay: true },
-  'Christian Bethancourt': { framingRuns: 1, team: 'OAK', tier: 'average', openingDay: true },
-  'Reese McGuire': { framingRuns: 1, team: 'BOS', tier: 'average' },
-  'Nick Fortes': { framingRuns: 1, team: 'MIA', tier: 'average', openingDay: true },
-  'Carson Kelly': { framingRuns: 2, team: 'DET', tier: 'average' },
-  'Freddy Fermin': { framingRuns: 0, team: 'KC', tier: 'average', openingDay: true },
-  'Rene Pinto': { framingRuns: 0, team: 'TB', tier: 'average', openingDay: true },
-  
-  // === BELOW-AVERAGE FRAMERS (-1 to -5 runs) ===
-  'William Contreras': { framingRuns: -3, team: 'MIL', tier: 'below-avg', openingDay: true },
-  'Francisco Alvarez': { framingRuns: -4, team: 'NYM', tier: 'below-avg', openingDay: true },
-  'Willson Contreras': { framingRuns: -5, team: 'STL', tier: 'below-avg' },
-  'Keibert Ruiz': { framingRuns: -3, team: 'WSH', tier: 'below-avg', openingDay: true },
-  'Miguel Amaya': { framingRuns: -2, team: 'CHC', tier: 'below-avg', openingDay: true },
-  'Ben Rortvedt': { framingRuns: -1, team: 'PIT', tier: 'below-avg', openingDay: true },
-  
-  // === POOR FRAMERS (-6 or worse) ===
-  'Yainer Diaz': { framingRuns: -6, team: 'HOU', tier: 'poor', openingDay: true },
-  'MJ Melendez': { framingRuns: -7, team: 'KC', tier: 'poor' },
-  'Salvador Perez': { framingRuns: -8, team: 'KC', tier: 'poor' },
-  'Mitch Garver': { framingRuns: -10, team: 'SEA', tier: 'poor' },
-};
+// ==================== CATCHER FRAMING (via catcher-framing.js service) ====================
+// Uses REAL Baseball Savant 2024 data (58 qualified catchers)
+// Old hardcoded data had 15+ catchers WRONG (including wrong direction!)
+let catcherFramingService = null;
+try { catcherFramingService = require('./catcher-framing'); } catch (e) { /* optional */ }
 
-// Map team → expected Opening Day catcher
-const TEAM_OD_CATCHERS = {
+// Legacy CATCHER_FRAMING object — now backed by Savant data from catcher-framing service
+const CATCHER_FRAMING = catcherFramingService ? catcherFramingService.SAVANT_FRAMING_2024 : {};
+
+// Map team → expected Opening Day catcher (from catcher-framing service or fallback)
+const TEAM_OD_CATCHERS = catcherFramingService ? catcherFramingService.TEAM_PRIMARY_CATCHERS_2026 : {
   'ARI': 'Gabriel Moreno', 'ATL': 'Sean Murphy', 'BAL': 'Adley Rutschman',
   'BOS': 'Danny Jansen', 'CHC': 'Miguel Amaya', 'CIN': 'Tyler Stephenson',
   'CLE': 'Bo Naylor', 'COL': 'Jacob Stallings', 'CWS': 'Korey Lee',
@@ -134,20 +90,23 @@ const TEAM_OD_CATCHERS = {
 
 /**
  * Get catcher framing adjustment for a matchup.
+ * Now delegates to the catcher-framing.js service which uses REAL Savant data.
  * Returns runs adjustment based on the framing gap between catchers.
  * Positive = home catcher advantage (fewer runs expected for home pitcher).
- * Scale: elite vs poor framer = ~0.15 runs/game difference.
  */
 function getCatcherFramingAdjustment(homeTeam, awayTeam) {
+  // Use the dedicated Savant-backed service if available
+  if (catcherFramingService) {
+    return catcherFramingService.getMatchupFramingAnalysis(homeTeam, awayTeam);
+  }
+  
+  // Fallback to basic lookup
   const homeCatcher = TEAM_OD_CATCHERS[homeTeam];
   const awayCatcher = TEAM_OD_CATCHERS[awayTeam];
   
   const homeFraming = homeCatcher && CATCHER_FRAMING[homeCatcher] ? CATCHER_FRAMING[homeCatcher].framingRuns : 0;
   const awayFraming = awayCatcher && CATCHER_FRAMING[awayCatcher] ? CATCHER_FRAMING[awayCatcher].framingRuns : 0;
   
-  // Framing runs are per 200 games (~162 games). Per-game impact:
-  // 18 framing runs / 162 games = ~0.11 runs/game
-  // Gap between catchers can be up to 28 runs/season = ~0.17 runs/game
   const perGameFactor = 1 / 162;
   
   return {
@@ -156,12 +115,9 @@ function getCatcherFramingAdjustment(homeTeam, awayTeam) {
     homeFramingRuns: homeFraming,
     awayFramingRuns: awayFraming,
     framingGap: homeFraming - awayFraming,
-    // How much the catcher gap adjusts home team's RA (negative = fewer runs allowed)
     homeRAAdj: -(homeFraming * perGameFactor),
     awayRAAdj: -(awayFraming * perGameFactor),
-    // Net impact on total runs (negative = lower total)
     totalRunsAdj: -((homeFraming + awayFraming) * perGameFactor),
-    // Net impact on home win probability (positive = home advantage)
     homeEdge: ((homeFraming - awayFraming) * perGameFactor * 0.5),
     note: homeFraming > awayFraming + 5 ? `${homeCatcher} elite framer (${homeFraming} runs) vs ${awayCatcher} (${awayFraming})` :
           awayFraming > homeFraming + 5 ? `${awayCatcher} elite framer (${awayFraming} runs) vs ${homeCatcher} (${homeFraming})` :
