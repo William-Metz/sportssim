@@ -112,6 +112,11 @@ async function scanDailyPicks() {
 
 /**
  * Run value detection across all sports
+ * 
+ * CRITICAL FIX (2026-03-22): getAllOdds() returns ENRICHED objects with fields:
+ *   { sport, home, away, homeFull, awayFull, prediction, edge, bestLine, books }
+ * NOT raw Odds API format (home_team, away_team, bookmakers).
+ * Previous code accessed game.home_team / game.away_team → undefined → 0 bets found.
  */
 async function scanAllValue() {
   const { nba, mlb, nhl, getAllOdds, polymarketValue, lineMovement, 
@@ -122,131 +127,174 @@ async function scanAllValue() {
   const oddsData = await getAllOdds();
   const results = { nba: [], mlb: [], nhl: [], polymarket: [], total: 0 };
   
-  // Scan each sport for value
+  // Scan each sport for value using enriched data from getAllOdds()
   for (const sport of ['nba', 'mlb', 'nhl']) {
     try {
       const model = sport === 'nba' ? nba : sport === 'mlb' ? mlb : nhl;
       if (!model) continue;
       
       const sportOdds = oddsData.filter(g => {
-        const s = (g.sport || g.sport_key || '').toLowerCase();
+        const s = (g.sport || '').toLowerCase();
         return s.includes(sport);
       });
       
-      const teams = model.getTeams ? model.getTeams() : {};
       const valueBets = [];
       
       for (const game of sportOdds) {
-        const homeTeam = game.home_team;
-        const awayTeam = game.away_team;
-        
-        // Find team abbreviations
-        let homeAbbr = null, awayAbbr = null;
-        for (const [abbr, t] of Object.entries(teams)) {
-          if (!t || !t.name) continue;
-          const name = t.name.toLowerCase();
-          if (homeTeam && name.includes(homeTeam.toLowerCase().split(' ').pop())) homeAbbr = abbr;
-          if (awayTeam && name.includes(awayTeam.toLowerCase().split(' ').pop())) awayAbbr = abbr;
-        }
+        // getAllOdds() already resolved abbreviations and predictions
+        const homeAbbr = game.home;
+        const awayAbbr = game.away;
+        const homeFull = game.homeFull || homeAbbr;
+        const awayFull = game.awayFull || awayAbbr;
         
         if (!homeAbbr || !awayAbbr) continue;
         
         try {
-          // FIXED: predict() takes (away, home) — was previously (home, away) which reversed HCA
-          // For MLB, use asyncPredict to get lineup/rest/travel/opening-week adjustments
-          let pred;
+          // Use the prediction already computed by getAllOdds(), or recompute for MLB async
+          let pred = game.prediction ? { ...game.prediction } : null;
+          
+          // For MLB, recompute with asyncPredict if available (gets lineup/rest data)
           if (sport === 'mlb' && model.asyncPredict) {
-            pred = await model.asyncPredict(awayAbbr, homeAbbr);
-          } else {
-            pred = model.predict(awayAbbr, homeAbbr);
+            try {
+              pred = await model.asyncPredict(awayAbbr, homeAbbr);
+              if (pred && pred.error) pred = game.prediction || null;
+            } catch (e) {
+              pred = game.prediction || null;
+            }
+          } else if (!pred) {
+            // Fallback: compute prediction if not available from getAllOdds
+            if (sport === 'nhl') {
+              pred = model.predict(awayAbbr, homeAbbr);
+            } else {
+              pred = model.predict(awayAbbr, homeAbbr);
+            }
           }
-          if (!pred || pred.error) continue;
+          
+          if (!pred) continue;
           
           // Normalize homeWinProb to 0-1 scale
-          // NBA returns 0-100 (e.g. 65.3), MLB returns 0-1 (e.g. 0.487), NHL returns different format
           let homeProb01;
           if (sport === 'nhl') {
-            // NHL predict returns { home: { winProb: 55.2 }, away: { winProb: 44.8 } }
-            homeProb01 = pred.home?.winProb ? pred.home.winProb / 100 : 0.5;
+            homeProb01 = (pred.homeWinProb || pred.home?.winProb || 50);
+            if (homeProb01 > 1) homeProb01 = homeProb01 / 100;
           } else {
-            homeProb01 = pred.homeWinProb > 1 ? pred.homeWinProb / 100 : pred.homeWinProb;
+            homeProb01 = pred.homeWinProb || 50;
+            if (homeProb01 > 1) homeProb01 = homeProb01 / 100;
           }
           
-          // Check moneyline value
-          const bookmakers = game.bookmakers || [];
-          for (const book of bookmakers) {
-            const markets = book.markets || [];
-            for (const market of markets) {
-              if (market.key === 'h2h') {
-                for (const outcome of market.outcomes || []) {
-                  const odds = outcome.price;
-                  const impliedProb = odds > 0 ? 100 / (odds + 100) : (-odds) / (-odds + 100);
-                  const isHome = outcome.name === homeTeam;
-                  const modelProb = isHome ? homeProb01 : (1 - homeProb01);
-                  const edge = modelProb - impliedProb;
-                  
-                  if (edge >= 0.02) {
-                    valueBets.push({
-                      sport: sport.toUpperCase(),
-                      game: `${awayTeam} @ ${homeTeam}`,
-                      book: book.title,
-                      pick: `${outcome.name} ML (${odds > 0 ? '+' : ''}${odds})`,
-                      edge: parseFloat(edge.toFixed(4)),
-                      modelProb: parseFloat(modelProb.toFixed(4)),
-                      impliedProb: parseFloat(impliedProb.toFixed(4)),
-                      confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
-                      // Include lineup/opening-week info if available
-                      lineupData: pred.lineup ? true : false,
-                      openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
-                    });
-                  }
-                }
+          // Check moneyline value using best lines from getAllOdds enrichment
+          const bestLine = game.bestLine || {};
+          const books = game.books || {};
+          
+          // Check each bookmaker for ML value
+          for (const [bookName, bookLine] of Object.entries(books)) {
+            const homeML = bookLine.homeML;
+            const awayML = bookLine.awayML;
+            
+            if (homeML !== undefined && homeML !== null) {
+              const impliedProb = homeML < 0 ? (-homeML) / (-homeML + 100) : 100 / (homeML + 100);
+              const modelProb = homeProb01;
+              const edge = modelProb - impliedProb;
+              
+              if (edge >= 0.02) {
+                valueBets.push({
+                  sport: sport.toUpperCase(),
+                  game: `${awayAbbr} @ ${homeAbbr}`,
+                  gameFull: `${awayFull} @ ${homeFull}`,
+                  book: bookName,
+                  pick: `${homeAbbr} ML (${homeML > 0 ? '+' : ''}${homeML})`,
+                  edge: parseFloat(edge.toFixed(4)),
+                  modelProb: parseFloat(modelProb.toFixed(4)),
+                  impliedProb: parseFloat(impliedProb.toFixed(4)),
+                  confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
+                  lineupData: pred.lineup ? true : false,
+                  openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
+                });
+              }
+            }
+            
+            if (awayML !== undefined && awayML !== null) {
+              const impliedProb = awayML < 0 ? (-awayML) / (-awayML + 100) : 100 / (awayML + 100);
+              const modelProb = 1 - homeProb01;
+              const edge = modelProb - impliedProb;
+              
+              if (edge >= 0.02) {
+                valueBets.push({
+                  sport: sport.toUpperCase(),
+                  game: `${awayAbbr} @ ${homeAbbr}`,
+                  gameFull: `${awayFull} @ ${homeFull}`,
+                  book: bookName,
+                  pick: `${awayAbbr} ML (${awayML > 0 ? '+' : ''}${awayML})`,
+                  edge: parseFloat(edge.toFixed(4)),
+                  modelProb: parseFloat(modelProb.toFixed(4)),
+                  impliedProb: parseFloat(impliedProb.toFixed(4)),
+                  confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
+                  lineupData: pred.lineup ? true : false,
+                  openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
+                });
               }
             }
           }
           
-          // Check totals value (spreads & totals)
-          // Get model total — field name varies by sport
-          const modelTotal = pred.totalRuns || pred.predictedTotal || pred.projTotal || null;
-          for (const book of bookmakers) {
-            for (const market of (book.markets || [])) {
-              if (market.key === 'totals' && modelTotal) {
-                for (const outcome of (market.outcomes || [])) {
-                  const line = outcome.point;
-                  const odds = outcome.price;
-                  if (!line || !odds) continue;
-                  
-                  const impliedProb = odds > 0 ? 100 / (odds + 100) : (-odds) / (-odds + 100);
-                  const isOver = outcome.name === 'Over';
-                  
-                  // Total model: use diff between model total and book line
-                  // Scale by sport's typical total variance
-                  const diff = modelTotal - line;
-                  const totalScale = sport === 'nba' ? 0.5 : sport === 'nhl' ? 1.5 : 2.0; // MLB has tighter totals
-                  let modelProb;
-                  if (isOver) {
-                    modelProb = 0.5 + (diff / line) * totalScale;
-                  } else {
-                    modelProb = 0.5 - (diff / line) * totalScale;
-                  }
-                  modelProb = Math.max(0.1, Math.min(0.9, modelProb));
-                  
-                  const edge = modelProb - impliedProb;
-                  if (edge >= 0.03) {
-                    valueBets.push({
-                      sport: sport.toUpperCase(),
-                      game: `${awayTeam} @ ${homeTeam}`,
-                      book: book.title,
-                      pick: `${outcome.name} ${line} (${odds > 0 ? '+' : ''}${odds})`,
-                      edge: parseFloat(edge.toFixed(4)),
-                      modelProb: parseFloat(modelProb.toFixed(4)),
-                      impliedProb: parseFloat(impliedProb.toFixed(4)),
-                      modelTotal: modelTotal,
-                      confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
-                      market: 'total',
-                      openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
-                    });
-                  }
+          // Check totals value
+          const modelTotal = pred.totalRuns || pred.predictedTotal || pred.projTotal || pred.total || null;
+          if (modelTotal) {
+            for (const [bookName, bookLine] of Object.entries(books)) {
+              const bookTotal = bookLine.total;
+              const overOdds = bookLine.overOdds;
+              const underOdds = bookLine.underOdds;
+              
+              if (!bookTotal) continue;
+              
+              const diff = modelTotal - bookTotal;
+              // Sport-specific total variance scaling
+              const totalScale = sport === 'nba' ? 0.5 : sport === 'nhl' ? 1.5 : 2.0;
+              
+              // Over probability
+              if (overOdds) {
+                let overModelProb = 0.5 + (diff / bookTotal) * totalScale;
+                overModelProb = Math.max(0.1, Math.min(0.9, overModelProb));
+                const overImplied = overOdds < 0 ? (-overOdds) / (-overOdds + 100) : 100 / (overOdds + 100);
+                const overEdge = overModelProb - overImplied;
+                if (overEdge >= 0.03) {
+                  valueBets.push({
+                    sport: sport.toUpperCase(),
+                    game: `${awayAbbr} @ ${homeAbbr}`,
+                    gameFull: `${awayFull} @ ${homeFull}`,
+                    book: bookName,
+                    pick: `OVER ${bookTotal} (${overOdds > 0 ? '+' : ''}${overOdds})`,
+                    edge: parseFloat(overEdge.toFixed(4)),
+                    modelProb: parseFloat(overModelProb.toFixed(4)),
+                    impliedProb: parseFloat(overImplied.toFixed(4)),
+                    modelTotal: modelTotal,
+                    confidence: overEdge >= 0.07 ? 'HIGH' : overEdge >= 0.04 ? 'MEDIUM' : 'LOW',
+                    market: 'total',
+                    openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
+                  });
+                }
+              }
+              
+              // Under probability
+              if (underOdds) {
+                let underModelProb = 0.5 - (diff / bookTotal) * totalScale;
+                underModelProb = Math.max(0.1, Math.min(0.9, underModelProb));
+                const underImplied = underOdds < 0 ? (-underOdds) / (-underOdds + 100) : 100 / (underOdds + 100);
+                const underEdge = underModelProb - underImplied;
+                if (underEdge >= 0.03) {
+                  valueBets.push({
+                    sport: sport.toUpperCase(),
+                    game: `${awayAbbr} @ ${homeAbbr}`,
+                    gameFull: `${awayFull} @ ${homeFull}`,
+                    book: bookName,
+                    pick: `UNDER ${bookTotal} (${underOdds > 0 ? '+' : ''}${underOdds})`,
+                    edge: parseFloat(underEdge.toFixed(4)),
+                    modelProb: parseFloat(underModelProb.toFixed(4)),
+                    impliedProb: parseFloat(underImplied.toFixed(4)),
+                    modelTotal: modelTotal,
+                    confidence: underEdge >= 0.07 ? 'HIGH' : underEdge >= 0.04 ? 'MEDIUM' : 'LOW',
+                    market: 'total',
+                    openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
+                  });
                 }
               }
             }
@@ -646,7 +694,41 @@ function startAllTimers() {
     console.log(`   📋 ${scan.name}: every ${formatInterval(interval)} (starts in ${Math.round(staggerDelay / 1000)}s)`);
   }
   
-  console.log('🔄 Auto-scanner initialized — all scans scheduled');
+  // Watchdog: every 15 minutes, check for stuck/overdue scans and force re-run
+  scanTimers['__watchdog'] = setInterval(() => {
+    const now = Date.now();
+    for (const [key, scan] of Object.entries(SCAN_REGISTRY)) {
+      const status = scanStatus[key];
+      if (!status) continue;
+      
+      // If a scan has been "running" for more than 5 minutes, mark it as timed out
+      if (status.status === 'running' && status.startedAt) {
+        const runningFor = now - new Date(status.startedAt).getTime();
+        if (runningFor > 5 * 60 * 1000) {
+          console.warn(`⏰ Watchdog: ${scan.name} stuck for ${Math.round(runningFor / 60000)}min — marking timed out`);
+          scanStatus[key] = {
+            ...status,
+            status: 'timeout',
+            error: `Timed out after ${Math.round(runningFor / 60000)} minutes`,
+            completedAt: new Date().toISOString()
+          };
+          saveScanStatus();
+        }
+      }
+      
+      // If scan is overdue by 3x interval and not currently running, force re-run
+      if (status.status !== 'running') {
+        const lastCompleted = status.completedAt ? new Date(status.completedAt).getTime() : 0;
+        const timeSince = now - lastCompleted;
+        if (timeSince > scan.interval * 3 && isActiveHours()) {
+          console.log(`🐕 Watchdog: ${scan.name} overdue by ${formatInterval(timeSince)} — forcing re-run`);
+          executeScan(key);
+        }
+      }
+    }
+  }, 15 * 60 * 1000);
+  
+  console.log('🔄 Auto-scanner initialized — all scans scheduled (+ watchdog every 15min)');
 }
 
 /**

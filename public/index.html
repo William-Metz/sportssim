@@ -178,8 +178,12 @@ function buildTabs() {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
     tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
   }
+  if (currentSport === 'nhl' || currentSport === 'all') {
+    tabs.push({ id: 'nhl-playoffs', label: '🏒 NHL Playoffs' });
+  }
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
+  tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -221,6 +225,8 @@ function showTab(id) {
   else if (id === 'lineups') loadLineupsTab();
   else if (id === 'daily-slate') loadDailySlateTab();
   else if (id === 'consensus') loadConsensusTab();
+  else if (id === 'model-accuracy') loadModelAccuracyTab();
+  else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -6738,6 +6744,607 @@ async function loadDailySlateTab() {
 
 buildTabs();
 showTab('picks');
+
+// ==================== MODEL ACCURACY TAB ====================
+
+async function loadModelAccuracyTab() {
+  const wrap = document.getElementById('content');
+  wrap.innerHTML = '<div class="card"><h2>📊 Loading Model Accuracy Dashboard...</h2><p>Fetching validation data across all sports...</p></div>';
+  
+  try {
+    const [accuracy, mlStatus] = await Promise.all([
+      fetch('/api/model/accuracy').then(r => r.json()),
+      fetch('/api/ml/status').then(r => r.json()).catch(() => null),
+    ]);
+    
+    let html = '<div class="card"><h2>📊 Model Accuracy Dashboard</h2>';
+    html += '<p style="color:#888">Cross-sport model validation against historical game results</p>';
+    
+    // MLB Section
+    html += '<h3 style="margin-top:20px">⚾ MLB Model</h3>';
+    if (accuracy.sports?.mlb) {
+      const mlb = accuracy.sports.mlb;
+      
+      // Training data
+      if (mlb.multiSeasonData) {
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0">';
+        let totalGames = 0;
+        for (const [key, count] of Object.entries(mlb.multiSeasonData)) {
+          const year = key.split('-')[0] || key;
+          totalGames += count;
+          html += `<div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+            <div style="font-size:11px;color:#888">${year} Season</div>
+            <div style="font-size:20px;font-weight:bold;color:var(--accent)">${count.toLocaleString()}</div>
+            <div style="font-size:10px;color:#666">games</div>
+          </div>`;
+        }
+        html += `<div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center;border:1px solid var(--accent)">
+          <div style="font-size:11px;color:#888">Total Training</div>
+          <div style="font-size:20px;font-weight:bold;color:#4caf50">${totalGames.toLocaleString()}</div>
+          <div style="font-size:10px;color:#666">games</div>
+        </div>`;
+        html += '</div>';
+      }
+      
+      // ML model status
+      if (mlb.mlModel) {
+        const st = mlb.mlModel;
+        html += `<div style="background:var(--bg2);padding:12px;border-radius:8px;margin:8px 0">
+          <span style="color:${st.trained ? '#4caf50' : '#f44336'}">●</span>
+          ML Model: ${st.trained ? 'Trained ✅' : 'Not trained ❌'}
+          ${st.lastResult?.accuracy ? ` | Accuracy: ${(st.lastResult.accuracy * 100).toFixed(1)}%` : ''}
+          ${st.lastResult?.brierScore ? ` | Brier: ${st.lastResult.brierScore}` : ''}
+        </div>`;
+      }
+    }
+    
+    // NBA Section
+    html += '<h3 style="margin-top:20px">🏀 NBA Model</h3>';
+    if (accuracy.sports?.nba) {
+      const nba = accuracy.sports.nba;
+      
+      if (nba.historicalData?.seasons) {
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0">';
+        for (const [season, data] of Object.entries(nba.historicalData.seasons)) {
+          html += `<div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+            <div style="font-size:11px;color:#888">${season}</div>
+            <div style="font-size:20px;font-weight:bold;color:var(--accent)">${data.games}</div>
+            <div style="font-size:10px;color:#666">games | ${data.homeWinPct}% home win | avg ${data.avgTotal} pts</div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      
+      if (nba.recentValidation) {
+        const v = nba.recentValidation;
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin:12px 0">';
+        const metrics = [
+          { label: 'ML Accuracy', value: v.mlAccuracy + '%', color: v.mlAccuracy > 65 ? '#4caf50' : v.mlAccuracy > 55 ? '#ff9800' : '#f44336' },
+          { label: 'O/U Accuracy', value: v.ouAccuracy + '%', color: v.ouAccuracy > 55 ? '#4caf50' : '#ff9800' },
+          { label: 'Avg Spread Error', value: v.avgSpreadError + ' pts', color: v.avgSpreadError < 10 ? '#4caf50' : '#ff9800' },
+          { label: 'Avg Total Error', value: v.avgTotalError + ' pts', color: v.avgTotalError < 15 ? '#4caf50' : '#ff9800' },
+          { label: 'Games Validated', value: v.games, color: 'var(--accent)' },
+          { label: 'Home Win %', value: v.homeWinPct + '%', color: '#888' },
+        ];
+        for (const m of metrics) {
+          html += `<div style="background:var(--bg2);padding:14px;border-radius:8px;text-align:center">
+            <div style="font-size:11px;color:#888">${m.label}</div>
+            <div style="font-size:24px;font-weight:bold;color:${m.color}">${m.value}</div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      
+      // Calibration chart (text-based)
+      if (nba.calibration && nba.calibration.length > 0) {
+        html += '<h4 style="margin-top:16px">📈 Calibration (NBA)</h4>';
+        html += '<div style="overflow-x:auto"><table><thead><tr><th>Predicted</th><th>Actual Win%</th><th>Games</th><th>Error</th><th>Visual</th></tr></thead><tbody>';
+        for (const c of nba.calibration) {
+          const barWidth = Math.round(c.actualWinRate * 100);
+          const errColor = c.calibrationError < 0.05 ? '#4caf50' : c.calibrationError < 0.1 ? '#ff9800' : '#f44336';
+          html += `<tr>
+            <td>${(c.predictedProb * 100).toFixed(0)}%</td>
+            <td>${(c.actualWinRate * 100).toFixed(1)}%</td>
+            <td>${c.count}</td>
+            <td style="color:${errColor}">${(c.calibrationError * 100).toFixed(1)}%</td>
+            <td><div style="background:var(--bg3);height:12px;border-radius:3px;width:100px;position:relative">
+              <div style="background:var(--accent);height:100%;border-radius:3px;width:${barWidth}px"></div>
+              <div style="position:absolute;left:${c.predictedProb * 100}px;top:-2px;width:2px;height:16px;background:#fff"></div>
+            </div></td>
+          </tr>`;
+        }
+        html += '</tbody></table></div>';
+      }
+      
+      if (!nba.historicalData?.totalGames) {
+        html += '<div style="background:var(--bg2);padding:12px;border-radius:8px;margin:8px 0;border-left:3px solid #ff9800">';
+        html += '<strong>⚠️ No NBA historical data cached yet.</strong> ';
+        html += 'Click to fetch: <button onclick="fetchNBAHistory()" style="background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer">Fetch 2025-26 Season</button>';
+        html += '</div>';
+      }
+    }
+    
+    // NHL Section (placeholder for now)
+    html += '<h3 style="margin-top:20px">🏒 NHL Model</h3>';
+    html += '<div style="background:var(--bg2);padding:12px;border-radius:8px;color:#888">NHL historical validation coming soon. Current model uses static backtest data.</div>';
+    
+    // Action buttons
+    html += '<div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap">';
+    html += '<button onclick="retrainML()" style="background:#4caf50;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:bold">🧠 Retrain ML Model</button>';
+    html += '<button onclick="fetchNBAHistory()" style="background:var(--accent);color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:bold">🏀 Fetch NBA History</button>';
+    html += '<button onclick="loadModelAccuracyTab()" style="background:var(--bg3);color:var(--text);border:none;padding:10px 20px;border-radius:6px;cursor:pointer">🔄 Refresh</button>';
+    html += '</div>';
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+    
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error loading accuracy data</h2><p>${err.message}</p></div>`;
+  }
+}
+
+async function retrainML() {
+  const wrap = document.getElementById('content');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<h3>🧠 Retraining ML Model...</h3><p>This may take 30-60 seconds...</p>';
+  wrap.prepend(card);
+  
+  try {
+    const result = await fetch('/api/ml/train?force=true', { method: 'POST' }).then(r => r.json());
+    card.innerHTML = `<h3>✅ ML Model Retrained</h3><pre style="font-size:11px;overflow-x:auto">${JSON.stringify(result, null, 2).slice(0, 2000)}</pre>`;
+  } catch (err) {
+    card.innerHTML = `<h3>❌ Training Failed</h3><p>${err.message}</p>`;
+  }
+}
+
+async function fetchNBAHistory() {
+  const wrap = document.getElementById('content');
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<h3>🏀 Fetching NBA Season Data...</h3><p>Loading from ESPN (may take 1-2 minutes)...</p>';
+  wrap.prepend(card);
+  
+  try {
+    const result = await fetch('/api/nba/validation/fetch?season=2025-26').then(r => r.json());
+    card.innerHTML = `<h3>✅ NBA Data Loaded</h3><p>${result.gamesLoaded} games for ${result.season}</p>`;
+    setTimeout(loadModelAccuracyTab, 1000);
+  } catch (err) {
+    card.innerHTML = `<h3>❌ Fetch Failed</h3><p>${err.message}</p>`;
+  }
+}
+
+// ==================== NHL PLAYOFFS TAB ====================
+
+async function loadNHLPlayoffsTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading NHL playoff projections...</p></div>';
+
+  try {
+    const resp = await fetch(`${API}/api/nhl-playoffs/preview?sims=15000`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    let html = '';
+
+    // Hero
+    html += `<div class="card" style="background:linear-gradient(135deg,#0d1b2a,#1b2838);border:1px solid #00bfff">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:#00bfff">🏒 NHL Playoff Series Pricing</h2>
+          <p style="margin:4px 0 0;color:#aaa">Monte Carlo + binomial series model • ${(data.simulations||15000).toLocaleString()} sims • ${data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : ''}</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:28px;font-weight:bold;color:#00bfff">${data.daysUntilPlayoffs}</div>
+          <div style="color:#aaa;font-size:12px">days until playoffs</div>
+        </div>
+      </div>
+    </div>`;
+
+    // Key Storylines
+    if (data.keyStorylines && data.keyStorylines.length > 0) {
+      html += `<div class="card" style="border-left:3px solid #f59e0b">
+        <h3 style="color:#f59e0b">📰 Key Storylines</h3>
+        <ul style="margin:0;padding-left:20px;color:#ccc;font-size:13px;line-height:1.8">`;
+      data.keyStorylines.forEach(s => {
+        html += `<li>${s}</li>`;
+      });
+      html += `</ul></div>`;
+    }
+
+    // Stanley Cup Odds
+    if (data.stanleyCupOdds && data.stanleyCupOdds.length > 0) {
+      html += `<div class="card"><h3>🏆 Stanley Cup Probabilities</h3>`;
+      html += `<div style="overflow-x:auto"><table><thead><tr>
+        <th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>Cup %</th><th>Fair ML</th><th>Finals %</th><th>Conf Finals %</th><th>Rd 2 %</th><th>Starter</th>
+      </tr></thead><tbody>`;
+      data.stanleyCupOdds.forEach((t, i) => {
+        if (t.champPct < 0.1 && i > 10) return;
+        const barW = Math.min(t.champPct * 2, 100);
+        const color = t.champPct >= 15 ? '#00bfff' : t.champPct >= 8 ? '#f59e0b' : t.champPct >= 3 ? '#22c55e' : '#666';
+        html += `<tr>
+          <td>${i+1}</td>
+          <td><strong>${t.abbr}</strong> <span style="color:#888;font-size:11px">${t.name||''}</span></td>
+          <td>${t.record||''}</td>
+          <td>${t.points||''}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:80px;height:14px;background:#222;border-radius:7px;overflow:hidden">
+                <div style="width:${barW}%;height:100%;background:${color};border-radius:7px"></div>
+              </div>
+              <strong style="color:${color}">${t.champPct}%</strong>
+            </div>
+          </td>
+          <td style="font-family:monospace;color:${t.champML > 0 ? '#22c55e' : '#00bfff'}">${t.champML > 0 ? '+' : ''}${t.champML}</td>
+          <td>${t.finalsPct}%</td>
+          <td>${t.confFinalsPct}%</td>
+          <td>${t.secondRoundPct}%</td>
+          <td style="font-size:11px;color:#aaa">${t.starter||'?'} (${t.starterSv ? (t.starterSv*100).toFixed(1)+'%' : '?'})</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div></div>`;
+    }
+
+    // Futures Value
+    if (data.futuresValue && data.futuresValue.length > 0) {
+      html += `<div class="card" style="border:1px solid #22c55e">
+        <h3 style="color:#22c55e">💰 Stanley Cup Futures Value</h3>
+        <p style="color:#888;font-size:12px;margin-bottom:12px">Model vs sportsbook championship odds — edges ≥ 2%</p>
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>Team</th><th>Model %</th><th>Book Odds</th><th>Book %</th><th>Edge</th><th>Book</th><th>Record</th><th>Starter</th>
+        </tr></thead><tbody>`;
+      data.futuresValue.forEach(v => {
+        const edgeColor = v.edge >= 5 ? '#22c55e' : v.edge >= 3 ? '#f59e0b' : '#aaa';
+        html += `<tr>
+          <td><strong>${v.abbr}</strong> ${v.team||''}</td>
+          <td style="color:#22c55e;font-weight:bold">${v.modelPct}%</td>
+          <td style="font-family:monospace">${v.bookOdds > 0 ? '+' : ''}${v.bookOdds}</td>
+          <td>${v.bookPct}%</td>
+          <td style="color:${edgeColor};font-weight:bold">+${v.edge}%</td>
+          <td style="font-size:11px;color:#888">${v.book||''}</td>
+          <td>${v.record||''}</td>
+          <td style="font-size:11px">${v.starter||''}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div></div>`;
+    }
+
+    // Conference Brackets
+    ['eastern','western'].forEach(conf => {
+      const cd = data[conf];
+      if (!cd) return;
+      const confName = conf === 'eastern' ? '🏒 Eastern Conference' : '🏒 Western Conference';
+      const confColor = conf === 'eastern' ? '#e94560' : '#3b82f6';
+
+      html += `<div class="card" style="border-left:3px solid ${confColor}"><h3 style="color:${confColor}">${confName}</h3>`;
+
+      // Division standings
+      if (cd.divisions) {
+        Object.entries(cd.divisions).forEach(([divName, teams]) => {
+          html += `<details style="margin-bottom:12px"><summary style="cursor:pointer;color:#aaa;font-size:13px">📊 ${divName.charAt(0).toUpperCase()+divName.slice(1)} Division</summary>`;
+          html += `<div style="overflow-x:auto;margin-top:8px"><table><thead><tr>
+            <th>Rank</th><th>Team</th><th>Record</th><th>Pts</th><th>GF</th><th>GA</th><th>Diff</th><th>Power</th><th>L10</th><th>Status</th>
+          </tr></thead><tbody>`;
+          teams.forEach(t => {
+            const badge = t.qualified ? '✅' : '❌';
+            const diffColor = t.goalDiff > 0 ? '#22c55e' : t.goalDiff < 0 ? '#ff4444' : '#888';
+            html += `<tr style="opacity:${t.qualified ? 1 : 0.6}">
+              <td>${t.divRank}</td>
+              <td><strong>${t.abbr}</strong> <span style="color:#888;font-size:10px">${t.name||''}</span></td>
+              <td>${t.w}-${t.l}-${t.otl||0}</td>
+              <td style="font-weight:bold">${t.points}</td>
+              <td>${typeof t.gf === 'number' ? t.gf.toFixed(1) : t.gf||''}</td>
+              <td>${typeof t.ga === 'number' ? t.ga.toFixed(1) : t.ga||''}</td>
+              <td style="color:${diffColor}">${t.goalDiff > 0 ? '+' : ''}${typeof t.goalDiff === 'number' ? t.goalDiff.toFixed(1) : t.goalDiff||''}</td>
+              <td>${typeof t.power === 'number' ? t.power.toFixed(2) : t.power||''}</td>
+              <td>${t.l10w||0}-${t.l10l||0}</td>
+              <td>${badge}</td>
+            </tr>`;
+          });
+          html += `</tbody></table></div></details>`;
+        });
+      }
+
+      // Wild cards
+      if (cd.wildCards && cd.wildCards.length > 0) {
+        html += `<div style="margin-bottom:12px;padding:8px 12px;background:#1a1a2e;border-radius:8px;border:1px solid #444">
+          <div style="font-size:12px;color:#f59e0b;font-weight:bold;margin-bottom:6px">🃏 Wild Cards</div>`;
+        cd.wildCards.forEach(wc => {
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0">
+            <span><strong>${wc.abbr}</strong> <span style="color:#888;font-size:11px">${wc.name||''}</span></span>
+            <span style="color:#aaa;font-size:12px">${wc.w}-${wc.l}-${wc.otl||0} (${wc.points} pts) • WC${wc.wcRank}</span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Matchups
+      if (cd.matchups && cd.matchups.length > 0) {
+        html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:8px">`;
+        cd.matchups.forEach(m => {
+          const sp = m.seriesPrice || {};
+          const comp = m.competitiveness || 'N/A';
+          const compColor = comp === 'DOMINANT' ? '#e94560' :
+                            comp === 'HEAVY FAVORITE' ? '#f59e0b' :
+                            comp === 'FAVORED' ? '#3b82f6' :
+                            comp === 'COMPETITIVE' ? '#22c55e' : '#a855f7';
+
+          const hWin = sp.higherSeedWinPct || 50;
+          const lWin = sp.lowerSeedWinPct || 50;
+          const ld = m.lengthDistribution || {};
+          const kf = m.keyFactors || {};
+          const ge = kf.goalieEdge || {};
+          const st = kf.specialTeams || {};
+          const hi = kf.homeIce || {};
+
+          html += `<div style="background:var(--bg2);border-radius:12px;padding:14px;border-left:3px solid ${compColor}">
+            <div style="font-size:11px;color:#888;margin-bottom:6px">${m.matchup || m.type || 'Round 1'}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div>
+                <div style="font-size:16px;font-weight:bold">${m.higher?.abbr||'?'}</div>
+                <div style="font-size:11px;color:#888">${m.higher?.w||0}-${m.higher?.l||0}-${m.higher?.otl||0} (${m.higher?.points||0} pts)</div>
+              </div>
+              <div style="font-size:12px;color:#888">vs</div>
+              <div style="text-align:right">
+                <div style="font-size:16px;font-weight:bold">${m.lower?.abbr||'?'}</div>
+                <div style="font-size:11px;color:#888">${m.lower?.w||0}-${m.lower?.l||0}-${m.lower?.otl||0} (${m.lower?.points||0} pts)</div>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+              <span style="color:#22c55e;font-weight:bold">${hWin}%</span>
+              <span style="color:#ff4444;font-weight:bold">${lWin}%</span>
+            </div>
+            <div style="height:8px;background:#333;border-radius:4px;overflow:hidden;margin-bottom:8px">
+              <div style="width:${hWin}%;height:100%;background:#22c55e;border-radius:4px"></div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#888">
+              <span>ML: ${sp.higherSeedML||''}</span>
+              <span>ML: ${sp.lowerSeedML||''}</span>
+            </div>
+
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <span style="background:${compColor}22;color:${compColor};padding:2px 8px;border-radius:4px;font-size:10px">${comp}</span>
+              <span style="background:#33333366;color:#aaa;padding:2px 8px;border-radius:4px;font-size:10px">~${m.expectedLength||'?'} games</span>
+              ${m.upsetAlert ? '<span style="background:#f59e0b22;color:#f59e0b;padding:2px 8px;border-radius:4px;font-size:10px">⚠️ UPSET ALERT</span>' : ''}
+            </div>
+
+            <div style="margin-top:8px;font-size:10px;color:#666">
+              Sweep: ${ld.sweep||0}% • In 5: ${ld.in5||0}% • In 6: ${ld.in6||0}% • In 7: ${ld.in7||0}%
+            </div>
+
+            ${ge.advantage ? `<div style="margin-top:6px;font-size:10px;color:#888">
+              🥅 Goalie edge: <strong style="color:${ge.impact==='SIGNIFICANT'?'#22c55e':ge.impact==='MODERATE'?'#f59e0b':'#888'}">${ge.advantage}</strong> (${ge.impact||'?'})
+              <br>${ge.higherStarter||''} vs ${ge.lowerStarter||''}
+            </div>` : ''}
+
+            ${st.advantage ? `<div style="margin-top:4px;font-size:10px;color:#888">
+              ⚡ Special teams: <strong>${st.advantage}</strong> (+${st.differential||0}, ${st.impact||'?'})
+            </div>` : ''}
+
+            ${hi.homeIceSwing ? `<div style="margin-top:4px;font-size:10px;color:#888">
+              🏠 Home ice swing: ${hi.homeIceSwing > 0 ? '+' : ''}${hi.homeIceSwing}% (Home: ${hi.higherAtHome||'?'}%, Road: ${hi.higherOnRoad||'?'}%)
+            </div>` : ''}
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      // Bubble race
+      if (cd.bubble && cd.bubble.length > 0) {
+        html += `<div style="margin-top:12px;padding:10px 14px;background:#2a1a0e;border-radius:8px;border:1px solid #f59e0b44">
+          <div style="font-size:12px;color:#f59e0b;font-weight:bold;margin-bottom:8px">🫧 Bubble Watch</div>`;
+        cd.bubble.forEach(b => {
+          const statusColor = b.status === 'IN THE HUNT' ? '#f59e0b' : '#666';
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+            <span><strong>${b.abbr}</strong> ${b.name||''}</span>
+            <span style="color:${statusColor}">${b.w}-${b.l}-${b.otl||0} (${b.points} pts) • ${b.gamesBack} GB • <strong>${b.status}</strong></span>
+          </div>`;
+        });
+        html += `</div>`;
+      }
+
+      html += `</div>`; // close card
+    });
+
+    // Series Analyzer
+    html += `<div class="card">
+      <h3>🔬 NHL Series Analyzer</h3>
+      <p style="color:#888;font-size:12px;margin-bottom:12px">Analyze any NHL matchup — pick two teams for full series pricing</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+        <select id="nhl-series-higher" style="padding:8px 12px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px">
+          <option value="">Higher Seed...</option>
+        </select>
+        <span style="color:#888">vs</span>
+        <select id="nhl-series-lower" style="padding:8px 12px;background:var(--bg2);color:var(--text);border:1px solid var(--bg3);border-radius:6px">
+          <option value="">Lower Seed...</option>
+        </select>
+        <button onclick="analyzeNHLSeries()" style="padding:8px 16px;background:#00bfff;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">Analyze</button>
+      </div>
+      <div id="nhl-series-result"></div>
+    </div>`;
+
+    // Series Fair Prices table
+    html += `<div class="card" style="border:1px solid #a855f7">
+      <h3 style="color:#a855f7">🎯 Round 1 Fair Series Prices</h3>
+      <p style="color:#888;font-size:12px;margin-bottom:12px">Our model's fair odds — compare when books post series prices</p>
+      <div style="overflow-x:auto"><table><thead><tr>
+        <th>Matchup</th><th>Higher %</th><th>Fair ML</th><th>Lower %</th><th>Fair ML</th><th>Exp Length</th><th>Rating</th>
+      </tr></thead><tbody>`;
+    ['eastern','western'].forEach(conf => {
+      const cd = data[conf];
+      if (!cd || !cd.matchups) return;
+      cd.matchups.forEach(m => {
+        const sp = m.seriesPrice || {};
+        const comp = m.competitiveness || 'N/A';
+        const compColor = comp === 'DOMINANT' ? '#e94560' :
+                          comp === 'HEAVY FAVORITE' ? '#f59e0b' :
+                          comp === 'FAVORED' ? '#3b82f6' :
+                          comp === 'COMPETITIVE' ? '#22c55e' : '#a855f7';
+        html += `<tr>
+          <td><strong>${m.higher?.abbr||'?'}</strong> vs <strong>${m.lower?.abbr||'?'}</strong></td>
+          <td style="color:#22c55e;font-weight:bold">${sp.higherSeedWinPct||'?'}%</td>
+          <td style="font-family:monospace">${sp.higherSeedML||''}</td>
+          <td style="color:#e94560;font-weight:bold">${sp.lowerSeedWinPct||'?'}%</td>
+          <td style="font-family:monospace">${sp.lowerSeedML||''}</td>
+          <td>~${m.expectedLength||'?'}</td>
+          <td style="color:${compColor};font-weight:bold">${comp}${m.upsetAlert ? ' ⚠️' : ''}</td>
+        </tr>`;
+      });
+    });
+    html += `</tbody></table></div></div>`;
+
+    // Dark Horses
+    if (data.darkHorses && data.darkHorses.length > 0) {
+      html += `<div class="card" style="border-left:3px solid #a855f7">
+        <h3 style="color:#a855f7">🐴 Dark Horses</h3>
+        <p style="color:#888;font-size:12px;margin-bottom:8px">Teams with 2-10% Cup probability — potential deep value</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">`;
+      data.darkHorses.forEach(t => {
+        html += `<div style="background:#1a1a2e;padding:8px 14px;border-radius:8px;border:1px solid #a855f744">
+          <strong>${t.abbr}</strong>
+          <span style="color:#a855f7;margin-left:6px">${t.champPct}%</span>
+          <span style="color:#888;font-size:11px;margin-left:4px">(${t.champML > 0 ? '+' : ''}${t.champML})</span>
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    wrap.innerHTML = html;
+
+    // Populate NHL team selects
+    const nhlTeams = ['ANA','ARI','BOS','BUF','CGY','CAR','CHI','COL','CBJ','DAL','DET','EDM','FLA','LAK','MIN','MTL','NSH','NJD','NYI','NYR','OTT','PHI','PIT','SEA','SJS','STL','TBL','TOR','VAN','VGK','WPG','WSH'];
+    const selH = document.getElementById('nhl-series-higher');
+    const selL = document.getElementById('nhl-series-lower');
+    if (selH && selL) {
+      nhlTeams.forEach(t => {
+        selH.innerHTML += `<option value="${t}">${t}</option>`;
+        selL.innerHTML += `<option value="${t}">${t}</option>`;
+      });
+    }
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h3>❌ NHL Playoffs Error</h3><p>${err.message}</p></div>`;
+  }
+}
+
+async function analyzeNHLSeries() {
+  const higher = document.getElementById('nhl-series-higher')?.value;
+  const lower = document.getElementById('nhl-series-lower')?.value;
+  const resultDiv = document.getElementById('nhl-series-result');
+  if (!higher || !lower || !resultDiv) return;
+  if (higher === lower) { resultDiv.innerHTML = '<p style="color:#f59e0b">Pick two different teams</p>'; return; }
+
+  resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try {
+    const resp = await fetch(`${API}/api/nhl-playoffs/series?higher=${higher}&lower=${lower}`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    const s = data.series;
+    const sp = s.seriesPrice || {};
+    const kf = s.keyFactors || {};
+    const ge = kf.goalieEdge || {};
+    const st = kf.specialTeams || {};
+    const hi = kf.homeIce || {};
+    const mc = s.monteCarlo || {};
+    const eld = s.exactLengthDist || {};
+
+    let h = `<div style="background:var(--bg2);border-radius:12px;padding:16px;margin-top:8px">`;
+    h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <div style="font-size:18px;font-weight:bold">${s.higherSeed?.name||higher}</div>
+        <div style="font-size:12px;color:#888">${s.higherSeed?.record||''} • Power: ${s.higherSeed?.power?.toFixed(2)||'?'}</div>
+      </div>
+      <div style="font-size:14px;color:#888;font-weight:bold">vs</div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:bold">${s.lowerSeed?.name||lower}</div>
+        <div style="font-size:12px;color:#888">${s.lowerSeed?.record||''} • Power: ${s.lowerSeed?.power?.toFixed(2)||'?'}</div>
+      </div>
+    </div>`;
+
+    h += `<div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="color:#22c55e;font-weight:bold;font-size:18px">${sp.higherSeedWinPct||'?'}%</span>
+      <span style="color:#e94560;font-weight:bold;font-size:18px">${sp.lowerSeedWinPct||'?'}%</span>
+    </div>
+    <div style="height:10px;background:#333;border-radius:5px;overflow:hidden;margin-bottom:12px">
+      <div style="width:${sp.higherSeedWinPct||50}%;height:100%;background:#22c55e;border-radius:5px"></div>
+    </div>`;
+
+    h += `<div style="display:flex;justify-content:space-between;font-family:monospace;margin-bottom:12px">
+      <span>Fair ML: ${sp.fairOdds?.higher||''}</span>
+      <span>Fair ML: ${sp.fairOdds?.lower||''}</span>
+    </div>`;
+
+    h += `<div style="font-weight:bold;color:#a855f7;margin-bottom:6px">${s.competitiveness||''}</div>`;
+    h += `<div style="font-size:12px;color:#888;margin-bottom:8px">Expected series length: ~${s.expectedLength||'?'} games</div>`;
+
+    // Length distribution
+    h += `<div style="margin-bottom:12px"><div style="font-size:12px;color:#aaa;margin-bottom:6px;font-weight:bold">Series Length Distribution</div>`;
+    [4,5,6,7].forEach(n => {
+      const ed = eld[n] || {};
+      h += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="width:35px;font-size:12px;color:#888">In ${n}:</span>
+        <div style="flex:1;height:16px;background:#222;border-radius:4px;overflow:hidden;display:flex">
+          <div style="width:${ed.higher||0}%;height:100%;background:#22c55e" title="${higher} in ${n}: ${ed.higher||0}%"></div>
+          <div style="width:${ed.lower||0}%;height:100%;background:#e94560" title="${lower} in ${n}: ${ed.lower||0}%"></div>
+        </div>
+        <span style="width:40px;font-size:11px;color:#aaa;text-align:right">${ed.total||0}%</span>
+      </div>`;
+    });
+    h += `</div>`;
+
+    // Key Factors
+    h += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">`;
+    if (ge.advantage) {
+      const geColor = ge.impact === 'SIGNIFICANT' ? '#22c55e' : ge.impact === 'MODERATE' ? '#f59e0b' : '#888';
+      h += `<div style="background:#1a1a2e;padding:10px;border-radius:8px">
+        <div style="font-size:10px;color:#aaa;margin-bottom:4px">🥅 Goalie Edge</div>
+        <div style="font-weight:bold;color:${geColor}">${ge.advantage} (${ge.impact})</div>
+        <div style="font-size:10px;color:#666;margin-top:4px">${ge.higherStarter||''}<br>${ge.lowerStarter||''}</div>
+      </div>`;
+    }
+    if (st.advantage) {
+      h += `<div style="background:#1a1a2e;padding:10px;border-radius:8px">
+        <div style="font-size:10px;color:#aaa;margin-bottom:4px">⚡ Special Teams</div>
+        <div style="font-weight:bold">${st.advantage} (+${st.differential||0})</div>
+        <div style="font-size:10px;color:#666;margin-top:4px">${st.impact||''}</div>
+      </div>`;
+    }
+    if (hi.homeIceSwing) {
+      h += `<div style="background:#1a1a2e;padding:10px;border-radius:8px">
+        <div style="font-size:10px;color:#aaa;margin-bottom:4px">🏠 Home Ice</div>
+        <div style="font-weight:bold">Swing: ${hi.homeIceSwing > 0 ? '+' : ''}${hi.homeIceSwing}%</div>
+        <div style="font-size:10px;color:#666;margin-top:4px">Home: ${hi.higherAtHome||'?'}% | Road: ${hi.higherOnRoad||'?'}%</div>
+      </div>`;
+    }
+    h += `</div>`;
+
+    // Game by game
+    if (mc.gameByGame && mc.gameByGame.length > 0) {
+      h += `<div style="margin-top:12px"><div style="font-size:12px;color:#aaa;margin-bottom:6px;font-weight:bold">Game-by-Game Win Probability (${higher})</div>`;
+      h += `<div style="display:flex;gap:4px;align-items:flex-end;height:80px">`;
+      mc.gameByGame.forEach(g => {
+        const pct = g.higherSeedWinPct || 50;
+        const barH = Math.max(5, (pct / 100) * 75);
+        const color = pct >= 55 ? '#22c55e' : pct >= 45 ? '#f59e0b' : '#e94560';
+        const loc = g.location === 'Higher Seed Home' ? 'H' : 'A';
+        h += `<div style="flex:1;display:flex;flex-direction:column;align-items:center">
+          <div style="font-size:9px;color:#888;margin-bottom:2px">${pct}%</div>
+          <div style="width:100%;height:${barH}px;background:${color};border-radius:3px"></div>
+          <div style="font-size:9px;color:#666;margin-top:2px">G${g.game} (${loc})</div>
+        </div>`;
+      });
+      h += `</div></div>`;
+    }
+
+    h += `</div>`;
+    resultDiv.innerHTML = h;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:#e94560">Error: ${err.message}</p>`;
+  }
+}
+
 </script>
 </body>
 </html>

@@ -35,6 +35,7 @@ const altLines = require('./services/alt-lines');
 const mlBridge = require('./services/ml-bridge');
 const arbitrage = require('./services/arbitrage');
 const playoffSeries = require('./services/playoff-series');
+const nhlPlayoffSeries = require('./services/nhl-playoff-series');
 const statcast = require('./services/statcast');
 const negBinomial = require('./services/neg-binomial');
 const historicalGames = require('./services/historical-games');
@@ -54,6 +55,8 @@ let dailySlate = null;
 try { dailySlate = require('./services/daily-slate'); } catch (e) { console.error('[server] Daily Slate service not loaded:', e.message); }
 let consensusEngine = null;
 try { consensusEngine = require('./services/consensus-engine'); } catch (e) { console.error('[server] Consensus Engine not loaded:', e.message); }
+let nbaHistorical = null;
+try { nbaHistorical = require('./services/nba-historical'); } catch (e) { console.error('[server] NBA Historical not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -108,7 +111,10 @@ function extractBookLine(bk, homeTeam) {
       });
     }
     if (mkt.key === 'totals') {
-      mkt.outcomes.forEach(o => { if (o.name === 'Over') bookLine.total = o.point; });
+      mkt.outcomes.forEach(o => {
+        if (o.name === 'Over') { bookLine.total = o.point; bookLine.overOdds = o.price; }
+        if (o.name === 'Under') { bookLine.underOdds = o.price; }
+      });
     }
   });
   return bookLine;
@@ -117,7 +123,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '48.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','4-season-training-data'] });
+  res.json({ status: 'ok', version: '51.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -2315,6 +2321,273 @@ app.get('/api/playoffs/value', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== NHL PLAYOFF SERIES PRICING ====================
+
+// NHL playoff bracket projection with all first-round series analysis
+app.get('/api/nhl-playoffs/bracket', (req, res) => {
+  try {
+    const bracket = nhlPlayoffSeries.projectBracket(nhl);
+    res.json({
+      bracket,
+      daysUntilPlayoffs: bracket.daysUntilPlayoffs,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Analyze specific NHL playoff series
+app.get('/api/nhl-playoffs/series', (req, res) => {
+  try {
+    const { higher, lower } = req.query;
+    if (!higher || !lower) return res.status(400).json({ error: 'Need ?higher=WPG&lower=MTL' });
+    const result = nhlPlayoffSeries.analyzePlayoffSeries(nhl, higher.toUpperCase(), lower.toUpperCase());
+    if (result.error) return res.status(400).json(result);
+    res.json({ series: result, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Full NHL playoff simulation — Stanley Cup odds for all 16 teams
+app.get('/api/nhl-playoffs/stanley-cup', (req, res) => {
+  try {
+    const sims = Math.min(parseInt(req.query.sims) || 10000, 50000);
+    const result = nhlPlayoffSeries.simulateFullPlayoffs(nhl, sims);
+    res.json({ ...result, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NHL series value finder
+app.get('/api/nhl-playoffs/value', (req, res) => {
+  try {
+    const matchupsStr = req.query.matchups;
+    if (!matchupsStr) {
+      return res.json({
+        note: 'Pass ?matchups=[{"higher":"WPG","lower":"MTL","bookHigherML":-200,"bookLowerML":170}]',
+        example: '/api/nhl-playoffs/value?matchups=[{"higher":"WPG","lower":"MTL","bookHigherML":-200,"bookLowerML":170}]'
+      });
+    }
+    const matchups = JSON.parse(matchupsStr);
+    const values = nhlPlayoffSeries.findSeriesValue(nhl, matchups);
+    res.json({ valueBets: values, count: values.length, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NHL Playoff Preview — comprehensive view with standings, bracket, series prices, Stanley Cup odds, value bets
+app.get('/api/nhl-playoffs/preview', async (req, res) => {
+  try {
+    const sims = Math.min(parseInt(req.query.sims) || 10000, 50000);
+    
+    // Project bracket with series analysis
+    const bracket = nhlPlayoffSeries.projectBracket(nhl);
+    
+    // Stanley Cup simulation
+    const champSim = nhlPlayoffSeries.simulateFullPlayoffs(nhl, sims);
+    
+    // Try to get futures odds from The Odds API
+    let futuresOdds = null;
+    if (ODDS_API_KEY) {
+      try {
+        const fetch = require('node-fetch');
+        const resp = await fetch(`https://api.the-odds-api.com/v4/sports/icehockey_nhl/futures/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=outright_winner&oddsFormat=american`, { timeout: 10000 });
+        if (resp.ok) {
+          const data = await resp.json();
+          futuresOdds = {};
+          for (const event of data) {
+            for (const bm of event.bookmakers || []) {
+              for (const mkt of bm.markets || []) {
+                for (const outcome of mkt.outcomes || []) {
+                  const abbr = resolveNHLTeamName(outcome.name);
+                  if (abbr && outcome.price) {
+                    if (!futuresOdds[abbr] || Math.abs(outcome.price) < Math.abs(futuresOdds[abbr].bestOdds)) {
+                      futuresOdds[abbr] = { bestOdds: outcome.price, book: bm.title };
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (e) { /* Odds API optional */ }
+    }
+    
+    // Find futures value
+    const futuresValue = [];
+    if (futuresOdds) {
+      for (const team of champSim.stanleyCupOdds) {
+        const odds = futuresOdds[team.abbr];
+        if (odds) {
+          const bookProb = nhlPlayoffSeries.mlToProb(odds.bestOdds);
+          const modelProb = team.champPct / 100;
+          const edge = modelProb - bookProb;
+          if (edge > 0.02) {
+            futuresValue.push({
+              team: team.name,
+              abbr: team.abbr,
+              modelPct: team.champPct,
+              bookOdds: odds.bestOdds,
+              bookPct: +(bookProb * 100).toFixed(1),
+              edge: +(edge * 100).toFixed(1),
+              book: odds.book,
+              record: team.record,
+              starter: team.starter
+            });
+          }
+        }
+      }
+      futuresValue.sort((a, b) => b.edge - a.edge);
+    }
+    
+    // Compile enriched matchup data
+    const enrichedMatchups = (conf) => {
+      return bracket[conf].matchups.map(m => {
+        const series = nhlPlayoffSeries.analyzePlayoffSeries(nhl, m.higher.abbr, m.lower.abbr);
+        return {
+          matchup: m.matchup,
+          type: m.type,
+          higher: m.higher,
+          lower: m.lower,
+          seriesPrice: series.seriesPrice,
+          keyFactors: series.keyFactors,
+          competitiveness: series.competitiveness,
+          expectedLength: series.expectedLength,
+          lengthDistribution: series.lengthDistribution,
+          upsetAlert: series.upsetAlert
+        };
+      });
+    };
+    
+    res.json({
+      sport: 'nhl',
+      title: 'NHL Playoff Preview 🏒',
+      playoffsStart: '2026-04-19',
+      daysUntilPlayoffs: bracket.daysUntilPlayoffs,
+      
+      // Eastern Conference
+      eastern: {
+        divisions: bracket.eastern.divisions,
+        wildCards: bracket.eastern.wildCards,
+        matchups: enrichedMatchups('eastern'),
+        bubble: bracket.eastern.bubble
+      },
+      
+      // Western Conference
+      western: {
+        divisions: bracket.western.divisions,
+        wildCards: bracket.western.wildCards,
+        matchups: enrichedMatchups('western'),
+        bubble: bracket.western.bubble
+      },
+      
+      // Stanley Cup simulation results
+      stanleyCupOdds: champSim.stanleyCupOdds,
+      topContenders: champSim.topContenders,
+      darkHorses: champSim.darkHorses,
+      
+      // Futures value (if odds available)
+      futuresValue: futuresValue.length > 0 ? futuresValue : null,
+      
+      // Key storylines for betting
+      keyStorylines: generateNHLStorylines(bracket, champSim),
+      
+      simulations: sims,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('NHL Playoff preview error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Helper: Resolve NHL team names to abbreviations
+function resolveNHLTeamName(name) {
+  const map = {
+    'Winnipeg Jets': 'WPG', 'Dallas Stars': 'DAL', 'Colorado Avalanche': 'COL',
+    'Minnesota Wild': 'MIN', 'Vegas Golden Knights': 'VGK', 'Edmonton Oilers': 'EDM',
+    'Los Angeles Kings': 'LAK', 'Vancouver Canucks': 'VAN', 'Calgary Flames': 'CGY',
+    'St. Louis Blues': 'STL', 'Seattle Kraken': 'SEA', 'Nashville Predators': 'NSH',
+    'Chicago Blackhawks': 'CHI', 'San Jose Sharks': 'SJS', 'Anaheim Ducks': 'ANA',
+    'Arizona Coyotes': 'ARI', 'Utah Hockey Club': 'ARI', 'Utah Mammoth': 'ARI',
+    'Boston Bruins': 'BOS', 'Florida Panthers': 'FLA', 'Toronto Maple Leafs': 'TOR',
+    'Tampa Bay Lightning': 'TBL', 'Carolina Hurricanes': 'CAR', 'New Jersey Devils': 'NJD',
+    'New York Rangers': 'NYR', 'Ottawa Senators': 'OTT', 'Detroit Red Wings': 'DET',
+    'Montreal Canadiens': 'MTL', 'Montréal Canadiens': 'MTL', 'Buffalo Sabres': 'BUF',
+    'Pittsburgh Penguins': 'PIT', 'Philadelphia Flyers': 'PHI', 'Washington Capitals': 'WSH',
+    'Columbus Blue Jackets': 'CBJ', 'New York Islanders': 'NYI',
+  };
+  return map[name] || null;
+}
+
+// Helper: Generate key NHL playoff storylines
+function generateNHLStorylines(bracket, champSim) {
+  const stories = [];
+  
+  // Find the tightest series
+  const allMatchups = [...bracket.eastern.matchups, ...bracket.western.matchups];
+  const tightest = allMatchups
+    .filter(m => m.series && !m.series.error)
+    .sort((a, b) => Math.abs(50 - a.series.higherSeedWinPct) - Math.abs(50 - b.series.higherSeedWinPct));
+  
+  if (tightest.length > 0) {
+    const m = tightest[0];
+    stories.push({
+      type: 'COIN_FLIP_SERIES',
+      headline: `${m.higher.name} vs ${m.lower.name}: Near Coin Flip`,
+      detail: `Model gives ${m.higher.name} only ${m.series.higherSeedWinPct}% — this is where the value is if books price it wider`,
+      matchup: `${m.higher.abbr} vs ${m.lower.abbr}`
+    });
+  }
+  
+  // Find biggest upset potential
+  const upsetAlerts = allMatchups.filter(m => m.series && m.series.upsetAlert);
+  for (const m of upsetAlerts.slice(0, 2)) {
+    stories.push({
+      type: 'UPSET_ALERT',
+      headline: `Upset Alert: ${m.lower.name} (${m.series.lowerSeedWinPct}%)`,
+      detail: `${m.lower.name} has a ${m.series.lowerSeedWinPct}% chance to upset ${m.higher.name} — look for plus-money series prices`,
+      matchup: `${m.higher.abbr} vs ${m.lower.abbr}`
+    });
+  }
+  
+  // Bubble race
+  const eastBubble = bracket.eastern.bubble.filter(t => t.status === 'IN THE HUNT');
+  const westBubble = bracket.western.bubble.filter(t => t.status === 'IN THE HUNT');
+  if (eastBubble.length > 0) {
+    stories.push({
+      type: 'BUBBLE_RACE',
+      headline: `East Bubble: ${eastBubble.map(t => t.name).join(', ')} still in the hunt`,
+      detail: `${eastBubble.length} teams within striking distance of a wild card — bracket could shift dramatically`,
+      teams: eastBubble.map(t => ({ name: t.name, abbr: t.abbr, gamesBack: t.gamesBack }))
+    });
+  }
+  
+  // Goalie matchup with biggest edge
+  const goalieStory = allMatchups
+    .filter(m => m.series && m.series.goalieEdge && m.series.goalieEdge.impact === 'SIGNIFICANT')
+    .sort((a, b) => b.series.goalieEdge.differential - a.series.goalieEdge.differential);
+  
+  if (goalieStory.length > 0) {
+    const g = goalieStory[0];
+    stories.push({
+      type: 'GOALIE_EDGE',
+      headline: `Goalie Edge: ${g.series.goalieEdge.advantage} has significant goaltending advantage`,
+      detail: `${g.series.goalieEdge.higherStarter} vs ${g.series.goalieEdge.lowerStarter} — this will swing the series`,
+      matchup: `${g.higher.abbr} vs ${g.lower.abbr}`
+    });
+  }
+  
+  // Stanley Cup favorite
+  const favorite = champSim.stanleyCupOdds[0];
+  if (favorite) {
+    stories.push({
+      type: 'CUP_FAVORITE',
+      headline: `Stanley Cup Favorite: ${favorite.name} (${favorite.champPct}%)`,
+      detail: `${favorite.name} leads our model with ${favorite.champPct}% cup probability (${favorite.champML > 0 ? '+' : ''}${favorite.champML})`,
+      team: favorite.abbr
+    });
+  }
+  
+  return stories;
+}
+
 // ==================== CHAMPIONSHIP FUTURES VALUE SCANNER ====================
 
 // Scan all sports for championship futures value
@@ -2690,6 +2963,93 @@ app.get('/api/rest-travel/matchup/:away/:home', async (req, res) => {
     const gameDate = req.query.gameDate || new Date().toISOString().split('T')[0];
     const result = await restTravelService.getMatchupAdjustments(away, home, gameDate);
     res.json({ away, home, gameDate, ...result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== NBA MODEL VALIDATION ====================
+// Historical backtesting against actual game results from ESPN
+
+app.get('/api/nba/validation', async (req, res) => {
+  try {
+    if (!nbaHistorical) return res.status(503).json({ error: 'NBA Historical service not loaded' });
+    const season = req.query.season || '2025-26';
+    const games = await nbaHistorical.getSeasonGames(season);
+    if (games.length === 0) return res.json({ error: `No games for season ${season}`, seasons: ['2021-22','2022-23','2023-24','2024-25','2025-26'] });
+    const report = nbaHistorical.validateModel(nba, games);
+    res.json({ season, ...report });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/nba/validation/stats', (req, res) => {
+  if (!nbaHistorical) return res.status(503).json({ error: 'NBA Historical service not loaded' });
+  res.json(nbaHistorical.getStats());
+});
+
+app.get('/api/nba/validation/fetch', async (req, res) => {
+  try {
+    if (!nbaHistorical) return res.status(503).json({ error: 'NBA Historical service not loaded' });
+    const season = req.query.season || '2025-26';
+    const games = await nbaHistorical.getSeasonGames(season);
+    res.json({ season, gamesLoaded: games.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Cross-sport model accuracy dashboard
+app.get('/api/model/accuracy', async (req, res) => {
+  try {
+    const report = {
+      timestamp: new Date().toISOString(),
+      sports: {},
+    };
+    
+    // MLB ML model status
+    try {
+      const mlStatus = mlBridge.getStatus();
+      report.sports.mlb = {
+        mlModel: mlStatus,
+        trainingData: historicalGames.getStats(),
+      };
+    } catch (e) { report.sports.mlb = { error: e.message }; }
+    
+    // NBA validation (cached games only — don't trigger fetch)
+    try {
+      if (nbaHistorical) {
+        const stats = nbaHistorical.getStats();
+        report.sports.nba = { historicalData: stats };
+        
+        // If we have cached games, run quick validation
+        nbaHistorical.loadCache();
+        const currentSeason = '2025-26';
+        if (stats.seasons?.[currentSeason]?.games > 0) {
+          const games = await nbaHistorical.getSeasonGames(currentSeason);
+          if (games.length > 50) {
+            // Validate on last 100 games for speed
+            const recentGames = games.slice(-100);
+            const validation = nbaHistorical.validateModel(nba, recentGames);
+            report.sports.nba.recentValidation = validation.summary;
+            report.sports.nba.calibration = validation.calibration;
+          }
+        }
+      }
+    } catch (e) { report.sports.nba = { ...(report.sports.nba || {}), validationError: e.message }; }
+    
+    // MLB historical training data expansion
+    try {
+      const fs = require('fs');
+      const multiCachePath = require('path').join(__dirname, 'services', 'historical-multi-season-cache.json');
+      if (fs.existsSync(multiCachePath)) {
+        const multiCache = JSON.parse(fs.readFileSync(multiCachePath, 'utf8'));
+        report.sports.mlb.multiSeasonData = {};
+        let totalGames = 0;
+        for (const [key, games] of Object.entries(multiCache)) {
+          report.sports.mlb.multiSeasonData[key] = Array.isArray(games) ? games.length : 0;
+          totalGames += Array.isArray(games) ? games.length : 0;
+        }
+        report.sports.mlb.totalTrainingGames = totalGames;
+      }
+    } catch (e) { /* no multi-season cache */ }
+    
+    res.json(report);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3401,7 +3761,8 @@ app.get('/api/ml/status', async (req, res) => {
 app.post('/api/ml/train', async (req, res) => {
   try {
     const sport = req.query.sport || 'mlb';
-    const result = await mlBridge.train(sport);
+    const forceRefresh = req.query.force === 'true';
+    const result = await mlBridge.train(sport, forceRefresh);
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
