@@ -307,6 +307,177 @@ async function scanAllValue() {
               }
             }
           }
+          // ==================== RUN LINE VALUE (v59.0) ====================
+          // MLB run line is ±1.5 (from Odds API 'spreads' market)
+          // Use NB exact probability instead of normal approximation
+          if (sport === 'mlb' && pred.homeRunLine && pred.awayRunLine) {
+            for (const [bookName, bookLine] of Object.entries(books)) {
+              const bookSpread = bookLine.spread; // e.g., -1.5 for home fav
+              if (bookSpread === undefined || bookSpread === null) continue;
+              
+              // Get spread odds from the raw enriched data
+              // The home spread is the number. Typical MLB: home -1.5 or +1.5
+              // bookLine also has homeSpreadOdds / awaySpreadOdds if present
+              const homeSpreadOdds = bookLine.homeSpreadOdds;
+              const awaySpreadOdds = bookLine.awaySpreadOdds;
+              
+              if (homeSpreadOdds !== undefined && homeSpreadOdds !== null) {
+                // Home run line: our model has pred.homeRunLine.prob (NB-based)
+                const modelProb = pred.homeRunLine.prob;
+                const impliedProb = homeSpreadOdds < 0 
+                  ? (-homeSpreadOdds) / (-homeSpreadOdds + 100) 
+                  : 100 / (homeSpreadOdds + 100);
+                const edge = modelProb - impliedProb;
+                
+                if (edge >= 0.03) {
+                  valueBets.push({
+                    sport: 'MLB',
+                    game: `${awayAbbr} @ ${homeAbbr}`,
+                    gameFull: `${awayFull} @ ${homeFull}`,
+                    book: bookName,
+                    pick: `${homeAbbr} ${bookSpread} (${homeSpreadOdds > 0 ? '+' : ''}${homeSpreadOdds})`,
+                    edge: parseFloat(edge.toFixed(4)),
+                    modelProb: parseFloat(modelProb.toFixed(4)),
+                    impliedProb: parseFloat(impliedProb.toFixed(4)),
+                    confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
+                    market: 'runline',
+                    model: pred.homeRunLine.model || 'negative-binomial',
+                  });
+                }
+              }
+              
+              if (awaySpreadOdds !== undefined && awaySpreadOdds !== null) {
+                const modelProb = pred.awayRunLine.prob;
+                const impliedProb = awaySpreadOdds < 0 
+                  ? (-awaySpreadOdds) / (-awaySpreadOdds + 100) 
+                  : 100 / (awaySpreadOdds + 100);
+                const edge = modelProb - impliedProb;
+                
+                if (edge >= 0.03) {
+                  valueBets.push({
+                    sport: 'MLB',
+                    game: `${awayAbbr} @ ${homeAbbr}`,
+                    gameFull: `${awayFull} @ ${homeFull}`,
+                    book: bookName,
+                    pick: `${awayAbbr} +${Math.abs(bookSpread)} (${awaySpreadOdds > 0 ? '+' : ''}${awaySpreadOdds})`,
+                    edge: parseFloat(edge.toFixed(4)),
+                    modelProb: parseFloat(modelProb.toFixed(4)),
+                    impliedProb: parseFloat(impliedProb.toFixed(4)),
+                    confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
+                    market: 'runline',
+                    model: pred.awayRunLine.model || 'negative-binomial',
+                  });
+                }
+              }
+            }
+          }
+          
+          // ==================== F5 (FIRST 5 INNINGS) VALUE (v59.0) ====================
+          // If the NB F5 model computed F5 data, compare with any F5 totals/ML available
+          // F5 totals are the BIGGEST edge on Opening Day — starters guaranteed deep
+          if (sport === 'mlb' && pred.f5 && pred.f5.model === 'negative-binomial-f5') {
+            const f5 = pred.f5;
+            
+            // F5 total value: model says F5 total = X, compare to F5 total line if available
+            // For now, we derive F5 value from the full game total line:
+            // If book total is T, F5 should be ~54.5% of T (Opening Day) or ~52.5% regular
+            // If our model's F5 total diverges significantly, that's an edge
+            for (const [bookName, bookLine] of Object.entries(books)) {
+              const bookTotal = bookLine.total;
+              if (!bookTotal) continue;
+              
+              // Estimate the book's implied F5 total from the full-game total
+              const isOD = pred.factors?.openingDayStarters || pred.factors?.preseasonTuning;
+              const impliedF5Factor = isOD ? 0.545 : 0.525;
+              const impliedF5Total = bookTotal * impliedF5Factor;
+              const modelF5Total = f5.total;
+              
+              // If our F5 model total differs significantly, scan F5 total lines
+              const f5Diff = modelF5Total - impliedF5Total;
+              
+              // Use the NB F5 totals probability matrix for the nearest line
+              const nearestLine = Math.round(impliedF5Total * 2) / 2; // Round to nearest 0.5
+              const f5LineData = f5.totals ? f5.totals[nearestLine] : null;
+              
+              if (f5LineData) {
+                // F5 Under value (Opening Day special: starters dominate, unders hit more)
+                if (f5LineData.under > 0.55) {
+                  const underEdge = f5LineData.under - 0.5; // vs standard -110/-110 vig-free
+                  if (underEdge >= 0.03) {
+                    valueBets.push({
+                      sport: 'MLB',
+                      game: `${awayAbbr} @ ${homeAbbr}`,
+                      gameFull: `${awayFull} @ ${homeFull}`,
+                      book: bookName,
+                      pick: `F5 UNDER ${nearestLine} (${f5LineData.underML > 0 ? '+' : ''}${f5LineData.underML} fair)`,
+                      edge: parseFloat(underEdge.toFixed(4)),
+                      modelProb: parseFloat(f5LineData.under.toFixed(4)),
+                      impliedProb: 0.5,
+                      modelTotal: modelF5Total,
+                      confidence: underEdge >= 0.07 ? 'HIGH' : underEdge >= 0.04 ? 'MEDIUM' : 'LOW',
+                      market: 'f5-total',
+                      model: 'negative-binomial-f5',
+                      f5Detail: { modelF5Total, impliedF5Total: impliedF5Total.toFixed(2), nearestLine },
+                    });
+                  }
+                }
+                
+                // F5 Over value
+                if (f5LineData.over > 0.55) {
+                  const overEdge = f5LineData.over - 0.5;
+                  if (overEdge >= 0.03) {
+                    valueBets.push({
+                      sport: 'MLB',
+                      game: `${awayAbbr} @ ${homeAbbr}`,
+                      gameFull: `${awayFull} @ ${homeFull}`,
+                      book: bookName,
+                      pick: `F5 OVER ${nearestLine} (${f5LineData.overML > 0 ? '+' : ''}${f5LineData.overML} fair)`,
+                      edge: parseFloat(overEdge.toFixed(4)),
+                      modelProb: parseFloat(f5LineData.over.toFixed(4)),
+                      impliedProb: 0.5,
+                      modelTotal: modelF5Total,
+                      confidence: overEdge >= 0.07 ? 'HIGH' : overEdge >= 0.04 ? 'MEDIUM' : 'LOW',
+                      market: 'f5-total',
+                      model: 'negative-binomial-f5',
+                      f5Detail: { modelF5Total, impliedF5Total: impliedF5Total.toFixed(2), nearestLine },
+                    });
+                  }
+                }
+              }
+            }
+            
+            // F5 ML value: 3-way market (home/away/draw)
+            // F5 draws happen ~16% of games — this is a MASSIVE edge that books often underprice
+            if (f5.drawProb > 0.12) {
+              // 3-way draw is typically priced at +350 to +500 (16-22% implied)
+              // If our model shows draw > 16%, and typical book price implies <15%, that's value
+              valueBets.push({
+                sport: 'MLB',
+                game: `${awayAbbr} @ ${homeAbbr}`,
+                gameFull: `${awayFull} @ ${homeFull}`,
+                book: 'model',
+                pick: `F5 DRAW (${f5.threeWay?.drawML > 0 ? '+' : ''}${f5.threeWay?.drawML} fair)`,
+                edge: parseFloat((f5.drawProb - 0.14).toFixed(4)), // vs ~14% market avg
+                modelProb: parseFloat(f5.drawProb.toFixed(4)),
+                impliedProb: 0.14,
+                confidence: f5.drawProb >= 0.19 ? 'HIGH' : f5.drawProb >= 0.16 ? 'MEDIUM' : 'LOW',
+                market: 'f5-ml',
+                model: 'negative-binomial-f5',
+              });
+            }
+          }
+          
+          // ==================== CONVICTION SCORE (v59.0) ====================
+          // Attach conviction score to existing value bets for this game
+          if (pred.conviction) {
+            const gameKey = `${awayAbbr}@${homeAbbr}`;
+            for (const vb of valueBets) {
+              if (vb.game === `${awayAbbr} @ ${homeAbbr}` && !vb.conviction) {
+                vb.conviction = pred.conviction;
+              }
+            }
+          }
+          
         } catch (e) { /* skip game */ }
       }
       

@@ -915,6 +915,107 @@ async function runPredict(sport) {
       }
     }
 
+    // ==================== F5 (First 5 Innings) NB Model (v60.0) ====================
+    if (pred.f5 && pred.f5.model === 'negative-binomial-f5' && sport === 'mlb') {
+      const f5 = pred.f5;
+      html += `<div class="card" style="margin-top:12px"><h2>⏱️ First 5 Innings Model (NB)</h2>
+      <p style="color:var(--text2);font-size:12px;margin-bottom:12px">Negative Binomial scoring model — exact probability matrix for F5 outcomes</p>
+      <div class="stats-grid">
+        <div class="stat"><div class="val" style="color:var(--yellow)">${f5.total}</div><div class="label">F5 Total</div></div>
+        <div class="stat"><div class="val">${f5.awayRuns}</div><div class="label">${away} F5 Runs</div></div>
+        <div class="stat"><div class="val">${f5.homeRuns}</div><div class="label">${home} F5 Runs</div></div>
+        <div class="stat"><div class="val">${(f5.drawProb * 100).toFixed(1)}%</div><div class="label">F5 Draw</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0">
+        <div style="background:var(--card2);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3)">${away} F5 WIN</div>
+          <div style="font-size:18px;font-weight:700;color:var(--accent2)">${(f5.awayWinProb * 100).toFixed(1)}%</div>
+          <div style="font-size:11px;color:var(--text3)">${f5.awayML > 0 ? '+' : ''}${f5.awayML}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3)">DRAW</div>
+          <div style="font-size:18px;font-weight:700;color:var(--yellow)">${(f5.drawProb * 100).toFixed(1)}%</div>
+          <div style="font-size:11px;color:var(--text3)">${f5.threeWay?.drawML > 0 ? '+' : ''}${f5.threeWay?.drawML || '-'}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:10px;color:var(--text3)">${home} F5 WIN</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green)">${(f5.homeWinProb * 100).toFixed(1)}%</div>
+          <div style="font-size:11px;color:var(--text3)">${f5.homeML > 0 ? '+' : ''}${f5.homeML}</div>
+        </div>
+      </div>`;
+      
+      // F5 totals lines
+      if (f5.totals) {
+        html += `<div style="overflow-x:auto;margin-top:8px"><table><thead><tr><th>F5 Line</th><th>Over %</th><th>Over ML</th><th>Under %</th><th>Under ML</th></tr></thead><tbody>`;
+        for (const line of [3.5, 4, 4.5, 5, 5.5, 6, 6.5]) {
+          const d = f5.totals[line];
+          if (!d) continue;
+          const overPct = (d.over * 100).toFixed(1);
+          const underPct = (d.under * 100).toFixed(1);
+          const best = d.over > d.under ? 'over' : 'under';
+          html += `<tr>
+            <td style="font-weight:700">${line}</td>
+            <td style="color:${best === 'over' ? 'var(--green)' : 'var(--text2)'}${best === 'over' ? ';font-weight:600' : ''}">${overPct}%</td>
+            <td>${d.overML > 0 ? '+' : ''}${d.overML}</td>
+            <td style="color:${best === 'under' ? 'var(--green)' : 'var(--text2)'}${best === 'under' ? ';font-weight:600' : ''}">${underPct}%</td>
+            <td>${d.underML > 0 ? '+' : ''}${d.underML}</td>
+          </tr>`;
+        }
+        html += `</tbody></table></div>`;
+      }
+      html += `</div>`;
+    }
+    
+    // ==================== Run Line Analysis (v60.0) ====================
+    if (pred.altRunLines && sport === 'mlb') {
+      html += `<div class="card" style="margin-top:12px"><h2>📏 Run Line Analysis (NB)</h2>
+      <p style="color:var(--text2);font-size:12px;margin-bottom:12px">Exact probabilities from Negative Binomial score matrix — replaces normal approximation</p>
+      <div style="overflow-x:auto"><table><thead><tr><th>Run Line</th><th>${home} Cover %</th><th>${home} ML</th><th>${away} Cover %</th><th>${away} ML</th></tr></thead><tbody>`;
+      
+      const rlData = pred.altRunLines;
+      for (const spread of ['-1.5', '-2.5', '-3.5']) {
+        const h = rlData.home?.[spread];
+        if (!h) continue;
+        const hPct = (h.homeCover * 100).toFixed(1);
+        const aPct = (h.awayCover * 100).toFixed(1);
+        html += `<tr>
+          <td style="font-weight:700">${spread} / +${Math.abs(parseFloat(spread))}</td>
+          <td style="color:${h.homeCover > 0.5 ? 'var(--green)' : 'var(--text2)'}${h.homeCover > 0.5 ? ';font-weight:600' : ''}">${hPct}%</td>
+          <td>${h.homeCoverML > 0 ? '+' : ''}${h.homeCoverML}</td>
+          <td style="color:${h.awayCover > 0.5 ? 'var(--green)' : 'var(--text2)'}${h.awayCover > 0.5 ? ';font-weight:600' : ''}">${aPct}%</td>
+          <td>${h.awayCoverML > 0 ? '+' : ''}${h.awayCoverML}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div></div>`;
+    }
+    
+    // ==================== Conviction Score (v60.0) ====================
+    if (pred.conviction && sport === 'mlb') {
+      const cv = pred.conviction;
+      const gradeColors = { 'A+': '#00e676', 'A': '#4caf50', 'B+': '#8bc34a', 'B': '#cddc39', 'C+': '#ffeb3b', 'C': '#ff9800', 'D': '#ff5722', 'F': '#f44336' };
+      const color = gradeColors[cv.grade] || 'var(--text2)';
+      html += `<div class="card" style="margin-top:12px"><h2>🎯 Conviction Score</h2>
+      <div style="display:flex;align-items:center;gap:16px;margin:12px 0">
+        <div style="width:80px;height:80px;border-radius:50%;background:${color}20;border:3px solid ${color};display:flex;align-items:center;justify-content:center;flex-direction:column">
+          <div style="font-size:24px;font-weight:800;color:${color}">${cv.score}</div>
+          <div style="font-size:11px;color:${color}">${cv.grade}</div>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:${color}">${cv.action}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:4px">Kelly fraction: ${(cv.kellyFraction * 100).toFixed(0)}%</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2)">`;
+      for (const b of (cv.breakdown || [])) {
+        const pColor = b.points >= 10 ? 'var(--green)' : b.points >= 5 ? 'var(--yellow)' : 'var(--text3)';
+        html += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bg3)">
+          <span>${b.detail}</span>
+          <span style="color:${pColor};font-weight:600">+${b.points}</span>
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
+
     // Monte Carlo simulation results (MLB only)
     if (pred.monteCarlo && sport === 'mlb') {
       const mc = pred.monteCarlo;
