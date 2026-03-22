@@ -57,7 +57,7 @@ const STAR_PLAYERS = {
   'Matt Olson': { war: 5.8, position: '1B', bats: 'L', team: 'ATL', impact: 0.10 },
   'Marcell Ozuna': { war: 4.5, position: 'DH', bats: 'R', team: 'PIT', impact: 0.08 },
   'Vladimir Guerrero Jr.': { war: 5.5, position: '1B', bats: 'R', team: 'TOR', impact: 0.09 },
-  'Pete Alonso': { war: 4.8, position: '1B', bats: 'R', team: 'NYM', impact: 0.08 },
+  'Pete Alonso': { war: 4.8, position: '1B', bats: 'R', team: 'BAL', impact: 0.08 },
   'Adley Rutschman': { war: 5.0, position: 'C', bats: 'S', team: 'BAL', impact: 0.09 },
   'J.T. Realmuto': { war: 4.5, position: 'C', bats: 'R', team: 'PHI', impact: 0.08 },
   'Salvador Perez': { war: 4.0, position: 'C', bats: 'R', team: 'KC', impact: 0.07 },

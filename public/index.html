@@ -171,6 +171,7 @@ function buildTabs() {
   if (currentSport === 'mlb' || currentSport === 'all') {
     tabs.push({ id: 'futures', label: '🏆 MLB Futures' });
     tabs.push({ id: 'f5-unders', label: '⚾ F5 Unders' });
+    tabs.push({ id: 'lineups', label: '📋 Lineups' });
   }
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
@@ -215,6 +216,7 @@ function showTab(id) {
   else if (id === 'rest-tank') loadRestTankTab();
   else if (id === 'champ-futures') loadChampFuturesTab();
   else if (id === 'f5-unders') loadF5UndersTab();
+  else if (id === 'lineups') loadLineupsTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -6144,6 +6146,300 @@ async function loadRawFuturesOdds(sport) {
 }
 
 // ==================== INIT ====================
+
+// ==================== MLB LINEUPS MONITOR TAB ====================
+
+async function loadLineupsTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading lineup data...</p></div>';
+  
+  try {
+    const [dashResp, statusResp] = await Promise.all([
+      fetch(`${API}/api/mlb/lineups/dashboard`),
+      fetch(`${API}/api/mlb/lineups/monitor/status`),
+    ]);
+    const data = await dashResp.json();
+    const monStatus = await statusResp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Hero
+    const running = monStatus.running;
+    const statusColor = running ? '#22c55e' : '#f59e0b';
+    const statusText = running ? '🟢 MONITORING' : '🟡 STOPPED';
+    
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a192f,#172a45);border:1px solid #3b82f6">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:#3b82f6">📋 MLB Lineup Monitor</h2>
+          <p style="margin:4px 0 0;color:#aaa">Auto-detect lineup drops → re-price predictions → find value before lines move</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="color:${statusColor};font-weight:bold;font-size:13px">${statusText}</span>
+          ${running 
+            ? `<button onclick="toggleLineupMonitor(false)" style="padding:6px 14px;background:#e94560;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px">⏹ Stop</button>`
+            : `<button onclick="toggleLineupMonitor(true)" style="padding:6px 14px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-size:12px">▶️ Start</button>`
+          }
+          <button onclick="forceLineupScan()" style="padding:6px 14px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px">🔄 Scan Now</button>
+        </div>
+      </div>
+    </div>`;
+    
+    // Stats bar
+    const s = data.summary || {};
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#3b82f6">${s.total || 0}</div>
+        <div style="font-size:10px;color:#888">Games Today</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#22c55e">${s.lineupsIn || 0}</div>
+        <div style="font-size:10px;color:#888">Lineups In</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#f59e0b">${s.pending || 0}</div>
+        <div style="font-size:10px;color:#888">Pending</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#e94560">${s.significantChanges || 0}</div>
+        <div style="font-size:10px;color:#888">Significant Changes</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#a855f7">${monStatus.totalScans || 0}</div>
+        <div style="font-size:10px;color:#888">Scans Today</div>
+      </div>
+    </div>`;
+    
+    // Alerts
+    if (data.recentAlerts && data.recentAlerts.length > 0) {
+      html += `<div class="card" style="border:1px solid #e94560">
+        <h3 style="color:#e94560;margin-top:0">🚨 Lineup Alerts</h3>`;
+      for (const alert of data.recentAlerts) {
+        const sevColor = alert.severity === 'HIGH' ? '#e94560' : '#f59e0b';
+        html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid ${sevColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="color:${sevColor}">${alert.severity} — ${alert.gameKey}</strong>
+            <span style="font-size:11px;color:#888">${new Date(alert.timestamp).toLocaleTimeString()}</span>
+          </div>
+          <p style="margin:6px 0 0;color:#ccc;font-size:13px">${alert.message}</p>
+          ${alert.predictionChange ? `<div style="margin-top:6px;font-size:12px;color:#888">
+            Win prob shift: ${alert.predictionChange.awayWinProbDelta > 0 ? '+' : ''}${alert.predictionChange.awayWinProbDelta}% | 
+            Total shift: ${alert.predictionChange.totalDelta > 0 ? '+' : ''}${alert.predictionChange.totalDelta} runs
+          </div>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    
+    // Games grid
+    if (data.games && data.games.length > 0) {
+      html += `<div class="card"><h3>📅 Today's Games — Lineup Status</h3>`;
+      
+      for (const game of data.games) {
+        const awayConf = game.lineupStatus.awayConfirmed;
+        const homeConf = game.lineupStatus.homeConfirmed;
+        const awayIcon = awayConf ? '✅' : '⏳';
+        const homeIcon = homeConf ? '✅' : '⏳';
+        const borderColor = (awayConf && homeConf) ? '#22c55e' : (awayConf || homeConf) ? '#f59e0b' : '#333';
+        
+        const imp = game.lineupImpact;
+        const hasImpact = imp && (Math.abs(imp.awayWinProbDelta) >= 0.5 || Math.abs(imp.totalDelta) >= 0.1);
+        
+        html += `<div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px;border-left:4px solid ${borderColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <div>
+              <strong style="font-size:16px">${game.matchup}</strong>
+              <span style="font-size:12px;color:#888;margin-left:8px">${game.hoursUntilGame > 0 ? `${game.hoursUntilGame}h until first pitch` : 'In progress'}</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              ${hasImpact ? '<span style="background:#e9456022;color:#e94560;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:bold">📊 PREDICTION SHIFTED</span>' : ''}
+            </div>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <!-- Away Team -->
+            <div>
+              <div style="font-size:13px;font-weight:bold;color:#aaa;margin-bottom:6px">
+                ${awayIcon} ${game.awayTeam} ${awayConf ? '(Confirmed)' : '(Pending)'}
+                ${game.awayPitcher ? `<span style="color:#888;font-weight:normal"> — SP: ${game.awayPitcher.name}</span>` : ''}
+              </div>`;
+        
+        if (awayConf && game.lineupStatus.awayBatters.length > 0) {
+          html += `<div style="font-size:11px;color:#888">`;
+          game.lineupStatus.awayBatters.forEach(b => {
+            const starBadge = b.isStar ? '⭐' : '';
+            html += `<div style="display:flex;gap:4px;padding:1px 0;${b.isStar ? 'color:#f59e0b;font-weight:bold' : ''}">
+              <span style="width:16px;text-align:right;color:#555">${b.order}.</span>
+              <span>${starBadge}${b.name}</span>
+              <span style="color:#555;margin-left:auto">${b.pos} ${b.bats}</span>
+            </div>`;
+          });
+          html += `</div>`;
+        } else {
+          html += `<div style="font-size:12px;color:#555;font-style:italic">Lineup not yet confirmed</div>`;
+        }
+        
+        // Catcher framing
+        if (game.catcherFraming?.away) {
+          const cf = game.catcherFraming.away;
+          const cfColor = cf.tier === 'elite' ? '#22c55e' : cf.tier === 'good' ? '#3b82f6' : cf.tier === 'poor' ? '#e94560' : '#888';
+          html += `<div style="font-size:10px;color:${cfColor};margin-top:4px">🧤 ${cf.catcher}: ${cf.tier} framing (${cf.framingRuns > 0 ? '+' : ''}${cf.framingRuns} runs/season)</div>`;
+        }
+        
+        html += `</div>
+            <!-- Home Team -->
+            <div>
+              <div style="font-size:13px;font-weight:bold;color:#aaa;margin-bottom:6px">
+                ${homeIcon} ${game.homeTeam} ${homeConf ? '(Confirmed)' : '(Pending)'}
+                ${game.homePitcher ? `<span style="color:#888;font-weight:normal"> — SP: ${game.homePitcher.name}</span>` : ''}
+              </div>`;
+        
+        if (homeConf && game.lineupStatus.homeBatters.length > 0) {
+          html += `<div style="font-size:11px;color:#888">`;
+          game.lineupStatus.homeBatters.forEach(b => {
+            const starBadge = b.isStar ? '⭐' : '';
+            html += `<div style="display:flex;gap:4px;padding:1px 0;${b.isStar ? 'color:#f59e0b;font-weight:bold' : ''}">
+              <span style="width:16px;text-align:right;color:#555">${b.order}.</span>
+              <span>${starBadge}${b.name}</span>
+              <span style="color:#555;margin-left:auto">${b.pos} ${b.bats}</span>
+            </div>`;
+          });
+          html += `</div>`;
+        } else {
+          html += `<div style="font-size:12px;color:#555;font-style:italic">Lineup not yet confirmed</div>`;
+        }
+        
+        // Catcher framing
+        if (game.catcherFraming?.home) {
+          const cf = game.catcherFraming.home;
+          const cfColor = cf.tier === 'elite' ? '#22c55e' : cf.tier === 'good' ? '#3b82f6' : cf.tier === 'poor' ? '#e94560' : '#888';
+          html += `<div style="font-size:10px;color:${cfColor};margin-top:4px">🧤 ${cf.catcher}: ${cf.tier} framing (${cf.framingRuns > 0 ? '+' : ''}${cf.framingRuns} runs/season)</div>`;
+        }
+        
+        html += `</div></div>`;
+        
+        // Prediction row
+        if (game.prediction) {
+          const p = game.prediction;
+          const awayColor = p.awayWinProb > 50 ? '#22c55e' : '#e94560';
+          const homeColor = p.homeWinProb > 50 ? '#22c55e' : '#e94560';
+          
+          html += `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #333">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div>
+                <span style="font-size:12px;color:#888">Model:</span>
+                <span style="color:${awayColor};font-weight:bold;font-size:13px">${game.awayTeam} ${p.awayWinProb?.toFixed(1)}%</span>
+                <span style="color:#555;margin:0 6px">|</span>
+                <span style="color:${homeColor};font-weight:bold;font-size:13px">${game.homeTeam} ${p.homeWinProb?.toFixed(1)}%</span>
+              </div>
+              <div style="font-size:12px;color:#888">
+                Total: ${p.expectedTotal?.toFixed(1)} | Spread: ${p.spread > 0 ? '+' : ''}${p.spread?.toFixed(1)}
+              </div>
+            </div>`;
+          
+          // Show lineup impact delta
+          if (hasImpact) {
+            html += `<div style="margin-top:6px;font-size:11px">
+              <span style="color:#a855f7">📊 Lineup impact:</span>
+              ${imp.awayWinProbDelta !== 0 ? `<span style="color:${imp.awayWinProbDelta > 0 ? '#22c55e' : '#e94560'}"> ${game.awayTeam} win ${imp.awayWinProbDelta > 0 ? '+' : ''}${imp.awayWinProbDelta}%</span>` : ''}
+              ${imp.totalDelta !== 0 ? `<span style="color:${imp.totalDelta > 0 ? '#e94560' : '#22c55e'}"> | Total ${imp.totalDelta > 0 ? '+' : ''}${imp.totalDelta} runs</span>` : ''}
+            </div>`;
+          }
+          
+          html += `</div>`;
+        }
+        
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
+    } else {
+      html += `<div class="card" style="text-align:center;padding:32px">
+        <div style="font-size:48px">⚾</div>
+        <h3 style="color:#aaa">No MLB Games Today</h3>
+        <p style="color:#666;font-size:13px">Lineup monitoring is active and will auto-detect games on game days.<br>
+        MLB Opening Day: March 27, 2026 — 5 days away!</p>
+      </div>`;
+    }
+    
+    // Monitor History
+    if (monStatus.scanHistory && monStatus.scanHistory.length > 0) {
+      html += `<details class="card"><summary style="cursor:pointer;color:#aaa;font-size:13px">📊 Scan History (${monStatus.scanHistory.length} scans)</summary>
+        <div style="overflow-x:auto;margin-top:8px"><table><thead><tr>
+          <th>Time</th><th>Games</th><th>Lineups</th><th>Changes</th><th>Alerts</th>
+        </tr></thead><tbody>`;
+      
+      for (const scan of monStatus.scanHistory.slice().reverse()) {
+        html += `<tr>
+          <td style="font-size:12px">${new Date(scan.time).toLocaleTimeString()}</td>
+          <td>${scan.gamesFound}</td>
+          <td>${scan.lineupsConfirmed}</td>
+          <td style="color:${scan.changes > 0 ? '#f59e0b' : '#888'}">${scan.changes}</td>
+          <td style="color:${scan.alerts > 0 ? '#e94560' : '#888'}">${scan.alerts}</td>
+        </tr>`;
+      }
+      
+      html += `</tbody></table></div></details>`;
+    }
+    
+    // How it works
+    html += `<div class="card" style="border:1px solid #333">
+      <h3 style="color:#3b82f6;margin-top:0">💡 How the Lineup Monitor Makes Money</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;font-size:13px;color:#aaa">
+        <div>
+          <strong style="color:#22c55e">1. Detect</strong>
+          <p>Scans ESPN every 5 minutes for confirmed lineups (usually 2-4 hours before first pitch).</p>
+        </div>
+        <div>
+          <strong style="color:#3b82f6">2. Re-Price</strong>
+          <p>Runs asyncPredict() with fresh lineup data — star player in/out, platoon matchups, catcher framing.</p>
+        </div>
+        <div>
+          <strong style="color:#f59e0b">3. Compare</strong>
+          <p>Compares lineup-adjusted predictions to current odds. Lineup news creates temporary mispricings.</p>
+        </div>
+        <div>
+          <strong style="color:#e94560">4. Alert</strong>
+          <p>Flags games where prediction shifted significantly — act before the market adjusts (10-30 minute window).</p>
+        </div>
+      </div>
+    </div>`;
+    
+    html += `<p style="color:#666;font-size:11px;text-align:center">Last scan: ${monStatus.lastScan ? new Date(monStatus.lastScan).toLocaleString() : 'Never'} • ${monStatus.totalScans} total scans • Star players tracked: 28 • Catchers tracked: 26</p>`;
+    
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${err.message}</p><button onclick="loadLineupsTab()" style="padding:8px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;margin-top:12px;font-weight:bold">🔄 Retry</button></div>`;
+  }
+}
+
+async function toggleLineupMonitor(start) {
+  try {
+    const action = start ? 'start' : 'stop';
+    await fetch(`${API}/api/mlb/lineups/monitor/${action}`, { method: 'POST' });
+    setTimeout(() => loadLineupsTab(), 500);
+  } catch (e) {
+    console.error('Monitor toggle error:', e);
+  }
+}
+
+async function forceLineupScan() {
+  const wrap = document.getElementById('tab-content');
+  const scanBtn = wrap?.querySelector('button:last-child');
+  if (scanBtn) scanBtn.textContent = '⏳ Scanning...';
+  try {
+    await fetch(`${API}/api/mlb/lineups/scan`);
+    setTimeout(() => loadLineupsTab(), 1000);
+  } catch (e) {
+    console.error('Scan error:', e);
+    loadLineupsTab();
+  }
+}
 
 // ==================== F5 OPENING WEEK UNDERS TAB ====================
 
