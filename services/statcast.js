@@ -48,10 +48,22 @@ function loadCache() {
         cache = raw;
         return true;
       }
+      // Even if expired, load stale data so predictions aren't empty
+      // Better to use 2024 Statcast data that's slightly old than NO data
+      if (raw.pitchers && Object.keys(raw.pitchers).length > 0) {
+        cache = raw;
+        cache._isStale = true;
+        return true; // Return true but flag as stale — refreshStatcast() will update
+      }
     }
   } catch (e) { /* corrupt cache, refetch */ }
   return false;
 }
+
+// AUTO-LOAD: Load cache immediately on require() so statcast adjustments
+// are available in predict() without waiting for server startup refreshStatcast() call.
+// This fixes the bug where statcast was null in all sync predict() calls.
+loadCache();
 
 function saveCache() {
   try {

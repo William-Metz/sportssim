@@ -72,6 +72,8 @@ let ncaa = null;
 try { ncaa = require('./models/ncaa'); } catch (e) { console.error('[server] NCAA model not loaded:', e.message); }
 let ncaaLive = null;
 try { ncaaLive = require('./services/ncaa-live'); } catch (e) { console.error('[server] NCAA Live not loaded:', e.message); }
+let bullpenQuality = null;
+try { bullpenQuality = require('./services/bullpen-quality'); } catch (e) { console.error('[server] Bullpen Quality not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -141,7 +143,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '63.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test','nb-exact-run-lines','nb-f5-scoring-model','conviction-score-engine','alt-run-line-matrix','f5-three-way-ml','margin-distribution','f5-value-scanner','runline-value-scanner','f5-api-endpoints','runline-api-endpoints','spread-odds-capture','ncaa-live-scores','ncaa-bracket-auto-update','ncaa-tournament-momentum','ncaa-futures-value','ncaa-dashboard-live','platoon-splits-savant','catcher-framing-savant-58-catchers','team-framing-rankings','framing-edge-scanner','framing-betting-implications'] });
+  res.json({ status: 'ok', version: '65.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test','nb-exact-run-lines','nb-f5-scoring-model','conviction-score-engine','alt-run-line-matrix','f5-three-way-ml','margin-distribution','f5-value-scanner','runline-value-scanner','f5-api-endpoints','runline-api-endpoints','spread-odds-capture','ncaa-live-scores','ncaa-bracket-auto-update','ncaa-tournament-momentum','ncaa-futures-value','ncaa-dashboard-live','platoon-splits-savant','catcher-framing-savant-58-catchers','team-framing-rankings','framing-edge-scanner','framing-betting-implications','bullpen-quality-projections','reliever-level-modeling','2026-bullpen-era-projections','bullpen-matchup-analysis','bullpen-edge-scanner'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -901,6 +903,94 @@ app.get('/api/mlb/framing/scan', async (req, res) => {
 app.get('/api/mlb/framing/status', (req, res) => {
   if (!catcherFramingService) return res.status(503).json({ error: 'Catcher framing service unavailable' });
   res.json(catcherFramingService.getStatus());
+});
+
+// ==================== MLB BULLPEN QUALITY PROJECTIONS ====================
+
+// Get projected 2026 bullpen ERA rankings for all 30 teams
+app.get('/api/mlb/bullpen/rankings', (req, res) => {
+  if (!bullpenQuality) return res.status(503).json({ error: 'Bullpen quality service unavailable' });
+  try {
+    const teams = mlb.getTeams();
+    const adjustments = bullpenQuality.getAllBullpenAdjustments(teams);
+    res.json({
+      rankings: adjustments,
+      avgBullpenEra: bullpenQuality.AVG_BULLPEN_ERA,
+      note: 'Projected 2026 bullpen ERA from reliever-level modeling. Delta = projected minus 2025 base.',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get bullpen matchup analysis for a specific game
+app.get('/api/mlb/bullpen/:away/:home', (req, res) => {
+  if (!bullpenQuality) return res.status(503).json({ error: 'Bullpen quality service unavailable' });
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const teams = mlb.getTeams();
+    const analysis = bullpenQuality.analyzeBullpenMatchup(away, home, teams);
+    if (!analysis) return res.status(400).json({ error: `Invalid teams: ${away} or ${home}` });
+    res.json({ matchup: `${away}@${home}`, ...analysis, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get all relievers for a team
+app.get('/api/mlb/bullpen/team/:team', (req, res) => {
+  if (!bullpenQuality) return res.status(503).json({ error: 'Bullpen quality service unavailable' });
+  try {
+    const team = req.params.team.toUpperCase();
+    const relievers = bullpenQuality.getTeamRelievers(team);
+    const proj = bullpenQuality.getProjectedBullpenEra(team);
+    const corps = bullpenQuality.TEAM_BULLPEN_CORPS[team];
+    res.json({ team, projection: proj, corps, relievers, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Scan Opening Day games for bullpen edge
+app.get('/api/mlb/bullpen/scan', (req, res) => {
+  if (!bullpenQuality) return res.status(503).json({ error: 'Bullpen quality service unavailable' });
+  try {
+    const teams = mlb.getTeams();
+    // Use Opening Day schedule
+    const odGames = [
+      { away: 'NYY', home: 'MIL' }, { away: 'CWS', home: 'CIN' },
+      { away: 'ATL', home: 'NYM' }, { away: 'PIT', home: 'MIA' },
+      { away: 'BOS', home: 'TB' },  { away: 'TOR', home: 'HOU' },
+      { away: 'KC', home: 'CLE' },  { away: 'BAL', home: 'MIN' },
+      { away: 'STL', home: 'CHC' }, { away: 'COL', home: 'LAA' },
+      { away: 'TEX', home: 'SEA' }, { away: 'PHI', home: 'LAD' },
+      { away: 'DET', home: 'SD' },  { away: 'WSH', home: 'ARI' },
+      { away: 'SF', home: 'OAK' },
+    ];
+    const edges = bullpenQuality.scanBullpenEdges(odGames, teams);
+    const withEdge = edges.filter(e => e.hasEdge);
+    res.json({
+      scanned: edges.length,
+      edgesFound: withEdge.length,
+      edges: withEdge,
+      all: edges,
+      note: 'Bullpen quality edges for Opening Day games based on projected 2026 reliever corps',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bullpen quality service status
+app.get('/api/mlb/bullpen/status', (req, res) => {
+  if (!bullpenQuality) return res.status(503).json({ error: 'Bullpen quality service unavailable' });
+  const teamCount = Object.keys(bullpenQuality.TEAM_BULLPEN_CORPS).length;
+  const relieverCount = Object.keys(bullpenQuality.RELIEVER_DB).length;
+  res.json({
+    status: 'active',
+    version: 'v65.0',
+    teamsModeled: teamCount,
+    relieversInDB: relieverCount,
+    avgBullpenEra: bullpenQuality.AVG_BULLPEN_ERA,
+    wiredIntoPredictions: true,
+    note: 'Projected 2026 bullpen ERA replaces static 2025 data in predict() and asyncPredict()',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ==================== MLB SEASON SIMULATOR ====================
@@ -5555,6 +5645,31 @@ app.get('/api/opening-day-playbook', async (req, res) => {
         if (awayInj) entry.signals.awayInjuries = awayInj;
         if (homeInj) entry.signals.homeInjuries = homeInj;
       } catch (e) { /* injuries optional */ }
+
+      // 9a2. BULLPEN QUALITY PROJECTIONS (2026 reliever-level modeling)
+      try {
+        if (bullpenQuality) {
+          const teams = mlb.getTeams();
+          const bpAnalysis = bullpenQuality.analyzeBullpenMatchup(game.away, game.home, teams);
+          if (bpAnalysis) {
+            entry.signals.bullpenQuality = {
+              awayProjectedEra: bpAnalysis.away.projectedEra,
+              homeProjectedEra: bpAnalysis.home.projectedEra,
+              awayDelta: bpAnalysis.away.delta,
+              homeDelta: bpAnalysis.home.delta,
+              eraGap: bpAnalysis.eraGap,
+              advantage: bpAnalysis.advantage,
+              totalDirection: bpAnalysis.totalDirection,
+              totalImpact: bpAnalysis.totalImpact,
+              closerMatchup: bpAnalysis.closerMatchup,
+              awayCloser: bpAnalysis.away.closer,
+              homeCloser: bpAnalysis.home.closer,
+              bettingImplications: bpAnalysis.bettingImplications,
+              f5Signal: bpAnalysis.f5Signal,
+            };
+          }
+        }
+      } catch (e) { /* bullpen quality optional */ }
 
       // 9b. LINEUP DATA (if available — critical on game day)
       try {

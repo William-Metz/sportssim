@@ -175,8 +175,8 @@ const TOURNAMENT_RESULTS = {
     { winner: 'NEB', loser: 'VAND', score: '74-72', round: 2 },
     { winner: 'ARK', loser: 'HPNT', score: '94-88', round: 2 },
     { winner: 'PUR', loser: 'MIAMI', score: '79-69', round: 2 },
-    // Still playing today March 22
-    // Iowa State vs Kentucky (2:45 ET)
+    { winner: 'IAST', loser: 'KEN', score: '82-63', round: 2 },
+    // Remaining games scheduled for today March 22 (evening ET)
     // Kansas vs St. John's (5:15 ET)
     // Virginia vs Tennessee (6:10 ET)
     // Florida vs Iowa (7:10 ET)

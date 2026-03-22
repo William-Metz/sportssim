@@ -308,10 +308,105 @@ function getInjuryAdjustment(sport, team) {
   const injuries = getTeamInjuries(sport, team);
   if (!injuries) return { adjFactor: 0, outCount: 0, starPlayersOut: [] };
   
+  // ==================== SPRING TRAINING FALSE POSITIVE FILTER ====================
+  // During spring training (before Opening Day), ESPN lists players with injury history
+  // as "Out" even when they're ACTIVELY PLAYING. Examples:
+  //   - Gerrit Cole "Out" but "allowed two hits in one scoreless inning" — he's pitching!
+  //   - Zack Wheeler "Out" but "will pitch in a minor-league game Monday" — he's pitching!
+  // These false positives cause systematic errors in predictions.
+  //
+  // REAL injuries during spring training have different patterns:
+  //   - 60-Day IL / IL = actually injured
+  //   - "surgery", "torn", "fracture" = real injury
+  //   - "shut down", "won't be ready", "no timeline" = real concern
+  //   - "flat ground" throwing only = not game-ready (concerning but scaled)
+  //
+  // FILTER: If the detail text shows the player is actively participating in games,
+  // throwing bullpen sessions, or taking live at-bats, they're NOT really injured.
+  
+  let filteredStars = injuries.starPlayersOut || [];
+  let adjustedImpact = injuries.totalImpact;
+  
+  // Check if we're in spring training / preseason period
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-indexed
+  const isSpringTraining = sport === 'mlb' && (month === 2 || month === 3);
+  
+  if (isSpringTraining) {
+    const overrides = [];
+    filteredStars = filteredStars.filter(star => {
+      const detail = (star.detail || '').toLowerCase();
+      const status = (star.status || '').toLowerCase();
+      
+      // KEEP: 60-Day IL, IL placement, surgery, torn ligaments — these are REAL
+      const isRealInjury = status.includes('60-day') || 
+                          status.includes('15-day') ||
+                          status.includes('10-day') ||
+                          detail.includes('surgery') ||
+                          detail.includes('torn') ||
+                          detail.includes('fracture') ||
+                          detail.includes('broken') ||
+                          detail.includes('shut down') ||
+                          detail.includes('won\'t be ready') ||
+                          detail.includes('no timeline') ||
+                          detail.includes('setback');
+      
+      if (isRealInjury) return true; // Keep this injury as-is
+      
+      // REMOVE: Player is actively pitching/batting in spring games
+      const isActuallyPlaying = detail.includes('allowed') && (detail.includes('hit') || detail.includes('run')) || // pitched in a game
+                                detail.includes('scoreless inning') ||
+                                detail.includes('pitched') ||
+                                detail.includes('struck out') && !detail.includes('threw') ||
+                                detail.includes('went ') && detail.includes('-for-') || // batting line
+                                detail.includes('grapefruit league') ||
+                                detail.includes('cactus league') ||
+                                detail.includes('spring game') ||
+                                detail.includes('will pitch') ||
+                                detail.includes('minor-league game') ||
+                                detail.includes('will start') ||
+                                detail.includes('live batting practice') ||
+                                detail.includes('simulated game') ||
+                                detail.includes('progressing') ||
+                                detail.includes('expected to be ready');
+      
+      if (isActuallyPlaying) {
+        // Player is active — remove from injury adjustment
+        adjustedImpact -= star.impact * (star.isOut ? 1.0 : 0.3);
+        overrides.push({
+          player: star.player,
+          reason: 'Spring training false positive — player is actively participating',
+          detail: star.detail
+        });
+        return false; // Filter out
+      }
+      
+      // SCALE DOWN: Player is rehabbing (bullpen, flat ground) — not game-ready but progressing
+      const isRehabbing = detail.includes('bullpen') ||
+                          detail.includes('flat ground') ||
+                          detail.includes('long toss') ||
+                          detail.includes('reevaluated') ||
+                          detail.includes('throwing program');
+      
+      if (isRehabbing && !isRealInjury) {
+        // Scale to 50% impact — they're progressing but might not be ready for OD
+        adjustedImpact -= star.impact * (star.isOut ? 0.5 : 0.15);
+        star._rehabScaled = true;
+        return true; // Keep but reduced
+      }
+      
+      return true; // Keep all others
+    });
+    
+    // Ensure adjusted impact doesn't go below 0
+    adjustedImpact = Math.max(0, adjustedImpact);
+  }
+  
   return {
-    adjFactor: -injuries.totalImpact, // negative = penalty
+    adjFactor: -adjustedImpact, // negative = penalty
     outCount: injuries.outCount,
-    starPlayersOut: injuries.starPlayersOut || []
+    starPlayersOut: filteredStars,
+    _springTrainingFiltered: isSpringTraining
   };
 }
 

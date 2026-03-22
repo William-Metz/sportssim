@@ -1081,6 +1081,21 @@ function convictionScore(prediction, market = {}, opts = {}) {
     }
   }
   
+  // Bullpen quality projection — significant reliever movement creates edge
+  if (prediction.factors?.bullpenProjection) {
+    const bp = prediction.factors.bullpenProjection;
+    const awayDelta = Math.abs(bp.away?.delta || 0);
+    const homeDelta = Math.abs(bp.home?.delta || 0);
+    const maxDelta = Math.max(awayDelta, homeDelta);
+    if (maxDelta >= 0.30) {
+      situationalPoints += 4;
+      breakdown.push({ signal: 'bullpen', points: 4, detail: `Major bullpen projection shift: ${maxDelta.toFixed(2)} ERA delta` });
+    } else if (maxDelta >= 0.15) {
+      situationalPoints += 2;
+      breakdown.push({ signal: 'bullpen', points: 2, detail: `Bullpen projection shift: ${maxDelta.toFixed(2)} ERA delta` });
+    }
+  }
+  
   situationalPoints = Math.min(15, situationalPoints);
   score += situationalPoints;
   

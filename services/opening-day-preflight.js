@@ -672,6 +672,63 @@ async function runPreflight() {
   console.log('[preflight] Running statcast check...');
   report.checks.statcast = checkStatcast();
   
+  // Bullpen quality projection check
+  console.log('[preflight] Running bullpen quality check...');
+  try {
+    const bq = require('./bullpen-quality');
+    const mlb = require('../models/mlb');
+    const teams = mlb.getTeams();
+    const adjs = bq.getAllBullpenAdjustments(teams);
+    const teamsModeled = Object.keys(bq.TEAM_BULLPEN_CORPS).length;
+    const relievers = Object.keys(bq.RELIEVER_DB).length;
+    const bigShifts = adjs.filter(a => Math.abs(a.delta) > 0.30);
+    
+    if (teamsModeled >= 25) {
+      report.checks.bullpenQuality = {
+        status: 'PASS',
+        note: `${teamsModeled} teams modeled, ${relievers} relievers in DB, ${bigShifts.length} significant shifts (>0.30 ERA), wired into predict()`,
+        details: {
+          teamsModeled,
+          relievers,
+          bigShifts: bigShifts.map(s => `${s.team}: ${s.delta > 0 ? '+' : ''}${s.delta.toFixed(2)} (${s.impactDescription})`),
+        }
+      };
+    } else {
+      report.checks.bullpenQuality = {
+        status: 'WARN',
+        note: `Only ${teamsModeled} teams modeled (expected 30)`,
+      };
+    }
+  } catch (e) {
+    report.checks.bullpenQuality = {
+      status: 'WARN',
+      note: `Bullpen quality service error: ${e.message}`,
+    };
+  }
+  
+  // Platoon splits check
+  console.log('[preflight] Running platoon splits check...');
+  try {
+    const ps = require('./platoon-splits');
+    const teamCount = ps.getTeamCount ? ps.getTeamCount() : (ps.SAVANT_WOBA_SPLITS ? Object.keys(ps.SAVANT_WOBA_SPLITS).length : 0);
+    if (teamCount >= 25) {
+      report.checks.platoonSplits = {
+        status: 'PASS',
+        note: `${teamCount} teams with Savant wOBA splits, wired into predict()`,
+      };
+    } else {
+      report.checks.platoonSplits = {
+        status: 'WARN',
+        note: `Only ${teamCount} teams with platoon data`,
+      };
+    }
+  } catch (e) {
+    report.checks.platoonSplits = {
+      status: 'WARN',
+      note: `Platoon splits check error: ${e.message}`,
+    };
+  }
+  
   // Aggregate
   for (const [name, check] of Object.entries(report.checks)) {
     report.summary.total++;

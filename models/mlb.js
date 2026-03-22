@@ -28,6 +28,8 @@ try { statcastService = require('../services/statcast'); } catch (e) { /* no sta
 try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) { /* no preseason tuning */ }
 let lineupFetcher = null;
 try { lineupFetcher = require('../services/lineup-fetcher'); } catch (e) { /* no lineup data */ }
+let bullpenQuality = null;
+try { bullpenQuality = require('../services/bullpen-quality'); } catch (e) { /* no bullpen quality data */ }
 let platoonSplitsService = null;
 try { platoonSplitsService = require('../services/platoon-splits'); } catch (e) { /* no platoon splits */ }
 
@@ -395,13 +397,50 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const bullpenIP = 9 - starterIP;
   let awayRaG, homeRaG;
   
+  // ==================== BULLPEN QUALITY PROJECTION ====================
+  // Use projected 2026 bullpen ERA from bullpen-quality service instead of static 2025 data.
+  // Massive reliever movement (Helsley→BAL, Miller→SD, Bednar→NYY, etc.) means
+  // 2025 team bullpenEra is WRONG for 2026 predictions. Books use last year's data; we don't.
+  let homeBullpenEra = home.bullpenEra;
+  let awayBullpenEra = away.bullpenEra;
+  let homeBullpenInfo = null, awayBullpenInfo = null;
+  
+  if (bullpenQuality) {
+    const homeProj = bullpenQuality.getProjectedBullpenEra(homeAbbr);
+    const awayProj = bullpenQuality.getProjectedBullpenEra(awayAbbr);
+    if (homeProj && homeProj.source === 'bullpen-quality-v64') {
+      homeBullpenEra = homeProj.era;
+      homeBullpenInfo = {
+        baseBullpenEra: home.bullpenEra,
+        projectedEra: homeProj.era,
+        delta: +(homeProj.era - home.bullpenEra).toFixed(3),
+        closer: homeProj.closer,
+        confidence: homeProj.confidence,
+        keyAdds: homeProj.keyAdds,
+        keyLosses: homeProj.keyLosses,
+      };
+    }
+    if (awayProj && awayProj.source === 'bullpen-quality-v64') {
+      awayBullpenEra = awayProj.era;
+      awayBullpenInfo = {
+        baseBullpenEra: away.bullpenEra,
+        projectedEra: awayProj.era,
+        delta: +(awayProj.era - away.bullpenEra).toFixed(3),
+        closer: awayProj.closer,
+        confidence: awayProj.confidence,
+        keyAdds: awayProj.keyAdds,
+        keyLosses: awayProj.keyLosses,
+      };
+    }
+  }
+  
   if (homePitcher) {
     // Home pitcher faces away offense — how many runs does the away team score?
     // pitcherExpectedRA returns NEUTRAL pitcher RA/9 (no offense/park adjustments)
     const homePitcherRA = pitcherExpectedRA(homePitcher, away, pf);
     // Blend: starter covers starterIP innings, bullpen covers bullpenIP
     const starterRuns = (homePitcherRA / 9) * starterIP;
-    const bullpenRuns = (home.bullpenEra / 9) * bullpenIP;
+    const bullpenRuns = (homeBullpenEra / 9) * bullpenIP;
     const blendedRaG = starterRuns + bullpenRuns;
     // Apply offense quality modifier ONCE and park factor ONCE
     const offMod = away.rsG / LG_AVG.rsG;
@@ -413,7 +452,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   if (awayPitcher) {
     const awayPitcherRA = pitcherExpectedRA(awayPitcher, home, pf);
     const starterRuns = (awayPitcherRA / 9) * starterIP;
-    const bullpenRuns = (away.bullpenEra / 9) * bullpenIP;
+    const bullpenRuns = (awayBullpenEra / 9) * bullpenIP;
     const blendedRaG = starterRuns + bullpenRuns;
     const offMod = home.rsG / LG_AVG.rsG;
     homeRaG = blendedRaG * offMod * pf;
@@ -815,8 +854,8 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   // Build game context for NB overdispersion parameter
   const nbOpts = {
     park: home.park,
-    homeBullpenEra: home.bullpenEra,
-    awayBullpenEra: away.bullpenEra,
+    homeBullpenEra: homeBullpenEra,
+    awayBullpenEra: awayBullpenEra,
     isPreseason: isPreseasonPredict,
     weatherMultiplier: (weatherData && weatherData.multiplier) ? weatherData.multiplier : 1.0,
     awayPitcherRating: awayPitcher ? (awayPitcher.rating || 50) : 50,
@@ -1060,6 +1099,11 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
         note: 'Statcast xERA/xwOBA adjustments for true quality vs surface stats'
       } : null,
       lineup: lineupInfo,
+      bullpenProjection: (homeBullpenInfo || awayBullpenInfo) ? {
+        away: awayBullpenInfo,
+        home: homeBullpenInfo,
+        note: 'Projected 2026 bullpen ERA from reliever-level modeling (replaces static 2025 data)'
+      } : null,
     }
   };
   
