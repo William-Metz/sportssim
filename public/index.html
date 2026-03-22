@@ -170,12 +170,13 @@ function buildTabs() {
   tabs.push({ id: 'auto-scanner', label: '🔄 Auto Scanner' });
   if (currentSport === 'mlb' || currentSport === 'all') {
     tabs.push({ id: 'futures', label: '🏆 MLB Futures' });
+    tabs.push({ id: 'f5-unders', label: '⚾ F5 Unders' });
   }
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
     tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
-    tabs.push({ id: 'champ-futures', label: '💰 Futures' });
   }
+  tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -213,6 +214,7 @@ function showTab(id) {
   else if (id === 'futures') loadFuturesTab();
   else if (id === 'rest-tank') loadRestTankTab();
   else if (id === 'champ-futures') loadChampFuturesTab();
+  else if (id === 'f5-unders') loadF5UndersTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -4304,19 +4306,57 @@ async function loadPlayoffsTab() {
       <div id="series-result"></div>
     </div>`;
     
-    // Futures Value section — loads async after main content
+    // Futures Value section — loads async after main content (uses enhanced preview endpoint)
     html += `<div class="card" style="border:1px solid #22c55e">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div>
           <h3 style="margin:0;color:#22c55e">💰 Championship Futures Value</h3>
           <p style="margin:4px 0 0;color:#888;font-size:12px">Model vs sportsbook championship odds • Live from The Odds API</p>
         </div>
-        <button onclick="loadFuturesValue()" style="padding:6px 14px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:12px">🔄 Scan Futures</button>
+        <button onclick="loadPlayoffPreview()" style="padding:6px 14px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold;font-size:12px">🔄 Scan Value</button>
       </div>
       <div id="futures-value-content">
-        <p style="color:#888;font-size:13px">Click "Scan Futures" to pull live championship odds and find +EV bets across NBA, NHL, and MLB.</p>
+        <p style="color:#888;font-size:13px">Click "Scan Value" to pull live championship odds and compare to our playoff simulation model.</p>
       </div>
     </div>`;
+    
+    // Series Fair Prices section
+    html += `<div class="card" style="border:1px solid #a855f7">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div>
+          <h3 style="margin:0;color:#a855f7">🎯 Series Fair Prices</h3>
+          <p style="margin:4px 0 0;color:#888;font-size:12px">Our model's fair odds for first-round matchups • Compare when books post series prices</p>
+        </div>
+      </div>
+      <div id="series-fair-prices">
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>Matchup</th><th>Higher Seed %</th><th>Fair ML</th><th>Lower Seed %</th><th>Fair ML</th><th>Length</th><th>Rating</th>
+        </tr></thead><tbody>`;
+    
+    // Series prices from bracket data
+    ['eastern', 'western'].forEach(conf => {
+      const confData = bracket[conf];
+      confData.matchups.forEach(m => {
+        const s = m.series;
+        const cColor = s.competitiveness === 'DOMINANT' ? '#e94560' : 
+                       s.competitiveness === 'HEAVY FAVORITE' ? '#f59e0b' :
+                       s.competitiveness === 'FAVORED' ? '#3b82f6' :
+                       s.competitiveness === 'COMPETITIVE' ? '#22c55e' : '#a855f7';
+        html += `<tr>
+          <td><strong>(${m.higher.seed}) ${m.higher.abbr}</strong> vs <strong>(${m.lower.seed}) ${m.lower.abbr}</strong></td>
+          <td style="color:#22c55e;font-weight:bold">${s.higherSeedWinPct}%</td>
+          <td style="font-family:monospace">${s.higherSeedML}</td>
+          <td style="color:#e94560;font-weight:bold">${s.lowerSeedWinPct}%</td>
+          <td style="font-family:monospace">${s.lowerSeedML}</td>
+          <td>~${s.expectedLength}</td>
+          <td style="color:${cColor};font-weight:bold">${s.competitiveness}${s.upsetAlert ? ' ⚠️' : ''}</td>
+        </tr>`;
+      });
+    });
+    
+    html += `</tbody></table></div>
+      <p style="color:#666;font-size:11px;margin-top:8px">💡 These are our model's FAIR prices. When books post series odds (closer to playoffs), compare their prices to find +EV bets.</p>
+    </div></div>`;
     
     // Populate team selects
     wrap.innerHTML = html;
@@ -4530,6 +4570,112 @@ async function loadFuturesValue() {
     content.innerHTML = html;
   } catch (err) {
     content.innerHTML = `<p style="color:#ff4444">Error loading futures: ${err.message}</p>`;
+  }
+}
+
+// Enhanced Playoff Preview with live sportsbook comparison
+async function loadPlayoffPreview() {
+  const content = document.getElementById('futures-value-content');
+  if (!content) return;
+  content.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:8px;color:#888;font-size:12px">Running playoff simulation + scanning live championship futures...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/playoffs/preview?sims=10000&bankroll=1000&kelly=0.5&minEdge=0.03`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      content.innerHTML = `<p style="color:#ff4444">Error: ${data.error}</p>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Summary stats
+    const cv = data.championshipValue;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px">
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#22c55e">${cv.count}</div>
+        <div style="font-size:10px;color:#888">Value Bets</div>
+      </div>
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#e94560">${cv.highConfidence}</div>
+        <div style="font-size:10px;color:#888">High Confidence</div>
+      </div>
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#f59e0b">$${cv.totalWager}</div>
+        <div style="font-size:10px;color:#888">Total Wager</div>
+      </div>
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#22c55e">+$${cv.totalEV?.toFixed(2) || 0}</div>
+        <div style="font-size:10px;color:#888">Expected Value</div>
+      </div>
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+        <div style="font-size:22px;font-weight:bold;color:#3b82f6">${cv.booksScanned}</div>
+        <div style="font-size:10px;color:#888">Books Scanned</div>
+      </div>
+    </div>`;
+    
+    // Value bets table
+    if (cv.valueBets && cv.valueBets.length > 0) {
+      html += `<h4 style="margin:0 0 8px;color:#22c55e">🎯 Championship Futures +EV Bets</h4>`;
+      html += `<div style="overflow-x:auto"><table><thead><tr>
+        <th>Team</th><th>Seed</th><th>Model %</th><th>Book %</th><th>Edge</th><th>Best Odds</th><th>Book</th><th>Kelly</th><th>Wager</th><th>EV</th><th>Conf</th>
+      </tr></thead><tbody>`;
+      
+      for (const bet of cv.valueBets) {
+        const edgeColor = bet.edge >= 8 ? '#22c55e' : bet.edge >= 5 ? '#f59e0b' : '#3b82f6';
+        const confColor = bet.confidence === 'HIGH' ? '#22c55e' : bet.confidence === 'MEDIUM' ? '#f59e0b' : '#888';
+        
+        html += `<tr>
+          <td><strong>${bet.team}</strong> <span style="color:#888;font-size:10px">${bet.name}</span></td>
+          <td>#${bet.seed}</td>
+          <td style="color:#22c55e;font-weight:bold">${bet.modelChampPct}%</td>
+          <td style="color:#ff4444">${bet.bookImpliedPct}%</td>
+          <td style="color:${edgeColor};font-weight:bold">${bet.edge}%</td>
+          <td style="font-family:monospace;color:${bet.bookOdds > 0 ? '#22c55e' : '#e94560'}">${bet.bookOddsStr}</td>
+          <td style="font-size:11px;color:#aaa">${bet.bestBook}</td>
+          <td style="font-size:12px">${bet.kellyPct}%</td>
+          <td style="font-weight:bold">$${bet.wager}</td>
+          <td style="color:#22c55e">+$${bet.ev}</td>
+          <td style="color:${confColor};font-weight:bold;font-size:11px">${bet.confidence}</td>
+        </tr>`;
+      }
+      
+      html += `</tbody></table></div>`;
+    } else if (cv.futuresError) {
+      html += `<p style="color:#f59e0b;font-size:13px">⚠️ ${cv.futuresError}</p>`;
+    } else {
+      html += `<p style="color:#888;font-size:13px">No +EV championship futures found right now. Our model and sportsbooks are in agreement — check back when lines update.</p>`;
+    }
+    
+    // Playoff paths with book comparison
+    if (data.playoffPaths && data.playoffPaths.length > 0) {
+      html += `<details style="margin-top:12px"><summary style="cursor:pointer;color:#aaa;font-size:13px">📊 Full Playoff Path Probabilities (${data.playoffPaths.length} teams)</summary>`;
+      html += `<div style="overflow-x:auto;margin-top:8px"><table><thead><tr>
+        <th>#</th><th>Team</th><th>Champ %</th><th>Fair ML</th><th>Book Odds</th><th>Finals %</th><th>Conf Finals %</th><th>Value?</th>
+      </tr></thead><tbody>`;
+      
+      for (const t of data.playoffPaths) {
+        html += `<tr>
+          <td>${t.seed}</td>
+          <td><strong>${t.team}</strong> <span style="color:#888;font-size:10px">${t.record}</span></td>
+          <td style="font-weight:bold">${t.champPct}%</td>
+          <td style="font-family:monospace">${t.champML > 0 ? '+' : ''}${t.champML}</td>
+          <td style="font-family:monospace;color:#aaa">${t.bookOddsStr || 'N/A'}</td>
+          <td>${t.finalsPct}%</td>
+          <td>${t.confFinalsPct}%</td>
+          <td>${t.hasValue ? '<span style="color:#22c55e;font-weight:bold">✅ +EV</span>' : '<span style="color:#888">—</span>'}</td>
+        </tr>`;
+      }
+      
+      html += `</tbody></table></div></details>`;
+    }
+    
+    html += `<p style="color:#666;font-size:11px;margin-top:8px">${data.simulations?.toLocaleString() || '10,000'} playoff simulations • ${data.daysUntilPlayoffs} days until playoffs</p>`;
+    
+    content.innerHTML = html;
+  } catch (err) {
+    content.innerHTML = `<p style="color:#ff4444">Error loading preview: ${err.message}</p>`;
   }
 }
 
@@ -5693,7 +5839,528 @@ function getMotivationBadge(motivation) {
   return badges[motivation] || `<span style="background:#333;padding:1px 6px;border-radius:3px;font-size:0.8em">${motivation || 'N/A'}</span>`;
 }
 
+// ==================== CHAMPIONSHIP FUTURES TAB ====================
+
+async function loadChampFuturesTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Scanning championship futures across all sports...</p></div>';
+
+  try {
+    const sport = currentSport === 'all' ? null : currentSport;
+    const endpoint = sport ? `${API}/api/futures/scan/${sport}` : `${API}/api/futures/scan`;
+    const resp = await fetch(endpoint);
+    const data = await resp.json();
+
+    let html = '';
+
+    // Hero banner
+    const totalBets = data.totalCount || data.count || 0;
+    const highConf = data.highConfidence || 0;
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a0e17,#1a1a2e);border:2px solid #f59e0b;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-20px;right:-20px;font-size:120px;opacity:0.05">💰</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+        <div>
+          <h2 style="font-size:24px;margin-bottom:4px">💰 Championship Futures Scanner</h2>
+          <p style="color:var(--text2)">Live odds from sportsbooks vs. Monte Carlo model • Find mispriced championship bets</p>
+        </div>
+        <div style="display:flex;gap:24px;text-align:center">
+          <div>
+            <div style="font-size:28px;font-weight:bold;color:#f59e0b">${totalBets}</div>
+            <div style="color:#aaa;font-size:12px">Value Bets</div>
+          </div>
+          <div>
+            <div style="font-size:28px;font-weight:bold;color:#22c55e">${highConf}</div>
+            <div style="color:#aaa;font-size:12px">High Confidence</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    // Sub-tab navigation for sports
+    html += `<div class="card" style="padding:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="champFuturesSport=null;loadChampFuturesTab()" style="padding:6px 14px;border-radius:6px;border:1px solid ${!sport?'#f59e0b':'#333'};background:${!sport?'rgba(245,158,11,0.15)':'transparent'};color:${!sport?'#f59e0b':'#aaa'};cursor:pointer;font-size:13px">🏆 All Sports</button>
+        <button onclick="champFuturesSport='nba';currentSport='nba';loadChampFuturesTab()" style="padding:6px 14px;border-radius:6px;border:1px solid ${sport==='nba'?'#f59e0b':'#333'};background:${sport==='nba'?'rgba(245,158,11,0.15)':'transparent'};color:${sport==='nba'?'#f59e0b':'#aaa'};cursor:pointer;font-size:13px">🏀 NBA</button>
+        <button onclick="champFuturesSport='nhl';currentSport='nhl';loadChampFuturesTab()" style="padding:6px 14px;border-radius:6px;border:1px solid ${sport==='nhl'?'#f59e0b':'#333'};background:${sport==='nhl'?'rgba(245,158,11,0.15)':'transparent'};color:${sport==='nhl'?'#f59e0b':'#aaa'};cursor:pointer;font-size:13px">🏒 NHL</button>
+        <button onclick="champFuturesSport='mlb';currentSport='mlb';loadChampFuturesTab()" style="padding:6px 14px;border-radius:6px;border:1px solid ${sport==='mlb'?'#f59e0b':'#333'};background:${sport==='mlb'?'rgba(245,158,11,0.15)':'transparent'};color:${sport==='mlb'?'#f59e0b':'#aaa'};cursor:pointer;font-size:13px">⚾ MLB</button>
+      </div>
+    </div>`;
+
+    // Render value bets by sport
+    const allBets = data.allValueBets || data.valueBets || [];
+    const sportGroups = {};
+    for (const bet of allBets) {
+      if (!sportGroups[bet.sport]) sportGroups[bet.sport] = [];
+      sportGroups[bet.sport].push(bet);
+    }
+
+    // If single sport result (no allValueBets), use the direct data
+    if (allBets.length === 0 && data.valueBets) {
+      sportGroups[sport || 'unknown'] = data.valueBets;
+    }
+
+    const sportEmoji = { nba: '🏀', nhl: '🏒', mlb: '⚾' };
+    const sportLabel = { nba: 'NBA Championship', nhl: 'Stanley Cup', mlb: 'World Series' };
+
+    // Portfolio summary
+    if (data.sports) {
+      let totalWager = 0, totalEV = 0;
+      for (const s of ['nba', 'nhl', 'mlb']) {
+        if (data.sports[s] && data.sports[s].portfolio) {
+          totalWager += data.sports[s].portfolio.totalWager || 0;
+          totalEV += data.sports[s].portfolio.expectedValue || 0;
+        }
+      }
+      if (totalWager > 0) {
+        const roi = ((totalEV / totalWager) * 100).toFixed(1);
+        html += `<div class="card" style="border-left:3px solid #f59e0b">
+          <h3 style="margin-bottom:8px">📊 Futures Portfolio Summary</h3>
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            <div><span style="color:#aaa">Total Wagered:</span> <strong>$${totalWager.toFixed(2)}</strong></div>
+            <div><span style="color:#aaa">Expected Value:</span> <strong style="color:${totalEV>0?'#22c55e':'#ff4444'}">$${totalEV.toFixed(2)}</strong></div>
+            <div><span style="color:#aaa">Expected ROI:</span> <strong style="color:${parseFloat(roi)>0?'#22c55e':'#ff4444'}">${roi}%</strong></div>
+            <div><span style="color:#aaa">Quarter Kelly:</span> <span style="color:#888">Conservative sizing for futures</span></div>
+          </div>
+        </div>`;
+      }
+    } else if (data.portfolio) {
+      const p = data.portfolio;
+      html += `<div class="card" style="border-left:3px solid #f59e0b">
+        <h3 style="margin-bottom:8px">📊 Portfolio Summary</h3>
+        <div style="display:flex;gap:24px;flex-wrap:wrap">
+          <div><span style="color:#aaa">Wagered:</span> <strong>$${p.totalWager}</strong></div>
+          <div><span style="color:#aaa">EV:</span> <strong style="color:${p.expectedValue>0?'#22c55e':'#ff4444'}">$${p.expectedValue}</strong></div>
+          <div><span style="color:#aaa">ROI:</span> <strong style="color:${parseFloat(p.expectedROI)>0?'#22c55e':'#ff4444'}">${p.expectedROI}</strong></div>
+          <div><span style="color:#aaa">Exposure:</span> <strong>${p.exposure}</strong></div>
+        </div>
+      </div>`;
+    }
+
+    // Render each sport's value bets
+    for (const [s, bets] of Object.entries(sportGroups)) {
+      if (!bets || bets.length === 0) continue;
+      
+      html += `<div class="card">
+        <h3>${sportEmoji[s] || '🏆'} ${sportLabel[s] || s.toUpperCase()} — ${bets.length} Value Bet${bets.length !== 1 ? 's' : ''}</h3>`;
+
+      // Top pick highlight
+      const topBet = bets[0];
+      html += `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:#f59e0b;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🔥 Top ${s.toUpperCase()} Futures Pick</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-size:20px;font-weight:bold">${topBet.team} ${topBet.teamName ? `<span style="color:#888;font-size:14px">${topBet.teamName}</span>` : ''}</div>
+            <div style="color:#aaa;font-size:13px;margin-top:2px">to win ${sportLabel[s] || 'championship'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:24px;font-weight:bold;color:#22c55e">${topBet.bestOdds > 0 ? '+' : ''}${topBet.bestOdds}</div>
+            <div style="font-size:12px;color:#aaa">${topBet.bestBook}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:18px;font-weight:bold;color:#f59e0b">+${topBet.edge}%</div>
+            <div style="font-size:11px;color:#aaa">edge</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:16px;color:${topBet.confidence === 'HIGH' ? '#22c55e' : topBet.confidence === 'MEDIUM' ? '#f59e0b' : '#888'}">${topBet.confidence}</div>
+            <div style="font-size:11px;color:#aaa">confidence</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:16px;font-size:12px;color:#aaa">
+          <span>Model: <strong style="color:#fff">${topBet.modelProb}%</strong></span>
+          <span>Implied: <strong style="color:#fff">${topBet.impliedProb}%</strong></span>
+          <span>De-vigged: <strong style="color:#fff">${topBet.deViggedProb || 'N/A'}%</strong></span>
+          <span>Kelly: <strong style="color:#fff">${topBet.kellyPct}%</strong></span>
+          <span>Wager: <strong style="color:#22c55e">$${topBet.wager}</strong></span>
+          <span>EV: <strong style="color:#22c55e">$${topBet.expectedValue}</strong></span>
+        </div>
+      </div>`;
+
+      // Full table
+      html += `<div style="overflow-x:auto"><table>
+        <thead><tr>
+          <th>Team</th><th>Best Odds</th><th>Book</th><th>Model %</th><th>Implied %</th><th>Edge</th>
+          <th>Confidence</th><th>Kelly %</th><th>Wager</th><th>EV</th><th>Books</th>
+        </tr></thead><tbody>`;
+
+      for (const bet of bets) {
+        const confColor = bet.confidence === 'HIGH' ? '#22c55e' : bet.confidence === 'MEDIUM' ? '#f59e0b' : '#888';
+        const edgeColor = bet.edge >= 10 ? '#22c55e' : bet.edge >= 5 ? '#f59e0b' : '#aaa';
+        
+        // Book comparison mini-chart
+        let bookInfo = '';
+        if (bet.allOdds && Object.keys(bet.allOdds).length > 1) {
+          const entries = Object.entries(bet.allOdds).sort((a, b) => b[1] - a[1]);
+          bookInfo = entries.slice(0, 3).map(([b, o]) => `${b.slice(0, 6)}: ${o > 0 ? '+' : ''}${o}`).join(', ');
+        }
+
+        html += `<tr>
+          <td><strong>${bet.team}</strong></td>
+          <td style="font-family:monospace;color:${bet.bestOdds > 0 ? '#22c55e' : '#e94560'};font-weight:bold">${bet.bestOdds > 0 ? '+' : ''}${bet.bestOdds}</td>
+          <td style="font-size:11px">${bet.bestBook}</td>
+          <td><strong>${bet.modelProb}%</strong></td>
+          <td>${bet.impliedProb}%</td>
+          <td style="color:${edgeColor};font-weight:bold">+${bet.edge}%</td>
+          <td><span style="background:${confColor}22;color:${confColor};padding:2px 8px;border-radius:4px;font-size:11px">${bet.confidence}</span></td>
+          <td>${bet.kellyPct}%</td>
+          <td style="color:#22c55e;font-weight:bold">$${bet.wager}</td>
+          <td style="color:${bet.expectedValue > 0 ? '#22c55e' : '#ff4444'}">$${bet.expectedValue}</td>
+          <td style="font-size:10px;color:#888;max-width:150px;overflow:hidden;text-overflow:ellipsis" title="${bookInfo}">${bet.bookCount} books</td>
+        </tr>`;
+      }
+
+      html += `</tbody></table></div></div>`;
+    }
+
+    // If no value bets found
+    if (allBets.length === 0 && (!data.valueBets || data.valueBets.length === 0)) {
+      // Check per-sport status
+      let statusHtml = '';
+      if (data.sports) {
+        for (const [s, sData] of Object.entries(data.sports)) {
+          const emoji = sportEmoji[s] || '🏆';
+          if (sData.error) {
+            statusHtml += `<div style="margin:8px 0;padding:8px;background:#1a1a2e;border-radius:6px">
+              ${emoji} <strong>${s.toUpperCase()}</strong>: <span style="color:#f59e0b">${sData.error}</span>
+            </div>`;
+          } else {
+            statusHtml += `<div style="margin:8px 0;padding:8px;background:#1a1a2e;border-radius:6px">
+              ${emoji} <strong>${s.toUpperCase()}</strong>: ${sData.count || 0} value bets (min 5% edge)
+              ${sData.modelProbCount ? ` • ${sData.modelProbCount} teams modeled` : ''}
+            </div>`;
+          }
+        }
+      }
+
+      html += `<div class="card">
+        <h3>📉 No Value Bets Found Above Threshold</h3>
+        <p style="color:#aaa">No championship futures currently show 5%+ edge vs model probabilities. This can mean:</p>
+        <ul style="color:#aaa;margin:8px 0">
+          <li>Markets are efficient (good — means our model is in line with sharp money)</li>
+          <li>ODDS_API_KEY may not be set (check /api/futures/status)</li>
+          <li>Futures odds may not be available for all sports yet</li>
+        </ul>
+        ${statusHtml}
+        <div style="margin-top:12px">
+          <button onclick="loadChampFuturesTab()" style="padding:8px 16px;background:#f59e0b;color:black;border:none;border-radius:6px;cursor:pointer;font-weight:bold">🔄 Refresh Scan</button>
+        </div>
+      </div>`;
+    }
+
+    // Raw odds comparison section (always show)
+    html += `<div class="card">
+      <h3>📊 Raw Championship Odds (All Books)</h3>
+      <p style="color:#aaa;font-size:12px;margin-bottom:12px">Comparison of futures prices across sportsbooks — best odds highlighted</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">`;
+    
+    for (const s of ['nba', 'nhl', 'mlb']) {
+      html += `<button onclick="loadRawFuturesOdds('${s}')" style="padding:6px 14px;border-radius:6px;border:1px solid #333;background:transparent;color:#aaa;cursor:pointer;font-size:13px">${sportEmoji[s]} ${s.toUpperCase()} Odds</button>`;
+    }
+    html += `</div><div id="raw-futures-odds"></div></div>`;
+
+    // Status footer
+    html += `<div class="card" style="opacity:0.7">
+      <div style="font-size:11px;color:#666">
+        Powered by The Odds API • Model: Monte Carlo playoff simulation (10K+ iterations per sport) • Kelly: Quarter-Kelly for futures (high variance) • 
+        Last scan: ${data.timestamp || 'now'} • 
+        NBA Playoffs: 21 days • MLB Opening Day: 5 days
+      </div>
+    </div>`;
+
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Futures Scanner Error</h2><p style="color:#f59e0b">${e.message}</p>
+      <p style="color:#aaa;margin-top:8px">The futures scanner requires ODDS_API_KEY to be set on the server. Check /api/futures/status.</p>
+      <button onclick="loadChampFuturesTab()" style="padding:8px 16px;background:#f59e0b;color:black;border:none;border-radius:6px;cursor:pointer;margin-top:12px;font-weight:bold">🔄 Retry</button>
+    </div>`;
+  }
+}
+
+// Raw futures odds loader (for comparison view)
+async function loadRawFuturesOdds(sport) {
+  const container = document.getElementById('raw-futures-odds');
+  if (!container) return;
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/futures/odds/${sport}`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      container.innerHTML = `<p style="color:#f59e0b">${data.error}</p>`;
+      return;
+    }
+
+    const teams = data.teams || [];
+    if (teams.length === 0) {
+      container.innerHTML = `<p style="color:#aaa">No odds data available for ${sport.toUpperCase()}</p>`;
+      return;
+    }
+
+    // Get all unique books
+    const allBooks = new Set();
+    for (const team of teams) {
+      for (const book of Object.keys(team.allOdds || {})) {
+        allBooks.add(book);
+      }
+    }
+    const books = [...allBooks].sort();
+
+    let html = `<div style="overflow-x:auto"><table>
+      <thead><tr>
+        <th>#</th><th>Team</th><th>Consensus</th><th>Best</th>`;
+    for (const book of books.slice(0, 6)) {
+      html += `<th style="font-size:10px">${book.replace('_', ' ').slice(0, 10)}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    teams.slice(0, 30).forEach((team, i) => {
+      const bestOdds = team.bestOdds;
+      html += `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${team.abbr}</strong> <span style="color:#888;font-size:11px">${team.name || ''}</span></td>
+        <td style="font-size:11px">${team.deViggedProb ? (team.deViggedProb * 100).toFixed(1) + '%' : team.consensusImplied ? (team.consensusImplied * 100).toFixed(1) + '%' : 'N/A'}</td>
+        <td style="font-family:monospace;color:#22c55e;font-weight:bold">${bestOdds > 0 ? '+' : ''}${bestOdds} <span style="color:#888;font-size:10px">${team.bestBook || ''}</span></td>`;
+      for (const book of books.slice(0, 6)) {
+        const odds = (team.allOdds || {})[book];
+        if (odds !== undefined) {
+          const isBest = odds === bestOdds;
+          html += `<td style="font-family:monospace;font-size:11px;${isBest ? 'color:#22c55e;font-weight:bold' : 'color:#aaa'}">${odds > 0 ? '+' : ''}${odds}</td>`;
+        } else {
+          html += `<td style="color:#333">—</td>`;
+        }
+      }
+      html += `</tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    html += `<div style="margin-top:8px;font-size:11px;color:#666">
+      Hold: ${data.holdPct || 'N/A'} • ${data.books?.length || 0} books • ${teams.length} teams • Fetched: ${data.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString() : 'now'}
+    </div>`;
+
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<p style="color:#f59e0b">Error loading odds: ${e.message}</p>`;
+  }
+}
+
 // ==================== INIT ====================
+
+// ==================== F5 OPENING WEEK UNDERS TAB ====================
+
+async function loadF5UndersTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Scanning F5 unders for Opening Week...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/opening-week/f5-scan?bankroll=1000&kelly=0.5`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Hero
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a192f,#172a45);border:1px solid #3b82f6">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:#3b82f6">⚾ F5 Opening Week UNDERS Scanner</h2>
+          <p style="margin:4px 0 0;color:#aaa">Poisson F5 scoring + cold weather + ace starters + rusty bats</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:24px;font-weight:bold;color:#3b82f6">${data.f5UnderBets}</div>
+          <div style="color:#aaa;font-size:11px">F5 Under plays found</div>
+        </div>
+      </div>
+    </div>`;
+    
+    // Stats bar
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#22c55e">${data.totalGames}</div>
+        <div style="font-size:10px;color:#888">Games Scanned</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#e94560">${data.highConfidence}</div>
+        <div style="font-size:10px;color:#888">High Confidence</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#f59e0b">$${data.portfolio?.totalWager || 0}</div>
+        <div style="font-size:10px;color:#888">Total Wager</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#22c55e">+$${data.portfolio?.totalEV?.toFixed(2) || 0}</div>
+        <div style="font-size:10px;color:#888">Expected Value</div>
+      </div>
+      <div class="card" style="text-align:center;padding:12px">
+        <div style="font-size:22px;font-weight:bold;color:#a855f7">${data.portfolio?.avgEdge?.toFixed(1) || 0}%</div>
+        <div style="font-size:10px;color:#888">Avg Edge</div>
+      </div>
+    </div>`;
+    
+    // Historical context box
+    html += `<div class="card" style="border-left:3px solid #f59e0b">
+      <h4 style="margin:0 0 8px;color:#f59e0b">📊 Why F5 Unders on Opening Week?</h4>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;font-size:13px">
+        <div>🎯 Opening Day F5 under rate: <strong style="color:#22c55e">~60%</strong></div>
+        <div>🥶 Cold weather parks: <strong style="color:#22c55e">62-65%</strong> under rate</div>
+        <div>⚾ Ace vs ace F5: <strong style="color:#22c55e">64.8%</strong> under rate</div>
+        <div>🏏 Hitters need ~50 ABs to find timing</div>
+        <div>💪 Starters go 6+ IP on Opening Day</div>
+        <div>📈 Scoring suppression concentrates in F5</div>
+      </div>
+    </div>`;
+    
+    // Game cards
+    if (data.games && data.games.length > 0) {
+      html += `<div class="card"><h3>🎯 F5 Under Opportunities</h3>`;
+      
+      for (const game of data.games) {
+        const gradeColor = game.grade === 'A+' ? '#22c55e' : game.grade === 'A' ? '#22c55e' : game.grade === 'B+' ? '#f59e0b' : game.grade === 'B' ? '#3b82f6' : '#666';
+        const f5 = game.f5;
+        const ow = game.openingWeek;
+        const underEdge = f5.underEdge;
+        
+        html += `<div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px;border-left:3px solid ${gradeColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div>
+              <span style="font-size:18px;font-weight:bold">${game.matchup}</span>
+              <span style="margin-left:8px;font-size:12px;color:#888">${game.date}${game.day === 1 ? ' (Opening Day)' : ''}</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="background:${gradeColor}22;color:${gradeColor};padding:3px 10px;border-radius:6px;font-weight:bold;font-size:13px">Grade: ${game.grade}</span>
+              ${ow.isIndoor ? '<span style="background:#33333366;color:#888;padding:3px 8px;border-radius:6px;font-size:11px">🏠 Indoor</span>' : ''}
+              ${ow.isOpeningDay ? '<span style="background:#e9456022;color:#e94560;padding:3px 8px;border-radius:6px;font-size:11px">🎉 Opening Day</span>' : ''}
+            </div>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;font-size:13px">
+            <div style="background:var(--bg3);padding:8px;border-radius:6px">
+              <div style="color:#888;font-size:11px">Park</div>
+              <div style="font-weight:bold">${game.park || 'TBD'}</div>
+            </div>
+            <div style="background:var(--bg3);padding:8px;border-radius:6px">
+              <div style="color:#888;font-size:11px">Starters</div>
+              <div>${game.awayStarter || 'TBD'} vs ${game.homeStarter || 'TBD'}</div>
+            </div>
+            <div style="background:var(--bg3);padding:8px;border-radius:6px">
+              <div style="color:#888;font-size:11px">OW Reduction</div>
+              <div style="font-weight:bold;color:#3b82f6">-${ow.reduction}%</div>
+            </div>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div style="background:var(--bg3);padding:10px;border-radius:8px;text-align:center">
+              <div style="color:#888;font-size:11px;margin-bottom:4px">F5 Expected Total</div>
+              <div style="font-size:22px;font-weight:bold;color:#3b82f6">${f5.expectedTotal}</div>
+              <div style="font-size:11px;color:#888">${f5.awayF5Runs} away / ${f5.homeF5Runs} home</div>
+            </div>
+            <div style="background:var(--bg3);padding:10px;border-radius:8px;text-align:center">
+              <div style="color:#888;font-size:11px;margin-bottom:4px">F5 Book Line</div>
+              <div style="font-size:22px;font-weight:bold">${f5.bookLine || 'N/A'}</div>
+              <div style="font-size:11px;color:#888">Full game: ${game.fullGame.bookTotal || 'N/A'}</div>
+            </div>
+          </div>`;
+        
+        if (underEdge) {
+          const confColor = underEdge.confidence === 'HIGH' ? '#22c55e' : underEdge.confidence === 'MEDIUM' ? '#f59e0b' : '#888';
+          html += `<div style="background:#22c55e11;border:1px solid #22c55e33;border-radius:8px;padding:12px;margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div>
+                <span style="font-size:15px;font-weight:bold;color:#22c55e">✅ F5 UNDER ${underEdge.line}</span>
+                <span style="margin-left:8px;color:${confColor};font-size:12px;font-weight:bold">${underEdge.confidence}</span>
+              </div>
+              <div style="display:flex;gap:12px;font-size:13px">
+                <span>Edge: <strong style="color:#22c55e">${underEdge.edge}%</strong></span>
+                <span>Model: <strong>${underEdge.modelUnderPct}%</strong></span>
+                <span>Book: <strong>${underEdge.bookImplied}%</strong></span>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:#aaa">
+              <span>Fair ML: ${underEdge.fairUnderML > 0 ? '+' : ''}${underEdge.fairUnderML}</span>
+              <span>Kelly: ${underEdge.kellyPct}%</span>
+              <span>Wager: $${underEdge.wager}</span>
+              <span style="color:#22c55e">EV: +$${underEdge.ev}</span>
+            </div>
+          </div>`;
+        } else {
+          html += `<div style="background:#33333333;border-radius:8px;padding:10px;margin-bottom:10px;color:#888;font-size:13px;text-align:center">
+            No F5 under edge at current line
+          </div>`;
+        }
+        
+        // F5 probability grid (key lines)
+        const keyLines = [3.5, 4.0, 4.5, 5.0, 5.5];
+        html += `<div style="margin-top:6px"><details>
+          <summary style="cursor:pointer;color:#aaa;font-size:12px">📊 F5 Line Probabilities</summary>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px">`;
+        for (const line of keyLines) {
+          const probs = f5.probMatrix[line];
+          if (probs) {
+            const isGood = probs.under > 55;
+            html += `<div style="background:var(--bg3);padding:6px;border-radius:4px;text-align:center;font-size:11px${isGood ? ';border:1px solid #22c55e44' : ''}">
+              <div style="color:#888">F5 U${line}</div>
+              <div style="font-weight:bold;color:${isGood ? '#22c55e' : '#aaa'}">${probs.under}%</div>
+              <div style="color:#666;font-size:10px">${probs.fairUnderML > 0 ? '+' : ''}${probs.fairUnderML}</div>
+            </div>`;
+          }
+        }
+        html += `</div></details></div>`;
+        
+        // OW Factors
+        if (ow.factors && ow.factors.length > 0) {
+          html += `<details style="margin-top:6px"><summary style="cursor:pointer;color:#aaa;font-size:12px">🧊 Opening Week Factors (${ow.factors.length})</summary>
+            <div style="margin-top:6px">`;
+          for (const f of ow.factors) {
+            html += `<div style="font-size:11px;padding:3px 0;color:#aaa">• <strong>${f.factor}</strong>: -${(f.reduction * 100).toFixed(1)}% — ${f.note}</div>`;
+          }
+          html += `</div></details>`;
+        }
+        
+        html += `</div>`; // end game card
+      }
+      
+      html += `</div>`; // end card
+    }
+    
+    // Action Board
+    html += `<div class="card" style="border:1px solid #22c55e">
+      <h3 style="color:#22c55e">💰 F5 Under Action Board</h3>`;
+    
+    const actionBets = data.games?.filter(g => g.f5.underEdge) || [];
+    if (actionBets.length > 0) {
+      html += `<div style="overflow-x:auto"><table><thead><tr>
+        <th>Grade</th><th>Game</th><th>F5 Line</th><th>Model %</th><th>Edge</th><th>Wager</th><th>EV</th><th>Conf</th>
+      </tr></thead><tbody>`;
+      
+      for (const game of actionBets) {
+        const ue = game.f5.underEdge;
+        const gc = game.grade === 'A+' || game.grade === 'A' ? '#22c55e' : game.grade === 'B+' ? '#f59e0b' : '#3b82f6';
+        const cc = ue.confidence === 'HIGH' ? '#22c55e' : ue.confidence === 'MEDIUM' ? '#f59e0b' : '#888';
+        html += `<tr>
+          <td style="color:${gc};font-weight:bold">${game.grade}</td>
+          <td><strong>${game.matchup}</strong></td>
+          <td>U ${ue.line}</td>
+          <td>${ue.modelUnderPct}%</td>
+          <td style="color:#22c55e;font-weight:bold">${ue.edge}%</td>
+          <td style="font-weight:bold">$${ue.wager}</td>
+          <td style="color:#22c55e">+$${ue.ev}</td>
+          <td style="color:${cc};font-weight:bold">${ue.confidence}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    } else {
+      html += `<p style="color:#888">No F5 under edges found at current lines. Check back closer to game time when lines update.</p>`;
+    }
+    html += `</div>`;
+    
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${err.message}</p></div>`;
+  }
+}
 
 buildTabs();
 showTab('picks');
