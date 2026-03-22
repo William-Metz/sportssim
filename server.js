@@ -68,6 +68,8 @@ let nfl = null;
 try { nfl = require('./models/nfl'); } catch (e) { console.error('[server] NFL model not loaded:', e.message); }
 let odPreflight = null;
 try { odPreflight = require('./services/opening-day-preflight'); } catch (e) { console.error('[server] OD Preflight not loaded:', e.message); }
+let ncaa = null;
+try { ncaa = require('./models/ncaa'); } catch (e) { console.error('[server] NCAA model not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -1039,6 +1041,235 @@ app.get('/api/backtest/nhl', (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== NCAA MARCH MADNESS ENDPOINTS ====================
+
+// NCAA predict game
+app.get('/api/ncaa/predict', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const { away, home, round } = req.query;
+  if (!away || !home) return res.json({ error: 'Provide away and home team abbreviations' });
+  const result = ncaa.predict(away.toUpperCase(), home.toUpperCase(), { round });
+  res.json(result);
+});
+
+// NCAA team ratings
+app.get('/api/ncaa/ratings', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const teams = Object.entries(ncaa.TEAMS)
+    .map(([abbr, t]) => ({ abbr, ...t }))
+    .sort((a, b) => a.kenpom - b.kenpom);
+  res.json({ teams, count: teams.length });
+});
+
+// NCAA bracket simulation
+app.get('/api/ncaa/simulate', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const sims = Math.min(parseInt(req.query.sims) || 10000, 50000);
+  const result = ncaa.simulateBracket(sims);
+  res.json(result);
+});
+
+// NCAA Sweet 16 matchups
+app.get('/api/ncaa/sweet16', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const matchups = ncaa.getSweet16Matchups();
+  // Add predictions to known matchups
+  matchups.known = matchups.known.map(m => ({
+    ...m,
+    prediction: ncaa.predict(m.away, m.home, { round: 'Sweet 16' })
+  }));
+  // Add predictions to pending games
+  matchups.pending = matchups.pending.map(p => {
+    const parts = p.game.split(' vs ');
+    const awayAbbr = ncaa.findTeamAbbr(parts[0]?.trim());
+    const homeAbbr = ncaa.findTeamAbbr(parts[1]?.trim());
+    if (awayAbbr && homeAbbr) {
+      return { ...p, prediction: ncaa.predict(awayAbbr, homeAbbr, { round: 'Round 2' }) };
+    }
+    return p;
+  });
+  res.json(matchups);
+});
+
+// NCAA value detection
+app.get('/api/ncaa/value', async (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  try {
+    // Try to fetch NCAA odds from The Odds API
+    let ncaaOdds = [];
+    if (ODDS_API_KEY) {
+      try {
+        const url = `https://api.the-odds-api.com/v4/sports/basketball_ncaab/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`;
+        const resp = await fetch(url, { timeout: 10000 });
+        if (resp.ok) ncaaOdds = await resp.json();
+      } catch (e) { console.error('[ncaa] Odds fetch error:', e.message); }
+    }
+    
+    const valueBets = [];
+    
+    // Scan live odds for value
+    for (const game of ncaaOdds) {
+      const awayName = game.away_team;
+      const homeName = game.home_team;
+      const awayAbbr = ncaa.findTeamAbbr(awayName);
+      const homeAbbr = ncaa.findTeamAbbr(homeName);
+      
+      if (!awayAbbr || !homeAbbr) continue;
+      
+      // Extract best odds
+      let bestAwayML = null, bestHomeML = null, bestSpread = null, bestTotal = null;
+      for (const bk of (game.bookmakers || [])) {
+        for (const mkt of (bk.markets || [])) {
+          if (mkt.key === 'h2h') {
+            for (const o of mkt.outcomes) {
+              if (o.name === game.away_team && (!bestAwayML || o.price > bestAwayML)) bestAwayML = o.price;
+              if (o.name === game.home_team && (!bestHomeML || o.price > bestHomeML)) bestHomeML = o.price;
+            }
+          }
+          if (mkt.key === 'spreads') {
+            for (const o of mkt.outcomes) {
+              if (o.name === game.away_team && o.point !== undefined) bestSpread = o.point;
+            }
+          }
+          if (mkt.key === 'totals') {
+            for (const o of mkt.outcomes) {
+              if (o.name === 'Over' && o.point !== undefined) bestTotal = o.point;
+            }
+          }
+        }
+      }
+      
+      const marketOdds = {};
+      if (bestAwayML) marketOdds.awayML = bestAwayML;
+      if (bestHomeML) marketOdds.homeML = bestHomeML;
+      if (bestSpread !== null) marketOdds.spread = bestSpread;
+      if (bestTotal !== null) marketOdds.total = bestTotal;
+      
+      const analysis = ncaa.detectValue(awayAbbr, homeAbbr, marketOdds);
+      if (analysis.hasValue) {
+        valueBets.push({
+          game: `${awayName} @ ${homeName}`,
+          awayAbbr,
+          homeAbbr,
+          ...analysis
+        });
+      }
+    }
+    
+    res.json({
+      sport: 'NCAAB',
+      oddsGames: ncaaOdds.length,
+      valueBets,
+      valueBetCount: valueBets.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+// NCAA full report
+app.get('/api/ncaa/report', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const report = ncaa.generateReport();
+  res.json(report);
+});
+
+// NCAA bracket state (dynamic — which teams are still alive)
+app.get('/api/ncaa/bracket', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  res.json(ncaa.getBracketState());
+});
+
+// NCAA add result (POST)
+app.post('/api/ncaa/result', express.json(), (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const { round, winner, loser, score, notes } = req.body;
+  if (!round || !winner || !loser) return res.json({ error: 'Provide round, winner, loser' });
+  const result = ncaa.addResult(round, winner.toUpperCase(), loser.toUpperCase(), score, notes);
+  res.json(result);
+});
+
+// NCAA tournament results
+app.get('/api/ncaa/results', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  res.json(ncaa.TOURNAMENT_RESULTS);
+});
+
+// NCAA team detail
+app.get('/api/ncaa/team/:abbr', (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  const abbr = req.params.abbr.toUpperCase();
+  const team = ncaa.TEAMS[abbr];
+  if (!team) return res.json({ error: `Team not found: ${abbr}` });
+  const perf = ncaa.getTourneyPerformance(abbr);
+  res.json({ abbr, ...team, tourneyPerformance: perf });
+});
+
+// NCAA championship futures value
+app.get('/api/ncaa/futures', async (req, res) => {
+  if (!ncaa) return res.json({ error: 'NCAA model not loaded' });
+  try {
+    // Get model championship probabilities
+    const sim = ncaa.simulateBracket(10000);
+    
+    // Try to fetch futures odds
+    let futuresOdds = [];
+    if (ODDS_API_KEY) {
+      try {
+        const url = `https://api.the-odds-api.com/v4/sports/basketball_ncaab/futures/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=outright_winner&oddsFormat=american`;
+        const resp = await fetch(url, { timeout: 10000 });
+        if (resp.ok) futuresOdds = await resp.json();
+      } catch (e) { console.error('[ncaa-futures] Fetch error:', e.message); }
+    }
+    
+    // Match model probs with market odds
+    const valueBets = [];
+    for (const event of futuresOdds) {
+      for (const bk of (event.bookmakers || [])) {
+        for (const mkt of (bk.markets || [])) {
+          for (const outcome of (mkt.outcomes || [])) {
+            const abbr = ncaa.findTeamAbbr(outcome.name);
+            if (!abbr) continue;
+            const modelTeam = sim.results.find(r => r.team === abbr);
+            if (!modelTeam) continue;
+            
+            const modelProb = modelTeam.champProb / 100;
+            const odds = outcome.price;
+            const impliedProb = odds < 0 ? (-odds) / (-odds + 100) : 100 / (odds + 100);
+            const edge = modelProb - impliedProb;
+            
+            if (edge > 0.01) {
+              valueBets.push({
+                team: modelTeam.name,
+                abbr,
+                seed: modelTeam.seed,
+                region: modelTeam.region,
+                book: bk.title,
+                odds,
+                modelProb: +(modelProb * 100).toFixed(1),
+                impliedProb: +(impliedProb * 100).toFixed(1),
+                edge: +(edge * 100).toFixed(1),
+                confidence: edge > 0.05 ? 'HIGH' : edge > 0.02 ? 'MEDIUM' : 'LOW'
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    valueBets.sort((a, b) => b.edge - a.edge);
+    
+    res.json({
+      championshipOdds: sim.results.slice(0, 16),
+      futuresValue: valueBets,
+      futuresOddsAvailable: futuresOdds.length > 0,
+      sims: sim.sims,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== NFL ENDPOINTS ====================
 
 // NFL Power Ratings
@@ -1200,6 +1431,7 @@ app.get('/api/value/all', async (req, res) => {
   try {
     const results = await Promise.allSettled([
       fetch_value_bets('nba'), fetch_value_bets('mlb'), fetch_value_bets('nhl'),
+      fetch_value_bets('ncaab'),
       polymarketValue.scanForValue({ minEdge: 0.03 }).then(r => 
         (r.valueBets || []).filter(v => v.rawEdge > 0).map(v => ({
           sport: (v.sport || 'POLY').toUpperCase(),
@@ -1406,6 +1638,65 @@ async function fetch_value_bets(sport) {
           });
         }
       }
+    }
+  } else if (sport === 'ncaab') {
+    // NCAA Basketball value bets
+    if (ncaa) {
+      try {
+        const liveOdds = await fetchOdds('basketball_ncaab');
+        for (const game of liveOdds) {
+          const awayAbbr = ncaa.findTeamAbbr(game.away_team);
+          const homeAbbr = ncaa.findTeamAbbr(game.home_team);
+          if (!awayAbbr || !homeAbbr) continue;
+          
+          // Extract best odds across books
+          let bestAwayML = null, bestHomeML = null, bestSpread = null, bestTotal = null;
+          for (const bk of (game.bookmakers || [])) {
+            for (const mkt of (bk.markets || [])) {
+              if (mkt.key === 'h2h') {
+                for (const o of mkt.outcomes) {
+                  if (o.name === game.away_team && (!bestAwayML || o.price > bestAwayML)) bestAwayML = o.price;
+                  if (o.name === game.home_team && (!bestHomeML || o.price > bestHomeML)) bestHomeML = o.price;
+                }
+              }
+              if (mkt.key === 'spreads') {
+                for (const o of mkt.outcomes) {
+                  if (o.name === game.away_team && o.point !== undefined) bestSpread = o.point;
+                }
+              }
+              if (mkt.key === 'totals') {
+                for (const o of mkt.outcomes) {
+                  if (o.name === 'Over' && o.point !== undefined) bestTotal = o.point;
+                }
+              }
+            }
+          }
+          
+          const marketOdds = {};
+          if (bestAwayML) marketOdds.awayML = bestAwayML;
+          if (bestHomeML) marketOdds.homeML = bestHomeML;
+          if (bestSpread !== null) marketOdds.spread = bestSpread;
+          if (bestTotal !== null) marketOdds.total = bestTotal;
+          
+          const analysis = ncaa.detectValue(awayAbbr, homeAbbr, marketOdds);
+          if (analysis.hasValue) {
+            for (const vb of analysis.valueBets) {
+              bets.push({
+                sport: 'NCAAB',
+                game: `${game.away_team} @ ${game.home_team}`,
+                book: 'Best Available',
+                commence: game.commence_time,
+                pick: vb.bet,
+                market: vb.marketML ? 'moneyline' : (vb.modelSpread !== undefined ? 'spread' : 'total'),
+                edge: vb.edge,
+                confidence: vb.confidence,
+                modelProb: vb.modelProb,
+                kelly: vb.kellyFraction,
+              });
+            }
+          }
+        }
+      } catch (e) { console.error('[value-all] NCAAB error:', e.message); }
     }
   }
   return bets;
@@ -6410,7 +6701,7 @@ app.get('/api/daily-slate/status', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v56.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v61.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -6419,6 +6710,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   MLB Schedule: ESPN confirmed starters service active`);
   console.log(`   NHL teams: ${Object.keys(nhl.getTeams()).length}`);
   if (nfl) console.log(`   NFL teams: ${Object.keys(nfl.TEAMS).length} (win totals model active, ${Object.keys(nfl.MARKET_LINES).length} market lines)`);
+  if (ncaa) console.log(`   NCAA teams: ${Object.keys(ncaa.TEAMS).length} (March Madness KenPom model, bracket simulator, value scanner)`);
   console.log(`   Player props: ${Object.keys(playerProps.NBA_PLAYER_BASELINES).length} NBA + ${Object.keys(playerProps.MLB_PITCHER_BASELINES).length} MLB pitchers + ${Object.keys(playerProps.MLB_BATTER_BASELINES).length} MLB batters`);
   console.log(`   Polymarket: scanner active`);
   console.log(`   Polymarket Value Bridge: model vs market edge detection active`);

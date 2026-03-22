@@ -208,19 +208,21 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 18:00 UTC*
+*Last updated: 2026-03-22 20:00 UTC*
 *Current phase: 2.9 — Final Pre-Season Sprint*
 *✅ Phase 2.75 COMPLETE: All playoff preview, lineup pipeline, F5 unders, NHL playoffs, goalie starters LIVE*
 *✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures DONE*
-*🚨 PRODUCTION DOWN: sportssim.fly.dev timing out — 256MB OOM suspected. Bumped to 512MB in fly.toml. Redeploy in progress.*
-*🔧 REMAINING: Pre-Opening Day final check (task 054), production stability fix*
-*⚡ TODAY: Sunday — POR@DEN (NBA), CAR@PIT + VGK@DAL + 7 more (NHL), WSH@COL in progress (COL 0 WSH 1 P2), NCAA March Madness Sweet 16 ongoing*
-*📊 PRODUCTION STATUS: DOWN — needs redeploy with 512MB memory*
-*🏒 NHL TODAY: WSH@COL (in progress), NYR@WPG (2-2 P3), CAR@PIT, BUF@ANA, VGK@DAL + more*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v60.0.0 — 512MB VM stable, data 41min fresh, all feeds live*
+*🔧 REMAINING: Pre-Opening Day final check (task 054) — MUST DO by March 26*
+*⚡ TODAY (Sunday): POR@DEN (NBA 9pm ET), CAR@PIT (in progress CAR 1-0), VGK@DAL (7pm ET), NCAA Sweet 16 (Iowa vs Florida, Utah St vs Arizona)*
+*📊 PRODUCTION STATUS: ✅ HEALTHY — v60.0.0, all systems nominal*
+*🏒 NHL STANDINGS: COL 100, DAL 96, CAR 94, BUF 92, MIN 90, TBL 88. BUBBLE CHAOS: PIT/MTL/BOS/DET ALL 84pts, CBJ/NYI 83pts — 6 teams within 1pt for 4 spots*
 *🏀 NBA STANDINGS: OKC 56-15, SAS 53-18, DET 51-19, BOS 47-23, LAL/NYK 46-25, CLE 44-27, HOU 43-27, DEN/MIN 43-28*
-*🏀 KEY BATTLES: TOR(39-30)/ATL(39-32) (E 6/7), PHI 39-32 (E tie w/ ATL), MIN/DEN (W 4/5), PHX 39-32 (W 8)*
-*🏀 NEW: NCAA March Madness Sweet 16 = MASSIVE untapped betting market 🎯*
-*⚾ MLB SPRING TRAINING: NYY vs PHI (in progress), HOU vs STL (3-1 STL), LAD@LAA tonight — Opening Day in 5 DAYS*
+*🏀 KEY BATTLES: TOR(39-30) vs ATL/PHI(39-32) (E 6/7/8), MIN/DEN (W 4/5), PHX 39-32 (W 8)*
+*🎯 NCAA March Madness Sweet 16 = untapped betting market*
+*⚾ SPRING TRAINING: NYY 6 PHI 2 (final), CHC 5 MIL 0 (in progress), LAD@LAA tonight*
+*💰 LIVE VALUE: NYY AL East +21.3%, OAK OVER +17.8%, CHC OVER +13.9%, TOR OVER +13.3%, BAL UNDER +12.5%*
+*🆕 EDGE IDEAS: Platoon splits (L/R matchup adjustments), catcher framing data for game-day model accuracy*
 *MLB OPENING DAY: 5 DAYS (March 27) 🔥🔥🔥*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*

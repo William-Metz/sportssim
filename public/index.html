@@ -25,6 +25,7 @@ select:focus,input:focus{border-color:var(--accent)}
 .sport-btn.active[data-sport="mlb"]{border-color:#22c55e}
 .sport-btn.active[data-sport="nhl"]{border-color:#3b82f6}
 .sport-btn.active[data-sport="all"]{border-color:#a855f7}
+.sport-btn.active[data-sport="ncaa"]{border-color:#f97316}
 .tabs{display:flex;gap:4px;background:var(--bg2);padding:5px;border-radius:10px;margin-bottom:20px;overflow-x:auto}
 .tab{padding:9px 18px;border-radius:8px;font-weight:500;color:var(--text2);background:transparent;transition:all .2s;white-space:nowrap;font-size:13px}
 .tab:hover{color:var(--text);background:var(--bg3)}
@@ -106,6 +107,7 @@ tr:hover td{background:var(--bg3)}
     <button class="sport-btn" data-sport="nhl" onclick="switchSport('nhl')">🏒 NHL</button>
     <button class="sport-btn" data-sport="opening-day" onclick="switchSport('opening-day')" style="background:linear-gradient(135deg,#22c55e20,#eab30820);border:2px solid #22c55e">🔥 Opening Day</button>
     <button class="sport-btn" data-sport="playbook" onclick="switchSport('playbook')" style="background:linear-gradient(135deg,#6366f120,#a855f720);border:2px solid #a855f7">📋 Playbook</button>
+    <button class="sport-btn" data-sport="ncaa" onclick="switchSport('ncaa')" style="background:linear-gradient(135deg,#f9731620,#ef444420);border:2px solid #f97316">🏀 March Madness</button>
   </div>
 
   <div class="tabs" id="main-tabs"></div>
@@ -185,6 +187,8 @@ function buildTabs() {
   }
   // NFL always visible — preseason futures model
   tabs.push({ id: 'nfl-futures', label: '🏈 NFL Futures' });
+  // NCAA March Madness tab — always visible during tournament
+  tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -240,6 +244,7 @@ function showTab(id) {
   else if (id === 'od-weather') loadODWeatherTab();
   else if (id === 'seeding-futures') loadSeedingFuturesTab();
   else if (id === 'nfl-futures') loadNFLFuturesTab();
+  else if (id === 'march-madness') loadMarchMadnessTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -8378,6 +8383,500 @@ async function runNFLPredict() {
     
     html += '</div>';
     resultDiv.innerHTML = html;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
+// ==================== 🏀 MARCH MADNESS TAB ====================
+async function loadMarchMadnessTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading March Madness data...</p></div>';
+  
+  try {
+    const [simRes, ratingsRes, valueRes, sweet16Res] = await Promise.allSettled([
+      fetch('/api/ncaa/simulate?sims=10000').then(r => r.json()),
+      fetch('/api/ncaa/ratings').then(r => r.json()),
+      fetch('/api/ncaa/value').then(r => r.json()),
+      fetch('/api/ncaa/sweet16').then(r => r.json())
+    ]);
+    
+    const sim = simRes.status === 'fulfilled' ? simRes.value : null;
+    const ratings = ratingsRes.status === 'fulfilled' ? ratingsRes.value : null;
+    const value = valueRes.status === 'fulfilled' ? valueRes.value : null;
+    const sweet16 = sweet16Res.status === 'fulfilled' ? sweet16Res.value : null;
+    
+    let html = '';
+    
+    // === HEADER ===
+    html += '<div style="text-align:center;margin-bottom:24px">';
+    html += '<h2 style="margin:0;font-size:2em">🏀 March Madness 2026</h2>';
+    html += '<div style="font-size:14px;color:#94a3b8;margin-top:4px">NCAA Tournament • KenPom Efficiency Model • Sweet 16 starts March 27</div>';
+    html += '</div>';
+    
+    // === SUB-TAB NAV ===
+    html += '<div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px">';
+    const subTabs = [
+      { id: 'mm-bracket', label: '🏆 Championship Odds' },
+      { id: 'mm-sweet16', label: '🎯 Sweet 16 Picks' },
+      { id: 'mm-value', label: '💰 Value Scanner' },
+      { id: 'mm-ratings', label: '📊 Power Ratings' },
+      { id: 'mm-predict', label: '🔮 Matchup Predictor' },
+      { id: 'mm-results', label: '📋 Results Tracker' }
+    ];
+    for (const st of subTabs) {
+      html += `<button onclick="showMMSubTab('${st.id}')" id="btn-${st.id}" style="padding:8px 16px;border-radius:8px;border:1px solid #334155;background:${st.id === 'mm-bracket' ? '#f97316' : '#1e293b'};color:${st.id === 'mm-bracket' ? '#000' : '#e2e8f0'};cursor:pointer;white-space:nowrap;font-weight:600;font-size:13px">${st.label}</button>`;
+    }
+    html += '</div>';
+    
+    // === CHAMPIONSHIP ODDS SUB-TAB ===
+    html += '<div id="mm-bracket" class="mm-subtab">';
+    if (sim && sim.results) {
+      html += '<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #f9731640;padding:24px;border-radius:12px;margin-bottom:16px">';
+      html += '<h3 style="margin-top:0;color:#f97316">🏆 Championship Probability (10,000 Simulations)</h3>';
+      
+      // Top 4 highlighted
+      const top4 = sim.results.slice(0, 4);
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px">';
+      for (const t of top4) {
+        const barColor = t.champProb > 20 ? '#4ade80' : t.champProb > 10 ? '#f97316' : '#60a5fa';
+        html += `<div style="background:#0f172a;border-radius:10px;padding:16px;text-align:center;border:2px solid ${barColor}40">
+          <div style="font-size:28px;font-weight:bold;color:${barColor}">${t.champProb}%</div>
+          <div style="font-size:14px;font-weight:bold;margin:4px 0">${t.name}</div>
+          <div style="font-size:12px;color:#94a3b8">(${t.seed}) seed • KenPom #${t.kenpom}</div>
+          <div style="margin-top:8px;font-size:11px;color:#64748b">
+            F4: ${t.finalFourProb}% • E8: ${t.eliteEightProb}%
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+      
+      // Full table
+      html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<tr style="border-bottom:1px solid #334155"><th style="text-align:left;padding:8px">Team</th><th>Seed</th><th>Region</th><th>KenPom</th><th style="color:#4ade80">🏆 Champ</th><th style="color:#60a5fa">Final 4</th><th style="color:#f97316">Elite 8</th></tr>';
+      for (const t of sim.results.slice(0, 20)) {
+        const rowBg = t.champProb > 10 ? '#4ade8010' : '';
+        html += `<tr style="border-bottom:1px solid #1e293b;background:${rowBg}">
+          <td style="padding:6px 8px;font-weight:bold">${t.name}</td>
+          <td style="text-align:center">${t.seed}</td>
+          <td style="text-align:center;font-size:11px">${t.region}</td>
+          <td style="text-align:center">#${t.kenpom}</td>
+          <td style="text-align:center;font-weight:bold;color:#4ade80">${t.champProb}%</td>
+          <td style="text-align:center;color:#60a5fa">${t.finalFourProb}%</td>
+          <td style="text-align:center;color:#f97316">${t.eliteEightProb}%</td>
+        </tr>`;
+      }
+      html += '</table>';
+      html += '</div>';
+      
+      // Region breakdown
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+      const regions = ['East', 'West', 'Midwest', 'South'];
+      for (const region of regions) {
+        const regionTeams = sim.results.filter(t => t.region === region).slice(0, 4);
+        html += `<div class="card" style="background:#1e293b;border-radius:10px;padding:16px">
+          <h4 style="margin:0 0 8px;color:#f97316">${region} Region</h4>`;
+        for (const t of regionTeams) {
+          const barWidth = Math.max(5, t.finalFourProb);
+          html += `<div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+              <span>(${t.seed}) ${t.name}</span>
+              <span style="color:#4ade80">${t.finalFourProb}% F4</span>
+            </div>
+            <div style="background:#0f172a;border-radius:4px;height:8px;overflow:hidden">
+              <div style="width:${barWidth}%;height:100%;background:linear-gradient(90deg,#f97316,#ef4444);border-radius:4px"></div>
+            </div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    } else {
+      html += '<div class="card"><p style="color:#f87171">Bracket simulation unavailable</p></div>';
+    }
+    html += '</div>';
+    
+    // === SWEET 16 PICKS SUB-TAB ===
+    html += '<div id="mm-sweet16" class="mm-subtab" style="display:none">';
+    if (sweet16) {
+      html += '<div class="card" style="background:#1a1a2e;border-radius:12px;padding:24px;border:1px solid #f9731640;margin-bottom:16px">';
+      html += '<h3 style="margin-top:0;color:#f97316">🎯 Sweet 16 Matchup Predictions</h3>';
+      html += '<p style="color:#94a3b8;font-size:13px;margin-bottom:16px">KenPom efficiency model + historical seed upset rates (80/20 blend)</p>';
+      
+      if (sweet16.known && sweet16.known.length > 0) {
+        for (const m of sweet16.known) {
+          const p = m.prediction;
+          if (!p || p.error) continue;
+          const fav = p.blendedHomeWinProb > p.blendedAwayWinProb ? 'home' : 'away';
+          const favName = fav === 'home' ? p.homeName : p.awayName;
+          const favProb = fav === 'home' ? p.blendedHomeWinProb : p.blendedAwayWinProb;
+          const spreadStr = p.spread > 0 ? `${p.homeName} -${Math.abs(p.spread)}` : `${p.awayName} -${Math.abs(p.spread)}`;
+          
+          html += `<div style="background:#0f172a;border-radius:10px;padding:16px;margin-bottom:12px;border-left:4px solid #f97316">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div>
+                <div style="font-size:12px;color:#f97316;font-weight:bold;margin-bottom:4px">${m.region || p.awayRegion} Region • ${p.round || 'Sweet 16'}</div>
+                <div style="font-size:16px;font-weight:bold">(${p.awaySeed}) ${p.awayName} vs (${p.homeSeed}) ${p.homeName}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:20px;font-weight:bold;color:#4ade80">${(favProb*100).toFixed(1)}%</div>
+                <div style="font-size:12px;color:#94a3b8">${favName}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:12px">
+              <div style="background:#1e293b;border-radius:6px;padding:8px;text-align:center">
+                <div style="font-size:10px;color:#64748b">SPREAD</div>
+                <div style="font-weight:bold">${spreadStr}</div>
+              </div>
+              <div style="background:#1e293b;border-radius:6px;padding:8px;text-align:center">
+                <div style="font-size:10px;color:#64748b">TOTAL</div>
+                <div style="font-weight:bold">${p.projTotal}</div>
+              </div>
+              <div style="background:#1e293b;border-radius:6px;padding:8px;text-align:center">
+                <div style="font-size:10px;color:#64748b">AWAY ML</div>
+                <div style="font-weight:bold">${p.awayML > 0 ? '+' : ''}${p.awayML}</div>
+              </div>
+              <div style="background:#1e293b;border-radius:6px;padding:8px;text-align:center">
+                <div style="font-size:10px;color:#64748b">HOME ML</div>
+                <div style="font-weight:bold">${p.homeML > 0 ? '+' : ''}${p.homeML}</div>
+              </div>
+            </div>`;
+          
+          // Matchup insights
+          if (p.matchup && p.matchup.insights && p.matchup.insights.length > 0) {
+            html += '<div style="margin-top:10px;padding:8px;background:#1e293b;border-radius:6px">';
+            for (const insight of p.matchup.insights) {
+              html += `<div style="font-size:12px;color:#94a3b8;margin:2px 0">${insight}</div>`;
+            }
+            html += '</div>';
+          }
+          
+          html += '</div>';
+        }
+      }
+      
+      // Pending Round 2 games
+      if (sweet16.pending && sweet16.pending.length > 0) {
+        html += '<h4 style="color:#f97316;margin-top:20px">⏳ Round 2 Games Still Pending</h4>';
+        html += '<p style="font-size:12px;color:#64748b;margin-bottom:12px">Sweet 16 matchups depend on these results</p>';
+        for (const p of sweet16.pending) {
+          const pred = p.prediction;
+          html += `<div style="background:#0f172a;border-radius:8px;padding:12px;margin-bottom:8px;border-left:4px solid #64748b">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:14px;font-weight:bold">${p.game}</div>
+                <div style="font-size:11px;color:#64748b">${p.seeds} • ${p.region} Region</div>
+              </div>`;
+          if (pred) {
+            const prob = Math.max(pred.blendedAwayWinProb, pred.blendedHomeWinProb);
+            html += `<div style="text-align:right">
+              <div style="font-weight:bold;color:#60a5fa">${(prob*100).toFixed(1)}%</div>
+              <div style="font-size:11px;color:#94a3b8">Spread: ${pred.spread > 0 ? '+' : ''}${pred.spread}</div>
+            </div>`;
+          }
+          html += '</div></div>';
+        }
+      }
+      
+      html += '</div>';
+    } else {
+      html += '<div class="card"><p style="color:#f87171">Sweet 16 data unavailable</p></div>';
+    }
+    html += '</div>';
+    
+    // === VALUE SCANNER SUB-TAB ===
+    html += '<div id="mm-value" class="mm-subtab" style="display:none">';
+    html += '<div class="card" style="background:#1a1a2e;border-radius:12px;padding:24px;border:1px solid #f9731640">';
+    html += '<h3 style="margin-top:0;color:#f97316">💰 NCAAB Value Scanner</h3>';
+    html += '<p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Live odds from The Odds API vs KenPom efficiency model</p>';
+    
+    if (value && value.valueBetCount > 0) {
+      html += `<div style="background:#4ade8015;border:1px solid #4ade8040;border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
+        <span style="font-size:20px;font-weight:bold;color:#4ade80">${value.valueBetCount}</span>
+        <span style="color:#94a3b8"> value bets found across </span>
+        <span style="font-weight:bold">${value.oddsGames}</span>
+        <span style="color:#94a3b8"> games</span>
+      </div>`;
+      
+      for (const vb of value.valueBets) {
+        html += `<div style="background:#0f172a;border-radius:10px;padding:16px;margin-bottom:12px;border-left:4px solid #4ade80">
+          <div style="font-weight:bold;font-size:14px;margin-bottom:8px">${vb.game}</div>`;
+        for (const bet of vb.valueBets) {
+          const confColor = bet.confidence === 'HIGH' ? '#4ade80' : bet.confidence === 'MEDIUM' ? '#f97316' : '#60a5fa';
+          html += `<div style="background:#1e293b;border-radius:6px;padding:10px;margin-bottom:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <span style="font-weight:bold">${bet.bet}</span>
+                <span style="background:${confColor}20;color:${confColor};padding:2px 8px;border-radius:4px;font-size:11px;margin-left:8px">${bet.confidence}</span>
+              </div>
+              <div style="font-size:18px;font-weight:bold;color:#4ade80">+${bet.edge}%</div>
+            </div>
+            <div style="display:flex;gap:16px;margin-top:6px;font-size:12px;color:#94a3b8">
+              <span>Model: ${(bet.modelProb * 100).toFixed(1)}%</span>
+              <span>Market: ${(bet.marketProb * 100).toFixed(1)}%</span>
+              ${bet.marketML ? `<span>Odds: ${bet.marketML > 0 ? '+' : ''}${bet.marketML}</span>` : ''}
+              ${bet.fairML ? `<span>Fair: ${bet.fairML > 0 ? '+' : ''}${bet.fairML}</span>` : ''}
+              ${bet.kellyFraction ? `<span>Kelly: ${bet.kellyFraction}%</span>` : ''}
+            </div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+    } else {
+      html += '<div style="background:#1e293b;border-radius:8px;padding:24px;text-align:center;color:#94a3b8">';
+      html += `<div style="font-size:32px;margin-bottom:8px">🔍</div>`;
+      html += `<div>Scanned ${value?.oddsGames || 0} games — no value bets found right now</div>`;
+      html += '<div style="font-size:12px;margin-top:4px">Value bets appear when model probability > market implied probability by 3%+</div>';
+      html += '</div>';
+    }
+    
+    // Systematic edges
+    html += '<div style="margin-top:16px;background:#0f172a;border-radius:8px;padding:16px">';
+    html += '<h4 style="margin:0 0 8px;color:#f97316">📈 Systematic March Madness Edges</h4>';
+    html += '<div style="font-size:13px;color:#94a3b8;line-height:1.6">';
+    html += '• <strong style="color:#4ade80">Unders hit ~53%</strong> historically in tournament play (pressure + unfamiliar opponents + elite defense)<br>';
+    html += '• <strong style="color:#4ade80">12-seed over 5-seed</strong> upsets happen 36% of the time — public undervalues mid-majors<br>';
+    html += '• <strong style="color:#4ade80">Defense travels</strong> in March — elite defensive teams (AdjD < 92) consistently outperform expectations<br>';
+    html += '• <strong style="color:#4ade80">KenPom ≠ Seed</strong> — underseeded teams with low KenPom rank = market mispricing<br>';
+    html += '• <strong style="color:#f87171">Avoid</strong> backing teams with high AdjO but poor AdjD in late rounds — offense becomes unreliable</div>';
+    html += '</div>';
+    
+    html += '</div>';
+    html += '</div>';
+    
+    // === POWER RATINGS SUB-TAB ===
+    html += '<div id="mm-ratings" class="mm-subtab" style="display:none">';
+    html += '<div class="card" style="background:#1a1a2e;border-radius:12px;padding:24px;border:1px solid #f9731640">';
+    html += '<h3 style="margin-top:0;color:#f97316">📊 Tournament Team Power Ratings</h3>';
+    
+    if (ratings && ratings.teams) {
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+      html += '<tr style="border-bottom:2px solid #334155;position:sticky;top:0;background:#1a1a2e">';
+      html += '<th style="text-align:left;padding:8px">KP#</th><th style="text-align:left">Team</th><th>Seed</th><th>Region</th><th>Record</th>';
+      html += '<th style="color:#4ade80">AdjO</th><th style="color:#f87171">AdjD</th><th style="color:#f97316">AdjEM</th><th>Tempo</th></tr>';
+      
+      for (const t of ratings.teams) {
+        const emColor = t.adjEM > 20 ? '#4ade80' : t.adjEM > 10 ? '#f97316' : t.adjEM > 0 ? '#60a5fa' : '#f87171';
+        html += `<tr style="border-bottom:1px solid #1e293b">
+          <td style="padding:6px 8px;color:#64748b">${t.kenpom}</td>
+          <td style="font-weight:bold">${t.name}</td>
+          <td style="text-align:center">${t.seed}</td>
+          <td style="text-align:center;font-size:11px">${t.region}</td>
+          <td style="text-align:center">${t.record}</td>
+          <td style="text-align:center;color:#4ade80">${t.adjO}</td>
+          <td style="text-align:center;color:#f87171">${t.adjD}</td>
+          <td style="text-align:center;font-weight:bold;color:${emColor}">${t.adjEM > 0 ? '+' : ''}${t.adjEM}</td>
+          <td style="text-align:center;color:#94a3b8">${t.tempo}</td>
+        </tr>`;
+      }
+      html += '</table></div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    
+    // === MATCHUP PREDICTOR SUB-TAB ===
+    html += '<div id="mm-predict" class="mm-subtab" style="display:none">';
+    html += '<div class="card" style="background:#1a1a2e;border-radius:12px;padding:24px;border:1px solid #f9731640">';
+    html += '<h3 style="margin-top:0;color:#f97316">🔮 NCAA Matchup Predictor</h3>';
+    html += '<p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Pick any two tournament teams to see the model prediction</p>';
+    
+    if (ratings && ratings.teams) {
+      const teamOpts = ratings.teams.map(t => `<option value="${t.abbr}">(${t.seed}) ${t.name}</option>`).join('');
+      html += `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <select id="ncaa-away" style="padding:8px 12px;border-radius:6px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:14px">${teamOpts}</select>
+        <span style="font-weight:bold;color:#f97316">@</span>
+        <select id="ncaa-home" style="padding:8px 12px;border-radius:6px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:14px">${teamOpts}</select>
+        <select id="ncaa-round" style="padding:8px 12px;border-radius:6px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:14px">
+          <option value="Sweet 16">Sweet 16</option>
+          <option value="Elite Eight">Elite Eight</option>
+          <option value="Final Four">Final Four</option>
+          <option value="Championship">Championship</option>
+        </select>
+        <button onclick="runNCAAPredict()" style="padding:8px 20px;border-radius:6px;background:#f97316;color:#000;border:none;font-weight:bold;cursor:pointer">Predict</button>
+      </div>`;
+    }
+    html += '<div id="ncaa-predict-result"></div>';
+    html += '</div>';
+    html += '</div>';
+    
+    // === RESULTS TRACKER SUB-TAB ===
+    html += '<div id="mm-results" class="mm-subtab" style="display:none">';
+    html += '<div class="card" style="background:#1a1a2e;border-radius:12px;padding:24px;border:1px solid #f9731640">';
+    html += '<h3 style="margin-top:0;color:#f97316">📋 Tournament Results Tracker</h3>';
+    
+    // We'll fetch results from the model
+    html += '<div style="margin-bottom:16px">';
+    html += '<h4 style="color:#60a5fa;margin:0 0 8px">Round 1 — Complete ✅</h4>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">';
+    
+    // Round 1 results - hardcode from what we know
+    const r1Results = [
+      'DUKE 71-65 SIENA', 'TCU 66-64 OSU', 'STJN 79-53 NIOWA', 'KU 68-60 CBAP',
+      'LVIL 83-79 USF', 'MSU 92-67 NDSU', 'UCLA 75-71 UCF', 'UCON 82-71 FURM',
+      'ARIZ 92-58 LIU', 'UTST 86-76 NOVA', 'HPNT 83-82 WISC ⚡', 'ARK 97-78 HAW',
+      'TEX 79-71 BYU', 'GONZ 73-64 KENN', 'MIAMI 80-66 MIZZOU', 'PUR 104-71 QNS',
+      'MICH 101-80 HOWARD', 'STLOU 102-77 GA', 'TTECH 91-71 AKRN', 'BAMA 90-70 HOFS',
+      'TENN 78-56 MOHI', 'UVA 82-73 WRIST', 'KEN 89-84 SCLA', 'IAST 108-74 TNST',
+      'FLA 114-55 PVA', 'IOWA 67-61 CLEM', 'VAND 78-68 MCNEE', 'NEB 76-47 TROY',
+      'VCU 82-78 UNC (OT)', 'ILL 105-70 PENN', 'TAMU 63-50 SMARY', 'HOU 78-47 IDAHO'
+    ];
+    for (const r of r1Results) {
+      const isUpset = r.includes('⚡') || r.includes('(OT)');
+      html += `<div style="background:#0f172a;border-radius:6px;padding:8px 12px;font-size:12px;${isUpset ? 'border-left:3px solid #f97316' : ''}">${r}</div>`;
+    }
+    html += '</div>';
+    
+    html += '<h4 style="color:#60a5fa;margin:16px 0 8px">Round 2 — In Progress 🔄</h4>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">';
+    const r2Results = [
+      'MICH 95-72 STLOU ✅', 'MSU 77-69 LVIL ✅', 'DUKE 81-58 TCU ✅', 'HOU 88-57 TAMU ✅',
+      'TEX 74-68 GONZ ⚡✅', 'ILL 76-55 VCU ✅', 'NEB 74-72 VAND ✅', 'ARK 94-88 HPNT ✅',
+      'PUR 79-69 MIAMI ✅',
+      'IAST vs KEN — In Progress 🔴', 'KU vs STJN — Upcoming ⏳', 'TENN vs UVA — Upcoming ⏳',
+      'FLA vs IOWA — Upcoming ⏳', 'ARIZ vs UTST — Upcoming ⏳', 'UCON vs UCLA — Upcoming ⏳',
+      'BAMA vs TTECH — Upcoming ⏳'
+    ];
+    for (const r of r2Results) {
+      const isLive = r.includes('🔴');
+      const isUpcoming = r.includes('⏳');
+      const isDone = r.includes('✅');
+      const isUpset = r.includes('⚡');
+      const bg = isLive ? '#dc262620' : isUpcoming ? '#1e293b' : '#0f172a';
+      const border = isUpset ? 'border-left:3px solid #f97316;' : isLive ? 'border-left:3px solid #dc2626;' : '';
+      html += `<div style="background:${bg};border-radius:6px;padding:8px 12px;font-size:12px;${border}">${r}</div>`;
+    }
+    html += '</div>';
+    html += '</div>';
+    
+    // Upsets and key storylines
+    html += '<div style="background:#0f172a;border-radius:8px;padding:16px;margin-top:16px">';
+    html += '<h4 style="margin:0 0 8px;color:#f97316">🔥 Key Tournament Storylines</h4>';
+    html += '<div style="font-size:13px;color:#94a3b8;line-height:1.8">';
+    html += '• <strong style="color:#f97316">12-seed High Point</strong> upset 5-seed Wisconsin 83-82 in Round 1 — KenPom #92 beat #23!<br>';
+    html += '• <strong style="color:#f97316">11-seed VCU</strong> beat 6-seed UNC 82-78 in OT — defending on Tar Heels in hostile territory<br>';
+    html += '• <strong style="color:#f97316">11-seed Texas</strong> beat 3-seed Gonzaga 74-68 in Round 2 — Longhorns on a run<br>';
+    html += '• <strong style="color:#4ade80">Michigan</strong> (1 seed) cruising — 101-80 and 95-72 wins. Duke also dominant (81-58 over TCU)<br>';
+    html += '• <strong style="color:#4ade80">Houston</strong> defense is ELITE — 78-47 (Rd 1) and 88-57 (Rd 2). AdjD 87.8 = championship-caliber<br>';
+    html += '• <strong style="color:#60a5fa">9-seed St. Louis</strong> hammered 8-seed Georgia 102-77 — could be this year\'s Cinderella</div>';
+    html += '</div>';
+    
+    html += '</div>';
+    html += '</div>';
+    
+    wrap.innerHTML = html;
+    
+  } catch (err) {
+    wrap.innerHTML = `<h2>🏀 March Madness</h2><p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
+function showMMSubTab(tabId) {
+  document.querySelectorAll('.mm-subtab').forEach(el => el.style.display = 'none');
+  const target = document.getElementById(tabId);
+  if (target) target.style.display = 'block';
+  // Update button styles
+  document.querySelectorAll('[id^="btn-mm-"]').forEach(btn => {
+    btn.style.background = btn.id === 'btn-' + tabId ? '#f97316' : '#1e293b';
+    btn.style.color = btn.id === 'btn-' + tabId ? '#000' : '#e2e8f0';
+  });
+}
+
+async function runNCAAPredict() {
+  const away = document.getElementById('ncaa-away').value;
+  const home = document.getElementById('ncaa-home').value;
+  const round = document.getElementById('ncaa-round').value;
+  const resultDiv = document.getElementById('ncaa-predict-result');
+  resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    const res = await fetch(`/api/ncaa/predict?away=${away}&home=${home}&round=${encodeURIComponent(round)}`);
+    const pred = await res.json();
+    
+    if (pred.error) {
+      resultDiv.innerHTML = `<p style="color:red">${pred.error}</p>`;
+      return;
+    }
+    
+    const fav = pred.blendedHomeWinProb > pred.blendedAwayWinProb ? 'home' : 'away';
+    const favName = fav === 'home' ? pred.homeName : pred.awayName;
+    const favProb = fav === 'home' ? pred.blendedHomeWinProb : pred.blendedAwayWinProb;
+    
+    let h = '<div style="background:#0f172a;border-radius:10px;padding:20px;margin-top:12px;border-left:4px solid #f97316">';
+    h += `<div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:12px;color:#f97316;font-weight:bold">${round} • Neutral Court</div>
+      <div style="font-size:22px;font-weight:bold;margin:8px 0">(${pred.awaySeed}) ${pred.awayName} vs (${pred.homeSeed}) ${pred.homeName}</div>
+      <div style="font-size:14px;color:#94a3b8">${pred.awayRecord} vs ${pred.homeRecord}</div>
+    </div>`;
+    
+    // Big probability display
+    h += '<div style="display:flex;justify-content:center;gap:40px;margin-bottom:16px">';
+    h += `<div style="text-align:center">
+      <div style="font-size:32px;font-weight:bold;color:${pred.blendedAwayWinProb > 0.5 ? '#4ade80' : '#94a3b8'}">${(pred.blendedAwayWinProb*100).toFixed(1)}%</div>
+      <div style="font-size:13px">${pred.awayName}</div>
+      <div style="font-size:11px;color:#64748b">ML: ${pred.awayML > 0 ? '+' : ''}${pred.awayML}</div>
+    </div>`;
+    h += `<div style="text-align:center">
+      <div style="font-size:32px;font-weight:bold;color:${pred.blendedHomeWinProb > 0.5 ? '#4ade80' : '#94a3b8'}">${(pred.blendedHomeWinProb*100).toFixed(1)}%</div>
+      <div style="font-size:13px">${pred.homeName}</div>
+      <div style="font-size:11px;color:#64748b">ML: ${pred.homeML > 0 ? '+' : ''}${pred.homeML}</div>
+    </div>`;
+    h += '</div>';
+    
+    // Key stats
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">';
+    h += `<div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:#64748b">SPREAD</div>
+      <div style="font-weight:bold;font-size:16px">${pred.spread > 0 ? `${pred.homeName} -${Math.abs(pred.spread)}` : `${pred.awayName} -${Math.abs(pred.spread)}`}</div>
+    </div>`;
+    h += `<div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:#64748b">PROJECTED TOTAL</div>
+      <div style="font-weight:bold;font-size:16px">${pred.projTotal}</div>
+    </div>`;
+    h += `<div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:#64748b">AWAY SCORE</div>
+      <div style="font-weight:bold;font-size:16px">${pred.awayProjScore}</div>
+    </div>`;
+    h += `<div style="background:#1e293b;border-radius:6px;padding:10px;text-align:center">
+      <div style="font-size:10px;color:#64748b">HOME SCORE</div>
+      <div style="font-weight:bold;font-size:16px">${pred.homeProjScore}</div>
+    </div>`;
+    h += '</div>';
+    
+    // Efficiency comparison
+    if (pred.efficiency) {
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">';
+      h += `<div style="background:#1e293b;border-radius:6px;padding:10px">
+        <div style="font-weight:bold;margin-bottom:4px">${pred.awayName}</div>
+        <div style="font-size:12px;color:#94a3b8">AdjO: <strong style="color:#4ade80">${pred.efficiency.away.adjO}</strong> | AdjD: <strong style="color:#f87171">${pred.efficiency.away.adjD}</strong></div>
+        <div style="font-size:12px;color:#94a3b8">AdjEM: <strong style="color:#f97316">+${pred.efficiency.away.adjEM}</strong> | Tempo: ${pred.efficiency.away.tempo}</div>
+      </div>`;
+      h += `<div style="background:#1e293b;border-radius:6px;padding:10px">
+        <div style="font-weight:bold;margin-bottom:4px">${pred.homeName}</div>
+        <div style="font-size:12px;color:#94a3b8">AdjO: <strong style="color:#4ade80">${pred.efficiency.home.adjO}</strong> | AdjD: <strong style="color:#f87171">${pred.efficiency.home.adjD}</strong></div>
+        <div style="font-size:12px;color:#94a3b8">AdjEM: <strong style="color:#f97316">+${pred.efficiency.home.adjEM}</strong> | Tempo: ${pred.efficiency.home.tempo}</div>
+      </div>`;
+      h += '</div>';
+    }
+    
+    // Matchup insights
+    if (pred.matchup && pred.matchup.insights && pred.matchup.insights.length > 0) {
+      h += '<div style="background:#1e293b;border-radius:6px;padding:12px;margin-top:12px">';
+      h += '<div style="font-weight:bold;color:#f97316;margin-bottom:4px;font-size:12px">MATCHUP INSIGHTS</div>';
+      for (const insight of pred.matchup.insights) {
+        h += `<div style="font-size:12px;color:#94a3b8;margin:3px 0">${insight}</div>`;
+      }
+      h += '</div>';
+    }
+    
+    // Historical seed data
+    if (pred.historicalAdj) {
+      h += `<div style="background:#1e293b;border-radius:6px;padding:10px;margin-top:8px;font-size:12px;color:#94a3b8">
+        <strong style="color:#f97316">Seed History:</strong> ${pred.historicalAdj.seedMatchup} matchups — lower seed wins ${(pred.historicalAdj.historicalUpsetRate * 100).toFixed(0)}% historically
+      </div>`;
+    }
+    
+    h += '</div>';
+    resultDiv.innerHTML = h;
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }
