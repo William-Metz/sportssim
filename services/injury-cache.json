@@ -211,12 +211,12 @@
         {
           "player": "Jaylon Tyson",
           "position": "G",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Tyson (toe) is out for Saturday's game against the Pelicans, Spencer Davies of ClutchPoints.com reports.",
-          "returnDate": "2026-03-21T22:14Z",
+          "returnDate": "2026-03-22T12:16Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Olivier Sarr",
@@ -260,8 +260,8 @@
         }
       ],
       "totalImpact": 2.5,
-      "outCount": 4,
-      "dtdCount": 1,
+      "outCount": 3,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Jarrett Allen",
@@ -422,6 +422,16 @@
       "team": "Golden State Warriors",
       "injuries": [
         {
+          "player": "Gary Payton II",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Payton (knee) has been ruled out for Saturday's game against the Hawks.",
+          "returnDate": "2026-03-22T13:20Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Kristaps Porzingis",
           "position": "C",
           "status": "Day-To-Day",
@@ -430,16 +440,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Gary Payton II",
-          "position": "G",
-          "status": "Out",
-          "detail": "Payton (knee) has been ruled out for Saturday's game against the Hawks.",
-          "returnDate": "2026-03-21T22:10Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Stephen Curry",
@@ -493,8 +493,8 @@
         }
       ],
       "totalImpact": 8,
-      "outCount": 6,
-      "dtdCount": 1,
+      "outCount": 5,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Stephen Curry",
@@ -637,8 +637,8 @@
           "player": "Luka Doncic",
           "position": "G",
           "status": "Suspension",
-          "detail": "Doncic will be suspended for Monday's game against Detroit after picking up his 16th technical foul Saturday against the Magic.",
-          "returnDate": "2026-03-22T01:56Z",
+          "detail": "The Lakers filed an appeal on Doncic's behalf to rescind the 16th technical foul of the season that the point guard was assessed during Saturday's 105-104 win over the Magic, Dave McMenamin of ESPN.co",
+          "returnDate": "2026-03-22T13:12Z",
           "impact": 5,
           "isOut": false,
           "isDayToDay": false
@@ -663,6 +663,16 @@
       "team": "Memphis Grizzlies",
       "injuries": [
         {
+          "player": "Ty Jerome",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Jerome (calf) is listed as out for Saturday's game against Charlotte.",
+          "returnDate": "2026-03-22T13:16Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Cedric Coward",
           "position": "F",
           "status": "Day-To-Day",
@@ -671,16 +681,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Ty Jerome",
-          "position": "G",
-          "status": "Out",
-          "detail": "Jerome (calf) is listed as out for Saturday's game against Charlotte.",
-          "returnDate": "2026-03-21T22:04Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Jahmai Mashack",
@@ -754,8 +754,8 @@
         }
       ],
       "totalImpact": 4,
-      "outCount": 8,
-      "dtdCount": 1,
+      "outCount": 7,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Ja Morant",
@@ -771,6 +771,26 @@
       "team": "Miami Heat",
       "injuries": [
         {
+          "player": "Jahmir Young",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Young agreed to a two-way contract with the Heat on Friday, Michael Scotto of USA Today reports.",
+          "returnDate": "2026-03-22T15:02Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Norman Powell",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Powell (calf) is out for Saturday's game against the Rockets.",
+          "returnDate": "2026-03-22T13:20Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Jaime Jaquez Jr.",
           "position": "F",
           "status": "Day-To-Day",
@@ -779,16 +799,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Norman Powell",
-          "position": "G",
-          "status": "Out",
-          "detail": "Powell (calf) is out for Saturday's game against the Rockets.",
-          "returnDate": "2026-03-21T22:35Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Andrew Wiggins",
@@ -812,13 +822,43 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 1,
+      "outCount": 2,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "MIL": {
       "team": "Milwaukee Bucks",
       "injuries": [
+        {
+          "player": "Bobby Portis",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Portis (ribs) is a late scratch for Saturday's game against the Suns.",
+          "returnDate": "2026-03-22T13:05Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Kevin Porter Jr.",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Porter (knee) is out for Saturday's game against the Suns.",
+          "returnDate": "2026-03-22T13:01Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Gary Harris",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Harris (groin) has been ruled out for Saturday's game against the Suns.",
+          "returnDate": "2026-03-22T13:01Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
         {
           "player": "Kyle Kuzma",
           "position": "F",
@@ -828,36 +868,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Bobby Portis",
-          "position": "F",
-          "status": "Out",
-          "detail": "Portis (ribs) is a late scratch for Saturday's game against the Suns.",
-          "returnDate": "2026-03-22T00:39Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Gary Harris",
-          "position": "G",
-          "status": "Out",
-          "detail": "Harris (groin) has been ruled out for Saturday's game against the Suns.",
-          "returnDate": "2026-03-22T00:37Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Kevin Porter Jr.",
-          "position": "G",
-          "status": "Out",
-          "detail": "Porter (knee) is out for Saturday's game against the Suns.",
-          "returnDate": "2026-03-22T00:37Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Giannis Antetokounmpo",
@@ -871,8 +881,8 @@
         }
       ],
       "totalImpact": 5,
-      "outCount": 4,
-      "dtdCount": 1,
+      "outCount": 1,
+      "dtdCount": 4,
       "starPlayersOut": [
         {
           "player": "Giannis Antetokounmpo",
@@ -1160,12 +1170,32 @@
         {
           "player": "Royce O'Neale",
           "position": "F",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "O'Neale (knee) has been ruled out for Saturday's game against the Bucks.",
-          "returnDate": "2026-03-21T20:25Z",
+          "returnDate": "2026-03-22T12:20Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Haywood Highsmith",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Highsmith (knee) has been ruled out for Saturday's game against the Bucks.",
+          "returnDate": "2026-03-22T12:20Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Amir Coffey",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Coffey (ankle) is out for Saturday's game versus the Bucks.",
+          "returnDate": "2026-03-22T12:20Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Grayson Allen",
@@ -1173,26 +1203,6 @@
           "status": "Out",
           "detail": "Allen (knee) is listed as out for Saturday's game against Milwaukee.",
           "returnDate": "2026-03-21T20:22Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Amir Coffey",
-          "position": "G",
-          "status": "Out",
-          "detail": "Coffey (ankle) is out for Saturday's game versus the Bucks.",
-          "returnDate": "2026-03-21T00:25Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Haywood Highsmith",
-          "position": "F",
-          "status": "Out",
-          "detail": "Highsmith (knee) has been ruled out for Saturday's game against the Bucks.",
-          "returnDate": "2026-03-21T00:25Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1219,8 +1229,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 6,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "POR": {
@@ -1284,6 +1294,16 @@
     "SAC": {
       "team": "Sacramento Kings",
       "injuries": [
+        {
+          "player": "Isaiah Stevens",
+          "position": "G",
+          "status": "Out",
+          "detail": "The Kings list Stevens out for Sunday's game against the Nets due to right ankle soreness.",
+          "returnDate": "2026-03-22T12:05Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
         {
           "player": "Russell Westbrook",
           "position": "G",
@@ -1356,7 +1376,7 @@
         }
       ],
       "totalImpact": 3.5,
-      "outCount": 6,
+      "outCount": 7,
       "dtdCount": 1,
       "starPlayersOut": [
         {
@@ -1373,6 +1393,16 @@
       "team": "San Antonio Spurs",
       "injuries": [
         {
+          "player": "Stephon Castle",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Castle (hip) has been ruled out for Saturday's game against the Pacers.",
+          "returnDate": "2026-03-22T13:20Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Devin Vassell",
           "position": "G",
           "status": "Day-To-Day",
@@ -1381,16 +1411,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Stephon Castle",
-          "position": "G",
-          "status": "Out",
-          "detail": "Castle (hip) has been ruled out for Saturday's game against the Pacers.",
-          "returnDate": "2026-03-21T17:19Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "David Jones Garcia",
@@ -1404,8 +1424,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 2,
-      "dtdCount": 1,
+      "outCount": 1,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "TOR": {
@@ -1453,22 +1473,22 @@
         {
           "player": "Brice Sensabaugh",
           "position": "F",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Sensabaugh (illness) has been ruled out for Saturday's game against the 76ers.",
-          "returnDate": "2026-03-20T23:12Z",
+          "returnDate": "2026-03-22T12:31Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Isaiah Collier",
           "position": "G",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Collier (hamstring) has been ruled out for Saturday's game against the 76ers.",
-          "returnDate": "2026-03-20T23:08Z",
+          "returnDate": "2026-03-22T12:31Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Lauri Markkanen",
@@ -1522,8 +1542,8 @@
         }
       ],
       "totalImpact": 3,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 5,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Lauri Markkanen",
@@ -1541,12 +1561,12 @@
         {
           "player": "Tre Johnson",
           "position": "G",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Johnson (foot) has been downgraded to out for Saturday's game against Oklahoma City.",
-          "returnDate": "2026-03-21T18:49Z",
+          "returnDate": "2026-03-22T13:16Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Trae Young",
@@ -1610,8 +1630,8 @@
         }
       ],
       "totalImpact": 7.5,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 6,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Trae Young",
@@ -1697,12 +1717,12 @@
         {
           "player": "Tanner Pearson",
           "position": "LW",
-          "status": "Out",
-          "detail": "Pearson (lower body) isn't expected to play against the Kings on Saturday, according to Paul Hamilton of WGR Sports Radio 550.",
-          "returnDate": "2026-03-21T19:39Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Jiri Kulich",
@@ -1736,8 +1756,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CGY": {
@@ -1911,16 +1931,6 @@
           "isDayToDay": false
         },
         {
-          "player": "Gabriel Landeskog",
-          "position": "LW",
-          "status": "Out",
-          "detail": "Landeskog (lower body) is week-to-week and won't play against Minnesota on Sunday.",
-          "returnDate": "2026-03-08T17:39Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Artturi Lehkonen",
           "position": "LW",
           "status": "Out",
@@ -1932,7 +1942,7 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
+      "outCount": 2,
       "dtdCount": 1,
       "starPlayersOut": []
     },
@@ -1991,12 +2001,12 @@
         {
           "player": "Michael Brandsegg-Nygard",
           "position": "RW",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T23:44Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Michael Rasmussen",
@@ -2020,8 +2030,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "EDM": {
@@ -2235,22 +2245,22 @@
         {
           "player": "Joel Eriksson Ek",
           "position": "C",
-          "status": "Out",
-          "detail": "Eriksson Ek (lower body) has been ruled out of Saturday's clash versus Dallas, per Jessi Pierce of NHL.com.",
-          "returnDate": "2026-03-20T17:55Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Kirill Kaprizov",
           "position": "LW",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-20T17:54Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0.3,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Marcus Foligno",
@@ -2263,17 +2273,17 @@
           "isDayToDay": false
         }
       ],
-      "totalImpact": 0.3,
-      "outCount": 3,
-      "dtdCount": 0,
+      "totalImpact": 0.09,
+      "outCount": 1,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Kirill Kaprizov",
           "impact": 0.3,
-          "status": "Out",
-          "detail": "out",
-          "isOut": true,
-          "isDayToDay": false
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "isOut": false,
+          "isDayToDay": true
         }
       ]
     },
@@ -2283,12 +2293,12 @@
         {
           "player": "Josh Anderson",
           "position": "RW",
-          "status": "Out",
-          "detail": "Anderson (upper body) won't play against the Islanders on Saturday, per J-F Chaumont of NHL.com.",
-          "returnDate": "2026-03-21T20:18Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Kirby Dach",
@@ -2312,8 +2322,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "NSH": {
@@ -2380,12 +2390,12 @@
         {
           "player": "Maxim Shabanov",
           "position": "RW",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T22:44Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Alexander Romanov",
@@ -2429,8 +2439,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 0,
+      "outCount": 4,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "NYR": {
@@ -2515,34 +2525,34 @@
       "team": "Philadelphia Flyers",
       "injuries": [
         {
-          "player": "Luke Glendening",
-          "position": "C",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T19:50Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Denver Barkey",
           "position": "C",
-          "status": "Out",
-          "detail": "Barkey (upper body) won't play against San Jose on Saturday, per Jackie Spiegel of The Philadelphia Inquirer.",
-          "returnDate": "2026-03-21T19:50Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Sean Couturier",
           "position": "C",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T19:47Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Luke Glendening",
+          "position": "C",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Ty Murchison",
@@ -2566,13 +2576,23 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "PIT": {
       "team": "Pittsburgh Penguins",
       "injuries": [
+        {
+          "player": "Kevin Hayes",
+          "position": "RW",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
         {
           "player": "Ryan Shea",
           "position": "D",
@@ -2582,16 +2602,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Kevin Hayes",
-          "position": "RW",
-          "status": "Out",
-          "detail": "Hayes (upper body) won't play against Winnipeg on Saturday.",
-          "returnDate": "2026-03-21T16:43Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Blake Lizotte",
@@ -2635,13 +2645,43 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 1,
+      "outCount": 4,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "SJS": {
       "team": "San Jose Sharks",
       "injuries": [
+        {
+          "player": "Yaroslav Askarov",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Vincent Desharnais",
+          "position": "D",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Igor Chernyshov",
+          "position": "LW",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
         {
           "player": "Ryan Reaves",
           "position": "RW",
@@ -2651,36 +2691,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Igor Chernyshov",
-          "position": "LW",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T19:47Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Yaroslav Askarov",
-          "position": "G",
-          "status": "Out",
-          "detail": "Askarov (lower body) isn't expected to be an option for Saturday's home game against Philadelphia, according to Curtis Pashelka of The San Jose Mercury News.",
-          "returnDate": "2026-03-21T18:37Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Vincent Desharnais",
-          "position": "D",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T18:00Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Tyler Toffoli",
@@ -2714,26 +2724,26 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 6,
-      "dtdCount": 1,
+      "outCount": 3,
+      "dtdCount": 4,
       "starPlayersOut": []
     },
     "SEA": {
       "team": "Seattle Kraken",
       "injuries": [
         {
-          "player": "Ryan Winterton",
-          "position": "C",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T20:59Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Jared McCann",
           "position": "LW",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Ryan Winterton",
+          "position": "C",
           "status": "Out",
           "detail": "out",
           "returnDate": "2026-03-21T20:59Z",
@@ -2763,8 +2773,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "STL": {
@@ -2792,12 +2802,12 @@
         {
           "player": "Victor Hedman",
           "position": "D",
-          "status": "Out",
-          "detail": "Hedman (illness) will not be available in Edmonton on Saturday, per asJulie Stewart-Binks of CBC.",
-          "returnDate": "2026-03-21T17:56Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Maxwell Crozier",
@@ -2831,13 +2841,23 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "TOR": {
       "team": "Toronto Maple Leafs",
       "injuries": [
+        {
+          "player": "Morgan Rielly",
+          "position": "D",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T13:06Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
         {
           "player": "Anthony Stolarz",
           "position": "G",
@@ -2847,16 +2867,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Morgan Rielly",
-          "position": "D",
-          "status": "Out",
-          "detail": "Rielly is day-to-day and will miss Saturday's game in Ottawa after aggravating a lower-body injury Friday versus Carolina, per David Alter of The Hockey News.",
-          "returnDate": "2026-03-21T21:11Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Auston Matthews",
@@ -2880,8 +2890,8 @@
         }
       ],
       "totalImpact": 0.35,
-      "outCount": 3,
-      "dtdCount": 1,
+      "outCount": 2,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Auston Matthews",
@@ -2948,12 +2958,12 @@
         {
           "player": "David Kampf",
           "position": "C",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-21T09:48Z",
+          "status": "Out",
+          "detail": "Kampf (personal) could join the Capitals during the team's upcoming three-game road trip, Sammi Silber of The Hockey News reports Sunday.",
+          "returnDate": "2026-03-22T14:33Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Eriks Mateiko",
@@ -2967,8 +2977,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 1,
-      "dtdCount": 1,
+      "outCount": 2,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "WPG": {
@@ -3193,16 +3203,6 @@
       "team": "Atlanta Braves",
       "injuries": [
         {
-          "player": "Mike Yastrzemski",
-          "position": "RF",
-          "status": "Day-To-Day",
-          "detail": "Yastrzemski went 3-for-3 with two home runs, three RBI and three runs scored in Friday's Grapefruit League game against the Red Sox.",
-          "returnDate": "2026-03-20T22:03Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Jurickson Profar",
           "position": "LF",
           "status": "Suspension",
@@ -3305,7 +3305,7 @@
       ],
       "totalImpact": 0,
       "outCount": 8,
-      "dtdCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "BAL": {
@@ -4094,6 +4094,16 @@
       "team": "Houston Astros",
       "injuries": [
         {
+          "player": "Jeremy Pena",
+          "position": "SS",
+          "status": "Day-To-Day",
+          "detail": "Pena (finger) is hitting again Sunday as the Astros are still discussing whether he will travel with the team back to Houston, Matt Kawahara of the Houston Chronicle reports.",
+          "returnDate": "2026-03-22T14:46Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Mike Burrows",
           "position": "SP",
           "status": "Day-To-Day",
@@ -4102,16 +4112,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Jeremy Pena",
-          "position": "SS",
-          "status": "Out",
-          "detail": "Pena (finger) began swinging a bat Friday, Chandler Rome of The Athletic reports.",
-          "returnDate": "2026-03-21T16:28Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Bennett Sousa",
@@ -4129,16 +4129,6 @@
           "status": "Day-To-Day",
           "detail": "no",
           "returnDate": "2026-03-18T14:15Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Enyel De Los Santos",
-          "position": "RP",
-          "status": "Day-To-Day",
-          "detail": "Astros manager Joe Espada said that De Los Santos (knee) is slated to pitch in a game Tuesday, Brian McTaggart of MLB.com reports.",
-          "returnDate": "2026-03-15T14:21Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -4205,7 +4195,7 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 7,
+      "outCount": 6,
       "dtdCount": 4,
       "starPlayersOut": []
     },
@@ -4451,22 +4441,22 @@
         {
           "player": "Esteury Ruiz",
           "position": "LF",
-          "status": "Day-To-Day",
+          "status": "Out",
           "detail": "Ruiz was diagnosed with a left oblique strain following his exit from Friday's Grapefruit League game against the Nationals, Stephen Strom of Marlins Radio Network reports.",
-          "returnDate": "2026-03-21T15:45Z",
+          "returnDate": "2026-03-22T14:37Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Kyle Stowers",
           "position": "LF",
-          "status": "Day-To-Day",
-          "detail": "Stowers went 0-for-2 with a walk and a run scored in Saturday's split-squad spring game against the Cardinals.",
-          "returnDate": "2026-03-21T00:08Z",
+          "status": "Out",
+          "detail": "Stowers will begin the season on the injured list and is expected to miss 3-to-4 weeks after being diagnosed Sunday with a Grade 1 right hamstring strain, Christina De Nicola of MLB.com reports.",
+          "returnDate": "2026-03-22T14:22Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Graham Pauley",
@@ -4530,8 +4520,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 3,
+      "outCount": 7,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "MIL": {
@@ -4667,16 +4657,6 @@
           "isDayToDay": false
         },
         {
-          "player": "Austin Martin",
-          "position": "CF",
-          "status": "Day-To-Day",
-          "detail": "Martin (concussion) ran in the outfield Friday and is said to be showing signs of improvement, Dan Hayes of The Athletic reports.",
-          "returnDate": "2026-03-21T05:34Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "David Festa",
           "position": "SP",
           "status": "Out",
@@ -4739,7 +4719,7 @@
       ],
       "totalImpact": 0,
       "outCount": 7,
-      "dtdCount": 1,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "NYM": {
@@ -4748,12 +4728,12 @@
         {
           "player": "Mike Tauchman",
           "position": "RF",
-          "status": "Day-To-Day",
-          "detail": "Tauchman has a March 25 opt-out in his minor-league contract, Will Sammon of The Athletic reports.",
-          "returnDate": "2026-03-21T20:41Z",
+          "status": "Out",
+          "detail": "Tauchman was diagnosed Sunday with a torn meniscus in his left knee and will require surgery, Mike Puma of the New York Post reports.",
+          "returnDate": "2026-03-22T15:20Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Francisco Lindor",
@@ -4857,8 +4837,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 8,
-      "dtdCount": 3,
+      "outCount": 9,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "NYY": {
@@ -4933,6 +4913,26 @@
       "team": "Philadelphia Phillies",
       "injuries": [
         {
+          "player": "Max Lazar",
+          "position": "RP",
+          "status": "Out",
+          "detail": "Phillies manager Rob Thomson said Tuesday that Lazar is dealing with a \"mild\" oblique injury and is returning to big-league camp to be evaluated, Jayson Stark of The Athletic reports.",
+          "returnDate": "2026-03-22T14:53Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
+          "player": "Orion Kerkering",
+          "position": "RP",
+          "status": "Out",
+          "detail": "Kerkering (hamstring) will begin the regular season on the injured list, Matt Gelb of The Athletic reports.",
+          "returnDate": "2026-03-22T14:51Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Dylan Moore",
           "position": "2B",
           "status": "Day-To-Day",
@@ -4993,16 +4993,6 @@
           "isDayToDay": false
         },
         {
-          "player": "Max Lazar",
-          "position": "RP",
-          "status": "Day-To-Day",
-          "detail": "Phillies manager Rob Thomson said Tuesday that Lazar is dealing with a \"mild\" oblique injury and is returning to big-league camp to be evaluated, Jayson Stark of The Athletic reports.",
-          "returnDate": "2026-03-10T20:16Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Mark Kolozsvary",
           "position": "C",
           "status": "Day-To-Day",
@@ -5034,8 +5024,8 @@
         }
       ],
       "totalImpact": 0.4,
-      "outCount": 4,
-      "dtdCount": 5,
+      "outCount": 6,
+      "dtdCount": 4,
       "starPlayersOut": [
         {
           "player": "Zack Wheeler",
@@ -5377,6 +5367,46 @@
       "team": "St. Louis Cardinals",
       "injuries": [
         {
+          "player": "Victor Santos",
+          "position": "RP",
+          "status": "Day-To-Day",
+          "detail": "Santos (elbow) has compiled a 3.97 ERA, 1.38 WHIP and 26:7 K:BB across 34 innings over his first nine outings (seven starts) in the Dominican Winter League.",
+          "returnDate": "2026-03-22T15:29Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Ixan Henderson",
+          "position": "SP",
+          "status": "Day-To-Day",
+          "detail": "Henderson is shut down from throwing in Cardinals camp due to a left flexor strain, Brian Walton of TheCardinalNation.com reports.",
+          "returnDate": "2026-03-22T15:29Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Sem Robberse",
+          "position": "SP",
+          "status": "Day-To-Day",
+          "detail": "Robberse (elbow) signed a minor-league contract with the Cardinals on Monday, which includes an invitation to spring training, Derrick Goold of the St. Louis Post-Dispatch reports.",
+          "returnDate": "2026-03-22T15:17Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Zack Thompson",
+          "position": "RP",
+          "status": "Day-To-Day",
+          "detail": "The Cardinals reassigned Thompson (shoulder) to minor-league camp Monday.",
+          "returnDate": "2026-03-22T15:17Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Lars Nootbaar",
           "position": "LF",
           "status": "Out",
@@ -5395,66 +5425,16 @@
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
-        },
-        {
-          "player": "Zack Thompson",
-          "position": "RP",
-          "status": "Out",
-          "detail": "The Cardinals reassigned Thompson (shoulder) to minor-league camp Monday.",
-          "returnDate": "2026-03-02T21:04Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Ixan Henderson",
-          "position": "SP",
-          "status": "Out",
-          "detail": "Henderson is shut down from throwing in Cardinals camp due to a left flexor strain, Brian Walton of TheCardinalNation.com reports.",
-          "returnDate": "2026-02-12T14:24Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Victor Santos",
-          "position": "RP",
-          "status": "Out",
-          "detail": "Santos (elbow) has compiled a 3.97 ERA, 1.38 WHIP and 26:7 K:BB across 34 innings over his first nine outings (seven starts) in the Dominican Winter League.",
-          "returnDate": "2025-12-09T16:57Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Sem Robberse",
-          "position": "SP",
-          "status": "Out",
-          "detail": "Robberse (elbow) signed a minor-league contract with the Cardinals on Monday, which includes an invitation to spring training, Derrick Goold of the St. Louis Post-Dispatch reports.",
-          "returnDate": "2025-11-25T01:05Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         }
       ],
       "totalImpact": 0,
-      "outCount": 6,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 4,
       "starPlayersOut": []
     },
     "TB": {
       "team": "Tampa Bay Rays",
       "injuries": [
-        {
-          "player": "Gavin Lux",
-          "position": "LF",
-          "status": "Day-To-Day",
-          "detail": "no",
-          "returnDate": "2026-03-21T13:50Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
         {
           "player": "Taylor Walls",
           "position": "SS",
@@ -5538,7 +5518,7 @@
       ],
       "totalImpact": 0,
       "outCount": 5,
-      "dtdCount": 4,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "TEX": {
@@ -5769,8 +5749,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774180934516,
-    "nhl": 1774180934686,
-    "mlb": 1774180935086
+    "nba": 1774194161497,
+    "nhl": 1774194162076,
+    "mlb": 1774194162335
   }
 }

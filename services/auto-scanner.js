@@ -336,6 +336,66 @@ async function scanAllValue() {
   }
   
   results.total = results.nba.length + results.mlb.length + results.nhl.length + results.polymarket.length;
+  
+  // ==================== AUTO-RECORD TO CLV TRACKER ====================
+  // Every value bet found gets auto-recorded for CLV analysis — the holy grail metric.
+  // If we consistently beat closing lines, the model is REAL.
+  const { clvTracker } = dependencies;
+  if (clvTracker && clvTracker.recordPick) {
+    let recorded = 0;
+    for (const sport of ['nba', 'mlb', 'nhl']) {
+      const bets = results[sport];
+      if (!Array.isArray(bets)) continue;
+      for (const bet of bets) {
+        if (bet.error) continue;
+        // Parse game teams from "AWY @ HME" format
+        const parts = (bet.game || '').split(' @ ');
+        if (parts.length !== 2) continue;
+        const away = parts[0].trim();
+        const home = parts[1].trim();
+        
+        // Determine side and type from pick string
+        let type = 'moneyline';
+        let side = 'home';
+        const pick = (bet.pick || '').toUpperCase();
+        if (pick.includes('OVER') || pick.includes('UNDER')) {
+          type = 'total';
+          side = pick.includes('OVER') ? 'over' : 'under';
+        } else {
+          // ML pick — check if it's home or away team
+          side = pick.startsWith(away) ? 'away' : 'home';
+        }
+        
+        // Extract odds from pick string: "DET ML (-138)" → -138
+        const oddsMatch = pick.match(/\(([+-]\d+)\)/);
+        const bookLine = oddsMatch ? parseInt(oddsMatch[1]) : 0;
+        
+        try {
+          clvTracker.recordPick({
+            sport: sport,
+            away: away,
+            home: home,
+            type: type,
+            side: side,
+            modelLine: bet.modelProb ? Math.round(-100 * bet.modelProb / (1 - bet.modelProb)) : 0,
+            bookLine: bookLine,
+            modelProb: bet.modelProb || 0,
+            bookProb: bet.impliedProb || 0,
+            confidence: bet.confidence || 'LOW',
+            source: 'auto-scanner',
+            book: bet.book || 'unknown',
+            edge: bet.edge || 0,
+          });
+          recorded++;
+        } catch (e) { /* CLV recording is best-effort */ }
+      }
+    }
+    if (recorded > 0) {
+      console.log(`📊 Auto-recorded ${recorded} value bets to CLV tracker`);
+    }
+    results.clvRecorded = recorded;
+  }
+  
   return results;
 }
 

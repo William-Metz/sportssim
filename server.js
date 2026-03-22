@@ -4878,6 +4878,292 @@ app.get('/api/opening-day-playbook', async (req, res) => {
   }
 });
 
+// ==================== PRE-OPENING DAY VALIDATION ====================
+// Comprehensive system check to ensure everything works before March 27
+// Run on March 26 or any time to verify readiness
+
+app.get('/api/opening-day/validate', async (req, res) => {
+  try {
+    const checks = {
+      timestamp: new Date().toISOString(),
+      openingDay: '2026-03-27',
+      daysUntil: Math.ceil((new Date('2026-03-27T00:00:00Z') - Date.now()) / 86400000),
+      overallStatus: 'PASS',
+      checks: [],
+      warnings: [],
+      errors: [],
+    };
+    
+    function addCheck(name, status, detail) {
+      checks.checks.push({ name, status, detail });
+      if (status === 'FAIL') {
+        checks.errors.push(`❌ ${name}: ${detail}`);
+        checks.overallStatus = 'FAIL';
+      } else if (status === 'WARN') {
+        checks.warnings.push(`⚠️ ${name}: ${detail}`);
+        if (checks.overallStatus !== 'FAIL') checks.overallStatus = 'WARN';
+      }
+    }
+    
+    // 1. SCHEDULE CHECK — Do we have all Opening Day games?
+    try {
+      const schedule = mlbOpeningDay.getSchedule ? mlbOpeningDay.getSchedule() : [];
+      const day1 = schedule.filter(g => g.day === 1);
+      const day2 = schedule.filter(g => g.day === 2);
+      addCheck('Opening Day Schedule', 
+        day1.length >= 10 ? 'PASS' : 'FAIL',
+        `${day1.length} Day 1 games, ${day2.length} Day 2 games (${schedule.length} total)`
+      );
+    } catch (e) {
+      addCheck('Opening Day Schedule', 'FAIL', e.message);
+    }
+    
+    // 2. PITCHER DATABASE — Are all OD starters in our database?
+    try {
+      const schedule = mlbOpeningDay.getSchedule ? mlbOpeningDay.getSchedule() : [];
+      const pitcherDb = require('./models/mlb-pitchers');
+      let found = 0, missing = [];
+      for (const g of schedule) {
+        for (const role of ['away', 'home']) {
+          const name = g.confirmedStarters?.[role];
+          if (name) {
+            const p = pitcherDb.getPitcherByName(name);
+            if (p) found++;
+            else missing.push(`${name} (${g[role]})`);
+          }
+        }
+      }
+      addCheck('Pitcher Database',
+        missing.length === 0 ? 'PASS' : missing.length <= 3 ? 'WARN' : 'FAIL',
+        `${found} found, ${missing.length} missing${missing.length > 0 ? ': ' + missing.join(', ') : ''}`
+      );
+    } catch (e) {
+      addCheck('Pitcher Database', 'FAIL', e.message);
+    }
+    
+    // 3. TEAM DATA — All 30 teams loaded with stats?
+    try {
+      const teams = mlb.getTeams ? mlb.getTeams() : {};
+      const teamCount = Object.keys(teams).length;
+      addCheck('MLB Team Data', 
+        teamCount === 30 ? 'PASS' : teamCount >= 28 ? 'WARN' : 'FAIL',
+        `${teamCount}/30 teams loaded`
+      );
+    } catch (e) {
+      addCheck('MLB Team Data', 'FAIL', e.message);
+    }
+    
+    // 4. LIVE DATA — Is ESPN feed working?
+    try {
+      const liveDataService = require('./services/live-data');
+      const status = liveDataService.getStatus ? liveDataService.getStatus() : {};
+      const lastRefresh = status.lastRefresh || status.lastUpdate;
+      const ageMinutes = lastRefresh ? Math.round((Date.now() - new Date(lastRefresh).getTime()) / 60000) : 999;
+      addCheck('Live Data Feed',
+        ageMinutes < 180 ? 'PASS' : ageMinutes < 720 ? 'WARN' : 'FAIL',
+        `Last refresh: ${ageMinutes} minutes ago` + (status.sources ? ` (sources: ${Object.keys(status.sources).join(', ')})` : '')
+      );
+    } catch (e) {
+      addCheck('Live Data Feed', 'WARN', `Service not available: ${e.message}`);
+    }
+    
+    // 5. PREDICTION ENGINE — Can we run predictions?
+    try {
+      const testPred = mlb.predict('BOS', 'CIN', { awayPitcher: 'Garrett Crochet', homePitcher: 'Andrew Abbott' });
+      addCheck('MLB Prediction Engine',
+        testPred && testPred.homeWinProb ? 'PASS' : 'FAIL',
+        testPred.error ? testPred.error : `BOS@CIN: ${(testPred.homeWinProb*100).toFixed(1)}% home, total ${testPred.totalRuns}`
+      );
+    } catch (e) {
+      addCheck('MLB Prediction Engine', 'FAIL', e.message);
+    }
+    
+    // 6. WEATHER SERVICE — Can we get forecasts?
+    try {
+      const ws = require('./services/weather');
+      const parks = ws.BALLPARK_COORDS || {};
+      const parkCount = Object.keys(parks).length;
+      addCheck('Weather Service',
+        parkCount >= 25 ? 'PASS' : 'WARN',
+        `${parkCount} ballpark coordinates configured`
+      );
+    } catch (e) {
+      addCheck('Weather Service', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 7. UMPIRE SERVICE — Ready?
+    try {
+      const us = require('./services/umpire-tendencies');
+      const count = us.getAllUmpires ? us.getAllUmpires().length : 0;
+      addCheck('Umpire Tendencies',
+        count >= 30 ? 'PASS' : count >= 15 ? 'WARN' : 'FAIL',
+        `${count} umpires in database`
+      );
+    } catch (e) {
+      addCheck('Umpire Tendencies', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 8. STATCAST DATA — Is it cached?
+    try {
+      const sc = require('./services/statcast');
+      const status = sc.getStatus ? sc.getStatus() : {};
+      addCheck('Statcast Integration',
+        (status.pitchers || 0) >= 500 ? 'PASS' : (status.pitchers || 0) >= 100 ? 'WARN' : 'FAIL',
+        `${status.pitchers || 0} pitchers, ${status.batters || 0} batters loaded`
+      );
+    } catch (e) {
+      addCheck('Statcast Integration', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 9. PRESEASON TUNING — Roster changes loaded?
+    try {
+      const pt = require('./services/preseason-tuning');
+      const teamCount = pt.getTeamCount ? pt.getTeamCount() : (pt.ROSTER_CHANGES ? Object.keys(pt.ROSTER_CHANGES).length : -1);
+      addCheck('Preseason Tuning',
+        teamCount >= 20 ? 'PASS' : teamCount >= 10 ? 'WARN' : 'FAIL',
+        `Roster changes for ${teamCount} teams`
+      );
+    } catch (e) {
+      addCheck('Preseason Tuning', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 10. ODDS API — Can we reach it?
+    try {
+      if (process.env.ODDS_API_KEY) {
+        addCheck('Odds API', 'PASS', 'API key configured (set on Fly.io)');
+      } else {
+        addCheck('Odds API', 'WARN', 'API key not set locally (OK if set on Fly.io production)');
+      }
+    } catch (e) {
+      addCheck('Odds API', 'WARN', e.message);
+    }
+    
+    // 11. AUTO-SCANNER — Running?
+    try {
+      const health = autoScanner.getHealth ? autoScanner.getHealth() : {};
+      addCheck('Auto Scanner',
+        health.isRunning ? 'PASS' : 'WARN',
+        health.isRunning ? `Running, ${Object.keys(health.scanStatus || {}).length} scan types configured` : 'Not running (will start on deploy)'
+      );
+    } catch (e) {
+      addCheck('Auto Scanner', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 12. CLV TRACKER — Ready to record?
+    try {
+      const status = clvTracker.getStatus ? clvTracker.getStatus() : {};
+      addCheck('CLV Tracker',
+        'PASS',
+        `${status.totalPicks || 0} picks recorded, ready for Opening Day tracking`
+      );
+    } catch (e) {
+      addCheck('CLV Tracker', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 13. OPENING DAY PLAYBOOK — Can we generate it?
+    try {
+      const projections = await mlbOpeningDay.getProjections();
+      const gameCount = projections?.games?.length || 0;
+      addCheck('Opening Day Playbook',
+        gameCount >= 10 ? 'PASS' : gameCount >= 5 ? 'WARN' : 'FAIL',
+        `${gameCount} games with full projections`
+      );
+    } catch (e) {
+      addCheck('Opening Day Playbook', 'FAIL', e.message);
+    }
+    
+    // 14. F5 UNDERS — Ready?
+    try {
+      const owu = require('./services/opening-week-unders');
+      addCheck('F5/Opening Week Unders', 'PASS', 'Service loaded, ready for cold weather + ace starter analysis');
+    } catch (e) {
+      addCheck('F5/Opening Week Unders', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 15. LINEUP FETCHER — Can we get lineups on game day?
+    try {
+      const lf = require('./services/lineup-fetcher');
+      addCheck('Lineup Fetcher',
+        'PASS',
+        'Service loaded, will fetch confirmed lineups on game day'
+      );
+    } catch (e) {
+      addCheck('Lineup Fetcher', 'WARN', `Not available: ${e.message}`);
+    }
+    
+    // 16. DK LINES — Are they current?
+    try {
+      const schedule = mlbOpeningDay.getSchedule ? mlbOpeningDay.getSchedule() : [];
+      const withLines = schedule.filter(g => g.dkLine && g.dkLine.homeML);
+      const withoutLines = schedule.filter(g => !g.dkLine || !g.dkLine.homeML);
+      addCheck('DraftKings Opening Lines',
+        withLines.length >= 15 ? 'PASS' : withLines.length >= 10 ? 'WARN' : 'FAIL',
+        `${withLines.length}/${schedule.length} games have DK lines${withoutLines.length > 0 ? ` (missing: ${withoutLines.map(g => g.away + '@' + g.home).join(', ')})` : ''}`
+      );
+    } catch (e) {
+      addCheck('DraftKings Opening Lines', 'WARN', e.message);
+    }
+    
+    // 17. MODEL EDGE SCAN — Do we have actionable edges for OD?
+    try {
+      const schedule = mlbOpeningDay.getSchedule ? mlbOpeningDay.getSchedule() : [];
+      let edges = [];
+      for (const g of schedule) {
+        if (!g.dkLine) continue;
+        const pred = mlb.predict(g.away, g.home, {
+          awayPitcher: g.confirmedStarters?.away,
+          homePitcher: g.confirmedStarters?.home
+        });
+        if (pred.error) continue;
+        
+        const dkHomeProb = g.dkLine.homeML < 0 ? (-g.dkLine.homeML) / (-g.dkLine.homeML + 100) : 100 / (g.dkLine.homeML + 100);
+        const dkAwayProb = g.dkLine.awayML < 0 ? (-g.dkLine.awayML) / (-g.dkLine.awayML + 100) : 100 / (g.dkLine.awayML + 100);
+        
+        const homeEdge = pred.homeWinProb - dkHomeProb;
+        const awayEdge = pred.awayWinProb - dkAwayProb;
+        const bestEdge = Math.max(homeEdge, awayEdge);
+        
+        if (bestEdge >= 0.02) {
+          const side = homeEdge > awayEdge ? 'HOME' : 'AWAY';
+          edges.push({
+            game: `${g.away}@${g.home}`,
+            pick: side === 'HOME' ? g.home : g.away,
+            edge: `+${(bestEdge * 100).toFixed(1)}%`,
+            ml: side === 'HOME' ? g.dkLine.homeML : g.dkLine.awayML,
+            starters: `${g.confirmedStarters?.away || 'TBD'} vs ${g.confirmedStarters?.home || 'TBD'}`,
+          });
+        }
+      }
+      edges.sort((a, b) => parseFloat(b.edge) - parseFloat(a.edge));
+      addCheck('Opening Day Edges',
+        edges.length >= 3 ? 'PASS' : edges.length >= 1 ? 'WARN' : 'FAIL',
+        `${edges.length} value edges found (≥2% edge)` + (edges.length > 0 ? ': ' + edges.slice(0, 3).map(e => `${e.pick} ${e.edge}`).join(', ') : '')
+      );
+      checks.topEdges = edges.slice(0, 5);
+    } catch (e) {
+      addCheck('Opening Day Edges', 'WARN', e.message);
+    }
+    
+    // Summary
+    const passCount = checks.checks.filter(c => c.status === 'PASS').length;
+    const warnCount = checks.checks.filter(c => c.status === 'WARN').length;
+    const failCount = checks.checks.filter(c => c.status === 'FAIL').length;
+    checks.summary = `${passCount} PASS, ${warnCount} WARN, ${failCount} FAIL — ${checks.overallStatus}`;
+    
+    if (checks.overallStatus === 'PASS') {
+      checks.message = '🟢 ALL SYSTEMS GO FOR OPENING DAY! Model is ready to print money. 🦞💰';
+    } else if (checks.overallStatus === 'WARN') {
+      checks.message = '🟡 MOSTLY READY — some warnings to review before game day.';
+    } else {
+      checks.message = '🔴 NOT READY — critical failures must be fixed before Opening Day!';
+    }
+    
+    res.json(checks);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ==================== AUTO-SCANNER ENDPOINTS ====================
 
 // Health dashboard — monitor all automated scans

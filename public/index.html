@@ -186,6 +186,7 @@ function buildTabs() {
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
+  tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -231,6 +232,7 @@ function showTab(id) {
   else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
   else if (id === 'nhl-goalies') loadNHLGoaliesTab();
   else if (id === 'nba-seeding') loadNBASeedingTab();
+  else if (id === 'od-validate') loadODValidateTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -7722,6 +7724,110 @@ function renderDivisions(el, data) {
   }
   
   el.innerHTML = html;
+}
+
+// ==================== OPENING DAY READINESS CHECK ====================
+async function loadODValidateTab() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const resp = await fetch(`${API}/api/opening-day/validate`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>❌ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Hero banner
+    const statusColor = data.overallStatus === 'PASS' ? '#22c55e' : data.overallStatus === 'WARN' ? '#eab308' : '#ef4444';
+    const statusEmoji = data.overallStatus === 'PASS' ? '🟢' : data.overallStatus === 'WARN' ? '🟡' : '🔴';
+    
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a0e17,#1a1a2e);border:2px solid ${statusColor};position:relative;overflow:hidden">
+      <div style="position:absolute;top:-20px;right:-20px;font-size:120px;opacity:0.05">⚾</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+        <div>
+          <h2 style="font-size:24px;margin-bottom:4px">${statusEmoji} Opening Day Readiness Check</h2>
+          <p style="color:var(--text2);font-size:14px">${data.message || ''}</p>
+          <p style="color:var(--text3);font-size:12px;margin-top:4px">Opening Day: ${data.openingDay} (${data.daysUntil} days away) • Checked: ${new Date(data.timestamp).toLocaleString()}</p>
+        </div>
+        <button class="refresh-btn" onclick="loadODValidateTab()" style="background:${statusColor};color:#000">🔄 Re-Check</button>
+      </div>
+    </div>`;
+    
+    // Summary stats
+    const passCount = (data.checks || []).filter(c => c.status === 'PASS').length;
+    const warnCount = (data.checks || []).filter(c => c.status === 'WARN').length;
+    const failCount = (data.checks || []).filter(c => c.status === 'FAIL').length;
+    
+    html += `<div class="stats-grid">
+      <div class="stat"><div class="val" style="color:#22c55e">${passCount}</div><div class="label">Passed</div></div>
+      <div class="stat"><div class="val" style="color:#eab308">${warnCount}</div><div class="label">Warnings</div></div>
+      <div class="stat"><div class="val" style="color:#ef4444">${failCount}</div><div class="label">Failed</div></div>
+      <div class="stat"><div class="val">${(data.checks || []).length}</div><div class="label">Total Checks</div></div>
+    </div>`;
+    
+    // Check details
+    html += '<div class="card"><h3 style="margin-bottom:12px">📋 System Checks</h3>';
+    for (const check of (data.checks || [])) {
+      const icon = check.status === 'PASS' ? '✅' : check.status === 'WARN' ? '⚠️' : '❌';
+      const color = check.status === 'PASS' ? '#22c55e' : check.status === 'WARN' ? '#eab308' : '#ef4444';
+      html += `<div style="padding:8px 12px;border-left:3px solid ${color};margin-bottom:8px;background:${color}08;border-radius:0 6px 6px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:600">${icon} ${check.name}</span>
+          <span class="badge" style="background:${color}20;color:${color};font-size:11px;padding:2px 8px">${check.status}</span>
+        </div>
+        <div style="color:var(--text2);font-size:12px;margin-top:4px">${check.detail}</div>
+      </div>`;
+    }
+    html += '</div>';
+    
+    // Top edges
+    if (data.topEdges && data.topEdges.length > 0) {
+      html += '<div class="card"><h3 style="margin-bottom:12px">🎯 Top Opening Day Edges</h3>';
+      html += '<table style="width:100%;border-collapse:collapse"><thead><tr>';
+      html += '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Game</th>';
+      html += '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Pick</th>';
+      html += '<th style="text-align:right;padding:8px;border-bottom:1px solid var(--border)">Edge</th>';
+      html += '<th style="text-align:right;padding:8px;border-bottom:1px solid var(--border)">ML</th>';
+      html += '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Starters</th>';
+      html += '</tr></thead><tbody>';
+      for (const edge of data.topEdges) {
+        const edgeVal = parseFloat(edge.edge);
+        const edgeColor = edgeVal >= 4 ? '#22c55e' : edgeVal >= 2 ? '#3b82f6' : '#eab308';
+        html += `<tr>
+          <td style="padding:8px;border-bottom:1px solid var(--border)20">${edge.game}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border)20;font-weight:700">${edge.pick}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border)20;text-align:right;color:${edgeColor};font-weight:700">${edge.edge}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border)20;text-align:right">${edge.ml > 0 ? '+' : ''}${edge.ml}</td>
+          <td style="padding:8px;border-bottom:1px solid var(--border)20;font-size:12px;color:var(--text2)">${edge.starters}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+    
+    // Errors & warnings
+    if (data.errors && data.errors.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #ef4444"><h3 style="color:#ef4444;margin-bottom:8px">🚨 Critical Errors</h3>';
+      for (const err of data.errors) {
+        html += `<p style="padding:4px 0;font-size:13px">${err}</p>`;
+      }
+      html += '</div>';
+    }
+    
+    if (data.warnings && data.warnings.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #eab308"><h3 style="color:#eab308;margin-bottom:8px">⚠️ Warnings</h3>';
+      for (const warn of data.warnings) {
+        html += `<p style="padding:4px 0;font-size:13px">${warn}</p>`;
+      }
+      html += '</div>';
+    }
+    
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>❌ Error loading validation</h2><p>${e.message}</p></div>`;
+  }
 }
 
 </script>
