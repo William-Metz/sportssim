@@ -31,67 +31,67 @@ const OPENING_DAY_GAMES = [
   { 
     date: '2026-03-26', day: 1, away: 'PIT', home: 'NYM', time: '1:15 PM ET',
     confirmedStarters: { away: 'Paul Skenes', home: 'Freddy Peralta' },
-    dkLine: { homeML: -122, awayML: 102 }, // NYM -122
+    dkLine: { homeML: -122, awayML: 102, total: 7.5 }, // NYM -122, PIT+NYM ace duel
     broadcast: 'NBC/Peacock',
   },
   { 
     date: '2026-03-26', day: 1, away: 'CWS', home: 'MIL', time: '2:10 PM ET',
     confirmedStarters: { away: 'Shane Smith', home: 'Jacob Misiorowski' },
-    dkLine: { homeML: -197, awayML: 165 }, // MIL -197
+    dkLine: { homeML: -197, awayML: 165, total: 8.5 }, // MIL -197
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'WSH', home: 'CHC', time: '2:20 PM ET',
     confirmedStarters: { away: 'Cade Cavalli', home: 'Matthew Boyd' },
-    dkLine: { homeML: -201, awayML: 170 }, // CHC -201
+    dkLine: { homeML: -201, awayML: 170, total: 8.0 }, // CHC -201, Wrigley early = cold
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'MIN', home: 'BAL', time: '3:05 PM ET',
     confirmedStarters: { away: 'Joe Ryan', home: 'Trevor Rogers' },
-    dkLine: { homeML: -162, awayML: 138 }, // BAL -162
+    dkLine: { homeML: -162, awayML: 138, total: 8.5 }, // BAL -162
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'BOS', home: 'CIN', time: '4:10 PM ET',
     confirmedStarters: { away: 'Garrett Crochet', home: 'Andrew Abbott' },
-    dkLine: { homeML: 134, awayML: -158 }, // BOS -158
+    dkLine: { homeML: 134, awayML: -158, total: 8.0 }, // BOS -158, GABP hitter-friendly but aces
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'LAA', home: 'HOU', time: '4:10 PM ET',
     confirmedStarters: { away: 'Jose Soriano', home: 'Hunter Brown' },
-    dkLine: { homeML: -190, awayML: 160 }, // HOU -190
+    dkLine: { homeML: -190, awayML: 160, total: 8.0 }, // HOU -190, dome
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'DET', home: 'SD', time: '4:10 PM ET',
     confirmedStarters: { away: 'Tarik Skubal', home: 'Dylan Cease' },
-    dkLine: { homeML: 118, awayML: -138 }, // DET -138
+    dkLine: { homeML: 118, awayML: -138, total: 7.0 }, // DET -138, Petco pitcher park + ace duel
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'TB', home: 'STL', time: '4:15 PM ET',
     confirmedStarters: { away: 'Drew Rasmussen', home: 'Matthew Liberatore' },
-    dkLine: { homeML: 104, awayML: -124 }, // TB -124
+    dkLine: { homeML: 104, awayML: -124, total: 9.0 }, // TB -124, Busch Stadium
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'TEX', home: 'PHI', time: '4:05 PM ET',
     confirmedStarters: { away: 'Nathan Eovaldi', home: 'Cristopher Sanchez' },
-    dkLine: { homeML: -154, awayML: 130 }, // PHI -154
+    dkLine: { homeML: -154, awayML: 130, total: 8.5 }, // PHI -154, CBP hitter park
     broadcast: null,
   },
   { 
     date: '2026-03-26', day: 1, away: 'ARI', home: 'LAD', time: '8:30 PM ET',
     confirmedStarters: { away: 'Zac Gallen', home: 'Yoshinobu Yamamoto' },
-    dkLine: { homeML: -238, awayML: 198 }, // LAD -238
+    dkLine: { homeML: -238, awayML: 198, total: 7.5 }, // LAD -238, Dodger Stadium
     broadcast: 'NBC/Peacock',
   },
   { 
     date: '2026-03-26', day: 1, away: 'CLE', home: 'SEA', time: '10:10 PM ET',
     confirmedStarters: { away: 'Tanner Bibee', home: 'Logan Gilbert' },
-    dkLine: { homeML: -177, awayML: 150 }, // SEA -177
+    dkLine: { homeML: -177, awayML: 150, total: 7.0 }, // SEA -177, T-Mobile pitcher park
     broadcast: null,
   },
 
@@ -99,25 +99,25 @@ const OPENING_DAY_GAMES = [
   { 
     date: '2026-03-27', day: 2, away: 'NYY', home: 'SF', time: '4:35 PM ET',
     confirmedStarters: { away: 'Gerrit Cole', home: 'Logan Webb' },
-    dkLine: { homeML: 142, awayML: -168 }, // NYY -168 (projected)
+    dkLine: { homeML: 142, awayML: -168, total: 7.0 }, // NYY -168, Oracle Park pitcher-friendly
     broadcast: null,
   },
   { 
     date: '2026-03-27', day: 2, away: 'OAK', home: 'TOR', time: '7:07 PM ET',
     confirmedStarters: { away: 'Luis Severino', home: 'Kevin Gausman' },
-    dkLine: { homeML: -182, awayML: 154 },
+    dkLine: { homeML: -182, awayML: 154, total: 8.0 },
     broadcast: null,
   },
   { 
     date: '2026-03-27', day: 2, away: 'COL', home: 'MIA', time: '7:10 PM ET',
     confirmedStarters: { away: 'Kyle Freeland', home: 'Sandy Alcantara' },
-    dkLine: { homeML: -177, awayML: 150 },
+    dkLine: { homeML: -177, awayML: 150, total: 7.5 }, // COL@MIA, LoanDepot suppresses
     broadcast: null,
   },
   { 
     date: '2026-03-27', day: 2, away: 'KC', home: 'ATL', time: '7:15 PM ET',
     confirmedStarters: { away: 'Cole Ragans', home: 'Chris Sale' },
-    dkLine: { homeML: -152, awayML: 128 },
+    dkLine: { homeML: -152, awayML: 128, total: 8.0 }, // KC@ATL, Truist Park
     broadcast: null,
   },
   // Day 2 series continuations (Game 2 starters)
