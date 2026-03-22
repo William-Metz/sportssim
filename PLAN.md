@@ -208,21 +208,24 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 20:00 UTC*
+*Last updated: 2026-03-22 22:00 UTC*
 *Current phase: 2.9 — Final Pre-Season Sprint*
 *✅ Phase 2.75 COMPLETE: All playoff preview, lineup pipeline, F5 unders, NHL playoffs, goalie starters LIVE*
 *✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures DONE*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v60.0.0 — 512MB VM stable, data 41min fresh, all feeds live*
+*✅ v65.0: Bullpen quality projections, platoon splits (Savant), catcher framing (Savant 58 catchers) ALL wired into predict()*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v65.0.0 — 512MB VM stable, data 11min fresh, all feeds live*
 *🔧 REMAINING: Pre-Opening Day final check (task 054) — MUST DO by March 26*
-*⚡ TODAY (Sunday): POR@DEN (NBA 9pm ET), CAR@PIT (in progress CAR 1-0), VGK@DAL (7pm ET), NCAA Sweet 16 (Iowa vs Florida, Utah St vs Arizona)*
-*📊 PRODUCTION STATUS: ✅ HEALTHY — v60.0.0, all systems nominal*
-*🏒 NHL STANDINGS: COL 100, DAL 96, CAR 94, BUF 92, MIN 90, TBL 88. BUBBLE CHAOS: PIT/MTL/BOS/DET ALL 84pts, CBJ/NYI 83pts — 6 teams within 1pt for 4 spots*
+*⚠️ OD Playbook endpoint TIMING OUT — needs investigation before March 27 (may be compute-heavy with all new signals)*
+*⚡ TODAY (Sunday): POR@DEN (NBA, in progress DEN 73-69 Q2), CAR 5 PIT 1 (final), VGK@DAL (7pm PT), NCAA Sweet 16 (SD State vs UConn, Texas Tech vs Arizona)*
+*📊 PRODUCTION STATUS: ✅ HEALTHY — v65.0.0, all systems nominal, 0 game-day value bets (Sunday evening slate)*
+*🏒 NHL: CAR SMASHED PIT 5-1 — PIT stays at 84pts bubble chaos. COL 100, DAL 96, CAR now 96+, BUF 92.*
 *🏀 NBA STANDINGS: OKC 56-15, SAS 53-18, DET 51-19, BOS 47-23, LAL/NYK 46-25, CLE 44-27, HOU 43-27, DEN/MIN 43-28*
-*🏀 KEY BATTLES: TOR(39-30) vs ATL/PHI(39-32) (E 6/7/8), MIN/DEN (W 4/5), PHX 39-32 (W 8)*
-*🎯 NCAA March Madness Sweet 16 = untapped betting market*
-*⚾ SPRING TRAINING: NYY 6 PHI 2 (final), CHC 5 MIL 0 (in progress), LAD@LAA tonight*
-*💰 LIVE VALUE: NYY AL East +21.3%, OAK OVER +17.8%, CHC OVER +13.9%, TOR OVER +13.3%, BAL UNDER +12.5%*
-*🆕 EDGE IDEAS: Platoon splits (L/R matchup adjustments), catcher framing data for game-day model accuracy*
+*🏀 KEY BATTLES: TOR(39-30) vs ATL/PHI(39-32) (E 5/6/7), MIN/DEN(43-28) W 5/6, PHX(39-32) W 7/play-in*
+*🏀 REST/TANK MODEL: POR DESPERATE B2B @DEN COASTING B2B (both fatigued). BKN TANKING @SAC TANKING (unwatchable). WAS TANKING B2B @NYK COASTING.*
+*⚾ SPRING TRAINING: CHC 12 MIL 0 (DEMOLITION), MIA 4 NYM 3, BAL 8 WSH 1 (Bradish dominant), OAK@COL tied 4-4 (7th)*
+*💰 LIVE VALUE: NYY AL East +21%, OAK OVER +18.2%, BAL UNDER +14.5%, CHC OVER +13.1%, TOR OVER +12.8%, CWS OVER +12.4%, MIA OVER +12%*
+*🆕 EDGE RESEARCH: (1) Stolen base revolution (FanGraphs confirms 10% attempt rate, up from 6%) — affects totals modeling. (2) OD Playbook timeout needs fix.*
+*🆕 COMPLETED THIS SESSION: Platoon splits (064 ✅), Catcher framing (065 ✅), Bullpen quality (v65.0 ✅)*
 *MLB OPENING DAY: 5 DAYS (March 27) 🔥🔥🔥*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*
