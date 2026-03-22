@@ -173,6 +173,7 @@ function buildTabs() {
   }
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
+    tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
   }
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
@@ -209,6 +210,7 @@ function showTab(id) {
   else if (id === 'playbook') loadPlaybook();
   else if (id === 'playoffs') loadPlayoffsTab();
   else if (id === 'futures') loadFuturesTab();
+  else if (id === 'rest-tank') loadRestTankTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -5332,6 +5334,176 @@ async function api(url) {
   const r = await fetch(API + url); 
   if (!r.ok) throw new Error(`API ${r.status}`);
   return r.json(); 
+}
+
+  if (!r.ok) throw new Error(`API ${r.status}`);
+  return r.json(); 
+}
+
+// ==================== NBA REST/TANK TAB ====================
+
+async function loadRestTankTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Scanning NBA situational edges...</p></div>';
+  
+  try {
+    const data = await fetchJSON('/api/nba/rest-tank/scan');
+    
+    let html = `<div class="card">
+      <h2>😴 NBA Rest/Tank Model</h2>
+      <p style="color:#aaa;margin-bottom:12px">
+        End-of-season edge detection: B2B, rest days, tanking, motivation mismatches.
+        ${data.gamesAnalyzed || 0} game(s) analyzed for ${data.date || 'today'}.
+      </p>`;
+    
+    // Top edges alert
+    if (data.edges && data.edges.length > 0) {
+      html += `<div style="background:#1a3a1a;border:2px solid #4caf50;border-radius:12px;padding:16px;margin-bottom:20px">
+        <h3 style="color:#4caf50;margin-bottom:8px">🔥 ${data.edges.length} Situational Edge(s) Found!</h3>`;
+      for (const edge of data.edges) {
+        const confColor = edge.confidence === 'HIGH' ? '#4caf50' : edge.confidence === 'MEDIUM' ? '#ff9800' : '#aaa';
+        html += `<div style="background:#0d1f0d;border-radius:8px;padding:12px;margin-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:bold;font-size:1.1em">${edge.game}</span>
+            <span style="background:${confColor};color:black;padding:2px 10px;border-radius:4px;font-weight:bold">
+              ${edge.edge}pt edge → ${edge.favoredTeam}
+            </span>
+          </div>
+          <div style="color:#aaa;margin-top:4px;font-size:0.9em">${edge.summary}</div>
+          ${edge.mismatch?.detected ? `<div style="color:#ff9800;margin-top:4px;font-size:0.85em">⚡ ${edge.mismatch.note}</div>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    } else {
+      html += `<div style="background:#1a1a2e;border-radius:12px;padding:16px;margin-bottom:20px;text-align:center;color:#aaa">
+        ${data.gamesAnalyzed > 0 ? 'No significant rest/tank edges today. All games have similar situational factors.' : data.note || 'No NBA games found for today.'}
+      </div>`;
+    }
+    html += `</div>`;
+    
+    // Detailed game-by-game analysis
+    if (data.games && data.games.length > 0) {
+      html += `<div class="card"><h2>📋 Game-by-Game Situational Analysis</h2>`;
+      for (const game of data.games) {
+        const a = game.away;
+        const h = game.home;
+        
+        html += `<div style="background:#16213e;border-radius:12px;padding:16px;margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span style="font-size:1.15em;font-weight:bold">${a.abbr} @ ${h.abbr}</span>
+            <span style="color:#aaa;font-size:0.85em">${game.gameTime ? new Date(game.gameTime).toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'}) : ''}</span>
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <!-- Away team -->
+            <div style="background:#0a1628;border-radius:8px;padding:12px">
+              <div style="font-weight:bold;margin-bottom:6px">${a.abbr} (Away)</div>
+              <div style="font-size:0.85em;color:#aaa">
+                ${a.rest.isB2B ? '<span style="color:#f44336">⚠️ B2B</span> | ' : ''}
+                ${a.rest.is3in4 ? '<span style="color:#ff9800">3-in-4</span> | ' : ''}
+                Rest: ${a.rest.daysRest || '?'}d | 
+                Games/7d: ${a.rest.gamesLast7 || '?'}
+              </div>
+              <div style="margin-top:6px">
+                ${getMotivationBadge(a.motivation?.motivation)}
+                <span style="font-size:0.8em;color:#aaa;margin-left:4px">${a.motivation?.detail || ''}</span>
+              </div>
+              <div style="margin-top:6px;font-size:0.85em">
+                Rest adj: <span style="${a.restAdj < 0 ? 'color:#f44336' : a.restAdj > 0 ? 'color:#4caf50' : ''}">${a.restAdj > 0 ? '+' : ''}${a.restAdj}pts</span>
+                | Motivation: <span style="${a.motivationAdj < 0 ? 'color:#f44336' : a.motivationAdj > 0 ? 'color:#4caf50' : ''}">${a.motivationAdj > 0 ? '+' : ''}${a.motivationAdj}pts</span>
+                | Total: <span style="font-weight:bold;${a.totalAdj < 0 ? 'color:#f44336' : a.totalAdj > 0 ? 'color:#4caf50' : ''}">${a.totalAdj > 0 ? '+' : ''}${a.totalAdj}pts</span>
+              </div>
+            </div>
+            
+            <!-- Home team -->
+            <div style="background:#0a1628;border-radius:8px;padding:12px">
+              <div style="font-weight:bold;margin-bottom:6px">${h.abbr} (Home)</div>
+              <div style="font-size:0.85em;color:#aaa">
+                ${h.rest.isB2B ? '<span style="color:#f44336">⚠️ B2B</span> | ' : ''}
+                ${h.rest.is3in4 ? '<span style="color:#ff9800">3-in-4</span> | ' : ''}
+                Rest: ${h.rest.daysRest || '?'}d | 
+                Games/7d: ${h.rest.gamesLast7 || '?'}
+              </div>
+              <div style="margin-top:6px">
+                ${getMotivationBadge(h.motivation?.motivation)}
+                <span style="font-size:0.8em;color:#aaa;margin-left:4px">${h.motivation?.detail || ''}</span>
+              </div>
+              <div style="margin-top:6px;font-size:0.85em">
+                Rest adj: <span style="${h.restAdj < 0 ? 'color:#f44336' : h.restAdj > 0 ? 'color:#4caf50' : ''}">${h.restAdj > 0 ? '+' : ''}${h.restAdj}pts</span>
+                | Motivation: <span style="${h.motivationAdj < 0 ? 'color:#f44336' : h.motivationAdj > 0 ? 'color:#4caf50' : ''}">${h.motivationAdj > 0 ? '+' : ''}${h.motivationAdj}pts</span>
+                | Total: <span style="font-weight:bold;${h.totalAdj < 0 ? 'color:#f44336' : h.totalAdj > 0 ? 'color:#4caf50' : ''}">${h.totalAdj > 0 ? '+' : ''}${h.totalAdj}pts</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Net adjustment -->
+          <div style="text-align:center;margin-top:10px;padding:8px;background:#0d2137;border-radius:6px">
+            <span style="color:#aaa">Net Spread Adj:</span>
+            <span style="font-weight:bold;font-size:1.1em;margin-left:8px;${game.netSpreadAdj > 0 ? 'color:#4caf50' : game.netSpreadAdj < 0 ? 'color:#f44336' : ''}">
+              ${game.netSpreadAdj > 0 ? '+' : ''}${game.netSpreadAdj || 0}pts → ${game.netSpreadAdj > 0 ? h.abbr : game.netSpreadAdj < 0 ? a.abbr : 'Even'}
+            </span>
+            ${game.motivationMismatch?.detected ? `<br><span style="color:#ff9800;font-size:0.85em">⚡ ${game.motivationMismatch.severity} motivation mismatch</span>` : ''}
+          </div>
+          
+          <!-- Factors -->
+          ${(a.factors.length > 0 || h.factors.length > 0) ? `
+          <details style="margin-top:8px">
+            <summary style="cursor:pointer;color:#aaa;font-size:0.85em">View all factors</summary>
+            <div style="margin-top:6px;font-size:0.8em;color:#aaa">
+              ${a.factors.map(f => `<div>${a.abbr}: ${f.factor} (${f.impact > 0 ? '+' : ''}${f.impact}pts) — ${f.note}</div>`).join('')}
+              ${h.factors.map(f => `<div>${h.abbr}: ${f.factor} (${f.impact > 0 ? '+' : ''}${f.impact}pts) — ${f.note}</div>`).join('')}
+            </div>
+          </details>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    
+    // Motivation overview for all teams
+    html += `<div class="card"><h2>🏀 Conference Motivation Map</h2>
+      <p style="color:#aaa;margin-bottom:12px">End-of-season motivation for all 30 teams based on standings.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+    
+    // Try to get standings for all teams
+    const eastTeams = ['ATL', 'BOS', 'BKN', 'CHA', 'CHI', 'CLE', 'DET', 'IND', 'MIA', 'MIL', 'NYK', 'ORL', 'PHI', 'TOR', 'WAS'];
+    const westTeams = ['DAL', 'DEN', 'GSW', 'HOU', 'LAC', 'LAL', 'MEM', 'MIN', 'NOP', 'OKC', 'PHX', 'POR', 'SAC', 'SAS', 'UTA'];
+    
+    for (const [confName, confTeams] of [['Eastern Conference', eastTeams], ['Western Conference', westTeams]]) {
+      html += `<div>
+        <h3 style="margin-bottom:8px">${confName}</h3>`;
+      
+      try {
+        const motivResp = await Promise.all(confTeams.map(t => fetchJSON('/api/nba/rest-tank/motivation/' + t).catch(() => ({team:t,motivation:'UNKNOWN'}))));
+        motivResp.sort((a,b) => (b.winPct || 0) - (a.winPct || 0));
+        for (const m of motivResp) {
+          html += `<div style="display:flex;justify-content:space-between;padding:4px 8px;font-size:0.85em;border-bottom:1px solid #222">
+            <span>${m.confRank || '?'}. ${m.team}</span>
+            <span>${getMotivationBadge(m.motivation)} <span style="color:#aaa">${m.winPct || 0}%</span></span>
+          </div>`;
+        }
+      } catch (e) {
+        html += `<div style="color:#666">Failed to load conference data</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div></div>`;
+    
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>😴 NBA Rest/Tank</h2><p style="color:#f44336">Error: ${e.message}</p></div>`;
+  }
+}
+
+function getMotivationBadge(motivation) {
+  const badges = {
+    'DESPERATE': '<span style="background:#f44336;color:white;padding:1px 6px;border-radius:3px;font-size:0.8em">🔥 DESPERATE</span>',
+    'COMPETING': '<span style="background:#2196f3;color:white;padding:1px 6px;border-radius:3px;font-size:0.8em">💪 COMPETING</span>',
+    'COASTING': '<span style="background:#ff9800;color:black;padding:1px 6px;border-radius:3px;font-size:0.8em">🏖️ COASTING</span>',
+    'RESTING': '<span style="background:#9c27b0;color:white;padding:1px 6px;border-radius:3px;font-size:0.8em">😴 RESTING</span>',
+    'TANKING': '<span style="background:#666;color:white;padding:1px 6px;border-radius:3px;font-size:0.8em">📉 TANKING</span>',
+    'REBUILDING': '<span style="background:#795548;color:white;padding:1px 6px;border-radius:3px;font-size:0.8em">🔨 REBUILDING</span>'
+  };
+  return badges[motivation] || `<span style="background:#333;padding:1px 6px;border-radius:3px;font-size:0.8em">${motivation || 'N/A'}</span>`;
 }
 
 // ==================== INIT ====================

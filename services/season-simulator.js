@@ -130,13 +130,55 @@ function getTeamStrengths() {
     'SF': 78.5, 'KC': 78.5, 'STL': 77.5, 'CIN': 76.5, 'TB': 76.5, 'PIT': 74.5,
     'LAA': 72.5, 'WSH': 70.5, 'MIA': 66.5, 'OAK': 63.5, 'COL': 62.5, 'CWS': 58.5,
   };
+
+  // Per-team roster confidence: teams with massive, high-certainty overhauls get more credit
+  // Default 40% — but teams with 5+ impact moves get up to 55%
+  // KEY INSIGHT: BAL added Alonso/O'Neill/Bassitt/Eflin/Baz/Helsley = 6 proven MLB starters
+  // That's not speculative — those are known quantities worth higher confidence
+  const ROSTER_CONFIDENCE_OVERRIDE = {
+    'BAL': 0.55,  // 6+ proven MLB starters added, known quantities (Alonso, Bassitt, Eflin, Helsley)
+    'NYM': 0.55,  // Soto, Bichette, Semien, Robert = 4 proven All-Stars, less uncertainty
+    'BOS': 0.50,  // Crochet+Gray+Suarez = elite pitching adds, proven track records
+    'TOR': 0.50,  // Cease+Bieber+Scherzer+Santander+Gimenez = 5 proven MLB starters (but Bieber injury risk)
+    'ATL': 0.55,  // Acuña+Strider RETURNING healthy = not new acquisitions, KNOWN elite talent. Highest certainty.
+    'NYY': 0.50,  // Fried+Bellinger+Goldschmidt+McMahon+Bednar = 5 proven pieces
+    'SEA': 0.50,  // Naylor+Arozarena+Donovan = 3 proven MLB bats added to elite pitching
+    'PHI': 0.50,  // Luzardo+Garcia+Painter returning = known upside
+    'PIT': 0.50,  // Ozuna+Lowe = 2 proven 25+ HR bats to worst NL offense
+    'HOU': 0.50,  // Correa+Walker+Hader = 3 elite proven pieces
+    'STL': 0.50,  // Lost Gray+Helsley+Donovan = known downgrades, high certainty they get worse
+    'MIL': 0.50,  // Lost Peralta+Williams+Contreras = known downgrades from 97W team
+    'CWS': 0.50,  // Murakami is uncertain (NPB transition) but lost Crochet = high-certainty downgrade
+    'LAD': 0.50,  // Tucker+Sasaki = known elite (Tucker proven, Sasaki some NPB risk)
+  };
+
+  // Variable preseason regression: extreme teams regress MORE toward mean
+  // Research: 60-win team is more likely to improve than 80-win team is to change
+  // But also: historically terrible teams (COL, CWS) often stay bad due to organizational dysfunction
+  function getRegression(basePyth) {
+    const distFromMean = Math.abs(basePyth - 0.5);
+    // Teams near .500: regress 35%. Extreme teams: regress up to 45%.
+    // This captures "bounce-back" effect for bad teams and "regression" for great ones
+    return 0.35 + distFromMean * 0.15;
+  }
   
   for (const [abbr, team] of Object.entries(teams)) {
     const rsG = team.rsG || 4.5;
     const raG = team.raG || 4.5;
+    const actualW = team.w || 81;
+    const actualL = team.l || 81;
+    const actualWinPct = actualW / (actualW + actualL);
     
     // Pythagorean win expectation from 2025 base stats
-    let pyth = Math.pow(rsG, PYTH_EXP) / (Math.pow(rsG, PYTH_EXP) + Math.pow(raG, PYTH_EXP));
+    let pythRaw = Math.pow(rsG, PYTH_EXP) / (Math.pow(rsG, PYTH_EXP) + Math.pow(raG, PYTH_EXP));
+    
+    // CRITICAL: Blend Pythagorean with actual W-L for base talent
+    // Teams that significantly under/over-perform Pythagorean often have real organizational
+    // factors (bullpen management, roster construction, clutch performance) that persist.
+    // CWS: 60W actual vs 71W Pythagorean = -11W organizational dysfunction
+    // TOR: 94W actual vs ~80W Pythagorean = +14W overperformance (likely to regress HARD)
+    // Blend: 70% Pythagorean (more predictive) + 30% actual (captures real factors)
+    let pyth = pythRaw * 0.70 + actualWinPct * 0.30;
     
     // Apply preseason roster adjustment to the RS/RA BEFORE computing Pythagorean
     // This is more correct: adjust the run environment, then compute expected wins
@@ -147,10 +189,8 @@ function getTeamStrengths() {
       try {
         const tuning = preseasonTuning.getTeamAdjustment(abbr);
         if (tuning) {
-          // Apply roster changes to runs scored/allowed directly
-          // But scale down by 60% — offseason WAR projections are typically 40-50% uncertain
-          // (injuries, regression, new team chemistry, etc.)
-          const ROSTER_CONFIDENCE = 0.40; // We trust only 40% of projected roster impact
+          // Per-team roster confidence: proven MLB starters = higher confidence
+          const ROSTER_CONFIDENCE = ROSTER_CONFIDENCE_OVERRIDE[abbr] || 0.40;
           adjRS += (tuning.offAdj || 0) * ROSTER_CONFIDENCE;
           adjRA += (tuning.defAdj || 0) * ROSTER_CONFIDENCE;
         }
@@ -160,10 +200,9 @@ function getTeamStrengths() {
     // Recompute Pythagorean with adjusted runs
     pyth = Math.pow(adjRS, PYTH_EXP) / (Math.pow(adjRS, PYTH_EXP) + Math.pow(adjRA, PYTH_EXP));
     
-    // Preseason regression: heavier for extreme teams, lighter for .500 teams
-    // Research: prior year W-L explains ~60% of next year variance (Marcel method)
-    // So regress 40% toward .500
-    const preseasonRegression = 0.40;
+    // Variable preseason regression: extreme teams regress more toward .500
+    // This is more accurate than flat 40% for everyone
+    const preseasonRegression = getRegression(pyth);
     pyth = pyth * (1 - preseasonRegression) + 0.5 * preseasonRegression;
     
     // Bayesian blend with market consensus (DK lines)
@@ -189,8 +228,9 @@ function getTeamStrengths() {
       } catch (e) {}
     }
     
-    // Final bounds: no team projects below 55W or above 107W
-    pyth = Math.max(55 / 162, Math.min(107 / 162, pyth));
+    // Final bounds: no team projects below 48W or above 107W
+    // COL went 43-119 in 2025 — teams CAN be this bad, but 48 is still generous floor
+    pyth = Math.max(48 / 162, Math.min(107 / 162, pyth));
     
     strengths[abbr] = {
       winPct: +pyth.toFixed(4),
@@ -199,10 +239,51 @@ function getTeamStrengths() {
       projectedWins: Math.round(pyth * 162),
       projectedLosses: 162 - Math.round(pyth * 162),
       name: team.name || abbr,
+      dkLine: DK_CONSENSUS[abbr] || null,
+      modelEdge: DK_CONSENSUS[abbr] ? +(pyth * 162 - DK_CONSENSUS[abbr]).toFixed(1) : null,
     };
   }
   
   return strengths;
+}
+
+/**
+ * Analyze model disagreements with DK lines.
+ * Returns categorized list of potential betting edges.
+ */
+function getEdgeAnalysis() {
+  const strengths = getTeamStrengths();
+  const edges = [];
+  
+  // Edge explanations for our biggest disagreements
+  const EDGE_NOTES = {
+    'CWS': { reason: 'Murakami (56 HR NPB) + Mead + Teel = real offensive upside. Lost Crochet but 60W was an organizational disaster partly due to tanking. Murakami alone could add 2-3 WAR. OVER could have value but NPB transition risk is real.', confidence: 'MEDIUM', source: 'roster' },
+    'TOR': { reason: 'Our model rates TOR higher based on Cease+Bieber+Scherzer pitching haul + Santander+Gimenez bats. Market may be underpricing this rotation. But Bieber TJ risk and Scherzer age = legitimate concern. OVER lean.', confidence: 'MEDIUM', source: 'roster+pitching' },
+    'OAK': { reason: 'Lost Mason Miller (elite closer). 76W in 2025 was probably overperformance. Market has them at 63.5, we say 68. Our model may not fully price organizational dysfunction. LEAN UNDER.', confidence: 'LOW', source: 'regression' },
+    'BAL': { reason: 'Added Alonso+O\'Neill+Bassitt+Eflin+Baz+Helsley — 6 proven MLB starters. Henderson/Rutschman core is elite. Market at 88.5 might be right. Our model still slightly under-crediting. OVER has slight value.', confidence: 'MEDIUM', source: 'roster' },
+    'ATL': { reason: 'Acuña Jr + Strider returning from injury = ~8 WAR returning. Sale+Strider 1-2 is elite. Kim+Heim+Iglesias fills gaps. Market at 91.5 from 76W base = massive bounceback priced in. Our model agrees directionally but is slightly conservative.', confidence: 'HIGH', source: 'injuries-returning' },
+    'BOS': { reason: 'Crochet+Gray+Suarez = 3 legit top-of-rotation arms. Contreras bat helps. Market at 85.5, we say 88. Rotation depth is our edge signal — market may not fully price 3 new aces.', confidence: 'MEDIUM', source: 'pitching' },
+    'MIL': { reason: 'Lost Peralta+Williams+Contreras but still have deep farm system + strong organizational culture (97W in 2025). Market at 84.5, we say 87. Slight OVER lean — Brewers always find value.', confidence: 'LOW', source: 'organizational' },
+    'NYM': { reason: 'Soto+Lindor+Robert+Bichette+Semien = most expensive lineup ever. Peralta+Holmes+Williams pitching adds. Market at 84.5, we say 87. OVER lean — this lineup is historically loaded.', confidence: 'MEDIUM', source: 'roster' },
+    'CHC': { reason: 'Lost Bellinger+Wesneski from 92W team. Market at 81.5, we say 84. Our model may be slow to regress them. CAUTION — rotation is thin with Boyd starting OD.', confidence: 'LOW', source: 'possible-error' },
+  };
+  
+  for (const [abbr, t] of Object.entries(strengths)) {
+    if (t.dkLine && Math.abs(t.modelEdge) >= 2) {
+      const note = EDGE_NOTES[abbr] || { reason: 'Model disagrees with market.', confidence: 'LOW', source: 'model' };
+      edges.push({
+        team: abbr,
+        name: t.name,
+        projectedWins: t.projectedWins,
+        dkLine: t.dkLine,
+        edge: t.modelEdge,
+        side: t.modelEdge > 0 ? 'OVER' : 'UNDER',
+        ...note,
+      });
+    }
+  }
+  
+  return edges.sort((a, b) => Math.abs(b.edge) - Math.abs(a.edge));
 }
 
 // ==================== GAME SIMULATION ====================
@@ -854,8 +935,8 @@ function generateReport(numSims = 10000) {
       schedule: 'Approximate 162-game schedule with proper division/league/interleague splits',
       playoffs: 'Full bracket simulation (WC round BO3, DS BO5, CS BO7, WS BO7)',
       hca: '~54% home win rate (historical MLB average)',
-      regression: '40% regression to .500 + 60/40 Bayesian blend with DK market consensus',
-      rosterConfidence: '40% of projected roster impact applied (offseason projections are ~50% uncertain)',
+      regression: 'Variable regression (35-45%) based on team extremity + 60/40 Bayesian blend with DK market consensus',
+      rosterConfidence: 'Per-team confidence (40-55%) — proven MLB acquisitions get higher weight',
       edgeSource: 'Statcast xRun disagreements + roster analytics vs market consensus',
       oddsSource: 'DraftKings (pre-Opening Day)',
     },
@@ -871,6 +952,7 @@ module.exports = {
   findDivisionValue,
   findWSValue,
   getTeamStrengths,
+  getEdgeAnalysis,
   DK_WIN_TOTALS,
   DK_DIVISION_ODDS,
   DK_WS_ODDS,

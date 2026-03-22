@@ -288,7 +288,19 @@ async function generateDailyPicks(opts = {}) {
               prediction = rawPred;
             }
           }
-        } else {
+        }
+        // Use async predict for NBA (includes rest/tank situational analysis)
+        else if (sportKey === 'NBA' && nbaModel && nbaModel.asyncPredict) {
+          let rawPred = await nbaModel.asyncPredict(awayAbbr, homeAbbr, {});
+          if (rawPred && !rawPred.error) {
+            if (calibrationSvc && calibrationSvc.calibratePrediction) {
+              prediction = calibrationSvc.calibratePrediction(rawPred, 'nba');
+            } else {
+              prediction = rawPred;
+            }
+          }
+        }
+        else {
           prediction = model.predict(awayAbbr, homeAbbr);
         }
         if (prediction && prediction.error) prediction = null;

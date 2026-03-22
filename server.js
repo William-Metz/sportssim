@@ -42,6 +42,7 @@ const polymarketValue = require('./services/polymarket-value');
 const preseasonTuning = require('./services/preseason-tuning');
 const autoScanner = require('./services/auto-scanner');
 const seasonSimulator = require('./services/season-simulator');
+const nbaRestTank = require('./services/nba-rest-tank');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -105,7 +106,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '37.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration'] });
+  res.json({ status: 'ok', version: '38.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -842,6 +843,33 @@ app.get('/api/season-sim/top-bets', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Edge analysis: model disagreements with DK, categorized by confidence and source
+app.get('/api/season-sim/edge-analysis', (req, res) => {
+  try {
+    const edges = seasonSimulator.getEdgeAnalysis();
+    const strengths = seasonSimulator.getTeamStrengths();
+    
+    // Calculate MAE vs DK
+    let totalAbsDiff = 0;
+    let count = 0;
+    for (const [abbr, t] of Object.entries(strengths)) {
+      if (t.dkLine) {
+        totalAbsDiff += Math.abs(t.projectedWins - t.dkLine);
+        count++;
+      }
+    }
+    
+    res.json({
+      edges,
+      modelMAE: +(totalAbsDiff / count).toFixed(1),
+      totalTeams: count,
+      edgesFound: edges.length,
+      timestamp: new Date().toISOString(),
+      note: 'Edges >= 2W divergence from DK consensus. Higher confidence = stronger signal.',
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== NHL ENDPOINTS ====================
 
 app.get('/api/model/nhl/ratings', (req, res) => {
@@ -1063,13 +1091,18 @@ async function fetch_value_bets(sport) {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const pred = nba.predict(awayAbbr, homeAbbr);
+      // Use asyncPredict for rest/tank situational analysis
+      let pred;
+      try {
+        const rawPred = await nba.asyncPredict(awayAbbr, homeAbbr, {});
+        pred = calibration.calibratePrediction(rawPred && !rawPred.error ? rawPred : nba.predict(awayAbbr, homeAbbr), 'nba');
+      } catch (e) {
+        pred = calibration.calibratePrediction(nba.predict(awayAbbr, homeAbbr), 'nba');
+      }
       if (pred.error) continue;
-      // Apply calibration for accurate edge calculation
-      const calPred = calibration.calibratePrediction(pred, 'nba');
       for (const bk of (game.bookmakers || [])) {
         const bookLine = extractBookLine(bk, game.home_team);
-        nba.findValue(calPred, bookLine).forEach(e => {
+        nba.findValue(pred, bookLine).forEach(e => {
           bets.push({ sport: 'NBA', game: `${awayAbbr} @ ${homeAbbr}`, book: bk.title, commence: game.commence_time, ...e });
         });
       }
@@ -2484,6 +2517,56 @@ app.get('/api/rest-travel/matchup/:away/:home', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== NBA REST/TANK MODEL ====================
+// End-of-season edge detection: B2B, rest, tanking, motivation mismatches
+
+app.get('/api/nba/rest-tank/status', (req, res) => {
+  res.json(nbaRestTank.getStatus());
+});
+
+// Scan today's NBA games for situational edges
+app.get('/api/nba/rest-tank/scan', async (req, res) => {
+  try {
+    const standings = nba.getTeams();
+    const result = await nbaRestTank.scanTodaysGames(standings);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Analyze a specific NBA matchup for rest/tank factors
+app.get('/api/nba/rest-tank/:away/:home', async (req, res) => {
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const gameDate = req.query.gameDate || new Date().toISOString().split('T')[0];
+    const standings = nba.getTeams();
+    const analysis = await nbaRestTank.analyzeGame(away, home, standings, gameDate);
+    res.json(analysis);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get motivation analysis for a specific team
+app.get('/api/nba/rest-tank/motivation/:team', (req, res) => {
+  try {
+    const team = req.params.team.toUpperCase();
+    const standings = nba.getTeams();
+    const motivation = nbaRestTank.analyzeMotivation(team, standings);
+    res.json({ team, ...motivation });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get NBA prediction with full rest/tank situational analysis
+app.get('/api/nba/smart-predict/:away/:home', async (req, res) => {
+  try {
+    const away = req.params.away.toUpperCase();
+    const home = req.params.home.toUpperCase();
+    const result = await nba.asyncPredict(away, home, {
+      gameDate: req.query.gameDate || undefined
+    });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ==================== UNIFIED SIGNAL CHECK ====================
 // The pre-bet check: aggregates ALL factors for a specific game
 app.get('/api/signal-check/:sport/:away/:home', async (req, res) => {
@@ -2582,20 +2665,56 @@ app.get('/api/signal-check/:sport/:away/:home', async (req, res) => {
       } catch (e) { signals.restTravel = { error: e.message }; }
       
     } else if (sport === 'NBA') {
+      // Full async prediction with rest/tank situational analysis
       try {
-        const rawPred = nba.predict(away, home, { awayB2B: req.query.awayB2B === 'true', homeB2B: req.query.homeB2B === 'true' });
+        const rawPred = await nba.asyncPredict(away, home, { 
+          gameDate: req.query.gameDate || undefined 
+        });
         if (rawPred && !rawPred.error) {
           const calPred = calibration.calibratePrediction(rawPred, 'nba');
           signals.prediction = {
             homeWinProb: calPred.homeWinProb,
             awayWinProb: calPred.awayWinProb,
             spread: calPred.spread,
-            totalPoints: calPred.totalPoints,
-            homePower: calPred.homePower,
-            awayPower: calPred.awayPower
+            totalPoints: calPred.predictedTotal,
+            homePower: calPred.home?.adjPower || calPred.homePower,
+            awayPower: calPred.away?.adjPower || calPred.awayPower,
+            baseSpread: calPred.baseSpread || calPred.spread,
+            situationalEdge: calPred.situationalEdge || false
+          };
+          // Rest/tank factors
+          if (calPred.restTank) {
+            signals.restTank = {
+              awayAdj: calPred.restTank.awayAdj,
+              homeAdj: calPred.restTank.homeAdj,
+              netSpreadAdj: calPred.restTank.netSpreadAdj,
+              awayMotivation: calPred.restTank.away?.motivation,
+              homeMotivation: calPred.restTank.home?.motivation,
+              mismatch: calPred.restTank.motivationMismatch,
+              summary: calPred.restTank.summary
+            };
+          }
+          signals.calibration = {
+            applied: true,
+            sport: 'nba',
+            note: 'Probabilities calibrated + rest/tank adjusted'
           };
         }
-      } catch (e) { signals.prediction = { error: e.message }; }
+      } catch (e) { 
+        // Fallback to sync predict
+        try {
+          const rawPred = nba.predict(away, home, { awayB2B: req.query.awayB2B === 'true', homeB2B: req.query.homeB2B === 'true' });
+          if (rawPred && !rawPred.error) {
+            const calPred = calibration.calibratePrediction(rawPred, 'nba');
+            signals.prediction = {
+              homeWinProb: calPred.homeWinProb,
+              awayWinProb: calPred.awayWinProb,
+              spread: calPred.spread,
+              totalPoints: calPred.predictedTotal
+            };
+          }
+        } catch (e2) { signals.prediction = { error: e2.message }; }
+      }
       
     } else if (sport === 'NHL') {
       try {

@@ -26,8 +26,10 @@ try { liveData = require('../services/live-data'); } catch (e) { /* fallback to 
 // Rolling stats & injury integration
 let rollingStats = null;
 let injuries = null;
+let restTankSvc = null;
 try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
 try { injuries = require('../services/injuries'); } catch (e) { /* no injury data */ }
+try { restTankSvc = require('../services/nba-rest-tank'); } catch (e) { /* no rest/tank service */ }
 
 /**
  * Get current team data — live if available, static fallback
@@ -274,6 +276,95 @@ function predict(away, home, opts = {}) {
 }
 
 /**
+ * Async prediction that includes rest/tank situational adjustments
+ * This is the "smart" version that auto-detects B2B, rest days, tanking, and motivation
+ * 
+ * Use this for daily picks and value detection — it finds the real edges
+ */
+async function asyncPredict(away, home, opts = {}) {
+  // Start with standard prediction
+  const basePred = predict(away, home, opts);
+  if (basePred.error) return basePred;
+
+  // Get rest/tank adjustments if service available
+  let restTankData = null;
+  if (restTankSvc) {
+    try {
+      const standings = getTeams(); // Current live standings
+      const targetDate = opts.gameDate || new Date().toISOString().split('T')[0];
+      restTankData = await restTankSvc.getGameAdjustment(away, home, standings, targetDate);
+    } catch (e) {
+      // Rest/tank service failed — use base prediction
+      console.error('[nba] Rest/tank analysis failed:', e.message);
+    }
+  }
+
+  if (!restTankData || (restTankData.awayAdj === 0 && restTankData.homeAdj === 0)) {
+    // No situational factors — return base prediction with flag
+    return { ...basePred, restTank: null, situationalEdge: false };
+  }
+
+  // Apply rest/tank adjustment to the spread
+  // restTankData.netSpreadAdj: positive = favors home, negative = favors away
+  const rawSpread = basePred.spread - restTankData.netSpreadAdj;
+  
+  // Re-compress if needed
+  const compressedSpread = rawSpread > 0 
+    ? Math.min(rawSpread, 18 + (rawSpread - 18) * 0.2)
+    : Math.max(rawSpread, -18 + (rawSpread + 18) * 0.2);
+  const adjSpread = +((Math.abs(rawSpread) > 18 ? compressedSpread : rawSpread)).toFixed(1);
+
+  // Recalculate win probability with adjusted spread
+  const homeWinProb = 1 / (1 + Math.pow(10, adjSpread / SPREAD_TO_PROB_FACTOR));
+  const awayWinProb = 1 - homeWinProb;
+
+  // Recalculate scores
+  const adjTotal = basePred.predictedTotal; // Total doesn't change much from rest
+  const homeScore = +((adjTotal / 2) + (-adjSpread / 2)).toFixed(1);
+  const awayScore = +((adjTotal / 2) + (adjSpread / 2)).toFixed(1);
+
+  // Updated moneylines
+  const homeML = homeWinProb >= 0.5 
+    ? Math.round(-100 * homeWinProb / (1 - homeWinProb))
+    : Math.round(100 * (1 - homeWinProb) / homeWinProb);
+  const awayML = awayWinProb >= 0.5
+    ? Math.round(-100 * awayWinProb / (1 - awayWinProb))
+    : Math.round(100 * (1 - awayWinProb) / awayWinProb);
+
+  return {
+    ...basePred,
+    // Override with situationally-adjusted values
+    spread: adjSpread,
+    homeWinProb: +(homeWinProb * 100).toFixed(1),
+    awayWinProb: +(awayWinProb * 100).toFixed(1),
+    predictedScore: { away: awayScore, home: homeScore },
+    modelML: { 
+      away: awayML > 0 ? '+' + awayML : '' + awayML, 
+      home: homeML > 0 ? '+' + homeML : '' + homeML 
+    },
+    // Base (pre-adjustment) values for comparison
+    baseSpread: basePred.spread,
+    baseHomeWinProb: basePred.homeWinProb,
+    baseAwayWinProb: basePred.awayWinProb,
+    // Rest/tank details
+    restTank: restTankData,
+    situationalEdge: true,
+    factors: {
+      ...basePred.factors,
+      restTank: {
+        awayAdj: restTankData.awayAdj,
+        homeAdj: restTankData.homeAdj,
+        netSpreadAdj: restTankData.netSpreadAdj,
+        awayMotivation: restTankData.away?.motivation?.motivation,
+        homeMotivation: restTankData.home?.motivation?.motivation,
+        mismatch: restTankData.motivationMismatch?.detected ? restTankData.motivationMismatch : null,
+        summary: restTankData.summary
+      }
+    }
+  };
+}
+
+/**
  * Compare model prediction vs book lines to find +EV
  * 
  * @param {object} prediction - from predict()
@@ -395,4 +486,4 @@ function kellySize(trueProb, ml) {
   };
 }
 
-module.exports = { TEAMS, getTeams, calculateRatings, predict, findValue, mlToProb, calcEV, kellySize, pythWinPct, HCA, PYTH_EXP, MIN_SPREAD_EDGE, refreshData };
+module.exports = { TEAMS, getTeams, calculateRatings, predict, asyncPredict, findValue, mlToProb, calcEV, kellySize, pythWinPct, HCA, PYTH_EXP, MIN_SPREAD_EDGE, refreshData };
