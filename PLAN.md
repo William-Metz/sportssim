@@ -121,11 +121,13 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [x] **CRITICAL: Fix NBA total calculation bug** (was dividing by 2!)
 - [x] **NBA spread compression** (cap at ±18, real-world constraint)
 - [x] **NBA rolling/injury rebalance** (reduce double-counting)
-- [ ] **Statcast integration via pybaseball** — pitch-level data for MLB
+- [x] **Statcast integration via pybaseball** — pitch-level data for MLB
+- [x] **CLV tracking pipeline** — record opening vs closing lines
+- [x] **Model calibration audit** — are probabilities matching outcomes?
+- [ ] 🚨 **CRITICAL: MLB Roster Changes Audit** — BAL missing MASSIVE upgrades (Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley). Season sim projecting BAL at 77W when they should be ~87-90W. Futures value bets may be WRONG. Must audit ALL 30 teams.
+- [ ] **MLB Base Power Ratings Update** — Static team data (80-82 BAL) is outdated. Need to reflect 2025 final standings + offseason moves accurately.
 - [ ] **NBA playoff series pricing model** — playoffs start April 12
 - [ ] **Backtest validation on fixed NBA model** — verify improvement
-- [ ] **CLV tracking pipeline** — record opening vs closing lines
-- [ ] **Model calibration audit** — are probabilities matching outcomes?
 
 ## Phase 3: Advanced Models (Week 3-4)
 - [ ] NFL off-season: win total futures model
@@ -186,11 +188,11 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22*
+*Last updated: 2026-03-22 06:00 UTC*
 *Current phase: 2.5 — Model Accuracy & Calibration*
-*🚨 CRITICAL: Fly.io deploys have been FAILING since v25.0 — Dockerfile Python/scikit-learn build broken on Alpine*
-*🔧 FIX: Switched to node:20-slim (Debian) + added 2hr auto-data-refresh interval*
-*NBA totals bug: code fixed locally but NEVER DEPLOYED — production still shows ~121 instead of ~235*
+*🚨 CRITICAL: BAL roster changes MISSING from preseason-tuning.js — Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley not modeled*
+*🚨 CRITICAL: Season sim futures bets may be WRONG — BAL at 77W should be ~87-90W, TOR at 90W may be too high*
+*🔧 NEXT: Full audit of ALL 30 teams ROSTER_CHANGES + base power ratings before Opening Day*
 *MLB OPENING DAY: 5 DAYS (March 27)*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*

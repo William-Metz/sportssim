@@ -131,16 +131,26 @@ class EloSystem:
         return dict(sorted(self.ratings.items(), key=lambda x: x[1], reverse=True))
     
     def build_from_games(self, games):
-        """Process a list of games chronologically, return games with Elo features."""
+        """Process a list of games chronologically, return games with Elo features.
+        v38.0: Detects season boundaries and applies regression between seasons."""
         # Sort by date
         sorted_games = sorted(games, key=lambda g: g.get('date', ''))
         
         enriched = []
+        last_year = None
+        
         for game in sorted_games:
             home = game.get('home', '')
             away = game.get('away', '')
             home_won = game.get('homeWon', False)
             margin = abs(game.get('homeScore', 0) - game.get('awayScore', 0))
+            
+            # Season boundary detection — regress ratings between seasons
+            game_date = game.get('date', '')
+            game_year = int(game_date[:4]) if game_date and len(game_date) >= 4 else None
+            if game_year and last_year and game_year > last_year:
+                self.regress_to_mean()
+            last_year = game_year
             
             # Capture PRE-GAME Elo ratings (point-in-time)
             home_elo = self.get_rating(home)
@@ -379,6 +389,28 @@ def extract_features(game):
     features['home_exp_runs'] = home_exp
     features['total_exp_runs'] = away_exp + home_exp
     
+    # ---- Season context features (v38.0 — Opening Day edge) ----
+    day_of_season = game.get('dayOfSeason', 90)
+    is_opening_week = game.get('isOpeningWeek', 0)
+    is_first_month = game.get('isFirstMonth', 0)
+    
+    features['day_of_season'] = day_of_season
+    features['is_opening_week'] = is_opening_week
+    features['is_first_month'] = is_first_month
+    
+    # Early-season signal: less info = more HFA + less predictability
+    # Home teams win at higher rates in April (familiarity edge)
+    features['early_season_hfa'] = max(0, 1 - day_of_season / 60) * 0.3
+    
+    # Bullpen reliability decays early season (smaller sample, uncertain roles)
+    features['bullpen_uncertainty'] = max(0, 1 - day_of_season / 45) * 0.2
+    
+    # Pitcher rating reliability — early-season pitcher ratings are noisy
+    features['pitcher_confidence'] = min(1.0, day_of_season / 60)
+    
+    # Interaction: ace advantage is BIGGER early (less bullpen game, ace goes deeper)
+    features['early_ace_premium'] = features.get('ace_side', 0) * max(0, 1 - day_of_season / 45) * 0.5
+    
     return features
 
 
@@ -416,6 +448,10 @@ FEATURE_NAMES = [
     'statcast_composite_delta', 'pitcher_xwoba_delta', 'statcast_matchup',
     'away_pitcher_lucky', 'home_pitcher_lucky',
     'away_pitcher_unlucky', 'home_pitcher_unlucky',
+    # Season context (v38.0 — Opening Day edge)
+    'day_of_season', 'is_opening_week', 'is_first_month',
+    'early_season_hfa', 'bullpen_uncertainty', 'pitcher_confidence',
+    'early_ace_premium',
 ]
 
 TOTALS_FEATURE_NAMES = [
@@ -434,6 +470,8 @@ TOTALS_FEATURE_NAMES = [
     'away_pitcher_xera', 'home_pitcher_xera',
     'away_xwoba_edge', 'home_xwoba_edge',
     'away_pitcher_era_xera_gap', 'home_pitcher_era_xera_gap',
+    # Season context (v38.0 — early season totals tend to be lower)
+    'day_of_season', 'is_first_month', 'bullpen_uncertainty',
 ]
 
 
@@ -481,34 +519,38 @@ def train_model(games_data, sport='mlb'):
     # ---- Build Ensemble ----
     models = {}
     calibrated = {}
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+    cal_cv = 3  # Use 3-fold for calibration (faster, sufficient with 2000+ games)
     
     # 1. Logistic Regression (interpretable baseline)
     lr = LogisticRegression(C=0.3, max_iter=1000, solver='lbfgs', class_weight='balanced')
     lr_scores = cross_val_score(lr, X_scaled, y, cv=cv, scoring='accuracy')
-    lr_cal = CalibratedClassifierCV(lr, cv=5, method='isotonic')
+    print(f"  LR CV: {lr_scores.mean():.4f} ± {lr_scores.std():.4f}", file=sys.stderr)
+    lr_cal = CalibratedClassifierCV(lr, cv=cal_cv, method='sigmoid')
     lr_cal.fit(X_scaled, y)
     lr.fit(X_scaled, y)
     models['lr'] = {'model': lr, 'cal': lr_cal, 'cv_acc': lr_scores.mean(), 'cv_std': lr_scores.std()}
     
-    # 2. Gradient Boosting (sklearn)
+    # 2. Gradient Boosting (sklearn) — faster config
     gb = GradientBoostingClassifier(
-        n_estimators=250, max_depth=3, learning_rate=0.04,
+        n_estimators=150, max_depth=3, learning_rate=0.06,
         min_samples_leaf=5, subsample=0.8, random_state=42
     )
     gb_scores = cross_val_score(gb, X_scaled, y, cv=cv, scoring='accuracy')
-    gb_cal = CalibratedClassifierCV(gb, cv=5, method='isotonic')
+    print(f"  GB CV: {gb_scores.mean():.4f} ± {gb_scores.std():.4f}", file=sys.stderr)
+    gb_cal = CalibratedClassifierCV(gb, cv=cal_cv, method='sigmoid')
     gb_cal.fit(X_scaled, y)
     gb.fit(X_scaled, y)
     models['gb'] = {'model': gb, 'cal': gb_cal, 'cv_acc': gb_scores.mean(), 'cv_std': gb_scores.std()}
     
-    # 3. Random Forest
+    # 3. Random Forest — lighter config
     rf = RandomForestClassifier(
-        n_estimators=300, max_depth=6, min_samples_leaf=3,
-        class_weight='balanced', random_state=42
+        n_estimators=200, max_depth=6, min_samples_leaf=3,
+        class_weight='balanced', random_state=42, n_jobs=-1
     )
     rf_scores = cross_val_score(rf, X_scaled, y, cv=cv, scoring='accuracy')
-    rf_cal = CalibratedClassifierCV(rf, cv=5, method='isotonic')
+    print(f"  RF CV: {rf_scores.mean():.4f} ± {rf_scores.std():.4f}", file=sys.stderr)
+    rf_cal = CalibratedClassifierCV(rf, cv=cal_cv, method='sigmoid')
     rf_cal.fit(X_scaled, y)
     rf.fit(X_scaled, y)
     models['rf'] = {'model': rf, 'cal': rf_cal, 'cv_acc': rf_scores.mean(), 'cv_std': rf_scores.std()}
@@ -518,14 +560,14 @@ def train_model(games_data, sport='mlb'):
     xgb_cal = None
     if HAS_XGB:
         xgb_clf = xgb.XGBClassifier(
-            n_estimators=300, max_depth=4, learning_rate=0.03,
+            n_estimators=200, max_depth=4, learning_rate=0.05,
             min_child_weight=5, subsample=0.8, colsample_bytree=0.8,
             reg_alpha=0.1, reg_lambda=1.0,
             eval_metric='logloss', random_state=42,
-            use_label_encoder=False,
+            use_label_encoder=False, n_jobs=-1,
         )
         xgb_scores = cross_val_score(xgb_clf, X_scaled, y, cv=cv, scoring='accuracy')
-        xgb_cal = CalibratedClassifierCV(xgb_clf, cv=5, method='isotonic')
+        xgb_cal = CalibratedClassifierCV(xgb_clf, cv=cal_cv, method='sigmoid')
         xgb_cal.fit(X_scaled, y)
         xgb_clf.fit(X_scaled, y)
         models['xgb'] = {'model': xgb_clf, 'cal': xgb_cal, 'cv_acc': xgb_scores.mean(), 'cv_std': xgb_scores.std()}
@@ -536,13 +578,13 @@ def train_model(games_data, sport='mlb'):
     lgb_cal = None
     if HAS_LGB:
         lgb_clf = lgb.LGBMClassifier(
-            n_estimators=300, max_depth=4, learning_rate=0.03,
+            n_estimators=200, max_depth=4, learning_rate=0.05,
             min_child_samples=10, subsample=0.8, colsample_bytree=0.8,
             reg_alpha=0.1, reg_lambda=1.0,
-            verbose=-1, random_state=42,
+            verbose=-1, random_state=42, n_jobs=-1,
         )
         lgb_scores = cross_val_score(lgb_clf, X_scaled, y, cv=cv, scoring='accuracy')
-        lgb_cal = CalibratedClassifierCV(lgb_clf, cv=5, method='isotonic')
+        lgb_cal = CalibratedClassifierCV(lgb_clf, cv=cal_cv, method='sigmoid')
         lgb_cal.fit(X_scaled, y)
         lgb_clf.fit(X_scaled, y)
         models['lgb'] = {'model': lgb_clf, 'cal': lgb_cal, 'cv_acc': lgb_scores.mean(), 'cv_std': lgb_scores.std()}
@@ -552,7 +594,40 @@ def train_model(games_data, sport='mlb'):
     total_acc = sum(m['cv_acc'] for m in models.values())
     weights = {name: m['cv_acc'] / total_acc for name, m in models.items()}
     
-    # ---- Generate ensemble predictions on training data ----
+    # ---- Generate ensemble predictions via cross-validation for calibration ----
+    # Use proper out-of-fold predictions to avoid overfitting calibration
+    from sklearn.calibration import IsotonicRegression
+    
+    ensemble_oof_probs = np.zeros(len(y))
+    kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    
+    for train_idx, val_idx in kf.split(X_scaled, y):
+        X_tr, X_val = X_scaled[train_idx], X_scaled[val_idx]
+        y_tr = y[train_idx]
+        
+        fold_probs = np.zeros(len(val_idx))
+        for name, m in models.items():
+            # Fit calibrated model on this fold's training data
+            model_class = type(m['model'])
+            params = m['model'].get_params()
+            temp_model = model_class(**params)
+            temp_cal = CalibratedClassifierCV(temp_model, cv=3, method='sigmoid')
+            try:
+                temp_cal.fit(X_tr, y_tr)
+                probs = temp_cal.predict_proba(X_val)[:, 1]
+            except Exception:
+                probs = np.full(len(val_idx), 0.5)
+            fold_probs += probs * weights[name]
+        
+        ensemble_oof_probs[val_idx] = fold_probs
+    
+    ensemble_oof_probs = np.clip(ensemble_oof_probs, 0.01, 0.99)
+    
+    # Fit isotonic regression on OOF predictions for final calibration
+    iso_reg = IsotonicRegression(y_min=0.05, y_max=0.95, out_of_bounds='clip')
+    iso_reg.fit(ensemble_oof_probs, y)
+    
+    # Also generate in-sample ensemble predictions for reporting
     ensemble_probs = np.zeros(len(y))
     for name, m in models.items():
         probs = m['cal'].predict_proba(X_scaled)[:, 1]
@@ -560,22 +635,26 @@ def train_model(games_data, sport='mlb'):
     
     ensemble_probs = np.clip(ensemble_probs, 0.01, 0.99)
     
-    # Metrics
-    ensemble_acc = accuracy_score(y, (ensemble_probs > 0.5).astype(int))
-    ensemble_brier = brier_score_loss(y, ensemble_probs)
-    ensemble_logloss = log_loss(y, ensemble_probs)
+    # Apply isotonic calibration for reporting metrics  
+    calibrated_probs = iso_reg.predict(ensemble_oof_probs)
     
-    # Calibration buckets
+    # Metrics on OOF calibrated predictions (honest evaluation)
+    ensemble_acc = accuracy_score(y, (calibrated_probs > 0.5).astype(int))
+    ensemble_brier = brier_score_loss(y, calibrated_probs)
+    ensemble_logloss = log_loss(y, np.clip(calibrated_probs, 0.01, 0.99))
+    
+    # Calibration buckets (using OOF calibrated predictions — honest)
     calibration = []
-    for low in np.arange(0.3, 0.8, 0.1):
+    for low in np.arange(0.1, 0.9, 0.1):
         high = low + 0.1
-        mask = (ensemble_probs >= low) & (ensemble_probs < high)
-        if mask.sum() > 0:
+        mask = (calibrated_probs >= low) & (calibrated_probs < high)
+        if mask.sum() > 5:
             calibration.append({
                 'bucket': f'{low:.1f}-{high:.1f}',
-                'predicted': float(ensemble_probs[mask].mean()),
+                'predicted': float(calibrated_probs[mask].mean()),
                 'actual': float(y[mask].mean()),
-                'count': int(mask.sum())
+                'count': int(mask.sum()),
+                'error': round(abs(float(calibrated_probs[mask].mean()) - float(y[mask].mean())), 3),
             })
     
     # Feature importance (from GB + XGB if available)
@@ -635,6 +714,7 @@ def train_model(games_data, sport='mlb'):
         'totals_feature_names': TOTALS_FEATURE_NAMES,
         'elo_ratings': dict(elo.ratings),
         'elo_game_counts': dict(elo.game_count),
+        'isotonic_calibrator': iso_reg,  # Final ensemble calibration layer
     }
     # Save each calibrated model
     for name, m in models.items():
@@ -749,6 +829,16 @@ def predict_games(games, sport='mlb'):
         
         # Clip to reasonable range
         ensemble_prob = max(0.08, min(0.92, ensemble_prob))
+        
+        # Apply isotonic calibration if available (corrects systematic biases)
+        iso_cal = model_data.get('isotonic_calibrator')
+        if iso_cal is not None:
+            try:
+                calibrated_prob = float(iso_cal.predict([ensemble_prob])[0])
+                calibrated_prob = max(0.08, min(0.92, calibrated_prob))
+                ensemble_prob = calibrated_prob
+            except Exception:
+                pass  # Fall back to uncalibrated
         
         away_abbr = game.get('away', '???')
         home_abbr = game.get('home', '???')

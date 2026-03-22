@@ -179,6 +179,33 @@ async function fetchDateRange(startDate, endDate, delayMs = 500) {
   return allGames;
 }
 
+// ==================== SEASON CONTEXT HELPERS ====================
+
+/**
+ * Calculate day of season from game date.
+ * Opening Day is typically late March — day 1.
+ * This helps the ML model learn early-season vs mid-season dynamics.
+ */
+function getDayOfSeason(dateStr) {
+  if (!dateStr) return 90; // mid-season default
+  const d = new Date(dateStr);
+  const year = d.getFullYear();
+  // Approximate Opening Day: March 28
+  const openingDay = new Date(year, 2, 28); // March 28
+  const diff = Math.floor((d - openingDay) / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.min(186, diff + 1)); // 1-186 range
+}
+
+function isOpeningWeek(dateStr) {
+  const day = getDayOfSeason(dateStr);
+  return day <= 7 ? 1 : 0;
+}
+
+function isFirstMonth(dateStr) {
+  const day = getDayOfSeason(dateStr);
+  return day <= 30 ? 1 : 0;
+}
+
 // ==================== ENRICHMENT ====================
 
 // Team abbreviation mapping (ESPN → our standard)
@@ -198,18 +225,31 @@ function normalizeAbbr(abbr) {
 
 /**
  * Enrich game data with team stats for ML training.
- * Uses 2024 season stats as the baseline (what we'd know for 2024 games).
+ * v38.0: Uses CORRECT season stats — 2023 stats for 2023 games, 2024 for 2024.
+ * This eliminates data leakage from using future-season stats.
  */
 function enrichGamesForTraining(games, teamStats = null) {
   let mlb;
   try { mlb = require('../models/mlb'); } catch (e) { return games; }
   
-  const teams = teamStats || mlb.getTeams();
+  // Load season-specific stats
+  let stats2023 = null;
+  try { stats2023 = require('../models/mlb-2023-stats').TEAMS_2023; } catch (e) {}
+  
+  const stats2024 = teamStats || mlb.getTeams();
+  
+  function getTeamStatsForDate(dateStr) {
+    // Use correct season stats based on game date
+    if (dateStr && dateStr.startsWith('2023') && stats2023) return stats2023;
+    return stats2024;
+  }
+  
   const enriched = [];
   
   for (const game of games) {
     const awayAbbr = normalizeAbbr(game.away);
     const homeAbbr = normalizeAbbr(game.home);
+    const teams = getTeamStatsForDate(game.date);
     const awayTeam = teams[awayAbbr];
     const homeTeam = teams[homeAbbr];
     
@@ -219,6 +259,10 @@ function enrichGamesForTraining(games, teamStats = null) {
       ...game,
       away: awayAbbr,
       home: homeAbbr,
+      // Season context features (v38.0 — critical for Opening Day edge)
+      dayOfSeason: getDayOfSeason(game.date),
+      isOpeningWeek: isOpeningWeek(game.date),
+      isFirstMonth: isFirstMonth(game.date),
       // Team offensive stats
       awayRsG: awayTeam.rsG,
       homeRsG: homeTeam.rsG,
@@ -353,6 +397,65 @@ function getCachedGames() {
   return gameCache.games;
 }
 
+// ==================== MULTI-SEASON SUPPORT ====================
+
+const MULTI_SEASON_CACHE = path.join(__dirname, 'historical-multi-season-cache.json');
+
+/**
+ * Get training data from multiple seasons.
+ * Caches each season separately, fetches missing ones from ESPN.
+ * @param {Array<{startDate, endDate}>} seasons - Array of season date ranges
+ * @returns {Array} Combined enriched training data
+ */
+async function getMultiSeasonTrainingData(seasons = null) {
+  if (!seasons) {
+    seasons = [
+      { startDate: '2023-03-30', endDate: '2023-10-01', label: '2023' },
+      { startDate: '2024-04-01', endDate: '2024-09-29', label: '2024' },
+    ];
+  }
+  
+  // Load multi-season cache
+  let multiCache = {};
+  try {
+    if (fs.existsSync(MULTI_SEASON_CACHE)) {
+      multiCache = JSON.parse(fs.readFileSync(MULTI_SEASON_CACHE, 'utf8'));
+    }
+  } catch (e) { /* corrupt cache */ }
+  
+  const allGames = [];
+  
+  for (const season of seasons) {
+    const cacheKey = `${season.startDate}_${season.endDate}`;
+    
+    // Check cache
+    if (multiCache[cacheKey] && multiCache[cacheKey].length > 100) {
+      console.log(`[Historical] Using cached ${season.label || cacheKey}: ${multiCache[cacheKey].length} games`);
+      allGames.push(...multiCache[cacheKey]);
+      continue;
+    }
+    
+    // Fetch from ESPN
+    console.log(`[Historical] Fetching ${season.label || cacheKey} season data...`);
+    const games = await fetchDateRange(season.startDate, season.endDate, 200);
+    if (games.length > 0) {
+      multiCache[cacheKey] = games;
+      allGames.push(...games);
+      console.log(`[Historical] ${season.label || cacheKey}: ${games.length} games fetched`);
+    }
+  }
+  
+  // Save cache
+  try {
+    fs.writeFileSync(MULTI_SEASON_CACHE, JSON.stringify(multiCache));
+  } catch (e) { console.error('[Historical] Multi-season cache write error:', e.message); }
+  
+  // Enrich all games
+  const enriched = enrichGamesForTraining(allGames);
+  console.log(`[Historical] Multi-season: ${allGames.length} raw → ${enriched.length} enriched`);
+  return enriched;
+}
+
 /**
  * Get training data stats
  */
@@ -379,6 +482,7 @@ module.exports = {
   fetchGamesForDate,
   fetchDateRange,
   getTrainingData,
+  getMultiSeasonTrainingData,
   getCachedGames,
   enrichGamesForTraining,
   getStats,

@@ -38,7 +38,7 @@ try { backtestGames = require('../models/backtest-mlb-v2').GAMES; } catch (e) {
  * Call Python ML engine with JSON input, get JSON output.
  * Uses child_process.spawn for reliability.
  */
-function callPython(inputData, timeoutMs = 60000) {
+function callPython(inputData, timeoutMs = 300000) {
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_BIN, [PYTHON_SCRIPT], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -74,6 +74,19 @@ function callPython(inputData, timeoutMs = 60000) {
   });
 }
 
+// ==================== SEASON CONTEXT ====================
+
+/**
+ * Calculate day of MLB season from current date.
+ * Opening Day 2025/2026 is ~March 27.
+ */
+function getDayOfSeason(date = new Date()) {
+  const year = date.getFullYear();
+  const openingDay = new Date(year, 2, 27); // March 27
+  const diff = Math.floor((date - openingDay) / (1000 * 60 * 60 * 24));
+  return Math.max(1, Math.min(186, diff + 1));
+}
+
 // ==================== FEATURE EXTRACTION ====================
 
 /**
@@ -90,6 +103,10 @@ function extractGameFeatures(awayAbbr, homeAbbr, opts = {}) {
   const features = {
     away: awayAbbr,
     home: homeAbbr,
+    // Season context (v38.0 — critical for Opening Day)
+    dayOfSeason: opts.dayOfSeason || getDayOfSeason(),
+    isOpeningWeek: opts.isOpeningWeek || (getDayOfSeason() <= 7 ? 1 : 0),
+    isFirstMonth: opts.isFirstMonth || (getDayOfSeason() <= 30 ? 1 : 0),
     // Team stats
     awayRsG: away.rsG,
     homeRsG: home.rsG,
@@ -212,6 +229,10 @@ function backtestToTrainingData(games) {
       actualTotal: awayScore + homeScore,
       closingHomeML,
       bookTotal: 8.5, // approximate for backtest; real data would have this
+      // Season context (backtest data from mid-season, approximate)
+      dayOfSeason: 90,
+      isOpeningWeek: 0,
+      isFirstMonth: 0,
       // Team features
       awayRsG: awayTeam.rsG,
       homeRsG: homeTeam.rsG,
@@ -255,34 +276,83 @@ function backtestToTrainingData(games) {
  * Train ML model from our backtest data + historical ESPN data.
  * Uses expanded dataset for better generalization.
  * Returns training metrics and model info.
+ * 
+ * v38.0: Multi-season training with proper season-specific stats.
+ * Uses 2023 + 2024 data (~4300 games) for much better model.
  */
-async function train(sport = 'mlb') {
+async function train(sport = 'mlb', forceRefresh = false) {
   // Start with backtest data
   let data = backtestToTrainingData(backtestGames);
   
   // Add historical ESPN data if available
   if (historicalGames) {
     try {
-      const historicalData = await historicalGames.getTrainingData({
-        startDate: '2024-04-01',
-        endDate: '2024-09-29',
-        maxGames: 3000, // Use ALL available games — more data = better model
-      });
-      if (historicalData.length > 0) {
-        console.log(`[ml-bridge] Adding ${historicalData.length} historical games to training data`);
-        // Deduplicate by away/home/date if possible
-        const existingKeys = new Set(data.map(g => `${g.away}_${g.home}_${g.awayScore}_${g.homeScore}`));
-        for (const hg of historicalData) {
-          const key = `${hg.away}_${hg.home}_${hg.awayScore}_${hg.homeScore}`;
-          if (!existingKeys.has(key)) {
-            data.push(hg);
-            existingKeys.add(key);
+      // Always try multi-season first (2023 + 2024)
+      if (historicalGames.getMultiSeasonTrainingData) {
+        // Use cached multi-season data (fetched separately, no ESPN delay)
+        const fs = require('fs');
+        const path = require('path');
+        const multiCachePath = path.join(__dirname, 'historical-multi-season-cache.json');
+        
+        let multiSeasonGames = [];
+        
+        // Load 2023 data from multi-season cache
+        try {
+          if (fs.existsSync(multiCachePath)) {
+            const multiCache = JSON.parse(fs.readFileSync(multiCachePath, 'utf8'));
+            for (const [key, games] of Object.entries(multiCache)) {
+              if (Array.isArray(games) && games.length > 0) {
+                const enriched = historicalGames.enrichGamesForTraining(games);
+                multiSeasonGames.push(...enriched);
+                console.log(`[ml-bridge] Loaded ${enriched.length} games from ${key}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[ml-bridge] Multi-season cache load error:', e.message);
+        }
+        
+        // Load 2024 data from single-season cache
+        const cached2024 = historicalGames.getCachedGames();
+        if (cached2024.length > 0) {
+          const enriched2024 = historicalGames.enrichGamesForTraining(cached2024);
+          console.log(`[ml-bridge] Adding ${enriched2024.length} games from 2024 season cache`);
+          multiSeasonGames.push(...enriched2024);
+        }
+        
+        // Deduplicate
+        if (multiSeasonGames.length > 0) {
+          const existingKeys = new Set(data.map(g => `${g.away}_${g.home}_${g.awayScore}_${g.homeScore}`));
+          let added = 0;
+          for (const hg of multiSeasonGames) {
+            const key = `${hg.away}_${hg.home}_${hg.awayScore}_${hg.homeScore}`;
+            if (!existingKeys.has(key)) {
+              data.push(hg);
+              existingKeys.add(key);
+              added++;
+            }
+          }
+          console.log(`[ml-bridge] Added ${added} unique multi-season games to training data`);
+        }
+      } else {
+        // Fallback: use single-season cached games
+        const cached = historicalGames.getCachedGames();
+        if (cached.length > 0) {
+          const enriched = historicalGames.enrichGamesForTraining(cached);
+          console.log(`[ml-bridge] Adding ${enriched.length} cached historical games to training data`);
+          const existingKeys = new Set(data.map(g => `${g.away}_${g.home}_${g.awayScore}_${g.homeScore}`));
+          for (const hg of enriched) {
+            const key = `${hg.away}_${hg.home}_${hg.awayScore}_${hg.homeScore}`;
+            if (!existingKeys.has(key)) {
+              data.push(hg);
+              existingKeys.add(key);
+            }
           }
         }
-        console.log(`[ml-bridge] Total training data: ${data.length} games`);
       }
+      console.log(`[ml-bridge] Total training data: ${data.length} games`);
     } catch (e) {
-      console.error('[ml-bridge] Historical data fetch failed:', e.message);
+      console.error('[ml-bridge] Historical data load failed:', e.message);
     }
   }
   
@@ -367,11 +437,26 @@ async function enhancedPredict(awayAbbr, homeAbbr, opts = {}) {
     if (mlResult.predictions && mlResult.predictions.length > 0) {
       const mlPred = mlResult.predictions[0];
       
-      // Blend: 55% ML, 45% analytical (ML is more calibrated, analytical has more signals)
+      // Smart blend: weight analytical higher when we have pitcher-specific data
+      // ML model doesn't have game-specific pitcher data in training set, 
+      // so analytical is much better when starters are known
       const analyticalHomeProb = analytical ? analytical.homeWinProb : 0.5;
       const mlHomeProb = mlPred.homeWinProb;
       
-      const blendedHomeProb = mlHomeProb * 0.55 + analyticalHomeProb * 0.45;
+      // If analytical model has pitcher adjustments, trust it more (65/35)
+      // Otherwise, lean on ML (55/45)
+      const hasPitcherData = analytical && (analytical.homePitcher || analytical.awayPitcher);
+      const hasStatcast = analytical && analytical.factors?.statcast;
+      const hasWeather = analytical && analytical.factors?.weather;
+      
+      let analyticalWeight = 0.45;
+      if (hasPitcherData) analyticalWeight += 0.15; // pitcher matchup = big edge
+      if (hasStatcast) analyticalWeight += 0.05;     // xERA/xwOBA data
+      if (hasWeather) analyticalWeight += 0.03;      // weather adjustments
+      analyticalWeight = Math.min(0.70, analyticalWeight); // cap at 70% analytical
+      const mlWeight = 1 - analyticalWeight;
+      
+      const blendedHomeProb = mlHomeProb * mlWeight + analyticalHomeProb * analyticalWeight;
       const blendedAwayProb = 1 - blendedHomeProb;
       
       return {
@@ -391,6 +476,7 @@ async function enhancedPredict(awayAbbr, homeAbbr, opts = {}) {
         blendedHomeML: probToML(blendedHomeProb),
         blendedAwayML: probToML(blendedAwayProb),
         predictionSource: 'ml+analytical',
+        blendWeights: { ml: +mlWeight.toFixed(2), analytical: +analyticalWeight.toFixed(2) },
       };
     }
   } catch (e) {
@@ -418,6 +504,35 @@ let lastTrainResult = null;
 
 async function autoTrain() {
   if (trained) return lastTrainResult;
+  
+  // Check if a trained model already exists on disk (from a prior session)
+  try {
+    const modelPath = path.join(__dirname, 'ml-models', 'mlb_ensemble_v3.pkl');
+    if (fs.existsSync(modelPath)) {
+      const stats = fs.statSync(modelPath);
+      const ageHours = (Date.now() - stats.mtimeMs) / (1000 * 60 * 60);
+      
+      // If model is less than 24 hours old, skip retraining and mark as trained
+      if (ageHours < 24) {
+        trained = true;
+        lastTrainResult = { status: 'cached', message: `Using existing model (${ageHours.toFixed(1)}h old)`, cached: true };
+        console.log(`[ml-bridge] ✅ Using cached ML model (${ageHours.toFixed(1)}h old, skipping retrain)`);
+        
+        // Verify it works with a quick status check
+        try {
+          const statusResult = await callPython({ mode: 'status', sport: 'mlb' }, 10000);
+          if (statusResult.status === 'ready') {
+            lastTrainResult.modelInfo = statusResult;
+            console.log(`[ml-bridge] ✅ Model verified: ${statusResult.modelsInEnsemble?.length || '?'} models, ${statusResult.eloTeams || '?'} Elo teams`);
+          }
+        } catch (e) { /* status check failed, model may still work */ }
+        
+        return lastTrainResult;
+      }
+    }
+  } catch (e) { /* no existing model */ }
+  
+  // Train fresh
   try {
     console.log('[ml-bridge] Auto-training ML model...');
     lastTrainResult = await train('mlb');
