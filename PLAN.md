@@ -208,17 +208,19 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 16:00 UTC*
+*Last updated: 2026-03-22 18:00 UTC*
 *Current phase: 2.9 — Final Pre-Season Sprint*
 *✅ Phase 2.75 COMPLETE: All playoff preview, lineup pipeline, F5 unders, NHL playoffs, goalie starters LIVE*
-*✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator DONE*
-*🔧 REMAINING: Pre-Opening Day final check (task 054), seeding→futures bridge, weather pre-check, NFL futures model*
-*⚡ TODAY: Sunday — NBA afternoon/evening games (POR@DEN confirmed), NHL games (CAR@PIT, VGK@DAL + more)*
-*📊 PRODUCTION: Live at sportssim.fly.dev, scanner HEALTHY (no overdue scans), 11+ MLB futures value bets, seeding sim battles live*
-*🏒 NHL STANDINGS: COL 100pts, DAL 96pts, CAR 94pts, BUF 92pts, MIN 90pts, TBL 88pts — BUBBLE: PIT/MTL/BOS/DET all 84pts, CBJ/NYI 83pts*
+*✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures DONE*
+*🚨 PRODUCTION DOWN: sportssim.fly.dev timing out — 256MB OOM suspected. Bumped to 512MB in fly.toml. Redeploy in progress.*
+*🔧 REMAINING: Pre-Opening Day final check (task 054), production stability fix*
+*⚡ TODAY: Sunday — POR@DEN (NBA), CAR@PIT + VGK@DAL + 7 more (NHL), WSH@COL in progress (COL 0 WSH 1 P2), NCAA March Madness Sweet 16 ongoing*
+*📊 PRODUCTION STATUS: DOWN — needs redeploy with 512MB memory*
+*🏒 NHL TODAY: WSH@COL (in progress), NYR@WPG (2-2 P3), CAR@PIT, BUF@ANA, VGK@DAL + more*
 *🏀 NBA STANDINGS: OKC 56-15, SAS 53-18, DET 51-19, BOS 47-23, LAL/NYK 46-25, CLE 44-27, HOU 43-27, DEN/MIN 43-28*
-*🏀 KEY BATTLES: TOR/ATL (E 6/7 deadlocked), MIN/DEN (W 4/5, 0.3 gap), PHI/TOR (E 5/6), MIA/CHA (E play-in)*
-*⚾ MLB SPRING TRAINING: LAD 19-8, SF 19-9 lead Cactus League — Opening Day in 5 DAYS*
+*🏀 KEY BATTLES: TOR(39-30)/ATL(39-32) (E 6/7), PHI 39-32 (E tie w/ ATL), MIN/DEN (W 4/5), PHX 39-32 (W 8)*
+*🏀 NEW: NCAA March Madness Sweet 16 = MASSIVE untapped betting market 🎯*
+*⚾ MLB SPRING TRAINING: NYY vs PHI (in progress), HOU vs STL (3-1 STL), LAD@LAA tonight — Opening Day in 5 DAYS*
 *MLB OPENING DAY: 5 DAYS (March 27) 🔥🔥🔥*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*
