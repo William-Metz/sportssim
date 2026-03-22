@@ -154,7 +154,15 @@ async function scanAllValue() {
           let pred = game.prediction ? { ...game.prediction } : null;
           
           // For MLB, recompute with asyncPredict if available (gets lineup/rest data)
+          // For NHL, recompute with asyncPredict for goalie-aware predictions
           if (sport === 'mlb' && model.asyncPredict) {
+            try {
+              pred = await model.asyncPredict(awayAbbr, homeAbbr);
+              if (pred && pred.error) pred = game.prediction || null;
+            } catch (e) {
+              pred = game.prediction || null;
+            }
+          } else if (sport === 'nhl' && model.asyncPredict) {
             try {
               pred = await model.asyncPredict(awayAbbr, homeAbbr);
               if (pred && pred.error) pred = game.prediction || null;

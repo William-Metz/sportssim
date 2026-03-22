@@ -57,6 +57,8 @@ let consensusEngine = null;
 try { consensusEngine = require('./services/consensus-engine'); } catch (e) { console.error('[server] Consensus Engine not loaded:', e.message); }
 let nbaHistorical = null;
 try { nbaHistorical = require('./services/nba-historical'); } catch (e) { console.error('[server] NBA Historical not loaded:', e.message); }
+let nhlGoalieStarters = null;
+try { nhlGoalieStarters = require('./services/nhl-goalie-starters'); } catch (e) { console.error('[server] NHL Goalie Starters not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -123,7 +125,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '51.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard'] });
+  res.json({ status: 'ok', version: '53.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -942,7 +944,14 @@ app.get('/api/value/nhl', async (req, res) => {
       const awayAbbr = resolveTeam(nameMap, game.away_team);
       const homeAbbr = resolveTeam(nameMap, game.home_team);
       if (!awayAbbr || !homeAbbr) continue;
-      const rawPred = nhl.predict(awayAbbr, homeAbbr);
+      
+      // Use asyncPredict for goalie-aware predictions (falls back to basic predict if goalie data unavailable)
+      let rawPred;
+      try {
+        rawPred = await nhl.asyncPredict(awayAbbr, homeAbbr);
+      } catch (e) {
+        rawPred = nhl.predict(awayAbbr, homeAbbr);
+      }
       if (!rawPred) continue;
 
       // Apply calibration for accurate edge detection
@@ -1252,7 +1261,13 @@ async function getAllOdds() {
             // Calibrate MLB probabilities
             if (pred && !pred.error) pred = calibration.calibratePrediction(pred, 'mlb');
           }
-          else if (s.sport === 'NHL') pred = nhl.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+          else if (s.sport === 'NHL') {
+            try {
+              pred = await nhl.asyncPredict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+            } catch (e) {
+              pred = nhl.predict(awayAbbr || 'UNK', homeAbbr || 'UNK');
+            }
+          }
         } catch (e) { /* skip */ }
         if (pred && pred.error) pred = null;
         // Extract all bookmaker lines
@@ -2318,6 +2333,93 @@ app.get('/api/playoffs/value', (req, res) => {
     const matchups = JSON.parse(matchupsStr);
     const values = playoffSeries.findSeriesValue(nba, matchups);
     res.json({ valueBets: values, count: values.length, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==================== NHL GOALIE STARTERS ====================
+
+// Get today's confirmed goalie starters from DailyFaceoff
+app.get('/api/nhl/goalies/today', async (req, res) => {
+  try {
+    if (!nhlGoalieStarters) return res.status(503).json({ error: 'NHL Goalie Starters service not available' });
+    const date = req.query.date || null;
+    const scan = await nhlGoalieStarters.scanTodayGoalies(nhl);
+    res.json(scan);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get goalie matchup for a specific game
+app.get('/api/nhl/goalies/matchup/:away/:home', async (req, res) => {
+  try {
+    if (!nhlGoalieStarters) return res.status(503).json({ error: 'NHL Goalie Starters service not available' });
+    const { away, home } = req.params;
+    const matchup = await nhlGoalieStarters.getGoalieMatchup(home.toUpperCase(), away.toUpperCase());
+    if (!matchup) return res.json({ error: 'No goalie data found for this matchup', away, home });
+    
+    const impact = nhlGoalieStarters.calculateGoalieImpact(matchup, {
+      home: nhl.TEAMS[home.toUpperCase()],
+      away: nhl.TEAMS[away.toUpperCase()],
+    });
+    
+    res.json({ matchup, impact, timestamp: new Date().toISOString() });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get goalie-aware NHL prediction (asyncPredict)
+app.get('/api/nhl/predict-live', async (req, res) => {
+  try {
+    const { away, home } = req.query;
+    if (!away || !home) return res.status(400).json({ error: 'away and home params required' });
+    const pred = await nhl.asyncPredict(away.toUpperCase(), home.toUpperCase());
+    if (!pred) return res.json({ error: 'Could not generate prediction', away, home });
+    
+    // Also get calibrated probabilities
+    const calHome = calibration.calibrate(pred.home.winProb / 100, 'nhl');
+    const calAway = calibration.calibrate(pred.away.winProb / 100, 'nhl');
+    pred.calibrated = { home: calHome, away: calAway };
+    
+    res.json(pred);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// NHL goalie impact scan — which games have the biggest goalie edge today?
+app.get('/api/nhl/goalies/impact', async (req, res) => {
+  try {
+    if (!nhlGoalieStarters) return res.status(503).json({ error: 'NHL Goalie Starters service not available' });
+    const scan = await nhlGoalieStarters.scanTodayGoalies(nhl);
+    
+    // Sort by biggest goalie mismatch
+    const ranked = (scan.games || [])
+      .filter(g => g.goalieImpact)
+      .sort((a, b) => Math.abs(b.goalieImpact.netSpreadImpact) - Math.abs(a.goalieImpact.netSpreadImpact))
+      .map(g => ({
+        game: `${g.awayTeam} @ ${g.homeTeam}`,
+        homeGoalie: g.homeGoalie?.name,
+        awayGoalie: g.awayGoalie?.name,
+        homeSvPct: g.homeGoalie?.savePct,
+        awaySvPct: g.awayGoalie?.savePct,
+        homeGAA: g.homeGoalie?.gaa,
+        awayGAA: g.awayGoalie?.gaa,
+        homeIsBackup: g.goalieImpact?.isBackup?.home,
+        awayIsBackup: g.goalieImpact?.isBackup?.away,
+        homeConfirmed: g.homeGoalie?.confirmed,
+        awayConfirmed: g.awayGoalie?.confirmed,
+        netSpreadImpact: g.goalieImpact?.netSpreadImpact,
+        impliedMLMove: g.goalieImpact?.impliedMLMove,
+        prediction: g.prediction ? {
+          homeWinProb: g.prediction.home?.winProb,
+          awayWinProb: g.prediction.away?.winProb,
+          spread: g.prediction.spread,
+          projTotal: g.prediction.projTotal,
+        } : null,
+      }));
+    
+    res.json({ 
+      games: ranked,
+      summary: scan.summary,
+      backupAlerts: ranked.filter(g => g.homeIsBackup || g.awayIsBackup),
+      timestamp: new Date().toISOString(),
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

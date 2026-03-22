@@ -180,6 +180,7 @@ function buildTabs() {
   }
   if (currentSport === 'nhl' || currentSport === 'all') {
     tabs.push({ id: 'nhl-playoffs', label: '🏒 NHL Playoffs' });
+    tabs.push({ id: 'nhl-goalies', label: '🥅 NHL Goalies' });
   }
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
@@ -227,6 +228,7 @@ function showTab(id) {
   else if (id === 'consensus') loadConsensusTab();
   else if (id === 'model-accuracy') loadModelAccuracyTab();
   else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
+  else if (id === 'nhl-goalies') loadNHLGoaliesTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -7342,6 +7344,140 @@ async function analyzeNHLSeries() {
     resultDiv.innerHTML = h;
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:#e94560">Error: ${err.message}</p>`;
+  }
+}
+
+// ==================== NHL GOALIES TAB ====================
+async function loadNHLGoaliesTab() {
+  const wrap = document.getElementById('tab-content');
+  if (!wrap) return;
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    const resp = await fetch('/api/nhl/goalies/today');
+    const data = await resp.json();
+    
+    if (!data.games || data.games.length === 0) {
+      wrap.innerHTML = '<div class="card"><h3>🥅 No NHL Games Today</h3><p>Check back on game days for confirmed goalie starters and impact analysis.</p></div>';
+      return;
+    }
+    
+    let html = '<div class="card"><h3>🥅 NHL Goalie Starters</h3>';
+    html += `<p style="color:#94a3b8">Confirmed starters from DailyFaceoff — goalie matchups swing lines 5-15 cents</p>`;
+    
+    // Summary banner
+    const s = data.summary || {};
+    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">';
+    html += `<div style="background:#1e293b;padding:8px 16px;border-radius:8px"><strong>${s.totalGames || 0}</strong> <span style="color:#94a3b8">Games</span></div>`;
+    html += `<div style="background:#1e293b;padding:8px 16px;border-radius:8px"><strong>${s.confirmedGoalies || 0}</strong> <span style="color:#94a3b8">Confirmed</span></div>`;
+    html += `<div style="background:${s.backupStarters > 0 ? '#7c2d12' : '#1e293b'};padding:8px 16px;border-radius:8px"><strong>${s.backupStarters || 0}</strong> <span style="color:#94a3b8">Backup Alerts</span></div>`;
+    html += '</div>';
+    
+    // Biggest mismatch
+    if (s.biggestGoalieMismatch) {
+      html += `<div style="background:#1e3a5f;padding:10px 16px;border-radius:8px;margin:8px 0;border-left:3px solid #3b82f6">`;
+      html += `<strong>🎯 Biggest Goalie Mismatch:</strong> ${s.biggestGoalieMismatch.game} — ${s.biggestGoalieMismatch.detail}`;
+      html += `<br><span style="color:#94a3b8">Net spread impact: ${s.biggestGoalieMismatch.mismatch > 0 ? '+' : ''}${s.biggestGoalieMismatch.mismatch.toFixed(2)} goals</span>`;
+      html += '</div>';
+    }
+    
+    // Backup alerts
+    if (s.backupGames && s.backupGames.length > 0) {
+      html += '<div style="background:#7c2d12;padding:10px 16px;border-radius:8px;margin:8px 0;border-left:3px solid #ef4444">';
+      html += '<strong>⚠️ Backup Goalie Alerts:</strong><br>';
+      for (const bg of s.backupGames) {
+        html += `<span style="color:#fca5a5">• ${bg.game}: ${bg.backup} (SV% drop: ${bg.svPctDrop ? bg.svPctDrop.toFixed(3) : 'N/A'})</span><br>`;
+      }
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    
+    // Game cards
+    for (const game of data.games) {
+      const hg = game.homeGoalie || {};
+      const ag = game.awayGoalie || {};
+      const impact = game.goalieImpact || {};
+      const pred = game.prediction || {};
+      
+      const homeWin = pred.home?.winProb || 50;
+      const awayWin = pred.away?.winProb || 50;
+      const spread = pred.spread || 0;
+      
+      // Goalie color coding based on SV%
+      const svColor = (sv) => {
+        if (!sv) return '#94a3b8';
+        if (sv >= 0.920) return '#22c55e';
+        if (sv >= 0.910) return '#3b82f6';
+        if (sv >= 0.900) return '#f59e0b';
+        return '#ef4444';
+      };
+      
+      const confBadge = (status) => {
+        const colors = { confirmed: '#22c55e', likely: '#3b82f6', expected: '#f59e0b', unconfirmed: '#ef4444' };
+        return `<span style="color:${colors[status] || '#94a3b8'};font-size:0.75em;text-transform:uppercase">${status || 'expected'}</span>`;
+      };
+      
+      html += '<div class="card" style="margin-top:12px">';
+      html += `<h3>${ag.name || 'TBD'} <span style="color:#94a3b8;font-weight:normal">(${game.awayTeam})</span> @ ${hg.name || 'TBD'} <span style="color:#94a3b8;font-weight:normal">(${game.homeTeam})</span></h3>`;
+      
+      // Two-column goalie comparison
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0">';
+      
+      // Away goalie
+      html += '<div style="background:#0f172a;padding:12px;border-radius:8px">';
+      html += `<div style="font-weight:bold;margin-bottom:4px">${ag.name || 'TBD'} <span style="font-weight:normal;color:#94a3b8">(AWAY)</span></div>`;
+      html += confBadge(ag.confirmed);
+      if (ag.isStarter === false) html += ' <span style="background:#ef4444;color:white;padding:2px 6px;border-radius:4px;font-size:0.7em">BACKUP</span>';
+      html += `<div style="margin-top:8px">`;
+      html += `<div>SV%: <strong style="color:${svColor(ag.savePct)}">${ag.savePct ? ag.savePct.toFixed(3) : 'N/A'}</strong></div>`;
+      html += `<div>GAA: <strong>${ag.gaa ? ag.gaa.toFixed(2) : 'N/A'}</strong></div>`;
+      html += `<div>Record: <strong>${ag.wins || 0}-${ag.losses || 0}-${ag.otl || 0}</strong></div>`;
+      html += `<div>Shutouts: <strong>${ag.shutouts || 0}</strong></div>`;
+      html += `</div></div>`;
+      
+      // Home goalie
+      html += '<div style="background:#0f172a;padding:12px;border-radius:8px">';
+      html += `<div style="font-weight:bold;margin-bottom:4px">${hg.name || 'TBD'} <span style="font-weight:normal;color:#94a3b8">(HOME)</span></div>`;
+      html += confBadge(hg.confirmed);
+      if (hg.isStarter === false) html += ' <span style="background:#ef4444;color:white;padding:2px 6px;border-radius:4px;font-size:0.7em">BACKUP</span>';
+      html += `<div style="margin-top:8px">`;
+      html += `<div>SV%: <strong style="color:${svColor(hg.savePct)}">${hg.savePct ? hg.savePct.toFixed(3) : 'N/A'}</strong></div>`;
+      html += `<div>GAA: <strong>${hg.gaa ? hg.gaa.toFixed(2) : 'N/A'}</strong></div>`;
+      html += `<div>Record: <strong>${hg.wins || 0}-${hg.losses || 0}-${hg.otl || 0}</strong></div>`;
+      html += `<div>Shutouts: <strong>${hg.shutouts || 0}</strong></div>`;
+      html += `</div></div>`;
+      
+      html += '</div>';
+      
+      // Impact & Prediction Row
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0">';
+      html += `<div style="background:#1e293b;padding:8px;border-radius:6px;text-align:center">`;
+      html += `<div style="color:#94a3b8;font-size:0.8em">Spread Impact</div>`;
+      html += `<div style="font-weight:bold;color:${Math.abs(impact.netSpreadImpact || 0) >= 0.1 ? '#f59e0b' : '#94a3b8'}">${impact.netSpreadImpact > 0 ? '+' : ''}${(impact.netSpreadImpact || 0).toFixed(2)} goals</div>`;
+      html += `</div>`;
+      html += `<div style="background:#1e293b;padding:8px;border-radius:6px;text-align:center">`;
+      html += `<div style="color:#94a3b8;font-size:0.8em">Model Spread</div>`;
+      html += `<div style="font-weight:bold">${spread > 0 ? '+' : ''}${spread.toFixed(1)} ${game.homeTeam}</div>`;
+      html += `</div>`;
+      html += `<div style="background:#1e293b;padding:8px;border-radius:6px;text-align:center">`;
+      html += `<div style="color:#94a3b8;font-size:0.8em">Win Prob</div>`;
+      html += `<div style="font-weight:bold">${game.homeTeam} ${homeWin.toFixed(1)}%</div>`;
+      html += `</div>`;
+      html += '</div>';
+      
+      // DK book lines if available
+      if (game.bookLines && game.bookLines.homeML) {
+        html += `<div style="color:#94a3b8;font-size:0.85em;margin-top:4px">📊 DK Lines: ${game.homeTeam} ${game.bookLines.homeML > 0 ? '+' : ''}${game.bookLines.homeML} / ${game.awayTeam} ${game.bookLines.awayML > 0 ? '+' : ''}${game.bookLines.awayML} | PL ${game.bookLines.spread}</div>`;
+      }
+      
+      html += '</div>';
+    }
+    
+    wrap.innerHTML = html;
+    
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h3>❌ NHL Goalies Error</h3><p>${err.message}</p></div>`;
   }
 }
 

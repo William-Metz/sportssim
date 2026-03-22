@@ -22,8 +22,10 @@ try { liveData = require('../services/live-data'); } catch (e) { /* fallback to 
 // Rolling stats & injury integration
 let rollingStats = null;
 let injuryService = null;
+let goalieStarters = null;
 try { rollingStats = require('../services/rolling-stats'); } catch (e) { /* no rolling stats */ }
 try { injuryService = require('../services/injuries'); } catch (e) { /* no injury data */ }
+try { goalieStarters = require('../services/nhl-goalie-starters'); } catch (e) { /* no goalie starters */ }
 
 // Static goalie data (not available from standings APIs)
 const GOALIE_DATA = {
@@ -198,19 +200,42 @@ function predict(awayCode, homeCode, options = {}) {
   if (!away || !home) return null;
 
   // Goalie adjustment: delta from league avg save% (0.905)
+  // If live goalie SV% is provided (from DailyFaceoff), use that instead of static data
   const leagueAvgSv = 0.905;
   let homeGoalieAdj = 0;
   let awayGoalieAdj = 0;
+  let homeGoalieName = null;
+  let awayGoalieName = null;
+  let homeGoalieSvUsed = null;
+  let awayGoalieSvUsed = null;
   
-  if (options.homeGoalie === 'backup') {
+  if (options.homeGoalieSv) {
+    // Live goalie SV% from DailyFaceoff or manual override
+    homeGoalieSvUsed = options.homeGoalieSv;
+    homeGoalieAdj = (options.homeGoalieSv - leagueAvgSv) * 15;
+    homeGoalieName = options.homeGoalieName || 'live-data';
+  } else if (options.homeGoalie === 'backup') {
+    homeGoalieSvUsed = TEAMS[homeCode].backupSv;
     homeGoalieAdj = (TEAMS[homeCode].backupSv - leagueAvgSv) * 15;
+    homeGoalieName = 'backup';
   } else {
+    homeGoalieSvUsed = TEAMS[homeCode].starterSv;
     homeGoalieAdj = (TEAMS[homeCode].starterSv - leagueAvgSv) * 15;
+    homeGoalieName = TEAMS[homeCode].starter;
   }
-  if (options.awayGoalie === 'backup') {
+  
+  if (options.awayGoalieSv) {
+    awayGoalieSvUsed = options.awayGoalieSv;
+    awayGoalieAdj = (options.awayGoalieSv - leagueAvgSv) * 15;
+    awayGoalieName = options.awayGoalieName || 'live-data';
+  } else if (options.awayGoalie === 'backup') {
+    awayGoalieSvUsed = TEAMS[awayCode].backupSv;
     awayGoalieAdj = (TEAMS[awayCode].backupSv - leagueAvgSv) * 15;
+    awayGoalieName = 'backup';
   } else {
+    awayGoalieSvUsed = TEAMS[awayCode].starterSv;
     awayGoalieAdj = (TEAMS[awayCode].starterSv - leagueAvgSv) * 15;
+    awayGoalieName = TEAMS[awayCode].starter;
   }
 
   // Rolling stats adjustment — recent form
@@ -269,7 +294,15 @@ function predict(awayCode, homeCode, options = {}) {
       home: { line: "-1.5", prob: +(puckLineHomeProb * 100).toFixed(1) },
       away: { line: "+1.5", prob: +((1 - puckLineHomeProb) * 100).toFixed(1) }
     },
-    goalieAdj: { home: +homeGoalieAdj.toFixed(2), away: +awayGoalieAdj.toFixed(2) },
+    goalieAdj: { 
+      home: +homeGoalieAdj.toFixed(2), 
+      away: +awayGoalieAdj.toFixed(2),
+      homeGoalie: homeGoalieName,
+      awayGoalie: awayGoalieName,
+      homeSvPct: homeGoalieSvUsed,
+      awaySvPct: awayGoalieSvUsed,
+      liveData: !!(options.homeGoalieSv || options.awayGoalieSv),
+    },
     rollingAdj: {
       away: awayRolling ? { adj: +awayRollingAdj.toFixed(2), trend: awayRolling.trend, streak: awayRolling.streak, l5: awayRolling.l5Record, l10: awayRolling.l10Record } : null,
       home: homeRolling ? { adj: +homeRollingAdj.toFixed(2), trend: homeRolling.trend, streak: homeRolling.streak, l5: homeRolling.l5Record, l10: homeRolling.l10Record } : null
@@ -339,4 +372,82 @@ function kellyBet(prob, ml) {
   return Math.max(0, kelly);
 }
 
-module.exports = { TEAMS, getTeams, calculateRatings, predict, findValue, pythWinPct, refreshData };
+/**
+ * Async predict — fetches confirmed goalie starters from DailyFaceoff
+ * then runs predict() with actual goalie SV% data.
+ * 
+ * This is the KEY edge: when a backup goalie starts, our model adjusts
+ * the prediction by their actual SV% instead of assuming the starter plays.
+ * Goalie matchups swing NHL lines 5-15 cents. Books are often slow to adjust.
+ */
+async function asyncPredict(awayCode, homeCode, options = {}) {
+  let goalieMatchup = null;
+  
+  if (goalieStarters) {
+    try {
+      goalieMatchup = await goalieStarters.getGoalieMatchup(homeCode, awayCode);
+    } catch (e) {
+      console.error('[nhl] Failed to fetch goalie matchup:', e.message);
+    }
+  }
+  
+  // Build options with live goalie data
+  const opts = { ...options };
+  
+  if (goalieMatchup) {
+    // Use actual confirmed goalie SV% from DailyFaceoff
+    if (goalieMatchup.homeGoalie?.savePct) {
+      opts.homeGoalieSv = goalieMatchup.homeGoalie.savePct;
+      opts.homeGoalieName = goalieMatchup.homeGoalie.name;
+    }
+    if (goalieMatchup.awayGoalie?.savePct) {
+      opts.awayGoalieSv = goalieMatchup.awayGoalie.savePct;
+      opts.awayGoalieName = goalieMatchup.awayGoalie.name;
+    }
+  }
+  
+  const pred = predict(awayCode, homeCode, opts);
+  if (!pred) return null;
+  
+  // Attach goalie matchup details
+  if (goalieMatchup) {
+    pred.goalieMatchup = {
+      home: {
+        name: goalieMatchup.homeGoalie?.name,
+        savePct: goalieMatchup.homeGoalie?.savePct,
+        gaa: goalieMatchup.homeGoalie?.gaa,
+        record: goalieMatchup.homeGoalie ? 
+          `${goalieMatchup.homeGoalie.wins}-${goalieMatchup.homeGoalie.losses}-${goalieMatchup.homeGoalie.otl}` : null,
+        confirmed: goalieMatchup.homeGoalie?.confirmed,
+        isStarter: goalieMatchup.homeGoalie?.isStarter,
+      },
+      away: {
+        name: goalieMatchup.awayGoalie?.name,
+        savePct: goalieMatchup.awayGoalie?.savePct,
+        gaa: goalieMatchup.awayGoalie?.gaa,
+        record: goalieMatchup.awayGoalie ? 
+          `${goalieMatchup.awayGoalie.wins}-${goalieMatchup.awayGoalie.losses}-${goalieMatchup.awayGoalie.otl}` : null,
+        confirmed: goalieMatchup.awayGoalie?.confirmed,
+        isStarter: goalieMatchup.awayGoalie?.isStarter,
+      },
+      svPctDelta: goalieMatchup.homeGoalie?.savePct && goalieMatchup.awayGoalie?.savePct ?
+        +((goalieMatchup.homeGoalie.savePct - goalieMatchup.awayGoalie.savePct) * 1000).toFixed(1) : null, // in "points" (e.g., +16 = .016 better)
+      source: 'dailyfaceoff',
+    };
+    
+    // Calculate impact vs default prediction (no goalie info)
+    const defaultPred = predict(awayCode, homeCode);
+    if (defaultPred) {
+      pred.goalieImpact = {
+        homeWinProbShift: +(pred.home.winProb - defaultPred.home.winProb).toFixed(1),
+        spreadShift: +(pred.spread - defaultPred.spread).toFixed(2),
+        totalShift: +(pred.projTotal - defaultPred.projTotal).toFixed(1),
+        significant: Math.abs(pred.home.winProb - defaultPred.home.winProb) >= 1.0,
+      };
+    }
+  }
+  
+  return pred;
+}
+
+module.exports = { TEAMS, getTeams, calculateRatings, predict, asyncPredict, findValue, pythWinPct, refreshData };

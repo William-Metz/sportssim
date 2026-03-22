@@ -300,6 +300,17 @@ async function generateDailyPicks(opts = {}) {
             }
           }
         }
+        // Use async predict for NHL (includes goalie starter data from DailyFaceoff)
+        else if (sportKey === 'NHL' && nhlModel && nhlModel.asyncPredict) {
+          let rawPred = await nhlModel.asyncPredict(awayAbbr, homeAbbr, {});
+          if (rawPred && !rawPred.error) {
+            if (calibrationSvc && calibrationSvc.calibratePrediction) {
+              prediction = calibrationSvc.calibratePrediction(rawPred, 'nhl');
+            } else {
+              prediction = rawPred;
+            }
+          }
+        }
         else {
           prediction = model.predict(awayAbbr, homeAbbr);
         }
