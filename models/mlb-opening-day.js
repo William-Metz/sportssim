@@ -66,7 +66,7 @@ const OPENING_DAY_GAMES = [
   },
   { 
     date: '2026-03-26', day: 1, away: 'DET', home: 'SD', time: '4:10 PM ET',
-    confirmedStarters: { away: 'Tarik Skubal', home: null },
+    confirmedStarters: { away: 'Tarik Skubal', home: 'Dylan Cease' },
     dkLine: { homeML: 118, awayML: -138 }, // DET -138
     broadcast: null,
   },
@@ -98,26 +98,26 @@ const OPENING_DAY_GAMES = [
   // ===== MARCH 27, 2026 — DAY 2 (Friday) =====
   { 
     date: '2026-03-27', day: 2, away: 'NYY', home: 'SF', time: '4:35 PM ET',
-    confirmedStarters: { away: null, home: null },
-    dkLine: null,
+    confirmedStarters: { away: 'Gerrit Cole', home: 'Logan Webb' },
+    dkLine: { homeML: 142, awayML: -168 }, // NYY -168 (projected)
     broadcast: null,
   },
   { 
     date: '2026-03-27', day: 2, away: 'OAK', home: 'TOR', time: '7:07 PM ET',
     confirmedStarters: { away: 'Luis Severino', home: 'Kevin Gausman' },
-    dkLine: { homeML: -182, awayML: 154 }, // TOR -182
+    dkLine: { homeML: -182, awayML: 154 },
     broadcast: null,
   },
   { 
     date: '2026-03-27', day: 2, away: 'COL', home: 'MIA', time: '7:10 PM ET',
     confirmedStarters: { away: 'Kyle Freeland', home: 'Sandy Alcantara' },
-    dkLine: { homeML: -177, awayML: 150 }, // MIA -177
+    dkLine: { homeML: -177, awayML: 150 },
     broadcast: null,
   },
   { 
     date: '2026-03-27', day: 2, away: 'KC', home: 'ATL', time: '7:15 PM ET',
     confirmedStarters: { away: 'Cole Ragans', home: 'Chris Sale' },
-    dkLine: { homeML: -152, awayML: 128 }, // ATL -152
+    dkLine: { homeML: -152, awayML: 128 },
     broadcast: null,
   },
   // Day 2 series continuations (Game 2 starters)
@@ -165,18 +165,18 @@ const OPENING_DAY_GAMES = [
 const SPRING_TRAINING_RECORDS = {
   // Cactus League
   'LAD': { w: 19, l: 8, pct: 0.704 },
-  'SF':  { w: 18, l: 9, pct: 0.667 },
-  'TEX': { w: 16, l: 11, pct: 0.593 },
-  'CWS': { w: 15, l: 13, pct: 0.536 },
+  'SF':  { w: 19, l: 9, pct: 0.679 },
+  'TEX': { w: 16, l: 12, pct: 0.571 },
+  'CWS': { w: 15, l: 14, pct: 0.517 },
   'LAA': { w: 16, l: 14, pct: 0.533 },
-  'SD':  { w: 14, l: 13, pct: 0.519 },
-  'ARI': { w: 13, l: 13, pct: 0.500 },
-  'CLE': { w: 13, l: 13, pct: 0.500 },
-  'COL': { w: 13, l: 13, pct: 0.500 },
-  'CIN': { w: 13, l: 14, pct: 0.481 },
+  'SD':  { w: 14, l: 14, pct: 0.500 },
+  'ARI': { w: 14, l: 13, pct: 0.519 },
+  'CLE': { w: 13, l: 14, pct: 0.481 },
+  'COL': { w: 13, l: 14, pct: 0.481 },
+  'CIN': { w: 14, l: 14, pct: 0.500 },
   'OAK': { w: 13, l: 15, pct: 0.464 },
-  'MIL': { w: 11, l: 15, pct: 0.423 },
-  'CHC': { w: 11, l: 16, pct: 0.407 },
+  'MIL': { w: 12, l: 15, pct: 0.444 },
+  'CHC': { w: 12, l: 16, pct: 0.429 },
   'SEA': { w: 10, l: 17, pct: 0.370 },
   'KC':  { w: 9, l: 18, pct: 0.333 },
   // Grapefruit League (estimated from what data we have)

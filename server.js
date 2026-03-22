@@ -43,11 +43,15 @@ const preseasonTuning = require('./services/preseason-tuning');
 const autoScanner = require('./services/auto-scanner');
 const seasonSimulator = require('./services/season-simulator');
 const nbaRestTank = require('./services/nba-rest-tank');
+let restTankBacktest = null;
+try { restTankBacktest = require('./services/rest-tank-backtest'); } catch (e) { console.error('[server] Rest/Tank Backtest not loaded:', e.message); }
 const futuresScanner = require('./services/futures-scanner');
 let openingWeekUnders = null;
 try { openingWeekUnders = require('./services/opening-week-unders'); } catch (e) { console.error('[server] Opening Week Unders service not loaded:', e.message); }
 let lineupMonitor = null;
 try { lineupMonitor = require('./services/lineup-monitor'); } catch (e) { console.error('[server] Lineup Monitor not loaded:', e.message); }
+let dailySlate = null;
+try { dailySlate = require('./services/daily-slate'); } catch (e) { console.error('[server] Daily Slate service not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -111,7 +115,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '44.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired'] });
+  res.json({ status: 'ok', version: '46.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -2725,6 +2729,46 @@ app.get('/api/nba/rest-tank/motivation/:team', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==================== REST/TANK BACKTEST TRACKER ====================
+
+// Record today's rest/tank predictions (call before games start)
+app.post('/api/nba/rest-tank/backtest/record', async (req, res) => {
+  try {
+    if (!restTankBacktest) return res.status(503).json({ error: 'Rest/tank backtest service not loaded' });
+    const standings = nba.getTeams();
+    const scan = await nbaRestTank.scanTodaysGames(standings);
+    const result = restTankBacktest.recordPredictions(scan, nba, { bookSpreads: req.body?.bookSpreads || {} });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Grade yesterday's (or specified date's) predictions
+app.get('/api/nba/rest-tank/backtest/grade', async (req, res) => {
+  try {
+    if (!restTankBacktest) return res.status(503).json({ error: 'Rest/tank backtest service not loaded' });
+    const result = await restTankBacktest.gradeResults(req.query.date || null);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get backtest status and summary
+app.get('/api/nba/rest-tank/backtest/status', (req, res) => {
+  if (!restTankBacktest) return res.status(503).json({ error: 'Rest/tank backtest service not loaded' });
+  res.json(restTankBacktest.getStatus());
+});
+
+// Get all predictions
+app.get('/api/nba/rest-tank/backtest/predictions', (req, res) => {
+  if (!restTankBacktest) return res.status(503).json({ error: 'Rest/tank backtest service not loaded' });
+  res.json(restTankBacktest.getAllPredictions());
+});
+
+// Get all graded results
+app.get('/api/nba/rest-tank/backtest/results', (req, res) => {
+  if (!restTankBacktest) return res.status(503).json({ error: 'Rest/tank backtest service not loaded' });
+  res.json(restTankBacktest.getAllGraded());
+});
+
 // Get NBA prediction with full rest/tank situational analysis
 app.get('/api/nba/smart-predict/:away/:home', async (req, res) => {
   try {
@@ -4033,6 +4077,26 @@ app.get('/api/opening-day-playbook', async (req, res) => {
         if (homeInj) entry.signals.homeInjuries = homeInj;
       } catch (e) { /* injuries optional */ }
 
+      // 9b. LINEUP DATA (if available — critical on game day)
+      try {
+        if (lineupFetcher) {
+          const lineupAdj = await lineupFetcher.getLineupAdjustments(game.away, game.home);
+          if (lineupAdj && lineupAdj.hasData) {
+            entry.signals.lineup = {
+              awayRunAdj: lineupAdj.awayRunAdj,
+              homeRunAdj: lineupAdj.homeRunAdj,
+              awayStars: lineupAdj.details?.awayStars || 0,
+              homeStars: lineupAdj.details?.homeStars || 0,
+              awayCatcher: lineupAdj.details?.awayCatcher || null,
+              homeCatcher: lineupAdj.details?.homeCatcher || null,
+              status: 'confirmed',
+            };
+          } else {
+            entry.signals.lineup = { status: 'pending', note: 'Lineups not yet confirmed — predictions will be updated when lineups drop' };
+          }
+        }
+      } catch (e) { /* lineup data optional */ }
+
       // 10. LIVE ODDS (all books)
       if (liveOdds.length > 0) {
         for (const oddsGame of liveOdds) {
@@ -4151,6 +4215,49 @@ app.get('/api/opening-day-playbook', async (req, res) => {
           }
         }
       }
+
+      // 11b. F5 ANALYSIS (first 5 innings)
+      try {
+        const awayExpRuns = entry.signals.analytical?.awayExpRuns || 4.3;
+        const homeExpRuns = entry.signals.analytical?.homeExpRuns || 4.3;
+        const f5Factor = 0.565;
+        let owReduction = 1.0;
+        
+        if (openingWeekUnders) {
+          const owAdj = openingWeekUnders.getOpeningWeekAdjustment(game.date, game.park || '', {
+            homeStarterTier: 2,
+            awayStarterTier: 2,
+          });
+          if (owAdj && owAdj.reduction) owReduction = 1 - owAdj.reduction;
+        }
+        
+        const awayF5 = awayExpRuns * f5Factor * owReduction;
+        const homeF5 = homeExpRuns * f5Factor * owReduction;
+        const f5Total = +(awayF5 + homeF5).toFixed(2);
+        
+        // Poisson F5 under probability for common lines
+        const f5Lines = {};
+        for (const line of [4.5, 5.0, 5.5]) {
+          let underP = 0;
+          for (let a = 0; a <= 12; a++) {
+            for (let h = 0; h <= 12; h++) {
+              if (a + h < line) {
+                underP += poissonPMF(a, awayF5) * poissonPMF(h, homeF5);
+              }
+            }
+          }
+          f5Lines[line] = { underPct: +(underP * 100).toFixed(1), overPct: +((1 - underP) * 100).toFixed(1) };
+        }
+        
+        entry.signals.f5 = {
+          expectedTotal: f5Total,
+          awayF5Runs: +awayF5.toFixed(2),
+          homeF5Runs: +homeF5.toFixed(2),
+          openingWeekReduction: +((1 - owReduction) * 100).toFixed(1) + '%',
+          lines: f5Lines,
+          bestUnder: f5Total < 4.5 ? 'U4.5' : f5Total < 5.0 ? 'U5.0' : 'U5.5',
+        };
+      } catch (e) { /* F5 optional */ }
 
       // 12. OVERALL GAME RATING
       const totalSignals = Object.keys(entry.signals).filter(k => !k.includes('Error')).length;
@@ -4490,7 +4597,7 @@ app.get('/api/playoffs/preview', async (req, res) => {
     
     res.json({
       timestamp: new Date().toISOString(),
-      version: '44.0.0',
+      version: '46.0.0',
       playoffsStart: '2026-04-12',
       daysUntilPlayoffs: bracket.daysUntilPlayoffs,
       simulations: sims,
@@ -4774,7 +4881,7 @@ app.get('/api/opening-week/f5-scan', async (req, res) => {
     
     res.json({
       timestamp: new Date().toISOString(),
-      version: '44.0.0',
+      version: '46.0.0',
       openingDay: '2026-03-26',
       openingWeekEnd: '2026-04-02',
       totalGames: results.length,
@@ -4809,8 +4916,36 @@ function probToAmericanML(prob) {
   return Math.round(100 * (1 - prob) / prob);
 }
 
+// ==================== DAILY ACTION SLATE ====================
+// THE MONEY PRINTER: One endpoint for all today's bets across all sports
+
+app.get('/api/daily-slate', async (req, res) => {
+  try {
+    if (!dailySlate) return res.status(503).json({ error: 'Daily Slate service not loaded' });
+    
+    const opts = {
+      bankroll: parseFloat(req.query.bankroll) || 1000,
+      kellyFraction: parseFloat(req.query.kelly) || 0.5,
+      minEdge: parseFloat(req.query.minEdge) || 0.03,
+      maxBets: parseInt(req.query.maxBets) || 20,
+      date: req.query.date || new Date().toISOString().split('T')[0],
+    };
+    
+    const slate = await dailySlate.generateSlate(opts);
+    res.json(slate);
+  } catch (e) {
+    console.error('Daily Slate error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/daily-slate/status', (req, res) => {
+  if (!dailySlate) return res.status(503).json({ error: 'Daily Slate service not loaded' });
+  res.json(dailySlate.getStatus());
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v44.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v46.0 running on port ${PORT}`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -4953,5 +5088,42 @@ app.listen(PORT, '0.0.0.0', () => {
     lineupMonitor.init({ lineupFetcher, mlbModel: mlb });
     lineupMonitor.start();
     console.log('   📋 Lineup monitor: started (scanning every 5 min for lineup drops)');
+  }
+  
+  // Initialize Daily Slate service
+  if (dailySlate) {
+    dailySlate.init({
+      nba, mlb, nhl, calibration,
+      oddsApiKey: ODDS_API_KEY,
+      kelly,
+      restTank: nbaRestTank,
+      lineupFetcher,
+      weather,
+      openingWeekUnders,
+    });
+    console.log('   📊 Daily Slate: initialized (cross-sport action plan generator)');
+  }
+
+  // Auto-record rest/tank predictions for today's NBA games
+  if (restTankBacktest) {
+    (async () => {
+      try {
+        const standings = nba.getTeams();
+        const scan = await nbaRestTank.scanTodaysGames(standings);
+        if (scan.games && scan.games.length > 0) {
+          const recordResult = restTankBacktest.recordPredictions(scan, nba);
+          console.log(`   🏀 Rest/tank backtest: recorded ${recordResult.count || 0} predictions for today`);
+          // Also try to grade yesterday's games
+          const gradeResult = await restTankBacktest.gradeResults();
+          if (gradeResult.gamesGraded > 0) {
+            console.log(`   📊 Rest/tank backtest: graded ${gradeResult.gamesGraded} games from yesterday`);
+          }
+        } else {
+          console.log('   🏀 Rest/tank backtest: no NBA games today');
+        }
+      } catch (e) {
+        console.error('   ⚠️ Rest/tank backtest error:', e.message);
+      }
+    })();
   }
 });

@@ -68,7 +68,7 @@ const INDOOR_PARKS = [
  * Opening Day: March 27 (most games)
  * Some teams start March 28 (COL, TB per schedule)
  */
-const OPENING_DAY = '2026-03-27';
+const OPENING_DAY = '2026-03-26'; // Day 1 starts March 26 (Thursday) per MLB schedule
 const OPENING_WEEK_END = '2026-04-02';
 const WEEK_2_END = '2026-04-09';
 

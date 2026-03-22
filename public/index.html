@@ -159,6 +159,7 @@ function buildTabs() {
     tabs.splice(6, 0, { id: 'weather', label: '⛅ Weather' });
     tabs.splice(7, 0, { id: 'umpires', label: '👨‍⚖️ Umpires' });
   }
+  tabs.push({ id: 'daily-slate', label: '💰 Daily Slate' });
   tabs.push({ id: 'alt-lines', label: '📐 Alt Lines' });
   tabs.push({ id: 'statcast', label: '🔬 Statcast' });
   tabs.push({ id: 'arb', label: '🔀 Arb Scanner' });
@@ -217,6 +218,7 @@ function showTab(id) {
   else if (id === 'champ-futures') loadChampFuturesTab();
   else if (id === 'f5-unders') loadF5UndersTab();
   else if (id === 'lineups') loadLineupsTab();
+  else if (id === 'daily-slate') loadDailySlateTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -6651,6 +6653,80 @@ async function loadF5UndersTab() {
       html += `<p style="color:#888">No F5 under edges found at current lines. Check back closer to game time when lines update.</p>`;
     }
     html += `</div>`;
+    
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${err.message}</p></div>`;
+  }
+}
+
+// ==================== DAILY SLATE TAB ====================
+async function loadDailySlateTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Loading daily action slate...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/daily-slate?bankroll=1000&kelly=0.5&minEdge=0.03`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Hero
+    html += `<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #22c55e">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:#22c55e">💰 Daily Action Slate</h2>
+          <p style="margin:4px 0 0;color:#aaa">${data.date || 'Today'} — Cross-sport value plays</p>
+        </div>
+        <div style="display:flex;gap:16px;text-align:center">
+          <div><div style="font-size:22px;font-weight:bold;color:#22c55e">${data.totalBets || 0}</div><div style="font-size:10px;color:#888">Bets</div></div>
+          <div><div style="font-size:22px;font-weight:bold;color:#f59e0b">$${data.totalWager || 0}</div><div style="font-size:10px;color:#888">Wagered</div></div>
+          <div><div style="font-size:22px;font-weight:bold;color:#22c55e">+$${data.totalEV?.toFixed(2) || 0}</div><div style="font-size:10px;color:#888">Exp Value</div></div>
+        </div>
+      </div>
+    </div>`;
+    
+    // Bets table
+    if (data.bets && data.bets.length > 0) {
+      html += `<div class="card"><h3>🎯 Action Board</h3>
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>Sport</th><th>Game</th><th>Pick</th><th>ML/Line</th><th>Edge</th><th>Wager</th><th>EV</th><th>Conf</th>
+        </tr></thead><tbody>`;
+      
+      for (const bet of data.bets) {
+        const confColor = bet.confidence === 'HIGH' ? '#22c55e' : bet.confidence === 'MEDIUM' ? '#f59e0b' : '#888';
+        html += `<tr>
+          <td><strong>${bet.sport || '?'}</strong></td>
+          <td>${bet.game || bet.matchup || '?'}</td>
+          <td style="font-weight:bold">${bet.pick || '?'}</td>
+          <td>${bet.ml || bet.line || ''}</td>
+          <td style="color:#22c55e;font-weight:bold">${bet.edge || 0}%</td>
+          <td>$${bet.wager || 0}</td>
+          <td style="color:#22c55e">+$${bet.ev?.toFixed(2) || 0}</td>
+          <td style="color:${confColor};font-weight:bold">${bet.confidence || '?'}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div></div>`;
+    } else {
+      html += `<div class="card"><h3>📊 No value plays detected</h3><p style="color:#888">Check back when games are closer to tip-off/first pitch.</p></div>`;
+    }
+    
+    // Summary by sport
+    if (data.bySport) {
+      html += `<div class="card"><h3>📊 By Sport</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">`;
+      for (const [sport, info] of Object.entries(data.bySport || {})) {
+        html += `<div style="background:var(--bg2);padding:12px;border-radius:8px">
+          <div style="font-weight:bold;color:var(--text1)">${sport}</div>
+          <div style="font-size:13px;color:#888">Games: ${info.games || 0} | Bets: ${info.bets || 0}</div>
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
     
     wrap.innerHTML = html;
   } catch (err) {
