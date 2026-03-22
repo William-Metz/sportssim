@@ -124,12 +124,15 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [x] **Statcast integration via pybaseball** — pitch-level data for MLB
 - [x] **CLV tracking pipeline** — record opening vs closing lines
 - [x] **Model calibration audit** — are probabilities matching outcomes?
-- [ ] 🚨 **CRITICAL: MLB Roster Changes Audit** — BAL missing MASSIVE upgrades (Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley). Season sim projecting BAL at 77W when they should be ~87-90W. Futures value bets may be WRONG. Must audit ALL 30 teams.
-- [ ] **MLB Base Power Ratings Update** — Static team data (80-82 BAL) is outdated. Need to reflect 2025 final standings + offseason moves accurately.
-- [ ] **NBA playoff series pricing model** — playoffs start April 12
+- [x] **MLB Roster Changes Audit** — All 30 teams now in ROSTER_CHANGES. BAL fixed (Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley). Bayesian calibration applied.
+- [ ] 🚨 **MLB Base Data Validation** — Season sim: CWS 65W (OVER 58.5, 33.8% edge), OAK 67.8W (OVER 63.5, 26.2% edge). These edges seem too large — likely base data issue. CHC base=92W but lost Bellinger/Wesneski. BAL base=75W → sim=84W (UNDER 88.5 at 24% edge — this one might be legit). VALIDATE against consensus projections.
+- [ ] **NBA End-of-Season Rest/Tanking Model** — 12 games left. Teams locked into seeds rest stars. Tanking teams bench starters. Systematic mispricings. OKC (55-15) may rest SGA late. IND (15-55) full tank mode.
+- [ ] **MLB Opening Week Unders Edge** — First week historically lower scoring: cold weather, aces start, hitters behind pitchers, expanded rosters. Build an opening week totals adjustment factor.
+- [ ] **NBA playoff series pricing model** — playoffs start April 12 (21 days)
 - [ ] **Backtest validation on fixed NBA model** — verify improvement
 
 ## Phase 3: Advanced Models (Week 3-4)
+- [ ] **NBA End-of-Season Situational Model** — rest, tanking, motivation factors for final 12 games
 - [ ] NFL off-season: win total futures model
 - [ ] Soccer model (EPL/Champions League)
 - [ ] UFC/MMA model
@@ -140,6 +143,7 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [ ] Tennis model
 - [ ] **pybaseball Statcast pipeline** — advanced pitcher/batter metrics
 - [ ] **NHL playoff series model** — playoffs April 19
+- [ ] **MLB Daily Lineups Integration** — scrape confirmed lineups for game-day model adjustments
 
 ## Phase 4: Automation & Alerts (Week 4)
 - [ ] Auto-scan every 30 min on game days
@@ -188,11 +192,11 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 06:00 UTC*
+*Last updated: 2026-03-22 08:05 UTC*
 *Current phase: 2.5 — Model Accuracy & Calibration*
-*🚨 CRITICAL: BAL roster changes MISSING from preseason-tuning.js — Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley not modeled*
-*🚨 CRITICAL: Season sim futures bets may be WRONG — BAL at 77W should be ~87-90W, TOR at 90W may be too high*
-*🔧 NEXT: Full audit of ALL 30 teams ROSTER_CHANGES + base power ratings before Opening Day*
+*✅ ROSTER CHANGES: All 30 teams audited and in model*
+*🔧 NEXT: Validate base data (CWS/OAK edges too large), NBA rest/tank model, MLB Opening Week unders edge*
+*⚡ TODAY: 5 NBA games + 9 NHL games — model serving predictions*
 *MLB OPENING DAY: 5 DAYS (March 27)*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*

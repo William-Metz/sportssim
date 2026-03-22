@@ -3,9 +3,11 @@
 ## 🚨 URGENT
 | ID | Task | Status | Priority | Notes |
 |----|------|--------|----------|-------|
-| 043 | **CRITICAL: MLB Roster Changes Audit** | ⏳ TODO | P0 | BAL completely missing from ROSTER_CHANGES — added Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley, Ward, Taveras. Model projects 77W (should be ~87-90W). ALL 30 teams need audit vs actual Sportradar rosters. Futures value bets POISONED by bad data. |
-| 044 | **MLB Base Static Data Update** | ⏳ TODO | P0 | Static TEAMS data uses 2025 W-L but some are stale. BAL at 80-82, TOR at 90-72 need verification against real 2025 final standings + offseason context. |
-| 045 | **Season Sim Sanity Check** | ⏳ TODO | P1 | After fixing 043+044: re-run season sim, validate projections vs DK lines and consensus (FanGraphs/PECOTA). Edges >30% on win totals likely mean model error, not market inefficiency. |
+| 043 | **MLB Roster Changes Audit** | ✅ DONE | P0 | All 30 teams now in ROSTER_CHANGES. BAL fixed (Alonso, O'Neill, Bassitt, Eflin, Baz, Helsley etc). Season sim now projects BAL at 84W (was 77W). |
+| 044 | **MLB Base Static Data Validation** | ⏳ TODO | P0 | Season sim showing suspect edges: CWS OVER 58.5 (sim=65, +33.8%), OAK OVER 63.5 (sim=67.8, +26.2%). Are base W-L/RS/RA stats correct for 2025? CHC base=92W but lost Bellinger+Wesneski — should be lower. Verify all 30 teams vs actual 2025 results. |
+| 045 | **Season Sim Sanity Check** | ⏳ TODO | P1 | After fixing 044: re-run season sim, compare projections vs consensus (FanGraphs/PECOTA). Edges >25% on win totals = likely model error. BAL UNDER 88.5 at 24% edge is the most plausible. |
+| 046 | **NBA Rest/Tanking Model** | ⏳ TODO | P0 | With 12 games left, teams either resting stars (OKC 55-15) or tanking (IND 15-55, WSH). Lines don't fully adjust. Build situational factor: rest advantage (3+ pts), tank penalty. Immediate edge for NBA betting through April 12. |
+| 047 | **MLB Opening Week Unders** | ⏳ TODO | P1 | Historical trend: Opening Week (March 27-April 2) unders hit ~56% — cold weather, ace starters, hitters rusty, expanded rosters unused to each other. Build a 5-8% totals reduction factor for first week. Free edge. |
 
 ## Active Sprint
 | ID | Task | Status | Priority | Notes |
@@ -94,6 +96,7 @@
 | #13 | 2026-03-22 04:00 | **CRITICAL DEPLOY FIX + Auto-Refresh v34.0** — Planning session discovered ALL Fly.io deploys have been FAILING since v25.0 (5+ commits). Root cause: Dockerfile used `node:20-alpine` with `apk add py3-scipy && pip3 install scikit-learn` — scikit-learn needs C compiler (gcc/meson) which Alpine doesn't include. Every push to main triggered GH Actions → test passed → deploy FAILED. This means the NBA totals bug fix (v21.0), spread calibration (v23.0), Statcast integration (v26.0), Polymarket bridge (v30.0), and Opening Day Playbook (v33.0) NEVER DEPLOYED TO PRODUCTION. Fix: switched to `node:20-slim` (Debian-based) where pip install works natively. Also added 2-hour periodic data auto-refresh — production data was 32+ hours stale because server only refreshed on startup. Tasks 039, 041 completed. |
 | #14 | 2026-03-22 04:40 | **MLB Season Simulator Dashboard v36.0** — MAJOR FEATURE: Wired season-simulator.js (Monte Carlo 162-game season sim) to server API + dashboard. 8 new API endpoints: /api/season-sim (full report), /rankings, /win-totals, /divisions, /world-series, /team/:abbr, /top-bets, /refresh. Dashboard: new 🏆 MLB Futures tab with 5 sub-views — Top Bets overview, Power Rankings (30-team table + division bars), Win Totals (OVER/UNDER split vs DK), Division Winners, World Series championship probability chart. Futures value bets wired into /api/value/all. 30-minute cache for expensive sims. Also: Dockerfile updated with xgboost+lightgbm+libgomp1 for ML ensemble, lineup-fetcher.js committed, prod deploy verified (NBA totals 230.4 ✅). Tasks 040, 042 completed. |
 | #15 | 2026-03-22 06:00 | **Planning Session: CRITICAL Roster Bug Found** 🚨 — Discovered BAL is COMPLETELY MISSING from ROSTER_CHANGES in preseason-tuning.js. They added Pete Alonso (1B), Tyler O'Neill (OF), Chris Bassitt (SP), Zach Eflin (SP), Shane Baz (SP), Ryan Helsley (closer), Taylor Ward, Leody Taveras — none modeled. Season sim has BAL at 77W (should be ~87-90W). BAL UNDER 88.5 showing as biggest +EV bet at 45.7% edge — this is almost certainly WRONG. Same concern for TOR OVER 79.5 (model has 90W, might be right but need validation). All futures value bets are suspect until roster audit complete. Priority: P0 task 043 to audit all 30 teams' roster changes before Opening Day March 27. Production otherwise healthy — data refreshing every 2hrs, all v25-v36 features live. |
+| #16 | 2026-03-22 08:00 | **Planning Session: Status Check & New Edges** — Production healthy: all live data feeds fresh (13 min old), auto-refresh working, 18 value bets detected. Season sim now running with Bayesian calibration. BAL fixed to 84W (was 77W). Key findings: (1) CWS OVER 58.5 shows 33.8% edge (sim=65W) — likely base data issue, CWS base=60-102 but Murakami addition may be overvalued. (2) OAK OVER 63.5 at 26.2% edge (sim=67.8W) — also suspect. (3) BAL UNDER 88.5 at 24% edge is most plausible bet. NEW EDGES IDENTIFIED: (A) NBA rest/tanking model for final 12 games — teams locked in resting stars or tanking creates systematic mispricings. OKC (55-15), SAS (52-18), DET (51-19) may rest. IND (15-55) full tank. (B) MLB Opening Week unders — historical edge with cold weather, ace starters going deep, rusty bats. (C) Daily MLB lineups integration for game-day model. TODAY: 5 NBA games (POR@DEN, BKN@SAC, WAS@NYK, MIN@BOS, TOR@PHX) + 9 NHL games. No MLB until March 27. Tasks 046 (NBA rest/tank model) and 047 (Opening Week unders) created as P0/P1. |
 
 ---
 
@@ -133,10 +136,12 @@
 - Total: $203.80 wagered, +$20.77 expected profit, 10.2% ROI
 
 ---
-*Last updated: 2026-03-22 06:00 UTC*
+*Last updated: 2026-03-22 08:05 UTC*
 *MLB OPENING DAY: 5 DAYS*
 *NBA PLAYOFFS: 21 DAYS*
-*✅ DEPLOY FIX CONFIRMED — All features v25-v36 live in production*
-*🚨 P0: Roster changes audit (task 043) — BAL missing Alonso/O'Neill/Bassitt/Eflin/Baz/Helsley → futures bets POISONED*
-*🚨 P0: Base static data update (task 044) — verify all 30 teams' 2025 finals + moves*
-*Next priorities: Fix roster data (043, 044, 045), then NBA playoff series model, then NHL backtest*
+*✅ ROSTER FIX: All 30 teams in ROSTER_CHANGES, BAL at 84W sim (was 77W)*
+*✅ PRODUCTION: Healthy, auto-refreshing, 18 value bets live*
+*🔧 P0: Base data validation (task 044) — CWS/OAK edges too large, likely model error not market edge*
+*🔧 P0: NBA rest/tank model (task 046) — 12 games left, immediate edge*
+*🔧 P1: Opening Week unders (task 047) — build before March 27*
+*Next build priorities: 046 → 044 → 047 → NBA playoff series model*

@@ -306,9 +306,11 @@ function getOpeningDayAdjustments(teamAbbr, isHome = false) {
   const chemAdj = spring.chemistry * 0.02; // Very small effect
   
   // Cap adjustments to prevent unrealistic swings
-  // No single team should swing more than ±0.50 RS/G or ±0.55 RA/G from adjustments
-  const offAdj = Math.max(-0.50, Math.min(0.50, rawOffAdj));
-  const defAdj = Math.max(-0.55, Math.min(0.55, rawDefAdj));
+  // For individual game predictions, apply at 65% confidence
+  // (offseason WAR projections have ~35% uncertainty even for single games)
+  const GAME_CONFIDENCE = 0.65;
+  const offAdj = Math.max(-0.35, Math.min(0.35, rawOffAdj * GAME_CONFIDENCE));
+  const defAdj = Math.max(-0.40, Math.min(0.40, rawDefAdj * GAME_CONFIDENCE));
   
   return {
     offAdj: +offAdj.toFixed(3),
@@ -405,12 +407,34 @@ function getDayNightAdj(timeET) {
 }
 
 /**
- * Get combined team adjustment for season simulation
- * This is the function the season-simulator calls.
- * Returns the same shape as getOpeningDayAdjustments but simplified for sim use.
+ * Get RAW combined team adjustment for season simulation
+ * The season simulator applies its own confidence scaling (40%), so we return unscaled values.
+ * This separates season-level from game-level confidence.
  */
 function getTeamAdjustment(teamAbbr) {
-  return getOpeningDayAdjustments(teamAbbr, false);
+  const spring = SPRING_TRAINING_SIGNALS[teamAbbr] || { offense: 0, pitching: 0, chemistry: 0, stWeight: 0.03 };
+  const roster = ROSTER_CHANGES[teamAbbr] || { rsG_adj: 0, raG_adj: 0 };
+  
+  // Raw adjustments (no confidence scaling — season sim does its own)
+  const rawOffAdj = (spring.offense * (spring.stWeight || 0.03) * 8) + roster.rsG_adj;
+  const rawDefAdj = -(spring.pitching * (spring.stWeight || 0.03) * 8) + roster.raG_adj;
+  const chemAdj = spring.chemistry * 0.02;
+  
+  // Cap at raw maximums
+  const offAdj = Math.max(-0.60, Math.min(0.60, rawOffAdj));
+  const defAdj = Math.max(-0.65, Math.min(0.65, rawDefAdj));
+  
+  return {
+    offAdj: +offAdj.toFixed(3),
+    defAdj: +defAdj.toFixed(3),
+    chemAdj: +chemAdj.toFixed(3),
+    starterFraction: getOpeningDayStarterFraction(true),
+    info: {
+      springSignal: spring,
+      rosterChanges: roster.note || null,
+      moves: roster.moves || [],
+    }
+  };
 }
 
 module.exports = {
