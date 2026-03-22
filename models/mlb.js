@@ -26,6 +26,8 @@ try { monteCarlo = require('../services/monte-carlo'); } catch (e) { /* no monte
 try { umpireService = require('../services/umpire-tendencies'); } catch (e) { /* no umpire data */ }
 try { statcastService = require('../services/statcast'); } catch (e) { /* no statcast */ }
 try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) { /* no preseason tuning */ }
+let lineupFetcher = null;
+try { lineupFetcher = require('../services/lineup-fetcher'); } catch (e) { /* no lineup data */ }
 
 // Negative Binomial model — upgrades Poisson for overdispersion in MLB scoring
 let negBinomial = null;
@@ -703,6 +705,33 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     };
   }
 
+  // ==================== LINEUP ADJUSTMENT ====================
+  // Confirmed lineups tell us: star hitters in/out, platoon matchups, catcher framing
+  // This runs SYNCHRONOUSLY from pre-fetched opts.lineup data (fetched in asyncPredict)
+  let awayLineupAdj = 0, homeLineupAdj = 0;
+  let lineupInfo = null;
+  if (opts.lineup && opts.lineup.hasData) {
+    // Direct run adjustments from lineup analysis
+    awayLineupAdj = opts.lineup.awayRunAdj || 0;
+    homeLineupAdj = opts.lineup.homeRunAdj || 0;
+    
+    // Cap at ±0.5 runs (lineup is one signal among many)
+    awayLineupAdj = Math.max(-0.5, Math.min(0.5, awayLineupAdj));
+    homeLineupAdj = Math.max(-0.5, Math.min(0.5, homeLineupAdj));
+    
+    awayRaG += awayLineupAdj;
+    homeRaG += homeLineupAdj;
+    
+    lineupInfo = {
+      awayAdj: +awayLineupAdj.toFixed(3),
+      homeAdj: +homeLineupAdj.toFixed(3),
+      awayStars: opts.lineup.details?.awayStars || 0,
+      homeStars: opts.lineup.details?.homeStars || 0,
+      awayCatcher: opts.lineup.details?.awayCatcher || null,
+      homeCatcher: opts.lineup.details?.homeCatcher || null,
+    };
+  }
+
   // Ensure sane bounds — CALIBRATION v3: tighter cap reflecting MLB variance
   // Audit: even the most extreme matchups (LAD@OAK, ATL@CWS) only win ~72% at best
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
@@ -880,7 +909,8 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
         awayAdj: +awayStatcastAdj.toFixed(3),
         homeAdj: +homeStatcastAdj.toFixed(3),
         note: 'Statcast xERA/xwOBA adjustments for true quality vs surface stats'
-      } : null
+      } : null,
+      lineup: lineupInfo,
     }
   };
   
@@ -1279,6 +1309,14 @@ async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
       const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
       opts.restTravel = await restTravel.getMatchupAdjustments(awayAbbr, homeAbbr, gameDate);
     } catch (e) { /* rest/travel optional */ }
+  }
+  
+  // Fetch lineup data if not already provided
+  if (!opts.lineup && lineupFetcher) {
+    try {
+      const dateStr = opts.gameDate || new Date().toISOString().split('T')[0];
+      opts.lineup = await lineupFetcher.getLineupAdjustments(awayAbbr, homeAbbr, dateStr);
+    } catch (e) { /* lineup data optional */ }
   }
   
   return predict(awayAbbr, homeAbbr, opts);

@@ -168,6 +168,9 @@ function buildTabs() {
   tabs.push({ id: 'edge-scanner', label: '🎯 Edge Scanner' });
   tabs.push({ id: 'tracker', label: '📋 Bet Tracker' });
   tabs.push({ id: 'auto-scanner', label: '🔄 Auto Scanner' });
+  if (currentSport === 'mlb' || currentSport === 'all') {
+    tabs.push({ id: 'futures', label: '🏆 MLB Futures' });
+  }
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
   }
@@ -205,6 +208,7 @@ function showTab(id) {
   else if (id === 'auto-scanner') loadAutoScannerTab();
   else if (id === 'playbook') loadPlaybook();
   else if (id === 'playoffs') loadPlayoffsTab();
+  else if (id === 'futures') loadFuturesTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -4688,6 +4692,370 @@ async function forceScan(key) {
 // ==================== OPENING DAY PLAYBOOK — THE WAR ROOM ====================
 
 let playbookBankroll = 1000;
+
+// ==================== MLB FUTURES SIMULATOR ====================
+let futuresView = 'overview';
+let futuresData = null;
+
+async function loadFuturesTab() {
+  const wrap = document.getElementById('tab-content');
+  
+  if (!futuresData) {
+    wrap.innerHTML = '<div style="text-align:center;padding:60px"><div class="spinner"></div><p style="margin-top:12px;color:#94a3b8">🏆 Running Season Simulation...</p><p style="color:#666;font-size:12px">Monte Carlo simulating 5,000 full 162-game seasons...</p></div>';
+    try {
+      const resp = await fetch(`${API}/api/season-sim?sims=5000`);
+      futuresData = await resp.json();
+    } catch (e) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${e.message}</p></div>`;
+      return;
+    }
+  }
+  
+  renderFuturesTab(futuresData);
+}
+
+function renderFuturesTab(data) {
+  const wrap = document.getElementById('tab-content');
+  if (!data || data.error) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${data?.error || 'No data'}</p></div>`;
+    return;
+  }
+  
+  let html = '';
+  
+  // Hero banner
+  html += `<div class="card" style="background:linear-gradient(135deg,#0a0e17 0%,#1a0a2e 50%,#0a1a2e 100%);border:2px solid var(--purple);position:relative;overflow:hidden">
+    <div style="position:absolute;top:-20px;right:-20px;font-size:120px;opacity:0.05">🏆</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+      <div>
+        <h2 style="font-size:24px;margin-bottom:4px">🏆 MLB Season Simulator — Futures Value</h2>
+        <p style="color:var(--text2)">${data.simulations?.toLocaleString() || '5,000'} season simulations • ${data.daysToOpeningDay} days to Opening Day</p>
+        ${data.cached ? `<p style="color:var(--text3);font-size:11px">Cached ${data.cacheAge}s ago</p>` : ''}
+      </div>
+      <button class="refresh-btn" onclick="futuresData=null;loadFuturesTab()" style="background:var(--purple);color:#fff">🔄 Re-Simulate</button>
+    </div>
+  </div>`;
+  
+  // Sub-tabs
+  html += '<div style="display:flex;gap:4px;background:var(--bg2);padding:5px;border-radius:10px;margin-bottom:16px;overflow-x:auto">';
+  const fViews = [
+    { id: 'overview', label: '🎯 Top Bets' },
+    { id: 'rankings', label: '📊 Power Rankings' },
+    { id: 'win-totals', label: '🔢 Win Totals' },
+    { id: 'divisions', label: '🏟️ Division Winners' },
+    { id: 'world-series', label: '🏆 World Series' },
+  ];
+  for (const v of fViews) {
+    html += `<button class="tab ${futuresView === v.id ? 'active' : ''}" onclick="futuresView='${v.id}';renderFuturesTab(futuresData)">${v.label}</button>`;
+  }
+  html += '</div>';
+  
+  // Summary stats
+  const topBets = data.topValueBets || [];
+  const winBets = data.winTotalValue?.bets || [];
+  const divBets = data.divisionValue?.bets || [];
+  const wsBets = data.wsValue?.bets || [];
+  
+  html += `<div class="stats-grid">
+    <div class="stat"><div class="val" style="color:var(--green)">${topBets.length}</div><div class="label">Total Value Bets</div></div>
+    <div class="stat"><div class="val">${winBets.length}</div><div class="label">Win Total Value</div></div>
+    <div class="stat"><div class="val">${divBets.length}</div><div class="label">Division Value</div></div>
+    <div class="stat"><div class="val">${wsBets.length}</div><div class="label">WS Value</div></div>
+  </div>`;
+  
+  html += '<div id="futures-content">';
+  
+  if (futuresView === 'overview') {
+    html += renderFuturesOverview(data);
+  } else if (futuresView === 'rankings') {
+    html += renderFuturesRankings(data);
+  } else if (futuresView === 'win-totals') {
+    html += renderFuturesWinTotals(data);
+  } else if (futuresView === 'divisions') {
+    html += renderFuturesDivisions(data);
+  } else if (futuresView === 'world-series') {
+    html += renderFuturesWorldSeries(data);
+  }
+  
+  html += '</div>';
+  
+  // Methodology
+  html += `<div class="card" style="margin-top:16px;border-color:var(--border)">
+    <h3 style="font-size:14px;color:var(--text2);margin-bottom:8px">📐 Methodology</h3>
+    <p style="color:var(--text3);font-size:12px;line-height:1.6">${data.methodology?.model || 'Pythagorean + Statcast + Preseason Tuning'} • ${data.methodology?.schedule || 'Full 162-game schedule'} • ${data.methodology?.playoffs || 'Full bracket simulation'} • HCA: ${data.methodology?.hca || '54%'} • Regression: ${data.methodology?.regression || '20% to .500'} • Odds: ${data.methodology?.oddsSource || 'DraftKings'}</p>
+  </div>`;
+  
+  wrap.innerHTML = html;
+}
+
+function renderFuturesOverview(data) {
+  let html = '<div class="card"><h2>🎯 Top Value Futures Bets</h2>';
+  html += '<p style="color:var(--text2);margin-bottom:16px;font-size:13px">Best +EV futures bets across all markets, sorted by edge size</p>';
+  
+  const bets = data.topValueBets || [];
+  if (bets.length === 0) {
+    html += '<p style="color:var(--text3)">No value bets found — the market is efficient today 📉</p></div>';
+    return html;
+  }
+  
+  for (const bet of bets) {
+    const edgeColor = bet.edge >= 10 ? 'var(--green)' : bet.edge >= 5 ? 'var(--yellow)' : 'var(--text2)';
+    const confColor = bet.confidence === 'HIGH' ? 'var(--green)' : bet.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+    const mktEmoji = bet.market === 'Win Total' ? '🔢' : bet.market === 'Division Winner' ? '🏟️' : '🏆';
+    
+    html += `<div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:10px;border-left:4px solid ${edgeColor}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <strong style="font-size:16px">${mktEmoji} ${bet.team || bet.name}</strong>
+          <span class="badge" style="background:rgba(34,197,94,0.15);color:${confColor};margin-left:8px">${bet.confidence}</span>
+          <span class="badge" style="background:rgba(168,85,247,0.15);color:var(--purple);margin-left:4px">${bet.market}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:20px;font-weight:700;color:${edgeColor}">+${bet.edge}% edge</div>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">
+        <span>📊 ${bet.bet || bet.name}</span>
+        <span>🎰 ${bet.odds > 0 ? '+' : ''}${bet.odds}</span>
+        <span>🎯 Model: ${(bet.modelProb * 100).toFixed(1)}%</span>
+        <span>📉 Book: ${(bet.bookProb * 100).toFixed(1)}%</span>
+        ${bet.kelly ? `<span>💰 Kelly: ${bet.kelly}%</span>` : ''}
+        ${bet.halfKelly ? `<span>½K: ${bet.halfKelly}%</span>` : ''}
+      </div>
+      ${bet.reasoning ? `<p style="margin-top:8px;font-size:12px;color:var(--text3)">${bet.reasoning}</p>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderFuturesRankings(data) {
+  const rankings = data.powerRankings || [];
+  let html = '<div class="card"><h2>📊 MLB 2026 Power Rankings</h2>';
+  html += '<p style="color:var(--text2);margin-bottom:16px;font-size:13px">Based on Monte Carlo season simulations using Pythagorean ratings + Statcast + preseason signals</p>';
+  
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="border-bottom:2px solid var(--border)">';
+  html += '<th style="text-align:left;padding:8px">#</th>';
+  html += '<th style="text-align:left;padding:8px">Team</th>';
+  html += '<th style="text-align:center;padding:8px">Proj W-L</th>';
+  html += '<th style="text-align:center;padding:8px">Range</th>';
+  html += '<th style="text-align:center;padding:8px">Playoff%</th>';
+  html += '<th style="text-align:center;padding:8px">Division%</th>';
+  html += '<th style="text-align:center;padding:8px">Pennant%</th>';
+  html += '<th style="text-align:center;padding:8px">WS%</th>';
+  html += '</tr></thead><tbody>';
+  
+  for (const t of rankings) {
+    const wsColor = t.wsPct >= 10 ? 'var(--green)' : t.wsPct >= 5 ? 'var(--yellow)' : 'var(--text3)';
+    const playoffColor = t.playoffPct >= 80 ? 'var(--green)' : t.playoffPct >= 50 ? 'var(--yellow)' : t.playoffPct >= 20 ? 'var(--orange)' : 'var(--red)';
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px;font-weight:700;color:var(--text3)">${t.rank}</td>
+      <td style="padding:8px"><strong>${t.team}</strong> <span style="color:var(--text3);font-size:11px">${t.name}</span></td>
+      <td style="padding:8px;text-align:center;font-weight:600">${t.projWins}-${t.projLosses}</td>
+      <td style="padding:8px;text-align:center;color:var(--text3)">${t.range}</td>
+      <td style="padding:8px;text-align:center;color:${playoffColor};font-weight:600">${t.playoffPct}%</td>
+      <td style="padding:8px;text-align:center">${t.divisionPct}%</td>
+      <td style="padding:8px;text-align:center">${t.pennantPct}%</td>
+      <td style="padding:8px;text-align:center;color:${wsColor};font-weight:700">${t.wsPct}%</td>
+    </tr>`;
+  }
+  html += '</tbody></table></div></div>';
+  
+  // Division breakdown
+  const divs = data.divProjections || {};
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:16px">';
+  for (const [divName, teams] of Object.entries(divs)) {
+    html += `<div class="card"><h3 style="font-size:15px;margin-bottom:12px">${divName}</h3>`;
+    for (const t of teams) {
+      const barWidth = Math.max(10, (t.projWins / 110) * 100);
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:36px;font-weight:700;font-size:13px">${t.team}</span>
+        <div style="flex:1;background:var(--bg3);border-radius:4px;height:20px;position:relative">
+          <div style="width:${barWidth}%;background:${t.divisionPct > 30 ? 'var(--green)' : 'var(--accent)'};height:100%;border-radius:4px"></div>
+          <span style="position:absolute;right:4px;top:2px;font-size:11px;color:var(--text)">${t.projWins}W</span>
+        </div>
+        <span style="width:40px;text-align:right;font-size:12px;color:var(--text2)">${t.divisionPct}%</span>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  
+  return html;
+}
+
+function renderFuturesWinTotals(data) {
+  const bets = data.winTotalValue?.bets || [];
+  let html = '<div class="card"><h2>🔢 Win Total Futures Value</h2>';
+  html += `<p style="color:var(--text2);margin-bottom:16px;font-size:13px">${bets.length} value bets found vs DraftKings pre-season win totals</p>`;
+  
+  if (bets.length === 0) {
+    html += '<p style="color:var(--text3)">No win total value bets found</p></div>';
+    return html;
+  }
+  
+  // Group by OVER and UNDER
+  const overs = bets.filter(b => b.bet.startsWith('OVER'));
+  const unders = bets.filter(b => b.bet.startsWith('UNDER'));
+  
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px">';
+  
+  // Overs
+  html += '<div><h3 style="color:var(--green);margin-bottom:12px">⬆️ OVER Value (${count})</h3>'.replace('${count}', overs.length);
+  for (const b of overs) {
+    const edgeColor = b.confidence === 'HIGH' ? 'var(--green)' : b.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+    html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>${b.team}</strong> <span style="color:var(--text3);font-size:12px">${b.name}</span>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${b.bet} | ${b.odds > 0 ? '+' : ''}${b.odds}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700;color:${edgeColor}">+${b.edge}%</div>
+          <div style="font-size:11px;color:var(--text3)">Proj: ${b.meanWins}W (${b.winDiff > 0 ? '+' : ''}${b.winDiff})</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text3)">
+        <span>Model: ${(b.modelProb * 100).toFixed(0)}%</span>
+        <span>Book: ${(b.bookProb * 100).toFixed(0)}%</span>
+        <span>½K: ${b.halfKelly}%</span>
+        <span class="badge" style="background:rgba(34,197,94,0.15);color:${edgeColor}">${b.confidence}</span>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  
+  // Unders
+  html += '<div><h3 style="color:var(--red);margin-bottom:12px">⬇️ UNDER Value (${count})</h3>'.replace('${count}', unders.length);
+  for (const b of unders) {
+    const edgeColor = b.confidence === 'HIGH' ? 'var(--green)' : b.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+    html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid var(--red)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong>${b.team}</strong> <span style="color:var(--text3);font-size:12px">${b.name}</span>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${b.bet} | ${b.odds > 0 ? '+' : ''}${b.odds}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700;color:${edgeColor}">+${b.edge}%</div>
+          <div style="font-size:11px;color:var(--text3)">Proj: ${b.meanWins}W (${b.winDiff > 0 ? '+' : ''}${b.winDiff})</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--text3)">
+        <span>Model: ${(b.modelProb * 100).toFixed(0)}%</span>
+        <span>Book: ${(b.bookProb * 100).toFixed(0)}%</span>
+        <span>½K: ${b.halfKelly}%</span>
+        <span class="badge" style="background:rgba(34,197,94,0.15);color:${edgeColor}">${b.confidence}</span>
+      </div>
+    </div>`;
+  }
+  html += '</div></div></div>';
+  
+  return html;
+}
+
+function renderFuturesDivisions(data) {
+  const bets = data.divisionValue?.bets || [];
+  const divs = data.divProjections || {};
+  
+  let html = '<div class="card"><h2>🏟️ Division Winner Futures</h2>';
+  html += `<p style="color:var(--text2);margin-bottom:16px;font-size:13px">${bets.length} division winner value bets found</p>`;
+  
+  // Value bets
+  if (bets.length > 0) {
+    html += '<h3 style="color:var(--green);margin-bottom:12px">💰 Value Bets</h3>';
+    for (const b of bets) {
+      const edgeColor = b.confidence === 'HIGH' ? 'var(--green)' : b.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+      html += `<div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;border-left:3px solid ${edgeColor}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong style="font-size:16px">${b.team}</strong>
+            <span style="color:var(--text3);font-size:12px;margin-left:8px">${b.division}</span>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">${b.odds > 0 ? '+' : ''}${b.odds}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:20px;font-weight:700;color:${edgeColor}">+${b.edge}%</div>
+            <div style="font-size:11px;color:var(--text3)">Sim: ${(b.modelProb * 100).toFixed(0)}% | Book: ${(b.bookProb * 100).toFixed(0)}%</div>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+  
+  // Division breakdown with probabilities
+  html += '<h3 style="margin-top:24px;margin-bottom:12px">🏟️ Division Projections</h3>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">';
+  for (const [divName, teams] of Object.entries(divs)) {
+    html += `<div class="card" style="margin:0"><h4 style="font-size:14px;margin-bottom:10px">${divName}</h4>`;
+    for (const t of teams) {
+      const bar = Math.min(100, t.divisionPct);
+      const barColor = t.divisionPct > 50 ? 'var(--green)' : t.divisionPct > 25 ? 'var(--yellow)' : 'var(--accent)';
+      html += `<div style="margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px">
+          <span><strong>${t.team}</strong> ${t.projWins}W</span>
+          <span style="color:${barColor};font-weight:600">${t.divisionPct}%</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:3px;height:8px">
+          <div style="width:${bar}%;background:${barColor};height:100%;border-radius:3px;transition:width 0.3s"></div>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div></div>';
+  
+  return html;
+}
+
+function renderFuturesWorldSeries(data) {
+  const bets = data.wsValue?.bets || [];
+  const rankings = data.powerRankings || [];
+  
+  let html = '<div class="card"><h2>🏆 World Series Futures</h2>';
+  html += `<p style="color:var(--text2);margin-bottom:16px;font-size:13px">${bets.length} WS value bets found</p>`;
+  
+  // Value bets
+  if (bets.length > 0) {
+    html += '<h3 style="color:var(--green);margin-bottom:12px">💰 Value Bets</h3>';
+    for (const b of bets) {
+      const edgeColor = b.confidence === 'HIGH' ? 'var(--green)' : b.confidence === 'MEDIUM' ? 'var(--yellow)' : 'var(--text3)';
+      html += `<div style="background:var(--bg2);border-radius:8px;padding:14px;margin-bottom:10px;border-left:3px solid ${edgeColor}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong style="font-size:18px">🏆 ${b.team}</strong>
+            <span style="color:var(--text3);font-size:13px;margin-left:8px">${b.name}</span>
+            <div style="font-size:13px;color:var(--text2);margin-top:4px">WS Champion ${b.odds > 0 ? '+' : ''}${b.odds}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:22px;font-weight:700;color:${edgeColor}">+${b.edge}%</div>
+            <div style="font-size:12px;color:var(--text3)">Sim: ${(b.modelProb * 100).toFixed(1)}% | Book: ${(b.bookProb * 100).toFixed(1)}%</div>
+          </div>
+        </div>
+      </div>`;
+    }
+  }
+  
+  // WS odds chart (top 15 teams)
+  html += '<h3 style="margin-top:24px;margin-bottom:12px">🏆 Championship Probability</h3>';
+  const top15 = rankings.filter(t => t.wsPct > 0).slice(0, 15);
+  
+  for (const t of top15) {
+    const bar = Math.min(100, t.wsPct * 4); // Scale for visual
+    const barColor = t.wsPct >= 10 ? 'var(--green)' : t.wsPct >= 5 ? 'var(--yellow)' : 'var(--accent)';
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="width:50px;font-weight:700;font-size:14px">${t.team}</span>
+      <div style="flex:1;background:var(--bg2);border-radius:4px;height:24px;position:relative">
+        <div style="width:${bar}%;background:${barColor};height:100%;border-radius:4px;transition:width 0.3s"></div>
+        <span style="position:absolute;left:8px;top:4px;font-size:12px;font-weight:600;color:var(--text)">${t.wsPct}%</span>
+      </div>
+      <span style="width:60px;text-align:right;font-size:12px;color:var(--text2)">${t.projWins}W</span>
+      <span style="width:50px;text-align:right;font-size:12px;color:var(--text3)">PO:${t.playoffPct}%</span>
+    </div>`;
+  }
+  
+  html += '</div>';
+  return html;
+}
 
 async function loadPlaybook() {
   const wrap = document.getElementById('tab-content');

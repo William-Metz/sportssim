@@ -663,6 +663,16 @@
       "team": "Memphis Grizzlies",
       "injuries": [
         {
+          "player": "Cedric Coward",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Coward (personal) has been ruled out for Saturday's game against Charlotte.",
+          "returnDate": "2026-03-22T04:33Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Ty Jerome",
           "position": "G",
           "status": "Out",
@@ -678,16 +688,6 @@
           "status": "Out",
           "detail": "Mashack (ankle) has been ruled out for Saturday's game against the Hornets.",
           "returnDate": "2026-03-21T17:39Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Cedric Coward",
-          "position": "F",
-          "status": "Out",
-          "detail": "Coward (personal) has been ruled out for Saturday's game against Charlotte.",
-          "returnDate": "2026-03-21T17:30Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -754,8 +754,8 @@
         }
       ],
       "totalImpact": 4,
-      "outCount": 9,
-      "dtdCount": 0,
+      "outCount": 8,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Ja Morant",
@@ -771,21 +771,21 @@
       "team": "Miami Heat",
       "injuries": [
         {
+          "player": "Jaime Jaquez Jr.",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Jaquez (hip) is out for Saturday's game against Houston.",
+          "returnDate": "2026-03-22T04:27Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Norman Powell",
           "position": "G",
           "status": "Out",
           "detail": "Powell (calf) is out for Saturday's game against the Rockets.",
           "returnDate": "2026-03-21T22:35Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Jaime Jaquez Jr.",
-          "position": "F",
-          "status": "Out",
-          "detail": "Jaquez (hip) is out for Saturday's game against Houston.",
-          "returnDate": "2026-03-20T19:50Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -812,8 +812,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "MIL": {
@@ -986,12 +986,12 @@
         {
           "player": "Luguentz Dort",
           "position": "G",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Dort has been ruled out for Saturday's game against the Wizards due to a left knee contusion.",
-          "returnDate": "2026-03-21T16:05Z",
+          "returnDate": "2026-03-22T04:21Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Branden Carlson",
@@ -1025,8 +1025,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "ORL": {
@@ -1375,12 +1375,12 @@
         {
           "player": "Devin Vassell",
           "position": "G",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Vassell has a right hamstring issue and is out for Saturday's game against the Pacers, Paul Garcia of ProjectSpurs.com reports.",
-          "returnDate": "2026-03-21T23:56Z",
+          "returnDate": "2026-03-22T04:33Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Stephon Castle",
@@ -1404,8 +1404,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "TOR": {
@@ -2841,12 +2841,12 @@
         {
           "player": "Anthony Stolarz",
           "position": "G",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T23:14Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-22T04:27Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Morgan Rielly",
@@ -2880,8 +2880,8 @@
         }
       ],
       "totalImpact": 0.35,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Auston Matthews",
@@ -5769,8 +5769,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774152419948,
-    "nhl": 1774152420383,
-    "mlb": 1774152420544
+    "nba": 1774154833627,
+    "nhl": 1774154833798,
+    "mlb": 1774154833941
   }
 }

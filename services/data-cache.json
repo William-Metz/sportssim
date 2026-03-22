@@ -52,12 +52,12 @@
     },
     "MIL": {
       "name": "Milwaukee Bucks",
-      "w": 28,
+      "w": 29,
       "l": 41,
       "ppg": 111,
-      "oppg": 116.4,
-      "diff": -5.4,
-      "l10": "2-8",
+      "oppg": 116.2,
+      "diff": -5.2,
+      "l10": "3-7",
       "source": "espn-live"
     },
     "CHA": {
@@ -253,11 +253,11 @@
     "PHX": {
       "name": "Phoenix Suns",
       "w": 39,
-      "l": 31,
-      "ppg": 112.2,
+      "l": 32,
+      "ppg": 112.1,
       "oppg": 111.2,
-      "diff": 1,
-      "l10": "5-5",
+      "diff": 0.9,
+      "l10": "4-6",
       "source": "espn-live"
     },
     "DEN": {
@@ -399,21 +399,21 @@
     },
     "TBL": {
       "name": "Tampa Bay Lightning",
-      "w": 42,
+      "w": 43,
       "l": 21,
       "otl": 4,
-      "gf": 3.63,
-      "ga": 2.78,
-      "gfTotal": 243,
-      "gaTotal": 186,
-      "gp": 67,
-      "l10w": 4,
-      "l10l": 6,
+      "gf": 3.65,
+      "ga": 2.76,
+      "gfTotal": 248,
+      "gaTotal": 188,
+      "gp": 68,
+      "l10w": 5,
+      "l10l": 5,
       "l10otl": 0,
-      "points": 88,
-      "pointPctg": 0.656716,
-      "streak": "W2",
-      "regulationWins": 33,
+      "points": 90,
+      "pointPctg": 0.661765,
+      "streak": "W3",
+      "regulationWins": 34,
       "source": "nhl-api-live"
     },
     "PIT": {
@@ -628,19 +628,19 @@
     "EDM": {
       "name": "Edmonton Oilers",
       "w": 34,
-      "l": 27,
+      "l": 28,
       "otl": 9,
-      "gf": 3.47,
-      "ga": 3.41,
-      "gfTotal": 243,
-      "gaTotal": 239,
-      "gp": 70,
+      "gf": 3.45,
+      "ga": 3.44,
+      "gfTotal": 245,
+      "gaTotal": 244,
+      "gp": 71,
       "l10w": 5,
       "l10l": 4,
       "l10otl": 1,
       "points": 77,
-      "pointPctg": 0.55,
-      "streak": "L1",
+      "pointPctg": 0.542254,
+      "streak": "L2",
       "regulationWins": 26,
       "source": "nhl-api-live"
     },
@@ -1244,8 +1244,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774152420034,
-    "nhl": 1774152420339,
-    "mlb": 1774152420680
+    "nba": 1774154833573,
+    "nhl": 1774154833814,
+    "mlb": 1774154834160
   }
 }

@@ -212,6 +212,11 @@ async function runAllTests() {
   await test('Data refresh', '/api/data/refresh', (json) => {
     assert(json.status === 'ok', 'Refresh should return ok');
   }, { critical: false, timeoutMs: 15000 });
+
+  await test('Season simulator', '/api/season-sim/top-bets', (json) => {
+    assert(json.bets, 'Should have bets array');
+    assert(json.breakdown, 'Should have breakdown');
+  }, { critical: false, timeoutMs: 15000 });
 }
 
 // ─── Runner ───
