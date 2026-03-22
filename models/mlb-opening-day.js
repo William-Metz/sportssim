@@ -591,6 +591,7 @@ async function getProjections() {
           } : null,
         },
         totals: prediction.totals || null,
+        dkLine: game.dkLine || null,
         ouSuggestion,
         f5Suggestion,
         valueAnalysis,

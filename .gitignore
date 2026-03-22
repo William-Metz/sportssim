@@ -4,6 +4,10 @@ node_modules/
 .DS_Store
 services/ml-models/*.pkl
 services/*-cache.json
+services/scan-cache/
+services/scan-log.json
+services/picks-history.json
+services/scan-status.json
 .venv/
 ml-env/
 data/

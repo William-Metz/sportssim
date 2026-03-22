@@ -3,12 +3,15 @@
  * 
  * Pre-computes the OD playbook in the background with parallelized signal fetching.
  * Solves the timeout issue by:
- * 1. Processing all 20 games in parallel (not sequential)
- * 2. Skipping Python ML bridge in critical path (too slow, 15s timeout × 20 games)
- * 3. Caching results with 10-min TTL
- * 4. Pre-computing on startup
+ * 1. Pre-fetching ALL weather data once for all parks (single batch)
+ * 2. Using synchronous predict() with pre-fetched data (no redundant asyncPredict network calls)
+ * 3. Processing all 20 games in parallel
+ * 4. Caching results with 10-min TTL
+ * 5. Pre-computing on startup
  * 
- * v66.0 - Fix for OD Playbook Timeout (Task 066)
+ * v67.0 - CRITICAL FIX: asyncPredict was re-fetching weather/lineup/umpire per game
+ *   = 20×4 = 80 redundant network calls within 8s timeout → F5/conviction all falling back to Poisson.
+ *   Fix: pre-fetch shared data once, pass to predict() directly. NB F5/conviction are synchronous.
  */
 
 let cachedPlaybook = null;
@@ -25,9 +28,90 @@ function init(dependencies) {
 }
 
 /**
- * Process a single game's signals — ALL async calls run in parallel per game
+ * Pre-fetch weather for all unique home parks in a single batch
  */
-async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction) {
+async function prefetchWeather(games) {
+  const weatherMap = {};
+  if (!deps.weather) return weatherMap;
+  
+  const uniqueParks = [...new Set(games.map(g => g.home))];
+  const promises = uniqueParks.map(async (homeAbbr) => {
+    try {
+      const wx = await deps.weather.getWeatherForPark(homeAbbr);
+      if (wx && !wx.error) {
+        weatherMap[homeAbbr] = wx;
+      }
+    } catch (e) { /* weather optional */ }
+  });
+  
+  await Promise.race([
+    Promise.all(promises),
+    new Promise(resolve => setTimeout(resolve, 6000)) // 6s max for weather batch
+  ]);
+  
+  return weatherMap;
+}
+
+/**
+ * Pre-fetch lineup data for all games in a single batch
+ */
+async function prefetchLineups(games) {
+  const lineupMap = {};
+  if (!deps.lineupFetcher) return lineupMap;
+  
+  const promises = games.map(async (game) => {
+    const key = `${game.away}@${game.home}`;
+    try {
+      const lineupAdj = await deps.lineupFetcher.getLineupAdjustments(game.away, game.home);
+      if (lineupAdj && lineupAdj.hasData) {
+        lineupMap[key] = lineupAdj;
+      }
+    } catch (e) { /* lineup optional */ }
+  });
+  
+  await Promise.race([
+    Promise.all(promises),
+    new Promise(resolve => setTimeout(resolve, 6000)) // 6s max for lineups
+  ]);
+  
+  return lineupMap;
+}
+
+/**
+ * Pre-fetch umpire assignments (single call covers all games)
+ */
+async function prefetchUmpires() {
+  const umpireMap = {};
+  if (!deps.umpireService || !deps.umpireService.fetchTodaysAssignments) return umpireMap;
+  
+  try {
+    const assignments = await deps.umpireService.fetchTodaysAssignments();
+    if (assignments && assignments.games) {
+      for (const game of assignments.games) {
+        const away = game.away?.toUpperCase();
+        const home = game.home?.toUpperCase();
+        if (away && home) {
+          const key = `${away}@${home}`;
+          const umpName = game.homePlateUmpire || game.umpireData?.name;
+          if (umpName) {
+            const ump = deps.umpireService.getUmpire(umpName);
+            if (ump) {
+              const umpAdj = deps.umpireService.calcTotalRunsMultiplier(ump);
+              umpireMap[key] = { name: ump.name, zone: ump.zone, ...umpAdj };
+            }
+          }
+        }
+      }
+    }
+  } catch (e) { /* umpire optional */ }
+  
+  return umpireMap;
+}
+
+/**
+ * Process a single game's signals — uses pre-fetched data, no redundant network calls
+ */
+function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction, prefetched) {
   const entry = {
     away: game.away,
     home: game.home,
@@ -42,27 +126,127 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     bets: [],
   };
 
-  // 1. ANALYTICAL MODEL (sync, always available)
-  entry.signals.analytical = {
-    homeWinProb: game.prediction.homeWinProb,
-    awayWinProb: game.prediction.awayWinProb,
-    homeExpRuns: game.prediction.homeExpRuns,
-    awayExpRuns: game.prediction.awayExpRuns,
-    totalRuns: game.prediction.totalRuns || game.prediction.expectedTotal,
-    homeML: game.prediction.homeML,
-    awayML: game.prediction.awayML,
-  };
+  // ============================================
+  // STEP 1: Run predict() with pre-fetched data
+  // This gives us NB F5, conviction, run lines — ALL synchronous, no network calls
+  // ============================================
+  let fullPred = null;
+  try {
+    if (deps.mlb && deps.mlb.predict) {
+      const matchupKey = `${game.away}@${game.home}`;
+      const predictOpts = {
+        awayPitcher: game.awayStarter?.name,
+        homePitcher: game.homeStarter?.name,
+      };
+      
+      // Inject pre-fetched weather
+      const weatherData = prefetched.weather[game.home];
+      if (weatherData && weatherData.multiplier) {
+        predictOpts.weather = weatherData;
+      }
+      
+      // Inject pre-fetched lineup
+      const lineupData = prefetched.lineups[matchupKey];
+      if (lineupData) {
+        predictOpts.lineup = lineupData;
+      }
+      
+      // Inject pre-fetched umpire
+      const umpireData = prefetched.umpires[matchupKey];
+      if (umpireData) {
+        predictOpts.umpire = umpireData;
+      }
+      
+      fullPred = deps.mlb.predict(game.away, game.home, predictOpts);
+    }
+  } catch (e) {
+    console.error(`[od-playbook-cache] predict() error for ${game.away}@${game.home}:`, e.message);
+  }
 
-  // ==========================================
-  // PARALLEL SIGNAL FETCHING — ALL at once
-  // ==========================================
-  const signalPromises = [];
+  // Use fullPred for analytical base if available (has all signal adjustments)
+  if (fullPred) {
+    entry.signals.analytical = {
+      homeWinProb: fullPred.homeWinProb,
+      awayWinProb: fullPred.awayWinProb,
+      homeExpRuns: fullPred.homeExpRuns,
+      awayExpRuns: fullPred.awayExpRuns,
+      totalRuns: fullPred.totalRuns || fullPred.expectedTotal,
+      homeML: fullPred.homeML,
+      awayML: fullPred.awayML,
+    };
+  } else {
+    // Fallback to game.prediction (from getProjections)
+    entry.signals.analytical = {
+      homeWinProb: game.prediction.homeWinProb,
+      awayWinProb: game.prediction.awayWinProb,
+      homeExpRuns: game.prediction.homeExpRuns,
+      awayExpRuns: game.prediction.awayExpRuns,
+      totalRuns: game.prediction.totalRuns || game.prediction.expectedTotal,
+      homeML: game.prediction.homeML,
+      awayML: game.prediction.awayML,
+    };
+  }
 
-  // 2. ML ENSEMBLE (skip Python bridge — too slow at 15s timeout per game)
-  // Instead, run it as optional background enhancement
-  // The analytical model + Statcast + calibration is sufficient for edge detection
+  // ============================================
+  // STEP 2: Extract F5/NB/Conviction from predict() result (synchronous)
+  // ============================================
+  if (fullPred && fullPred.f5 && fullPred.f5.model === 'negative-binomial-f5') {
+    const f5 = fullPred.f5;
+    const f5Lines = {};
+    for (const line of [4.5, 5.0, 5.5]) {
+      const lineData = f5.totals?.[line];
+      if (lineData) {
+        f5Lines[line] = { 
+          underPct: +(lineData.under * 100).toFixed(1), 
+          overPct: +(lineData.over * 100).toFixed(1),
+          underML: lineData.underML,
+          overML: lineData.overML,
+        };
+      }
+    }
+    
+    entry.signals.f5 = {
+      model: 'negative-binomial',
+      expectedTotal: f5.total,
+      awayF5Runs: f5.awayRuns,
+      homeF5Runs: f5.homeRuns,
+      homeWinProb: f5.homeWinProb,
+      awayWinProb: f5.awayWinProb,
+      drawProb: f5.drawProb,
+      threeWayML: f5.threeWay,
+      twoWayML: f5.twoWay,
+      lines: f5Lines,
+      bestUnder: f5.total < 4.5 ? 'U4.5' : f5.total < 5.0 ? 'U5.0' : 'U5.5',
+      runLines: f5.runLines || null,
+      teamTotals: f5.teamTotals || null,
+    };
+  }
+  
+  // Run line analysis from predict()
+  if (fullPred && fullPred.altRunLines) {
+    entry.signals.runLines = {
+      model: 'negative-binomial',
+      home: fullPred.altRunLines.home,
+      away: fullPred.altRunLines.away,
+      marginDist: fullPred.altRunLines.marginDist,
+    };
+  }
+  
+  // Conviction score from predict()
+  if (fullPred && fullPred.conviction) {
+    entry.signals.conviction = fullPred.conviction;
+  }
 
-  // 3. CALIBRATED PROBABILITIES (sync)
+  // Opening week unders from predict()
+  if (fullPred && fullPred.openingWeek) {
+    entry.signals.openingWeek = fullPred.openingWeek;
+  }
+
+  // ============================================
+  // STEP 3: All other signals (sync — no network calls)
+  // ============================================
+
+  // CALIBRATED PROBABILITIES
   try {
     if (deps.calibration) {
       const calPred = deps.calibration.calibratePrediction({
@@ -76,46 +260,42 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   } catch (e) { /* calibration optional */ }
 
-  // 4. WEATHER (async — parallel)
-  signalPromises.push(
-    (async () => {
-      try {
-        if (deps.weather) {
-          const wx = await deps.weather.getWeatherForPark(game.home);
-          if (wx && !wx.error) {
-            const wxData = wx.weather || {};
-            entry.signals.weather = {
-              temp: wxData.temp,
-              wind: wxData.wind,
-              windDir: wxData.windDir,
-              humidity: wxData.humidity,
-              runMultiplier: wx.multiplier || 1.0,
-              condition: wx.description,
-              impact: (wx.multiplier || 1.0) > 1.03 ? 'OVER' : (wx.multiplier || 1.0) < 0.97 ? 'UNDER' : 'NEUTRAL',
-              factors: wx.factors,
-            };
-          }
-        }
-      } catch (e) { /* weather optional */ }
-    })()
-  );
-
-  // 5. UMPIRE (sync)
+  // WEATHER (from pre-fetched data)
   try {
-    if (deps.umpireService) {
-      const umpData = deps.umpireService.getGameUmpireAdjustment(game.away, game.home);
-      if (umpData && !umpData.error) {
-        entry.signals.umpire = {
-          name: umpData.umpire || umpData.name,
-          runsPerGame: umpData.runsPerGame,
-          tendency: umpData.tendency,
-          totalAdj: umpData.totalAdj || umpData.runsAdj || 0,
-        };
-      }
+    const wx = prefetched.weather[game.home];
+    if (wx) {
+      const wxData = wx.weather || {};
+      entry.signals.weather = {
+        temp: wxData.temp,
+        wind: wxData.wind,
+        windDir: wxData.windDir,
+        humidity: wxData.humidity,
+        runMultiplier: wx.multiplier || 1.0,
+        condition: wx.description,
+        impact: (wx.multiplier || 1.0) > 1.03 ? 'OVER' : (wx.multiplier || 1.0) < 0.97 ? 'UNDER' : 'NEUTRAL',
+        factors: wx.factors,
+      };
     }
-  } catch (e) { /* umpire optional */ }
+  } catch (e) { /* weather optional */ }
 
-  // 6. PRESEASON TUNING (sync)
+  // UMPIRE (from pre-fetched data)
+  try {
+    const matchupKey = `${game.away}@${game.home}`;
+    const umpData = prefetched.umpires[matchupKey];
+    if (umpData) {
+      entry.signals.umpire = {
+        name: umpData.name,
+        zone: umpData.zone,
+        runsPerGame: umpData.runsPerGame,
+        tendency: umpData.tendency,
+        totalAdj: umpData.totalAdj || umpData.runsAdj || umpData.multiplier ? (umpData.multiplier - 1) * 9 : 0,
+      };
+    } else {
+      entry.signals.umpire = { totalAdj: 0 };
+    }
+  } catch (e) { entry.signals.umpire = { totalAdj: 0 }; }
+
+  // PRESEASON TUNING
   try {
     if (deps.preseasonTuning) {
       const awayAdj = deps.preseasonTuning.getOpeningDayAdjustments(game.away);
@@ -135,7 +315,7 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   } catch (e) { /* preseason optional */ }
 
-  // 7. STATCAST EDGE (sync)
+  // STATCAST EDGE
   try {
     if (deps.statcast) {
       if (game.awayStarter?.name) {
@@ -153,7 +333,7 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   } catch (e) { /* statcast optional */ }
 
-  // 8. ROLLING STATS (sync)
+  // ROLLING STATS
   try {
     if (deps.rollingStats) {
       const awayRoll = deps.rollingStats.getRollingAdjustment('mlb', game.away);
@@ -163,7 +343,7 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   } catch (e) { /* rolling optional */ }
 
-  // 9. INJURIES (sync)
+  // INJURIES
   try {
     if (deps.injuries) {
       const awayInj = deps.injuries.getInjuryAdjustment('mlb', game.away);
@@ -173,7 +353,7 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   } catch (e) { /* injuries optional */ }
 
-  // 9a2. BULLPEN QUALITY PROJECTIONS (sync)
+  // BULLPEN QUALITY PROJECTIONS
   try {
     if (deps.bullpenQuality) {
       const teams = deps.mlb.getTeams();
@@ -198,98 +378,45 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   } catch (e) { /* bullpen quality optional */ }
 
-  // 9b. LINEUP DATA (async — parallel)
-  signalPromises.push(
-    (async () => {
-      try {
-        if (deps.lineupFetcher) {
-          const lineupAdj = await deps.lineupFetcher.getLineupAdjustments(game.away, game.home);
-          if (lineupAdj && lineupAdj.hasData) {
-            entry.signals.lineup = {
-              awayRunAdj: lineupAdj.awayRunAdj,
-              homeRunAdj: lineupAdj.homeRunAdj,
-              awayStars: lineupAdj.details?.awayStars || 0,
-              homeStars: lineupAdj.details?.homeStars || 0,
-              awayCatcher: lineupAdj.details?.awayCatcher || null,
-              homeCatcher: lineupAdj.details?.homeCatcher || null,
-              status: 'confirmed',
-            };
-          } else {
-            entry.signals.lineup = { status: 'pending', note: 'Lineups not yet confirmed' };
-          }
-        }
-      } catch (e) { /* lineup data optional */ }
-    })()
-  );
+  // STOLEN BASE REVOLUTION
+  try {
+    if (deps.stolenBaseModel) {
+      const sbAdj = deps.stolenBaseModel.getSBTotalsAdjustment(game.away, game.home);
+      if (sbAdj) {
+        entry.signals.stolenBases = {
+          awayExtra: sbAdj.awaySBExtra,
+          homeExtra: sbAdj.homeSBExtra,
+          netAdjustment: sbAdj.netAdjustment,
+          awayTier: sbAdj.awayTier,
+          homeTier: sbAdj.homeTier,
+          totalsImpact: sbAdj.totalsImpact,
+        };
+      }
+    }
+  } catch (e) { /* stolen bases optional */ }
 
-  // 9c. asyncPredict for full F5/NB/Conviction (async — parallel)
-  signalPromises.push(
-    (async () => {
-      try {
-        if (deps.mlb && deps.mlb.asyncPredict) {
-          const fullPred = await deps.mlb.asyncPredict(game.away, game.home, {
-            awayPitcher: game.awayStarter?.name,
-            homePitcher: game.homeStarter?.name,
-          });
-          
-          if (fullPred && fullPred.f5 && fullPred.f5.model === 'negative-binomial-f5') {
-            const f5 = fullPred.f5;
-            const f5Lines = {};
-            for (const line of [4.5, 5.0, 5.5]) {
-              const lineData = f5.totals?.[line];
-              if (lineData) {
-                f5Lines[line] = { 
-                  underPct: +(lineData.under * 100).toFixed(1), 
-                  overPct: +(lineData.over * 100).toFixed(1),
-                  underML: lineData.underML,
-                  overML: lineData.overML,
-                };
-              }
-            }
-            
-            entry.signals.f5 = {
-              model: 'negative-binomial',
-              expectedTotal: f5.total,
-              awayF5Runs: f5.awayRuns,
-              homeF5Runs: f5.homeRuns,
-              homeWinProb: f5.homeWinProb,
-              awayWinProb: f5.awayWinProb,
-              drawProb: f5.drawProb,
-              threeWayML: f5.threeWay,
-              twoWayML: f5.twoWay,
-              lines: f5Lines,
-              bestUnder: f5.total < 4.5 ? 'U4.5' : f5.total < 5.0 ? 'U5.0' : 'U5.5',
-              runLines: f5.runLines || null,
-              teamTotals: f5.teamTotals || null,
-            };
-          }
-          
-          // Run line analysis
-          if (fullPred && fullPred.altRunLines) {
-            entry.signals.runLines = {
-              model: 'negative-binomial',
-              home: fullPred.altRunLines.home,
-              away: fullPred.altRunLines.away,
-              marginDist: fullPred.altRunLines.marginDist,
-            };
-          }
-          
-          // Conviction score
-          if (fullPred && fullPred.conviction) {
-            entry.signals.conviction = fullPred.conviction;
-          }
-        }
-      } catch (e) { /* asyncPredict optional */ }
-    })()
-  );
+  // LINEUP DATA (from pre-fetched)
+  try {
+    const matchupKey = `${game.away}@${game.home}`;
+    const lineupAdj = prefetched.lineups[matchupKey];
+    if (lineupAdj && lineupAdj.hasData) {
+      entry.signals.lineup = {
+        awayRunAdj: lineupAdj.awayRunAdj,
+        homeRunAdj: lineupAdj.homeRunAdj,
+        awayStars: lineupAdj.details?.awayStars || 0,
+        homeStars: lineupAdj.details?.homeStars || 0,
+        awayCatcher: lineupAdj.details?.awayCatcher || null,
+        homeCatcher: lineupAdj.details?.homeCatcher || null,
+        status: 'confirmed',
+      };
+    } else {
+      entry.signals.lineup = { status: 'pending', note: 'Lineups not yet confirmed' };
+    }
+  } catch (e) { /* lineup optional */ }
 
-  // Wait for all parallel signal fetches (with overall timeout)
-  await Promise.race([
-    Promise.all(signalPromises),
-    new Promise(resolve => setTimeout(resolve, 8000)) // 8s max per game
-  ]);
-
-  // If no F5 data came from asyncPredict, use Poisson fallback
+  // ============================================
+  // F5 FALLBACK: If NB predict didn't produce F5, use Poisson
+  // ============================================
   if (!entry.signals.f5) {
     try {
       const awayExpRuns = entry.signals.analytical?.awayExpRuns || 4.3;
@@ -357,7 +484,9 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   }
 
-  // 10. LIVE ODDS
+  // ============================================
+  // LIVE ODDS MATCHING
+  // ============================================
   if (liveOdds && liveOdds.length > 0) {
     for (const oddsGame of liveOdds) {
       const oddsAway = resolveTeam(nameMap, oddsGame.away_team);
@@ -394,7 +523,22 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   }
 
-  // 11. CALCULATE BETS
+  // DK LINE FALLBACK
+  if (!entry.signals.liveOdds && game.dkLine) {
+    const dk = game.dkLine;
+    entry.signals.liveOdds = {
+      bookCount: 1,
+      books: { 'DraftKings (pre-OD)': { homeML: dk.homeML, awayML: dk.awayML, total: dk.total || null } },
+      bestHome: { ml: dk.homeML, book: 'DraftKings (pre-OD)', implied: dk.homeML ? mlToProb(dk.homeML) : null },
+      bestAway: { ml: dk.awayML, book: 'DraftKings (pre-OD)', implied: dk.awayML ? mlToProb(dk.awayML) : null },
+      bestTotal: dk.total || null,
+      source: 'dk-fallback',
+    };
+  }
+
+  // ============================================
+  // CALCULATE BETS
+  // ============================================
   const bestProb = entry.signals.calibrated || entry.signals.analytical;
   const liveOddsData = entry.signals.liveOdds;
 
@@ -476,7 +620,9 @@ async function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFrac
     }
   }
 
-  // 12. OVERALL GAME RATING
+  // ============================================
+  // OVERALL GAME RATING
+  // ============================================
   const totalSignals = Object.keys(entry.signals).filter(k => !k.includes('Error')).length;
   const hasBets = entry.bets.length > 0;
   const maxEdge = hasBets ? Math.max(...entry.bets.map(b => b.edge || 0)) : 0;
@@ -558,37 +704,49 @@ function extractBookLineFast(bk, homeTeam) {
 function resolveTeam(nameMap, rawName) {
   if (!rawName) return null;
   const lower = rawName.toLowerCase().trim();
-  // Direct match
   if (nameMap[lower]) return nameMap[lower];
-  // Try last word
   const words = lower.split(' ');
   const last = words[words.length - 1];
   if (nameMap[last]) return nameMap[last];
-  // Try first word
   if (nameMap[words[0]]) return nameMap[words[0]];
   return null;
 }
 
 /**
- * Build the full playbook — runs all games in parallel
+ * Build the full playbook — pre-fetches shared data, then runs all games synchronously
  */
 async function buildPlaybook(bankroll = 1000, kellyFraction = 0.5, minEdge = 0.02) {
   const startTime = Date.now();
-  console.log('[od-playbook-cache] Building playbook...');
+  console.log('[od-playbook-cache] Building playbook v67...');
   
   const projections = await deps.mlbOpeningDay.getProjections();
   if (!projections || !projections.games || projections.games.length === 0) {
     return { error: 'No Opening Day projections available', games: [] };
   }
 
-  // Fetch live MLB odds (single call, shared across all games)
-  let liveOdds = [];
-  try {
-    if (deps.fetchOdds) {
-      liveOdds = await deps.fetchOdds('baseball_mlb');
-    }
-  } catch (e) { /* no odds yet */ }
+  // ====================================
+  // PHASE 1: Pre-fetch ALL shared data in parallel (single batch)
+  // This eliminates 80+ redundant network calls from the old per-game asyncPredict
+  // ====================================
+  console.log(`[od-playbook-cache] Pre-fetching shared data for ${projections.games.length} games...`);
+  
+  const [weatherMap, lineupMap, umpireMap, liveOdds] = await Promise.all([
+    prefetchWeather(projections.games),
+    prefetchLineups(projections.games),
+    prefetchUmpires(),
+    (async () => {
+      try {
+        if (deps.fetchOdds) return await deps.fetchOdds('baseball_mlb');
+      } catch (e) { /* no odds yet */ }
+      return [];
+    })(),
+  ]);
+  
+  const prefetched = { weather: weatherMap, lineups: lineupMap, umpires: umpireMap };
+  const prefetchTime = Date.now() - startTime;
+  console.log(`[od-playbook-cache] Pre-fetch done in ${prefetchTime}ms — weather:${Object.keys(weatherMap).length} lineups:${Object.keys(lineupMap).length} umpires:${Object.keys(umpireMap).length}`);
 
+  // Build name map for odds matching
   const teams = deps.mlb.TEAMS || deps.mlb.getTeams();
   const nameMap = {};
   const extraAliases = {
@@ -596,7 +754,6 @@ async function buildPlaybook(bankroll = 1000, kellyFraction = 0.5, minEdge = 0.0
     'blue jays': 'TOR', 'padres': 'SD', 'giants': 'SF', 'rays': 'TB', 'royals': 'KC',
   };
   
-  // Build name map
   if (teams) {
     for (const [abbr, data] of Object.entries(teams)) {
       const name = (data.name || '').toLowerCase();
@@ -608,20 +765,23 @@ async function buildPlaybook(bankroll = 1000, kellyFraction = 0.5, minEdge = 0.0
   }
   Object.assign(nameMap, extraAliases);
 
-  // Process ALL games in parallel (the key optimization!)
-  const gamePromises = projections.games.map(game => 
-    processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction)
-      .catch(err => {
-        console.error(`[od-playbook-cache] Error processing ${game.away}@${game.home}:`, err.message);
-        return {
-          away: game.away, home: game.home, date: game.date,
-          signals: { error: err.message }, bets: [],
-          gameRating: { grade: 'D', signalCount: 0, betCount: 0, maxEdge: 0, totalWager: 0, totalEV: 0 },
-        };
-      })
-  );
-
-  const playbook = await Promise.all(gamePromises);
+  // ====================================
+  // PHASE 2: Process ALL games (now synchronous per game — no network calls!)
+  // ====================================
+  const playbook = [];
+  for (const game of projections.games) {
+    try {
+      const entry = processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction, prefetched);
+      playbook.push(entry);
+    } catch (err) {
+      console.error(`[od-playbook-cache] Error processing ${game.away}@${game.home}:`, err.message);
+      playbook.push({
+        away: game.away, home: game.home, date: game.date,
+        signals: { error: err.message }, bets: [],
+        gameRating: { grade: 'D', signalCount: 0, betCount: 0, maxEdge: 0, totalWager: 0, totalEV: 0 },
+      });
+    }
+  }
 
   // Sort by grade
   const gradeOrder = { 'A+': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4 };
@@ -637,12 +797,18 @@ async function buildPlaybook(bankroll = 1000, kellyFraction = 0.5, minEdge = 0.0
     highConfBets: allBets.filter(b => b.confidence === 'HIGH').length,
     mlBets: allBets.filter(b => b.type === 'ML').length,
     totalBets_total: allBets.filter(b => b.type === 'TOTAL').length,
+    f5Bets: allBets.filter(b => b.type === 'F5_TOTAL').length,
     bankroll,
     kellyFraction,
   };
 
+  // Count signal quality
+  const nbF5Count = playbook.filter(g => g.signals.f5?.model === 'negative-binomial').length;
+  const convictionCount = playbook.filter(g => g.signals.conviction).length;
+  const runLineCount = playbook.filter(g => g.signals.runLines?.model === 'negative-binomial').length;
+
   const elapsed = Date.now() - startTime;
-  console.log(`[od-playbook-cache] Built playbook in ${elapsed}ms — ${playbook.length} games, ${allBets.length} bets`);
+  console.log(`[od-playbook-cache] Built playbook in ${elapsed}ms — ${playbook.length} games, ${allBets.length} bets, NB-F5:${nbF5Count}/${playbook.length}, conviction:${convictionCount}, runLines:${runLineCount}`);
 
   return {
     timestamp: new Date().toISOString(),
@@ -650,6 +816,14 @@ async function buildPlaybook(bankroll = 1000, kellyFraction = 0.5, minEdge = 0.0
     daysUntil: Math.ceil((new Date('2026-03-26') - new Date()) / (1000 * 60 * 60 * 24)),
     totalGames: playbook.length,
     buildTimeMs: elapsed,
+    signalQuality: {
+      nbF5: `${nbF5Count}/${playbook.length}`,
+      conviction: `${convictionCount}/${playbook.length}`,
+      runLines: `${runLineCount}/${playbook.length}`,
+      weather: `${Object.keys(weatherMap).length}/${projections.games.length}`,
+      lineups: `${Object.keys(lineupMap).length}/${projections.games.length}`,
+      umpires: `${Object.keys(umpireMap).length}`,
+    },
     portfolio,
     playbook,
   };

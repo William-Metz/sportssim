@@ -230,6 +230,16 @@
       "l10": "2-8",
       "source": "espn-live"
     },
+    "POR": {
+      "name": "Portland Trail Blazers",
+      "w": 35,
+      "l": 37,
+      "ppg": 115.1,
+      "oppg": 117.2,
+      "diff": -2.1,
+      "l10": "6-4",
+      "source": "espn-live"
+    },
     "LAC": {
       "name": "LA Clippers",
       "w": 35,
@@ -240,16 +250,6 @@
       "l10": "5-5",
       "source": "espn-live"
     },
-    "POR": {
-      "name": "Portland Trail Blazers",
-      "w": 35,
-      "l": 36,
-      "ppg": 115.1,
-      "oppg": 117.1,
-      "diff": -2,
-      "l10": "6-4",
-      "source": "espn-live"
-    },
     "PHX": {
       "name": "Phoenix Suns",
       "w": 39,
@@ -258,16 +258,6 @@
       "oppg": 111.2,
       "diff": 0.9,
       "l10": "4-6",
-      "source": "espn-live"
-    },
-    "DEN": {
-      "name": "Denver Nuggets",
-      "w": 43,
-      "l": 28,
-      "ppg": 120.7,
-      "oppg": 116.5,
-      "diff": 4.2,
-      "l10": "6-4",
       "source": "espn-live"
     },
     "MIN": {
@@ -288,6 +278,16 @@
       "oppg": 109.9,
       "diff": 4.1,
       "l10": "5-5",
+      "source": "espn-live"
+    },
+    "DEN": {
+      "name": "Denver Nuggets",
+      "w": 44,
+      "l": 28,
+      "ppg": 120.8,
+      "oppg": 116.4,
+      "diff": 4.4,
+      "l10": "6-4",
       "source": "espn-live"
     },
     "LAL": {
@@ -1244,8 +1244,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774220488062,
-    "nhl": 1774220488278,
-    "mlb": 1774220488876
+    "nba": 1774223165000,
+    "nhl": 1774223165226,
+    "mlb": 1774223166027
   }
 }
