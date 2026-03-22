@@ -174,14 +174,15 @@
 - Total: $203.80 wagered, +$20.77 expected profit, 10.2% ROI
 
 ---
-*Last updated: 2026-03-22 20:00 UTC*
+*Last updated: 2026-03-22 21:40 UTC*
 *MLB OPENING DAY: 5 DAYS (March 27) 🔥🔥🔥*
 *NBA PLAYOFFS: 21 DAYS (April 12)*
 *NHL PLAYOFFS: 28 DAYS (April 19)*
 *NFL DRAFT: 33 DAYS (April 24)*
-*✅ PRODUCTION HEALTHY — v60.0.0, 512MB stable, all feeds live*
+*✅ PRODUCTION HEALTHY — v65.0.0, 512MB stable, all feeds live*
 *✅ Phase 2.75 COMPLETE + Phase 3 PARTIAL: NHL playoffs, goalie starters, NBA seeding sim, NFL futures all LIVE*
 *✅ v60.1: NB exact run lines, F5 scoring model, conviction engine, Opening Day Playbook upgraded*
 *🔧 P0: Pre-Opening Day final check (054) — March 26 DEADLINE*
 *🆕 NEW TASKS: 064 (platoon splits P1), 065 (catcher framing P2)*
-*Next build priorities: 054 (OD final check) → 064 (platoon splits) → 065 (catcher framing) → 063 (NCAA)*
+*Next build priorities: 054 (OD final check March 26) → 063 (NCAA) → Python ML engine*
+| #30 | 2026-03-22 21:40 | **🔧 Bullpen Quality Projections Wired into predict() v65.0 — CRITICAL ACCURACY FIX** — Found that bullpen-quality.js (reliever-level 2026 ERA projections for all 30 teams) was LOADED but NEVER USED in predict(). The model was using static 2025 bullpenEra from TEAMS, completely ignoring massive offseason reliever movement. FIX: predict() now uses projected 2026 bullpen ERA from bullpen-quality service. NB overdispersion parameter updated. 5 new API endpoints: /api/mlb/bullpen/{rankings,:away/:home,team/:team,scan,status}. Conviction engine gets +2/+4 pts for significant bullpen shifts. Opening Day Playbook gets bullpenQuality signal with closer matchup, ERA gap, betting implications, F5 signal. OD Preflight gets bullpen quality + platoon splits checks. KEY FINDINGS: MIL bullpen DECIMATED (+0.58 ERA, lost Devin Williams) = NYY@MIL OVER lean. BAL/MIN bullpens massively upgraded (-0.57/-0.69 ERA, Helsley/Hader). NYM upgraded (-0.53 ERA, Williams+Holmes+Minter+Diaz). 8 teams with >0.30 ERA shift = systematic mispricing. Server v65.0.0. |
