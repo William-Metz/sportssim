@@ -152,8 +152,25 @@ async function scanAllValue() {
         if (!homeAbbr || !awayAbbr) continue;
         
         try {
-          const pred = model.predict(homeAbbr, awayAbbr);
-          if (!pred) continue;
+          // FIXED: predict() takes (away, home) — was previously (home, away) which reversed HCA
+          // For MLB, use asyncPredict to get lineup/rest/travel/opening-week adjustments
+          let pred;
+          if (sport === 'mlb' && model.asyncPredict) {
+            pred = await model.asyncPredict(awayAbbr, homeAbbr);
+          } else {
+            pred = model.predict(awayAbbr, homeAbbr);
+          }
+          if (!pred || pred.error) continue;
+          
+          // Normalize homeWinProb to 0-1 scale
+          // NBA returns 0-100 (e.g. 65.3), MLB returns 0-1 (e.g. 0.487), NHL returns different format
+          let homeProb01;
+          if (sport === 'nhl') {
+            // NHL predict returns { home: { winProb: 55.2 }, away: { winProb: 44.8 } }
+            homeProb01 = pred.home?.winProb ? pred.home.winProb / 100 : 0.5;
+          } else {
+            homeProb01 = pred.homeWinProb > 1 ? pred.homeWinProb / 100 : pred.homeWinProb;
+          }
           
           // Check moneyline value
           const bookmakers = game.bookmakers || [];
@@ -165,7 +182,7 @@ async function scanAllValue() {
                   const odds = outcome.price;
                   const impliedProb = odds > 0 ? 100 / (odds + 100) : (-odds) / (-odds + 100);
                   const isHome = outcome.name === homeTeam;
-                  const modelProb = isHome ? pred.homeWinProb : (1 - pred.homeWinProb);
+                  const modelProb = isHome ? homeProb01 : (1 - homeProb01);
                   const edge = modelProb - impliedProb;
                   
                   if (edge >= 0.02) {
@@ -177,7 +194,57 @@ async function scanAllValue() {
                       edge: parseFloat(edge.toFixed(4)),
                       modelProb: parseFloat(modelProb.toFixed(4)),
                       impliedProb: parseFloat(impliedProb.toFixed(4)),
-                      confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW'
+                      confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
+                      // Include lineup/opening-week info if available
+                      lineupData: pred.lineup ? true : false,
+                      openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
+                    });
+                  }
+                }
+              }
+            }
+          }
+          
+          // Check totals value (spreads & totals)
+          // Get model total — field name varies by sport
+          const modelTotal = pred.totalRuns || pred.predictedTotal || pred.projTotal || null;
+          for (const book of bookmakers) {
+            for (const market of (book.markets || [])) {
+              if (market.key === 'totals' && modelTotal) {
+                for (const outcome of (market.outcomes || [])) {
+                  const line = outcome.point;
+                  const odds = outcome.price;
+                  if (!line || !odds) continue;
+                  
+                  const impliedProb = odds > 0 ? 100 / (odds + 100) : (-odds) / (-odds + 100);
+                  const isOver = outcome.name === 'Over';
+                  
+                  // Total model: use diff between model total and book line
+                  // Scale by sport's typical total variance
+                  const diff = modelTotal - line;
+                  const totalScale = sport === 'nba' ? 0.5 : sport === 'nhl' ? 1.5 : 2.0; // MLB has tighter totals
+                  let modelProb;
+                  if (isOver) {
+                    modelProb = 0.5 + (diff / line) * totalScale;
+                  } else {
+                    modelProb = 0.5 - (diff / line) * totalScale;
+                  }
+                  modelProb = Math.max(0.1, Math.min(0.9, modelProb));
+                  
+                  const edge = modelProb - impliedProb;
+                  if (edge >= 0.03) {
+                    valueBets.push({
+                      sport: sport.toUpperCase(),
+                      game: `${awayTeam} @ ${homeTeam}`,
+                      book: book.title,
+                      pick: `${outcome.name} ${line} (${odds > 0 ? '+' : ''}${odds})`,
+                      edge: parseFloat(edge.toFixed(4)),
+                      modelProb: parseFloat(modelProb.toFixed(4)),
+                      impliedProb: parseFloat(impliedProb.toFixed(4)),
+                      modelTotal: modelTotal,
+                      confidence: edge >= 0.07 ? 'HIGH' : edge >= 0.04 ? 'MEDIUM' : 'LOW',
+                      market: 'total',
+                      openingWeek: pred.openingWeek ? pred.openingWeek.active : false,
                     });
                   }
                 }
