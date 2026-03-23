@@ -98,6 +98,8 @@ let odSgpBuilder = null;
 try { odSgpBuilder = require('./services/od-sgp-builder'); } catch (e) { console.error('[server] OD SGP Builder not loaded:', e.message); }
 let nrfiModel = null;
 try { nrfiModel = require('./services/nrfi-model'); } catch (e) { console.error('[server] NRFI Model not loaded:', e.message); }
+let f3Model = null;
+try { f3Model = require('./services/f3-model'); } catch (e) { console.error('[server] F3 Model not loaded:', e.message); }
 let batterProps = null;
 try { batterProps = require('./services/batter-props'); } catch (e) { console.error('[server] Batter Props not loaded:', e.message); }
 let lineShopping = null;
@@ -189,7 +191,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '92.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix'] });
+  res.json({ status: 'ok', version: '93.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -7209,6 +7211,154 @@ app.get('/api/mlb/nrfi/scan', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ==================== F3 (FIRST 3 INNINGS) ENDPOINTS ====================
+
+// F3 matchup analysis for a specific game
+app.get('/api/mlb/f3/:away/:home', async (req, res) => {
+  try {
+    if (!f3Model) return res.status(503).json({ error: 'F3 model not loaded' });
+    const { away, home } = req.params;
+    const result = f3Model.analyzeF3Matchup(mlb, away.toUpperCase(), home.toUpperCase());
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// F3 value scan for Opening Day games
+app.get('/api/opening-day/f3', async (req, res) => {
+  try {
+    if (!f3Model) return res.status(503).json({ error: 'F3 model not loaded' });
+    
+    // Get Opening Day games
+    let odGames;
+    try {
+      const odModule = require('./services/mlb-opening-day');
+      odGames = odModule.getSchedule ? odModule.getSchedule() : (odModule.OPENING_DAY_GAMES || []);
+    } catch (e) {
+      odGames = [];
+    }
+    
+    if (odGames.length === 0) {
+      // Fallback: scan from Odds API data
+      return res.json({ error: 'No OD games found. Use /api/mlb/f3/scan for live games.' });
+    }
+    
+    const scan = f3Model.scanODGamesF3(mlb, odGames, {});
+    
+    // Try to get live F3 odds for comparison
+    let liveOdds = null;
+    try {
+      liveOdds = await f3Model.fetchF3Odds();
+    } catch (e) {
+      // Live odds optional
+    }
+    
+    res.json({
+      ...scan,
+      liveOdds: liveOdds && !liveOdds.error ? {
+        available: true,
+        gamesWithLines: liveOdds.games?.filter(g => Object.keys(g.f3Lines || {}).length > 0).length || 0,
+      } : { available: false },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// F3 scan for today's MLB games (regular season + OD)
+app.get('/api/mlb/f3/scan', async (req, res) => {
+  try {
+    if (!f3Model) return res.status(503).json({ error: 'F3 model not loaded' });
+    
+    // Get today's games from Odds API
+    const allOdds = require('./services/live-data').getAllOdds ? require('./services/live-data').getAllOdds() : {};
+    const mlbOdds = allOdds.mlb || [];
+    
+    // Build games list
+    const games = [];
+    for (const game of mlbOdds) {
+      const away = f3Model.resolveTeam(game.away || game.away_team || '');
+      const home = f3Model.resolveTeam(game.home || game.home_team || '');
+      if (away && home) {
+        games.push({ away, home });
+      }
+    }
+    
+    // If no odds data, try Opening Day schedule
+    if (games.length === 0) {
+      try {
+        const odModule = require('./services/mlb-opening-day');
+        const odGames = odModule.getSchedule ? odModule.getSchedule() : (odModule.OPENING_DAY_GAMES || []);
+        for (const g of odGames) {
+          games.push({ away: g.away, home: g.home });
+        }
+      } catch (e) { /* ok */ }
+    }
+    
+    const scan = f3Model.scanF3Value(mlb, games, {});
+    
+    // Try to enrich with live F3 odds
+    let liveOdds = null;
+    try {
+      liveOdds = await f3Model.fetchF3Odds();
+      if (liveOdds && liveOdds.games) {
+        for (const liveGame of liveOdds.games) {
+          const liveAway = f3Model.resolveTeam(liveGame.away);
+          const liveHome = f3Model.resolveTeam(liveGame.home);
+          const matchingScan = scan.games.find(g => g.away === liveAway && g.home === liveHome);
+          if (matchingScan && liveGame.bestF3Line) {
+            matchingScan.liveF3Line = liveGame.bestF3Line;
+            matchingScan.liveBook = liveGame.bestBook;
+            
+            // Calculate edge vs live odds for total
+            if (liveGame.bestF3Line.totalLine) {
+              const liveLine = liveGame.bestF3Line.totalLine;
+              const lineData = matchingScan.f3?.totals?.[liveLine] || 
+                               (matchingScan.modelF3Total < liveLine ? { under: 0.55 } : { over: 0.55 });
+              // Find closest model line for comparison
+              for (const bet of matchingScan.valueBets) {
+                if (Math.abs(bet.line - liveLine) <= 0.5) {
+                  const impliedOver = liveGame.bestF3Line.overOdds ? 
+                    (liveGame.bestF3Line.overOdds > 0 ? 100/(liveGame.bestF3Line.overOdds+100) : Math.abs(liveGame.bestF3Line.overOdds)/(Math.abs(liveGame.bestF3Line.overOdds)+100)) : null;
+                  const impliedUnder = liveGame.bestF3Line.underOdds ?
+                    (liveGame.bestF3Line.underOdds > 0 ? 100/(liveGame.bestF3Line.underOdds+100) : Math.abs(liveGame.bestF3Line.underOdds)/(Math.abs(liveGame.bestF3Line.underOdds)+100)) : null;
+                  
+                  if (bet.direction === 'UNDER' && impliedUnder) {
+                    bet.edge = +((bet.modelProb - impliedUnder) * 100).toFixed(1);
+                    bet.bookOdds = liveGame.bestF3Line.underOdds;
+                    bet.bookLine = liveLine;
+                  } else if (bet.direction === 'OVER' && impliedOver) {
+                    bet.edge = +((bet.modelProb - impliedOver) * 100).toFixed(1);
+                    bet.bookOdds = liveGame.bestF3Line.overOdds;
+                    bet.bookLine = liveLine;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) { /* live odds optional */ }
+    
+    res.json({
+      ...scan,
+      liveOdds: liveOdds && !liveOdds.error ? {
+        available: true,
+        gamesWithLines: liveOdds.games?.filter(g => Object.keys(g.f3Lines || {}).length > 0).length || 0,
+      } : { available: false },
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// F3 model status
+app.get('/api/mlb/f3/status', (req, res) => {
+  if (!f3Model) return res.status(503).json({ error: 'F3 model not loaded' });
+  res.json(f3Model.getStatus());
 });
 
 // ==================== BATTER PROPS ENDPOINTS ====================

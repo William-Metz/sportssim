@@ -202,6 +202,7 @@ function buildTabs() {
   tabs.push({ id: 'outs-props', label: '⏱️ Outs Props' });
   tabs.push({ id: 'batter-props', label: '🏏 Batter Props' });
   tabs.push({ id: 'nrfi', label: '🚫 NRFI' });
+  tabs.push({ id: 'f3-model', label: '🎯 F3 Model' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -277,6 +278,7 @@ function showTab(id) {
   else if (id === 'outs-props') loadOutsPropsTab();
   else if (id === 'batter-props') loadBatterPropsTab();
   else if (id === 'nrfi') loadNRFITab();
+  else if (id === 'f3-model') loadF3ModelTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
   else if (id === 'line-shop') loadLineShopTab();
@@ -11320,6 +11322,307 @@ async function loadNRFITab() {
     wrap.innerHTML = html;
   } catch (e) {
     wrap.innerHTML = `<div style="padding:20px;color:#ff6b6b">Error loading NRFI data: ${e.message}</div>`;
+  }
+}
+
+// ==================== F3 (FIRST 3 INNINGS) MODEL TAB ====================
+async function loadF3ModelTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div><p>Loading F3 model...</p></div>';
+  
+  try {
+    // Fetch OD F3 scan and status in parallel
+    const [odResp, statusResp, scanResp] = await Promise.all([
+      fetch(API + '/api/opening-day/f3').catch(() => null),
+      fetch(API + '/api/mlb/f3/status').catch(() => null),
+      fetch(API + '/api/mlb/f3/scan').catch(() => null),
+    ]);
+    
+    const odData = odResp ? await odResp.json().catch(() => ({})) : {};
+    const status = statusResp ? await statusResp.json().catch(() => ({})) : {};
+    const scanData = scanResp ? await scanResp.json().catch(() => ({})) : {};
+    
+    // Use scan data (which includes live games) or OD data
+    const games = scanData.games || odData.games || [];
+    const valueBets = [];
+    for (const g of games) {
+      if (g.valueBets) {
+        for (const vb of g.valueBets) {
+          valueBets.push({ ...vb, matchup: g.matchup || `${g.away}@${g.home}` });
+        }
+      }
+    }
+    valueBets.sort((a, b) => (b.edge || 0) - (a.edge || 0));
+    
+    const totalGames = games.length;
+    const gamesWithBets = games.filter(g => (g.valueBets || []).length > 0).length;
+    const highConfBets = valueBets.filter(v => v.confidence === 'HIGH' || (v.edge && v.edge > 5)).length;
+    const avgF3Total = totalGames > 0 ? (games.reduce((s, g) => s + (g.modelF3Total || g.f3?.total || 0), 0) / totalGames).toFixed(2) : '?';
+    
+    let html = `
+      <div style="padding:20px;max-width:1200px;margin:0 auto">
+        <h2 style="margin-bottom:5px">🎯 F3 Model — First 3 Innings Value Scanner</h2>
+        <p style="color:#aaa;margin-bottom:20px">
+          <strong>THE EDGE:</strong> First-Time-Through-Order (FTTO) advantage means pitchers dominate innings 1-3 
+          (.290 wOBA FTTO vs .340 third-time). Books have less data on F3 → softer lines → bigger edge than F5 or full game.
+        </p>
+        
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#00ff88">${totalGames}</div>
+            <div style="color:#aaa;font-size:13px">Games Scanned</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#e94560">${valueBets.length}</div>
+            <div style="color:#aaa;font-size:13px">Value Bets</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#ffd700">${highConfBets}</div>
+            <div style="color:#aaa;font-size:13px">High Confidence</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#fff">${avgF3Total}</div>
+            <div style="color:#aaa;font-size:13px">Avg F3 Total</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#00d2ff">${status.model || 'NB-F3'}</div>
+            <div style="color:#aaa;font-size:13px">Model</div>
+          </div>
+        </div>
+        
+        <div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:15px;margin-bottom:20px">
+          <h3 style="margin-top:0;color:#ffd700">💡 Why F3 Is Our Biggest Edge</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;color:#ccc;font-size:13px">
+            <div>
+              <p style="margin:5px 0"><strong style="color:#00ff88">1. FTTO Dominance:</strong> Starters have 15-17% suppression on first trip through order</p>
+              <p style="margin:5px 0"><strong style="color:#00ff88">2. Zero Bullpen:</strong> F3 eliminates ALL bullpen variance — pure starter matchup</p>
+              <p style="margin:5px 0"><strong style="color:#00ff88">3. Soft Lines:</strong> Books have less sharp action on F3 than F5/full game</p>
+            </div>
+            <div>
+              <p style="margin:5px 0"><strong style="color:#e94560">4. OD Boost:</strong> Opening Day aces + rusty bats = FTTO advantage is AMPLIFIED</p>
+              <p style="margin:5px 0"><strong style="color:#e94560">5. Cold Weather:</strong> Early innings = muscles not warmed up = suppressed offense</p>
+              <p style="margin:5px 0"><strong style="color:#e94560">6. Top of Order:</strong> Only 1 trip through lineup in 3 innings (9 batters)</p>
+            </div>
+          </div>
+        </div>`;
+    
+    // Value bets table
+    if (valueBets.length > 0) {
+      html += `<h3 style="color:#e94560">🔥 Top F3 Value Bets</h3>`;
+      html += `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#0f3460;color:#fff">
+          <th style="padding:8px;text-align:left">Matchup</th>
+          <th style="padding:8px;text-align:center">Direction</th>
+          <th style="padding:8px;text-align:right">Line</th>
+          <th style="padding:8px;text-align:right">Model %</th>
+          <th style="padding:8px;text-align:right">Edge</th>
+          <th style="padding:8px;text-align:center">Confidence</th>
+          <th style="padding:8px;text-align:left">Reason</th>
+        </tr></thead><tbody>`;
+      
+      for (const vb of valueBets.slice(0, 30)) {
+        const dirColor = vb.direction === 'UNDER' ? '#00ff88' : '#ff6b6b';
+        const confColor = vb.confidence === 'HIGH' ? '#00ff88' : vb.confidence === 'MEDIUM' ? '#ffd700' : '#888';
+        const edgeStr = vb.edge ? vb.edge.toFixed(1) + '%' : (vb.modelProb ? ((vb.modelProb * 100 - 50).toFixed(1) + '%') : '?');
+        html += `<tr style="border-bottom:1px solid #222">
+          <td style="padding:8px;font-weight:bold">${vb.matchup}</td>
+          <td style="padding:8px;text-align:center;color:${dirColor};font-weight:bold">${vb.direction || '?'}</td>
+          <td style="padding:8px;text-align:right">${vb.line || '?'}</td>
+          <td style="padding:8px;text-align:right">${vb.modelProb ? (vb.modelProb * 100).toFixed(1) + '%' : '?'}</td>
+          <td style="padding:8px;text-align:right;color:#ffd700;font-weight:bold">${edgeStr}</td>
+          <td style="padding:8px;text-align:center"><span style="color:${confColor}">${vb.confidence || '?'}</span></td>
+          <td style="padding:8px;color:#aaa;font-size:11px">${vb.reason || ''}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+    
+    // Game-by-game cards
+    html += `<h3 style="margin-top:25px">📊 All ${totalGames} Games — F3 Analysis</h3>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:12px">`;
+    
+    for (const g of games) {
+      const f3 = g.f3 || {};
+      const modelTotal = g.modelF3Total || f3.total || '?';
+      const awayRuns = g.awayF3Runs || f3.awayRuns || '?';
+      const homeRuns = g.homeF3Runs || f3.homeRuns || '?';
+      const drawPct = f3.drawProb ? (f3.drawProb * 100).toFixed(1) : (g.draw ? (g.draw * 100).toFixed(1) : '?');
+      const hasBets = (g.valueBets || []).length > 0;
+      const borderColor = hasBets ? '#e94560' : '#30363d';
+      const awayWin = f3.awayWinProb ? (f3.awayWinProb * 100).toFixed(1) : (g.awayWin ? (g.awayWin * 100).toFixed(1) : '?');
+      const homeWin = f3.homeWinProb ? (f3.homeWinProb * 100).toFixed(1) : (g.homeWin ? (g.homeWin * 100).toFixed(1) : '?');
+      
+      // FTTO info
+      const fttoAway = g.ftto?.away || g.awayFTTO || '';
+      const fttoHome = g.ftto?.home || g.homeFTTO || '';
+      
+      html += `
+        <div style="background:#1a1a2e;border-radius:10px;padding:15px;border-left:3px solid ${borderColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-weight:bold;font-size:16px">${g.matchup || g.away + '@' + g.home}</span>
+            <span style="color:#00d2ff;font-size:14px;font-weight:bold">F3 Total: ${modelTotal}</span>
+          </div>
+          
+          <div style="font-size:12px;color:#aaa;margin-bottom:10px">
+            ${g.pitchers || ''} ${g.day ? '| Day ' + g.day : ''}
+          </div>
+          
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+            <div style="background:#111;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:11px;color:#888">Away F3</div>
+              <div style="font-size:18px;font-weight:bold;color:#ff6b6b">${awayRuns}</div>
+              <div style="font-size:11px;color:#aaa">${awayWin}% win</div>
+            </div>
+            <div style="background:#111;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:11px;color:#888">Draw</div>
+              <div style="font-size:18px;font-weight:bold;color:#ffd700">${drawPct}%</div>
+              <div style="font-size:11px;color:#aaa">3-way</div>
+            </div>
+            <div style="background:#111;border-radius:6px;padding:8px;text-align:center">
+              <div style="font-size:11px;color:#888">Home F3</div>
+              <div style="font-size:18px;font-weight:bold;color:#00ff88">${homeRuns}</div>
+              <div style="font-size:11px;color:#aaa">${homeWin}% win</div>
+            </div>
+          </div>`;
+      
+      // FTTO tier info if available
+      if (g.awayPitcherTier || g.homePitcherTier) {
+        html += `<div style="font-size:11px;color:#666;margin-bottom:5px">
+          FTTO: Away Tier ${g.awayPitcherTier || '?'} (${g.awayFTTOMult || '?'}x) | Home Tier ${g.homePitcherTier || '?'} (${g.homeFTTOMult || '?'}x)
+        </div>`;
+      }
+      
+      // Top of order quality
+      if (g.topOrder) {
+        html += `<div style="font-size:11px;color:#666;margin-bottom:5px">
+          Top-Order: Away ${g.topOrder.away || '?'}x | Home ${g.topOrder.home || '?'}x
+        </div>`;
+      }
+      
+      // Value bets for this game
+      if (hasBets) {
+        html += `<div style="border-top:1px solid #333;padding-top:8px;margin-top:8px">`;
+        for (const vb of g.valueBets.slice(0, 3)) {
+          const vbColor = vb.direction === 'UNDER' ? '#00ff88' : '#ff6b6b';
+          html += `<div style="font-size:12px;margin-bottom:3px">
+            <span style="color:${vbColor};font-weight:bold">${vb.direction} ${vb.line}</span>
+            <span style="color:#ffd700;margin-left:8px">${vb.modelProb ? (vb.modelProb * 100).toFixed(1) + '%' : ''}</span>
+            <span style="color:#888;margin-left:5px;font-size:11px">${vb.confidence || ''}</span>
+          </div>`;
+        }
+        html += `</div>`;
+      }
+      
+      // Live odds if available
+      if (g.liveF3Line) {
+        html += `<div style="font-size:11px;color:#00d2ff;margin-top:5px;border-top:1px solid #222;padding-top:5px">
+          📡 Live: ${g.liveBook || 'Book'} F3 Total ${g.liveF3Line.totalLine || '?'} 
+          (O ${g.liveF3Line.overOdds || '?'} / U ${g.liveF3Line.underOdds || '?'})
+        </div>`;
+      }
+      
+      html += `</div>`;
+    }
+    
+    html += '</div>';
+    
+    // Matchup analyzer
+    html += `
+      <div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:20px;margin-top:25px">
+        <h3 style="margin-top:0;color:#00d2ff">🔬 F3 Matchup Analyzer</h3>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="f3Away" placeholder="Away (e.g. DET)" style="padding:8px 12px;background:#1a1a2e;border:1px solid #30363d;border-radius:6px;color:#fff;width:120px" />
+          <span style="color:#888">@</span>
+          <input id="f3Home" placeholder="Home (e.g. SD)" style="padding:8px 12px;background:#1a1a2e;border:1px solid #30363d;border-radius:6px;color:#fff;width:120px" />
+          <button onclick="analyzeF3Matchup()" style="padding:8px 16px;background:#e94560;border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:bold">Analyze F3</button>
+        </div>
+        <div id="f3AnalysisResult" style="margin-top:15px"></div>
+      </div>`;
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = '<div style="padding:20px;color:#ff6b6b">Error loading F3 data: ' + e.message + '</div>';
+  }
+}
+
+async function analyzeF3Matchup() {
+  const away = document.getElementById('f3Away').value.trim().toUpperCase();
+  const home = document.getElementById('f3Home').value.trim().toUpperCase();
+  const result = document.getElementById('f3AnalysisResult');
+  if (!away || !home) { result.innerHTML = '<p style="color:#ff6b6b">Enter both teams</p>'; return; }
+  result.innerHTML = '<div class="spinner"></div>';
+  
+  try {
+    const resp = await fetch(API + '/api/mlb/f3/' + away + '/' + home);
+    const data = await resp.json();
+    if (data.error) { result.innerHTML = '<p style="color:#ff6b6b">' + data.error + '</p>'; return; }
+    
+    const f3 = data.f3 || data;
+    let html = `<div style="background:#1a1a2e;border-radius:8px;padding:15px;margin-top:10px">`;
+    html += `<h4 style="margin-top:0">${away} @ ${home} — F3 Analysis</h4>`;
+    
+    // Score grid
+    html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px">
+      <div style="background:#111;border-radius:6px;padding:10px;text-align:center">
+        <div style="color:#888;font-size:11px">${away} F3 Runs</div>
+        <div style="font-size:22px;font-weight:bold;color:#ff6b6b">${f3.awayF3Runs || f3.awayRuns || '?'}</div>
+        <div style="color:#aaa;font-size:12px">${f3.awayWin ? (f3.awayWin * 100).toFixed(1) : (f3.awayWinProb ? (f3.awayWinProb * 100).toFixed(1) : '?')}% win</div>
+      </div>
+      <div style="background:#111;border-radius:6px;padding:10px;text-align:center">
+        <div style="color:#888;font-size:11px">Draw</div>
+        <div style="font-size:22px;font-weight:bold;color:#ffd700">${f3.draw ? (f3.draw * 100).toFixed(1) : (f3.drawProb ? (f3.drawProb * 100).toFixed(1) : '?')}%</div>
+        <div style="color:#aaa;font-size:12px">F3 Total: ${f3.f3Total || f3.total || '?'}</div>
+      </div>
+      <div style="background:#111;border-radius:6px;padding:10px;text-align:center">
+        <div style="color:#888;font-size:11px">${home} F3 Runs</div>
+        <div style="font-size:22px;font-weight:bold;color:#00ff88">${f3.homeF3Runs || f3.homeRuns || '?'}</div>
+        <div style="color:#aaa;font-size:12px">${f3.homeWin ? (f3.homeWin * 100).toFixed(1) : (f3.homeWinProb ? (f3.homeWinProb * 100).toFixed(1) : '?')}% win</div>
+      </div>
+    </div>`;
+    
+    // Totals lines
+    if (f3.totals) {
+      html += `<h4 style="color:#00d2ff;margin-bottom:5px">F3 Totals Lines</h4>`;
+      html += `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead>
+        <tr style="background:#0f3460"><th style="padding:6px">Line</th><th style="padding:6px">Over %</th><th style="padding:6px">Under %</th><th style="padding:6px">Over ML</th><th style="padding:6px">Under ML</th></tr></thead><tbody>`;
+      const lineKeys = Object.keys(f3.totals).sort((a,b) => parseFloat(a) - parseFloat(b));
+      for (const line of lineKeys) {
+        const t = f3.totals[line];
+        html += `<tr style="border-bottom:1px solid #222">
+          <td style="padding:6px;font-weight:bold">${line}</td>
+          <td style="padding:6px;color:#ff6b6b">${t.over ? (t.over * 100).toFixed(1) : '?'}%</td>
+          <td style="padding:6px;color:#00ff88">${t.under ? (t.under * 100).toFixed(1) : '?'}%</td>
+          <td style="padding:6px;color:#aaa">${t.overML || '?'}</td>
+          <td style="padding:6px;color:#aaa">${t.underML || '?'}</td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+    }
+    
+    // 3-way ML
+    if (f3.threeWay) {
+      html += `<div style="margin-top:10px;font-size:13px">
+        <strong>3-Way ML:</strong> ${away} ${f3.threeWay.awayML || '?'} | Draw ${f3.threeWay.drawML || '?'} | ${home} ${f3.threeWay.homeML || '?'}
+      </div>`;
+    }
+    
+    // Betting implications
+    if (data.bettingImplications || data.implications) {
+      const imps = data.bettingImplications || data.implications || [];
+      if (imps.length > 0) {
+        html += `<h4 style="color:#ffd700;margin-top:10px">💰 Betting Implications</h4>`;
+        for (const imp of imps) {
+          const impColor = imp.direction === 'UNDER' ? '#00ff88' : imp.direction === 'OVER' ? '#ff6b6b' : '#aaa';
+          html += `<div style="font-size:12px;margin-bottom:3px;color:${impColor}">• ${imp.market || ''}: ${imp.direction || ''} — ${imp.reason || ''} (${imp.confidence || ''})</div>`;
+        }
+      }
+    }
+    
+    html += `</div>`;
+    result.innerHTML = html;
+  } catch(e) {
+    result.innerHTML = '<p style="color:#ff6b6b">Error: ' + e.message + '</p>';
   }
 }
 

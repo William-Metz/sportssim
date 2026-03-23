@@ -1107,6 +1107,21 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     });
   }
   
+  // F3 (First 3 Innings) model — NB-based with FTTO advantage (v93.0)
+  // F3 is our BIGGEST edge: first-time-through-order advantage = starters dominate innings 1-3
+  // Books have less data → softer lines → more exploitable than F5 or full game
+  let nbF3Data = null;
+  if (negBinomial && negBinomial.negBinF3) {
+    const isOD = isPreseasonPredict;
+    nbF3Data = negBinomial.negBinF3(awayExpRuns, homeExpRuns, {
+      ...nbOpts,
+      isOpeningDay: isOD,
+      awayPitcherRating: awayPitcher ? (awayPitcher.rating || 50) : 50,
+      homePitcherRating: homePitcher ? (homePitcher.rating || 50) : 50,
+      temperature: (weatherData && weatherData.temperature) ? weatherData.temperature : null,
+    });
+  }
+  
   const homeML = probToML(homeWinProb);
   const awayML = probToML(awayWinProb);
 
@@ -1188,6 +1203,24 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       teamTotals: nbF5Data.teamTotals,
       model: 'negative-binomial-f5',
     } : { total: +((awayExpF5 + homeExpF5).toFixed(1)), model: 'linear-estimate' },
+    // F3 (First 3 Innings) model — NB with FTTO advantage (v93.0)
+    f3: nbF3Data ? {
+      homeWinProb: nbF3Data.homeWin,
+      awayWinProb: nbF3Data.awayWin,
+      drawProb: nbF3Data.draw,
+      homeML: nbF3Data.homeWinML,
+      awayML: nbF3Data.awayWinML,
+      threeWay: nbF3Data.threeWay,
+      twoWay: nbF3Data.twoWay,
+      total: nbF3Data.f3Total,
+      awayRuns: nbF3Data.awayF3Runs,
+      homeRuns: nbF3Data.homeF3Runs,
+      totals: nbF3Data.totals,
+      spreads: nbF3Data.spreads,
+      teamTotals: nbF3Data.teamTotals,
+      topScores: nbF3Data.topScores,
+      model: 'negative-binomial-f3',
+    } : null,
     parkFactor: pf,
     awayPower: awayR.power,
     homePower: homeR.power,
@@ -1266,6 +1299,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
         runLines: sim.runLines,
         totals: sim.totals,
         f5: sim.f5,
+        f3: sim.f3,
         topScores: sim.topScores.slice(0, 8),
         marginDist: sim.marginDist,
         extraInningsPct: sim.extraInningsPct,

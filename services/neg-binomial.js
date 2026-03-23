@@ -858,6 +858,236 @@ function negBinF5(awayExpRuns, homeExpRuns, opts = {}) {
 }
 
 
+// ==================== F3 (FIRST 3 INNINGS) MODEL ====================
+/**
+ * Calculate F3 (first 3 innings) win probabilities using NB score distributions.
+ * 
+ * F3 is an EVEN BIGGER edge than F5 because:
+ * 1. FIRST-TIME-THROUGH-ORDER (FTTO) advantage — batters see the starter's full arsenal
+ *    for the first time in innings 1-3. In 2024, starters had a .290 wOBA FTTO vs .320 
+ *    second-time-through and .340 third-time-through. This is a 15-17% improvement for pitchers.
+ * 2. Books price F3 with LESS data than F5/full game → softer lines → more edge
+ * 3. Opening Day compounds FTTO — batters haven't faced regular season pitching at all
+ * 4. Cold weather suppresses offense MORE in early innings (muscles not loose)
+ * 5. F3 eliminates ALL bullpen variance — it's purely starter vs lineup (top of order)
+ * 
+ * F3 runs are NOT 3/9 of full game — because:
+ * - FTTO means innings 1-3 score LESS than innings 4-6
+ * - Starter is freshest (highest velo, sharpest breaking stuff)
+ * - Lineup turns over only 1x in 3 innings (face 9 batters ≈ 1 trip through)
+ * 
+ * Historical F3 fraction: ~0.305-0.330 of full game runs
+ * - Ace matchups: ~0.29 (elite FTTO suppression)
+ * - Average matchups: ~0.32
+ * - Bad pitchers: ~0.34 (get hit hard even FTTO)
+ * 
+ * Markets available via The Odds API:
+ * - h2h_1st_3_innings (F3 moneyline)
+ * - totals_1st_3_innings (F3 total)
+ * - spreads_1st_3_innings (F3 spread)
+ * 
+ * @param {number} awayExpRuns - Full game expected away runs
+ * @param {number} homeExpRuns - Full game expected home runs
+ * @param {object} opts - Options (isOpeningDay, pitcherRatings, parkFactor, weather)
+ * @returns {object} F3 win/draw/total probabilities, spreads, team totals
+ */
+function negBinF3(awayExpRuns, homeExpRuns, opts = {}) {
+  // ==================== F3 FRACTION CALCULATION ====================
+  // Base F3 fraction of full game runs
+  // Historical data: first 3 innings produce ~31-32% of total runs
+  // Lower than 3/9 (33.3%) because of FTTO advantage
+  let f3Factor = opts.f3Factor || 0.320;
+  
+  if (opts.isOpeningDay) {
+    // OD starters are aces throwing their hardest, batters haven't seen live pitching
+    // FTTO effect is AMPLIFIED on Opening Day
+    f3Factor = 0.295; // OD aces in first 3 = massive suppression
+  }
+  
+  // ==================== PITCHER QUALITY FTTO ADJUSTMENT ====================
+  // Better pitchers have an even bigger FTTO advantage
+  // Because they have more pitch types, better deception, more movement
+  // Elite starters: .270 wOBA FTTO (vs .320 overall) = ~16% suppression
+  // Average starters: .300 wOBA FTTO (vs .320 overall) = ~6% suppression
+  // Bad starters: .315 wOBA FTTO (vs .335 overall) = ~6% suppression
+  const awayPR = opts.awayPitcherRating || 50;
+  const homePR = opts.homePitcherRating || 50;
+  
+  // FTTO suppression: ace (90) gets ~0.025 extra suppression, scrub (30) gets ~0
+  // This is STRONGER than F5 because F3 is ALL FTTO, F5 includes some 2nd-time-through
+  const awayFTTOSuppress = Math.max(0, (awayPR - 35) / 600); // 0 to ~0.092 for 35-90 rating
+  const homeFTTOSuppress = Math.max(0, (homePR - 35) / 600);
+  
+  // Away pitcher faces HOME batters → suppresses HOME team F3 runs
+  const homeF3Runs = Math.max(0.15, homeExpRuns * (f3Factor - awayFTTOSuppress));
+  // Home pitcher faces AWAY batters → suppresses AWAY team F3 runs
+  const awayF3Runs = Math.max(0.15, awayExpRuns * (f3Factor - homeFTTOSuppress));
+  
+  // ==================== COLD WEATHER F3 ADJUSTMENT ====================
+  // Cold weather has MORE impact on F3 than F5/full game because:
+  // - Muscles not warmed up yet in early innings
+  // - Ball doesn't carry as far when cold
+  // - Pitcher grip is tighter on fresh arm
+  let coldAdj = 1.0;
+  if (opts.temperature && opts.temperature < 55) {
+    // Sub-55°F: reduce F3 scoring by 2-6%
+    coldAdj = 1.0 - Math.min(0.06, (55 - opts.temperature) * 0.002);
+  }
+  
+  const adjHomeF3 = homeF3Runs * coldAdj;
+  const adjAwayF3 = awayF3Runs * coldAdj;
+  
+  // ==================== NB OVERDISPERSION ====================
+  // F3 has LESS variance than F5 or full game — shorter sample = less extreme outcomes
+  // Higher r = closer to Poisson = less variance
+  const baseR = opts.r || getGameR(opts);
+  const f3R = baseR * 1.6; // Higher r than F5 (1.3) because even shorter game
+  
+  const maxRuns = 10; // F3 cap is lower than F5 (12) or full game (20)
+  
+  // ==================== BUILD SCORE MATRIX ====================
+  const scoreMatrix = [];
+  let matrixSum = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    scoreMatrix[a] = [];
+    for (let h = 0; h <= maxRuns; h++) {
+      const p = negBinPMF(a, adjAwayF3, f3R) * negBinPMF(h, adjHomeF3, f3R);
+      scoreMatrix[a][h] = p;
+      matrixSum += p;
+    }
+  }
+  // Normalize
+  if (matrixSum > 0 && matrixSum < 0.99) {
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        scoreMatrix[a][h] /= matrixSum;
+      }
+    }
+  }
+  
+  // ==================== WIN/DRAW PROBABILITIES ====================
+  // F3 has a DRAW option like F5 (game doesn't end after 3 innings)
+  // Draw probability is HIGHER in F3 than F5 because fewer runs = more ties
+  // This is KEY for F3 moneylines — books often underprice draw
+  let awayWin = 0, homeWin = 0, draw = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    for (let h = 0; h <= maxRuns; h++) {
+      const prob = scoreMatrix[a][h];
+      if (a > h) awayWin += prob;
+      else if (h > a) homeWin += prob;
+      else draw += prob;
+    }
+  }
+  
+  // ==================== F3 TOTAL LINES ====================
+  const f3TotalLines = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6];
+  const f3Totals = {};
+  for (const line of f3TotalLines) {
+    let over = 0, under = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        const total = a + h;
+        const prob = scoreMatrix[a][h];
+        if (total > line) over += prob;
+        else if (total < line) under += prob;
+        // total === line is a push
+      }
+    }
+    f3Totals[line] = {
+      over: +over.toFixed(4),
+      under: +under.toFixed(4),
+      overML: probToML(over),
+      underML: probToML(under),
+    };
+  }
+  
+  // ==================== F3 SPREAD LINES ====================
+  const f3SpreadLines = [-0.5, 0.5, -1.5, 1.5, -2.5, 2.5];
+  const f3Spreads = {};
+  for (const spread of f3SpreadLines) {
+    let homeCover = 0, awayCover = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        const prob = scoreMatrix[a][h];
+        const margin = (h - a) + spread;
+        if (margin > 0) homeCover += prob;
+        else if (margin < 0) awayCover += prob;
+      }
+    }
+    f3Spreads[spread] = {
+      homeCover: +homeCover.toFixed(4),
+      awayCover: +awayCover.toFixed(4),
+      homeCoverML: probToML(homeCover),
+      awayCoverML: probToML(awayCover),
+    };
+  }
+  
+  // ==================== F3 TEAM TOTALS ====================
+  const f3TeamTotalLines = [0.5, 1.5, 2.5, 3.5];
+  const f3TeamTotals = {};
+  for (const line of f3TeamTotalLines) {
+    let awayOver = 0, awayUnder = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      const p = negBinPMF(a, adjAwayF3, f3R);
+      if (a > line) awayOver += p;
+      else if (a < line) awayUnder += p;
+    }
+    let homeOver = 0, homeUnder = 0;
+    for (let h = 0; h <= maxRuns; h++) {
+      const p = negBinPMF(h, adjHomeF3, f3R);
+      if (h > line) homeOver += p;
+      else if (h < line) homeUnder += p;
+    }
+    f3TeamTotals[line] = {
+      away: { over: +awayOver.toFixed(4), under: +awayUnder.toFixed(4), overML: probToML(awayOver), underML: probToML(awayUnder) },
+      home: { over: +homeOver.toFixed(4), under: +homeUnder.toFixed(4), overML: probToML(homeOver), underML: probToML(homeUnder) },
+    };
+  }
+  
+  // ==================== MOST LIKELY SCORES ====================
+  const topScores = [];
+  for (let a = 0; a <= maxRuns; a++) {
+    for (let h = 0; h <= maxRuns; h++) {
+      topScores.push({ away: a, home: h, prob: +scoreMatrix[a][h].toFixed(4) });
+    }
+  }
+  topScores.sort((a, b) => b.prob - a.prob);
+  
+  return {
+    awayWin: +awayWin.toFixed(4),
+    homeWin: +homeWin.toFixed(4),
+    draw: +draw.toFixed(4),
+    awayWinML: probToML(awayWin),
+    homeWinML: probToML(homeWin),
+    // 3-way ML (includes draw as separate outcome — critical for F3 pricing)
+    threeWay: {
+      away: +awayWin.toFixed(4),
+      home: +homeWin.toFixed(4),
+      draw: +draw.toFixed(4),
+      awayML: probToML(awayWin),
+      homeML: probToML(homeWin),
+      drawML: probToML(draw),
+    },
+    // 2-way (split draws proportionally)
+    twoWay: {
+      awayWin: +(awayWin + draw * awayWin / (awayWin + homeWin || 1)).toFixed(4),
+      homeWin: +(homeWin + draw * homeWin / (awayWin + homeWin || 1)).toFixed(4),
+    },
+    f3Total: +(adjAwayF3 + adjHomeF3).toFixed(2),
+    awayF3Runs: +adjAwayF3.toFixed(2),
+    homeF3Runs: +adjHomeF3.toFixed(2),
+    totals: f3Totals,
+    spreads: f3Spreads,
+    teamTotals: f3TeamTotals,
+    topScores: topScores.slice(0, 10),
+    model: 'negative-binomial-f3',
+    f3Factor,
+    r: +f3R.toFixed(2),
+    fttoNote: 'First-Time-Through-Order advantage = innings 1-3 suppress scoring ~15% vs innings 4-6',
+  };
+}
+
+
 // ==================== CONVICTION SCORE ENGINE ====================
 /**
  * Calculate a 0-100 conviction score that aggregates ALL model signals.
@@ -1234,6 +1464,7 @@ module.exports = {
   negBinWinProb,
   negBinRunLineProb,
   negBinF5,
+  negBinF3,
   convictionScore,
   calculateNBTotals,
   compareModels,
