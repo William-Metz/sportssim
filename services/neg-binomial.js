@@ -892,12 +892,15 @@ function convictionScore(prediction, market = {}, opts = {}) {
   const breakdown = [];
   
   // 1. EDGE SIZE (0-25 points)
-  // The bigger the edge between model and market, the more conviction
+  // v68.0: Works WITH or WITHOUT market data
+  // With market: edge = model prob - implied prob (most accurate)
+  // Without market: edge derived from model confidence (how far from 50/50)
   let edgePoints = 0;
   if (market.homeML && prediction.homeWinProb) {
+    // BEST: Real market data available — calculate actual edge
     const impliedProb = mlToProb(market.homeML);
     const modelProb = prediction.blendedHomeWinProb || prediction.homeWinProb;
-    const edge = modelProb - impliedProb;
+    const edge = Math.abs(modelProb - impliedProb);
     
     if (edge > 0.10) edgePoints = 25;       // 10%+ edge = max
     else if (edge > 0.07) edgePoints = 20;   // 7-10% edge
@@ -907,7 +910,23 @@ function convictionScore(prediction, market = {}, opts = {}) {
     else if (edge > 0.01) edgePoints = 4;    // 1-2% edge
     else edgePoints = 0;
     
-    breakdown.push({ signal: 'edge', points: edgePoints, detail: `${(edge * 100).toFixed(1)}% model edge` });
+    breakdown.push({ signal: 'edge', points: edgePoints, detail: `${(edge * 100).toFixed(1)}% model edge vs market`, source: 'market' });
+  } else {
+    // FALLBACK: No market data — use model confidence as proxy
+    // How far is our prediction from 50/50? More decisive = higher conviction
+    const modelProb = prediction.blendedHomeWinProb || prediction.homeWinProb;
+    const awayProb = prediction.blendedAwayWinProb || prediction.awayWinProb;
+    const favProb = Math.max(modelProb || 0.5, awayProb || 0.5);
+    const confidenceGap = favProb - 0.50; // How far from coin flip
+    
+    if (confidenceGap > 0.20) edgePoints = 20;       // 70%+ favorite = very decisive
+    else if (confidenceGap > 0.15) edgePoints = 16;   // 65%+ favorite
+    else if (confidenceGap > 0.10) edgePoints = 12;   // 60%+ favorite
+    else if (confidenceGap > 0.06) edgePoints = 8;    // 56%+ favorite
+    else if (confidenceGap > 0.03) edgePoints = 4;    // 53%+ slight lean
+    else edgePoints = 1;                               // Coin flip — minimal conviction
+    
+    breakdown.push({ signal: 'confidence', points: edgePoints, detail: `${(favProb * 100).toFixed(1)}% model confidence (${(confidenceGap * 100).toFixed(1)}% from 50/50)`, source: 'model' });
   }
   score += edgePoints;
   
@@ -979,22 +998,36 @@ function convictionScore(prediction, market = {}, opts = {}) {
   score += pitcherPoints;
   
   // 4. DATA QUALITY (0-15 points)
-  // Weather, lineup, umpire, Statcast data availability
+  // v68.0: Score data availability from both _asyncSignals AND result.factors
   let dataPoints = 0;
   
-  if (prediction._asyncSignals) {
-    const signals = prediction._asyncSignals;
-    if (signals.weather) { dataPoints += 4; breakdown.push({ signal: 'weather', points: 4, detail: `Weather active: ${signals.weatherDetail?.description || ''}` }); }
-    if (signals.lineup) { dataPoints += 4; breakdown.push({ signal: 'lineup', points: 4, detail: 'Confirmed lineups' }); }
-    if (signals.umpire) { dataPoints += 4; breakdown.push({ signal: 'umpire', points: 4, detail: `HP umpire: ${signals.umpireDetail?.name || ''}` }); }
-    if (signals.restTravel) { dataPoints += 3; breakdown.push({ signal: 'rest', points: 3, detail: 'Rest/travel data' }); }
-  } else {
-    // Check factors directly
-    if (prediction.factors?.weather) { dataPoints += 3; }
-    if (prediction.factors?.lineup) { dataPoints += 3; }
-    if (prediction.factors?.umpire) { dataPoints += 3; }
-    if (prediction.factors?.awayRest || prediction.factors?.homeRest) { dataPoints += 2; }
-    if (dataPoints > 0) breakdown.push({ signal: 'data', points: Math.min(15, dataPoints), detail: 'Partial signal data' });
+  const signals = prediction._asyncSignals || {};
+  const factors = prediction.factors || {};
+  
+  // Weather data (4 pts)
+  if (signals.weather || (factors.weather && factors.weather.multiplier && factors.weather.multiplier !== 1.0)) {
+    dataPoints += 4;
+    const desc = signals.weatherDetail?.description || factors.weather?.description || '';
+    breakdown.push({ signal: 'weather', points: 4, detail: `Weather active: ${desc}` });
+  }
+  
+  // Lineup data (4 pts)
+  if (signals.lineup || (factors.lineup && factors.lineup.status === 'confirmed')) {
+    dataPoints += 4;
+    breakdown.push({ signal: 'lineup', points: 4, detail: 'Confirmed lineups' });
+  }
+  
+  // Umpire data (4 pts)
+  if (signals.umpire || (factors.umpire && factors.umpire.name)) {
+    dataPoints += 4;
+    const umpName = signals.umpireDetail?.name || factors.umpire?.name || '';
+    breakdown.push({ signal: 'umpire', points: 4, detail: `HP umpire: ${umpName}` });
+  }
+  
+  // Rest/travel data (3 pts)
+  if (signals.restTravel || factors.awayRest || factors.homeRest) {
+    dataPoints += 3;
+    breakdown.push({ signal: 'rest', points: 3, detail: 'Rest/travel data' });
   }
   
   // Statcast bonus

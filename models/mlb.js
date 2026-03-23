@@ -1197,12 +1197,33 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     };
   }
   
-  // ==================== CONVICTION SCORE (v59.0) ====================
+  // ==================== CONVICTION SCORE (v68.0) ====================
   // Aggregate all signals into a single 0-100 conviction rating
   // This tells the bettor: "HOW confident should you be in this prediction?"
+  // v68.0: Pass market data + opts so edge size, market context, and data quality all score properly
   if (negBinomial && negBinomial.convictionScore) {
     try {
-      result.conviction = negBinomial.convictionScore(result, {}, {});
+      // Construct market data from opts.market (DK lines, live odds) if available
+      const convMarket = opts.market || {};
+      
+      // Construct conviction opts from available signal data
+      const convOpts = {};
+      
+      // Data quality signals — even without _asyncSignals, factor presence matters
+      if (!result._asyncSignals) {
+        // Build a pseudo-signal tracker from result.factors
+        const factors = result.factors || {};
+        result._asyncSignals = {
+          weather: !!(factors.weather && factors.weather.multiplier && factors.weather.multiplier !== 1.0),
+          lineup: !!(factors.lineup && factors.lineup.status === 'confirmed'),
+          umpire: !!(factors.umpire && factors.umpire.name),
+          restTravel: !!(factors.awayRest || factors.homeRest),
+          weatherDetail: factors.weather ? { description: factors.weather.description, multiplier: factors.weather.multiplier } : null,
+          umpireDetail: factors.umpire ? { name: factors.umpire.name, zone: factors.umpire.zone } : null,
+        };
+      }
+      
+      result.conviction = negBinomial.convictionScore(result, convMarket, convOpts);
     } catch (e) {
       // Conviction score is optional — don't break predict()
     }

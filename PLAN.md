@@ -142,9 +142,11 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [ ] 🚨 **Pre-Opening Day Final Check (March 26)** — End-to-end test: MLB lineup pipeline, F5 unders, Opening Day Playbook, weather integration, auto-scanner MLB scanning all working for March 27.
 - [x] ✅ **Scanner Reliability Fix** — DONE. Watchdog timer, stuck scan detection, auto re-run.
 - [x] ✅ **NBA/NHL Daily Value Detection** — DONE. Root cause was field name mismatch in scanAllValue().
+- [x] ✅ **OD Playbook Timeout Fix** — DONE v67.0. Prefetch shared data, parallel cache, sync predict(). Build time 17.7s (was timing out). 20 games, 28 bets, $43.87 EV.
+- [x] ✅ **Stolen Base Revolution Model** — DONE v66.0. Team SB attempt rates → extra runs → totals adjustment. Wired into predict().
+- [x] ✅ **Opening Day Live Tracker** — DONE v66.0. Real-time game tracking, live score updates, bet grading during OD.
+- [ ] 🚨 **Pre-Opening Day Final Check (March 26)** — End-to-end test: MLB lineup pipeline, F5 unders, Opening Day Playbook, weather integration, auto-scanner MLB scanning all working for March 27.
 - [ ] 🚨 **NBA Seeding Sim → Futures Value Bridge** — Seeding simulator is LIVE but not wired to futures odds for value detection. Key battles: TOR/ATL (E 6/7, 0 gap), MIN/DEN (W 4/5, 0.3 gap), PHI/TOR (E 5/6, 0.5 gap), MIA/CHA (E 9/10 play-in, 0.6 gap). These seeding battles affect series pricing and championship odds — need to pipe seeding probabilities into futures scanner.
-- [ ] 🔥 **Opening Day Weather Pre-Check** — Pull 5-day forecast for all March 27 venues NOW (especially NYY@SF, OAK@TOR, outdoor stadiums). Cold/wind data should be pre-cached for Day 1.
-- [ ] **Spring Training Signal Validation** — LAD (19-8) and SF (19-9) dominating Cactus League. Cross-reference our preseason-tuning model weights — are ST leaders getting appropriate signal boost?
 
 ## Phase 3: Advanced Models (Week 3-4)
 - [x] **NHL Playoff Series Model** — DONE. Stanley Cup odds, series pricing, goalie amplifier, bubble tracker.
@@ -208,25 +210,23 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-22 22:00 UTC*
+*Last updated: 2026-03-23 00:00 UTC*
 *Current phase: 2.9 — Final Pre-Season Sprint*
 *✅ Phase 2.75 COMPLETE: All playoff preview, lineup pipeline, F5 unders, NHL playoffs, goalie starters LIVE*
-*✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures DONE*
-*✅ v65.0: Bullpen quality projections, platoon splits (Savant), catcher framing (Savant 58 catchers) ALL wired into predict()*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v65.0.0 — 512MB VM stable, data 11min fresh, all feeds live*
-*🔧 REMAINING: Pre-Opening Day final check (task 054) — MUST DO by March 26*
-*⚠️ OD Playbook endpoint TIMING OUT — needs investigation before March 27 (may be compute-heavy with all new signals)*
-*⚡ TODAY (Sunday): POR@DEN (NBA, in progress DEN 73-69 Q2), CAR 5 PIT 1 (final), VGK@DAL (7pm PT), NCAA Sweet 16 (SD State vs UConn, Texas Tech vs Arizona)*
-*📊 PRODUCTION STATUS: ✅ HEALTHY — v65.0.0, all systems nominal, 0 game-day value bets (Sunday evening slate)*
-*🏒 NHL: CAR SMASHED PIT 5-1 — PIT stays at 84pts bubble chaos. COL 100, DAL 96, CAR now 96+, BUF 92.*
-*🏀 NBA STANDINGS: OKC 56-15, SAS 53-18, DET 51-19, BOS 47-23, LAL/NYK 46-25, CLE 44-27, HOU 43-27, DEN/MIN 43-28*
-*🏀 KEY BATTLES: TOR(39-30) vs ATL/PHI(39-32) (E 5/6/7), MIN/DEN(43-28) W 5/6, PHX(39-32) W 7/play-in*
-*🏀 REST/TANK MODEL: POR DESPERATE B2B @DEN COASTING B2B (both fatigued). BKN TANKING @SAC TANKING (unwatchable). WAS TANKING B2B @NYK COASTING.*
-*⚾ SPRING TRAINING: CHC 12 MIL 0 (DEMOLITION), MIA 4 NYM 3, BAL 8 WSH 1 (Bradish dominant), OAK@COL tied 4-4 (7th)*
-*💰 LIVE VALUE: NYY AL East +21%, OAK OVER +18.2%, BAL UNDER +14.5%, CHC OVER +13.1%, TOR OVER +12.8%, CWS OVER +12.4%, MIA OVER +12%*
-*🆕 EDGE RESEARCH: (1) Stolen base revolution (FanGraphs confirms 10% attempt rate, up from 6%) — affects totals modeling. (2) OD Playbook timeout needs fix.*
-*🆕 COMPLETED THIS SESSION: Platoon splits (064 ✅), Catcher framing (065 ✅), Bullpen quality (v65.0 ✅)*
-*MLB OPENING DAY: 5 DAYS (March 27) 🔥🔥🔥*
-*NBA PLAYOFFS: 21 DAYS (April 12)*
-*NHL PLAYOFFS: 28 DAYS (April 19)*
-*NFL DRAFT: 33 DAYS (April 24)*
+*✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures + stolen base model DONE*
+*✅ v67.0: OD Playbook timeout FIXED (prefetch+parallel cache). Stolen base model LIVE. OD Live Tracker BUILT.*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v67.0.0 — 512MB VM stable, data 14min fresh, all feeds live*
+*✅ OD PLAYBOOK: 20 games, 28 bets, $43.87 EV, avg 6.1% edge. Build time 17.7s (cached). All signals active.*
+*🔧 REMAINING: Pre-Opening Day final check (task 054) — MUST DO by March 26 (3 DAYS LEFT)*
+*⚡ TODAY (Monday March 23): 10 NBA games — LAL@DET, IND@ORL, OKC@PHI, SAS@MIA, MEM@ATL, HOU@CHI, TOR@UTA, GSW@DAL, BKN@POR, MIL@LAC*
+*📊 33 ACTIVE VALUE BETS: NYY AL East +20.3%, OAK OVER +18.5%, BAL UNDER +13.7%, CHC OVER +13.1%, TOR OVER +12.7%*
+*🏀 NBA STANDINGS: OKC 56-15 RESTING, SAS 53-18 RESTING B2B, DET 51-19 RESTING, BOS 47-23, LAL 46-25 COASTING 3in4*
+*🏀 KEY MISMATCHES TODAY: IND(TANKING B2B)@ORL(DESPERATE) = HUGE. SAS(RESTING B2B)@MIA(DESPERATE B2B). OKC(RESTING)@PHI(DESPERATE B2B). TOR(COASTING)@UTA(TANKING B2B).*
+*🏀 SEEDING BATTLES: TOR(39-30) vs ATL(39-32) vs PHI(39-32) E 5/6/7. PHX(39-32) W play-in. MIA(38-33)/ORL(38-32)/CHA(E 8-10) play-in chaos.*
+*🏒 NHL BUBBLE UPDATE: PIT/MTL/BOS/DET ALL at 84pts. CBJ/NYI at 83pts. 6 teams, 1 point, 4 spots. COL(100), DAL(96), CAR(94), BUF(92) clear top seeds.*
+*💰 MLB FUTURES: 33 value bets. OD Playbook LIVE with NB F5, conviction scores, run lines, weather, bullpen quality, platoon splits, catcher framing.*
+*🏈 NFL: Win total futures model LIVE. MIA OVER 4.5 (+39.6% edge), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%). Draft April 24 = early mover window.*
+*MLB OPENING DAY: 4 DAYS (March 27) 🔥🔥🔥*
+*NBA PLAYOFFS: 20 DAYS (April 12)*
+*NHL PLAYOFFS: 27 DAYS (April 19)*
+*NFL DRAFT: 32 DAYS (April 24)*
