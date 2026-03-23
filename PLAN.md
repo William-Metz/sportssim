@@ -210,26 +210,23 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-23 02:00 UTC*
+*Last updated: 2026-03-23 06:00 UTC — Planning Session #36*
 *Current phase: 2.9 — Final Pre-Season Sprint + OD War Room*
-*✅ Phase 2.75 COMPLETE: All playoff preview, lineup pipeline, F5 unders, NHL playoffs, goalie starters LIVE*
-*✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures + stolen base model DONE*
-*✅ v69.1: Conviction Engine v68 (market-aware) + OD Betting Card v69 + Line Movement Tracker. All LIVE on production.*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v68.0.0 (local v69.1) — 512MB VM stable, data 19min fresh, all feeds live*
-*✅ OD BETTING CARD LIVE: 28 plays — 2 SMASH (A/A+), 16 STRONG (B+), $302 wagered, $43.87 EV (14.5% portfolio ROI)*
-*🔥 TOP SMASH PLAYS: DET@SD F5 UNDER 4.5 (81 conviction, 17.9% edge, Skubal vs Cease). DET ML -138 (3.1% edge).*
-*🔥 TOP STRONG: MIN@BAL F5 UNDER 4.5 (79 conviction, 18.2% edge, Ryan vs Rogers). Multiple F5 unders 70+ conviction.*
-*🔧 REMAINING: Pre-Opening Day final check (task 054) — MUST DO by March 26 (3 DAYS LEFT)*
-*🆕 NEW EDGE: Pitcher K Props — Steamer K/9 projections available (Skubal 10.94, Skenes 10.99, Crochet 11.14). Build K prop model for OD = high-margin market.*
-*⚡ TODAY (Monday March 23): 10 NBA games — rest/tank mismatches everywhere*
-*📊 35 ACTIVE VALUE BETS: NYY AL East +20.7%, OAK OVER +17.9%, BAL UNDER +13.3%, TOR OVER +13.2%, CHC OVER +12.8%*
-*🏀 NBA: OKC 56-15 RESTING, SAS 53-18 RESTING B2B, DET 51-19 RESTING. IND(TANKING B2B)@ORL(DESPERATE)=HUGE 5.7pt swing.*
-*🏀 SEEDING: TOR(39-30) vs ATL(39-32) vs PHI(39-32) E 5/6/7. MIA(38-33)/ORL(38-32) play-in chaos. GSW(33-38) DESPERATE.*
-*🏒 NHL: COL(100), DAL(97), CAR(94), BUF(94). BUBBLE: PIT(86)/MTL(86)/BOS(86)/CBJ(85)/DET(84)/NYI(83). 6 teams, 3pts, 4 spots.*
-*💰 MLB: 35 value bets. OD Playbook + Betting Card LIVE. Signals: NB F5 20/20, Conviction 20/20, RunLines 20/20, Weather 15/20.*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v75.0.0 — 512MB VM stable, all feeds 20min fresh, all systems GO*
+*✅ Phase 2.75 COMPLETE + Phase 3 PARTIAL: NHL playoffs, goalie starters, NBA seeding sim, NFL futures, stolen base model, conviction engine, K props, SGP builder, team tendencies, line shopping, park wind model ALL LIVE*
+*✅ OD BETTING CARD LIVE: 28 plays — 2 SMASH (A/A+, 81 conviction), 16 STRONG (B+). $302 wagered, $43.87 EV (14.5% ROI)*
+*🔥 TOP SMASH: DET@SD F5 UNDER 4.5 (Skubal vs Cease, 17.9% edge). MIN@BAL F5 UNDER 4.5 (Ryan vs Rogers, 18.2% edge).*
+*🔥 K PROPS: 37 picks, 22 high confidence. Misiorowski OVER 5.5 (+23.6%), Crochet OVER 7.5 (+15.4%), Skenes OVER 6.5 (+13.6%).*
+*🚨 CRITICAL FINDING: OD Checklist endpoint shows 0 games (checklist bug?) — model data IS present. Must debug for March 25 final check.*
+*🚨 CONFIRMED: MLB Day 1 = March 26 (PIT@NYM, CWS@MIL, WSH@CHC + 8 more). Day 2 = March 27 (NYY@SF, OAK@TOR + 7 more).*
+*📊 ACTIVE VALUE BETS: NYY AL East +21.4%, OAK OVER +18.8%, BAL UNDER +13.5%, TOR OVER +13.1%, CHC OVER +13.0%, CWS OVER +13.0%*
+*🏀 NBA TODAY: SAS@MIA, MEM@ATL, OKC@PHI, GSW@DAL + more. REST/TANK model tracking continues (task 051).*
+*🏒 NHL STANDINGS: COL(100), DAL(97), CAR(94), BUF(94), MIN(92), TBL(90). EAST BUBBLE: PIT(86)/MTL(86)/BOS(86)/CBJ(85)/DET(84)/NYI(83). VGK beat DAL 3-2 (March 22). CAR crushed PIT 5-1.*
 *🏈 NFL: Win totals LIVE. MIA OVER 4.5 (+39.6%), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%). Draft 32 days.*
-*🆕 SPRING TRAINING: LAD 19-8 (#1 Cactus), SF 19-9 (#2). CWS 15-14 (better than expected). CHC 12-16 (concerning).*
-*MLB OPENING DAY: 4 DAYS (March 27) 🔥🔥🔥*
-*NBA PLAYOFFS: 20 DAYS (April 12)*
-*NHL PLAYOFFS: 27 DAYS (April 19)*
-*NFL DRAFT: 32 DAYS (April 24)*
+*🆕 NEW EDGE IDEAS: (1) MLB pitcher outs recorded props — Odds API supports pitcher_outs market. (2) Batter hits/HR/RBI props using Statcast xBA/xSLG data. (3) NHL playoff series futures with 84pt East bubble chaos = asymmetric mispricing.*
+*🆕 KEY TASK: OD checklist game-count bug fix (new P0) → Pre-OD final check March 25 evening (054 P0) → Go live March 26 AM*
+*⚾ MLB OPENING DAY 1: 3 DAYS (March 26) 🔥🔥🔥*
+*⚾ MLB OPENING DAY 2: 4 DAYS (March 27) 🔥🔥🔥*
+*🏀 NBA PLAYOFFS: 20 DAYS (April 12)*
+*🏒 NHL PLAYOFFS: 27 DAYS (April 19)*
+*🏈 NFL DRAFT: 32 DAYS (April 24)*
