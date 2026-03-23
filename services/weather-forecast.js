@@ -412,7 +412,7 @@ async function preCheckOpeningDayWeather() {
     venueResult.postponementRisk = assessPostponementRisk(conditions);
     
     // Get betting impact
-    venueResult.bettingImpact = getBettingImpact(conditions, park);
+    venueResult.bettingImpact = getBettingImpact(conditions, { ...park, abbr: game.home });
     
     // Track counts
     if (conditions && conditions.gameDuration) {
@@ -509,7 +509,7 @@ async function getGameForecast(homeTeam, date, gameTime) {
   
   const conditions = extractGameTimeConditions(forecast, date, gameTime);
   const postponement = assessPostponementRisk(conditions);
-  const betting = getBettingImpact(conditions, park);
+  const betting = getBettingImpact(conditions, { ...park, abbr: homeTeam.toUpperCase() });
   
   return {
     team: homeTeam,

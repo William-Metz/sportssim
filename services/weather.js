@@ -112,36 +112,131 @@ function calculateWeatherImpact(weather, ballpark) {
     });
   }
   
-  // Wind effect
-  // Wind >10mph has a noticeable effect. Direction matters:
-  // 0°=N, 90°=E, 180°=S, 270°=W
-  // "Blowing out" to CF is generally good for hitters
+  // ==================== PARK-SPECIFIC WIND MODEL v73.0 ====================
+  // Every MLB park has a known center field compass bearing (degrees from home plate to CF).
+  // Wind blowing FROM home plate TOWARD center field = "blowing out" (more runs).
+  // Wind blowing FROM center field TOWARD home plate = "blowing in" (fewer runs).
+  // The old model assumed north = out for ALL parks — WRONG for 20+ outdoor parks.
+  // Wrigley faces NE (23°), Fenway faces NE (but RF is very different), Oracle faces E (70°).
+  // A north wind at Wrigley blows out; at Coors it blows to right field (cross-wind).
+  //
+  // CF_BEARING = compass bearing from home plate to center field (degrees)
+  // Sources: Google Maps satellite + MLB.com park info + baseball-reference dimensions
+  const CF_BEARINGS = {
+    ATL: 185,   // Truist Park — CF faces roughly south
+    BAL: 22,    // Camden Yards — CF faces NNE
+    BOS: 65,    // Fenway Park — CF faces ENE
+    CHC: 23,    // Wrigley Field — CF faces NNE (iconic wind games)
+    CWS: 170,   // Guaranteed Rate — CF faces roughly south
+    CIN: 0,     // Great American — CF faces north (Ohio River behind CF)
+    CLE: 170,   // Progressive Field — CF faces roughly south
+    COL: 73,    // Coors Field — CF faces ENE
+    DET: 125,   // Comerica Park — CF faces SE
+    KC: 0,      // Kauffman Stadium — CF faces north
+    LAA: 355,   // Angel Stadium — CF faces roughly north
+    LAD: 0,     // Dodger Stadium — CF faces north (Chavez Ravine)
+    MIN: 180,   // Target Field — CF faces south
+    NYM: 62,    // Citi Field — CF faces ENE
+    NYY: 65,    // Yankee Stadium — CF faces ENE
+    OAK: 170,   // Oakland Coliseum — CF faces roughly south
+    PHI: 62,    // Citizens Bank Park — CF faces ENE
+    PIT: 40,    // PNC Park — CF faces NE (Allegheny River beyond RF)
+    SD: 200,    // Petco Park — CF faces SSW (downtown beyond LF)
+    SF: 70,     // Oracle Park — CF faces ENE (McCovey Cove beyond RF)
+    STL: 180,   // Busch Stadium — CF faces south
+    WSH: 340,   // Nationals Park — CF faces NNW
+  };
+
   if (weather.wind_mph > 8) {
-    const windFactor = (weather.wind_mph - 8) * 0.005; // 0.5% per mph above 8
-    // Simplification: positive = wind helps hitters, negative = hurts
-    // Direction: 135-225° (S-ish) blowing toward plate typically helps pitchers
-    // Direction: 315-360, 0-45° (N-ish) blowing out helps hitters
-    let windDirection = 'neutral';
-    const dir = weather.wind_dir;
-    if ((dir >= 315 || dir <= 45)) {
-      // Blowing out (north) — varies by park orientation but generally helps hitters
-      multiplier += windFactor;
-      windDirection = 'out';
-    } else if (dir >= 135 && dir <= 225) {
-      // Blowing in (south)
-      multiplier -= windFactor * 0.7;
-      windDirection = 'in';
-    } else {
-      // Cross-wind — reduced effect
-      multiplier += windFactor * 0.2;
-      windDirection = 'cross';
-    }
+    const windSpeed = weather.wind_mph;
+    const windDir = weather.wind_dir; // Direction wind is COMING FROM (meteorological convention)
     
-    factors.push({
-      factor: 'wind',
-      impact: +(windFactor * 100 * (windDirection === 'in' ? -0.7 : windDirection === 'cross' ? 0.2 : 1)).toFixed(1),
-      note: `${weather.wind_mph.toFixed(0)} mph, blowing ${windDirection} (${weather.wind_dir}°)`,
-    });
+    // The wind direction in meteorology is where the wind is COMING FROM.
+    // Wind FROM the south (180°) blowing TOWARD the north (0°).
+    // To get where the wind is GOING: windGoingTo = (windDir + 180) % 360
+    const windGoingTo = (windDir + 180) % 360;
+    
+    // Get the park's CF bearing, or default to 0 (north) for unknown parks
+    const parkAbbr = ballpark?.abbr || (ballpark?.name && Object.entries(BALLPARK_COORDS).find(([k, v]) => v.name === ballpark.name)?.[0]) || '';
+    const cfBearing = CF_BEARINGS[parkAbbr] !== undefined ? CF_BEARINGS[parkAbbr] : null;
+    
+    let windDirection = 'neutral';
+    let windImpact = 0;
+    const baseFactor = (windSpeed - 8) * 0.005; // 0.5% per mph above 8
+    
+    if (cfBearing !== null) {
+      // Calculate angle between wind direction and CF bearing
+      // Positive alignment = wind blowing TOWARD CF (out) = more runs
+      // Negative alignment = wind blowing FROM CF toward plate (in) = fewer runs
+      let angleDiff = windGoingTo - cfBearing;
+      // Normalize to -180 to +180
+      while (angleDiff > 180) angleDiff -= 360;
+      while (angleDiff < -180) angleDiff += 360;
+      
+      const absAngle = Math.abs(angleDiff);
+      
+      if (absAngle <= 30) {
+        // Wind blowing OUT to CF ± 30° — full positive effect
+        windDirection = 'out';
+        windImpact = baseFactor * (1.0 - absAngle / 90); // Scale by alignment quality
+        windImpact = Math.max(windImpact, baseFactor * 0.67);
+      } else if (absAngle >= 150) {
+        // Wind blowing IN from CF ± 30° — negative effect
+        windDirection = 'in';
+        const inAlignment = 1.0 - (180 - absAngle) / 90;
+        windImpact = -baseFactor * 0.7 * Math.max(inAlignment, 0.67);
+      } else if (absAngle <= 60) {
+        // Mostly blowing out, partial cross-wind
+        windDirection = 'out-cross';
+        windImpact = baseFactor * 0.5;
+      } else if (absAngle >= 120) {
+        // Mostly blowing in, partial cross-wind
+        windDirection = 'in-cross';
+        windImpact = -baseFactor * 0.35;
+      } else {
+        // True cross-wind (60°-120° off CF axis)
+        windDirection = 'cross';
+        // Cross-wind slightly helps (LF/RF foul-pole homers)
+        windImpact = baseFactor * 0.15;
+      }
+      
+      // Wrigley Field special: wind effects are amplified due to open bleachers and Lake Michigan
+      if (parkAbbr === 'CHC') windImpact *= 1.3;
+      // Oracle Park special: wind from SF Bay suppresses HR to right field significantly
+      if (parkAbbr === 'SF' && (windDirection === 'in' || windDirection === 'in-cross')) windImpact *= 1.2;
+      // Coors special: thin air already in park factor, but wind at altitude carries more
+      if (parkAbbr === 'COL' && (windDirection === 'out' || windDirection === 'out-cross')) windImpact *= 1.15;
+      
+      multiplier += windImpact;
+      
+      factors.push({
+        factor: 'wind',
+        impact: +(windImpact * 100).toFixed(1),
+        note: `${windSpeed.toFixed(0)} mph, blowing ${windDirection} (from ${windDir}°, CF at ${cfBearing}°, offset ${absAngle.toFixed(0)}°)`,
+        parkSpecific: true,
+        cfBearing,
+      });
+    } else {
+      // Fallback for unknown parks or dome parks — use old generic model
+      const dir = windDir;
+      if ((dir >= 315 || dir <= 45)) {
+        windImpact = baseFactor;
+        windDirection = 'out';
+      } else if (dir >= 135 && dir <= 225) {
+        windImpact = -baseFactor * 0.7;
+        windDirection = 'in';
+      } else {
+        windImpact = baseFactor * 0.2;
+        windDirection = 'cross';
+      }
+      multiplier += windImpact;
+      factors.push({
+        factor: 'wind',
+        impact: +(windImpact * 100).toFixed(1),
+        note: `${windSpeed.toFixed(0)} mph, blowing ${windDirection} (${dir}°) — generic model`,
+        parkSpecific: false,
+      });
+    }
   }
   
   // Humidity effect (minor — humid air is actually less dense, ball carries better)
@@ -231,7 +326,7 @@ async function getWeatherForPark(teamAbbr) {
   }
   
   const weather = await fetchWeather(park.lat, park.lon);
-  const impact = calculateWeatherImpact(weather, park);
+  const impact = calculateWeatherImpact(weather, { ...park, abbr: teamAbbr });
   
   const result = {
     team: teamAbbr,
@@ -259,7 +354,7 @@ async function getAllWeather() {
   const promises = outdoorParks.map(async ([abbr, park]) => {
     try {
       const weather = await fetchWeather(park.lat, park.lon);
-      const impact = calculateWeatherImpact(weather, park);
+      const impact = calculateWeatherImpact(weather, { ...park, abbr });
       results[abbr] = {
         team: abbr,
         park: park.name,

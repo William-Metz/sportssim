@@ -199,6 +199,7 @@ function buildTabs() {
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
   tabs.push({ id: 'od-checklist', label: '🚀 OD Checklist' });
+  tabs.push({ id: 'line-shop', label: '🛒 Line Shop' });
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
   tabs.push({ id: 'od-lines', label: '📈 OD Lines' });
   tabs.push({ id: 'live-tracker', label: '🔴 Live Tracker' });
@@ -259,6 +260,7 @@ function showTab(id) {
   else if (id === 'k-props') loadKPropsTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
+  else if (id === 'line-shop') loadLineShopTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -10369,6 +10371,399 @@ async function loadODChecklistTab() {
     wrap.innerHTML = html;
   } catch(e) {
     wrap.innerHTML = `<div class="card"><h2>❌ Error loading checklist</h2><p>${e.message}</p></div>`;
+  }
+}
+
+// ==================== LINE SHOPPING TAB ====================
+async function loadLineShopTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Shopping for best lines...</p></div>';
+  try {
+    const res = await fetch('/api/opening-day/line-shop?bankroll=1000&kelly=0.25');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    let html = `<div class="card" style="border-left:4px solid #22c55e;margin-bottom:16px">
+      <h2 style="margin-bottom:4px">🛒 Line Shopping Optimizer v72.0</h2>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:12px">
+        Finding the BEST available line across all sportsbooks for every bet. The difference between DK -138 and Pinnacle -132 on a $50 bet = $2.20 free money.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+        <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#22c55e">${data.totalPlays || 0}</div>
+          <div style="font-size:11px;color:var(--text3)">Total Plays</div>
+        </div>
+        <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#f59e0b">${data.smashCount || 0}</div>
+          <div style="font-size:11px;color:var(--text3)">SMASH (10%+ edge)</div>
+        </div>
+        <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#3b82f6">${data.strongCount || 0}</div>
+          <div style="font-size:11px;color:var(--text3)">STRONG (5-10%)</div>
+        </div>
+        <div style="background:var(--bg2);padding:10px;border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:var(--text2)">${data.leanCount || 0}</div>
+          <div style="font-size:11px;color:var(--text3)">LEAN (2-5%)</div>
+        </div>
+      </div>`;
+
+    // Portfolio summary
+    if (data.portfolio) {
+      const p = data.portfolio;
+      html += `<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
+        <div style="background:rgba(34,197,94,0.08);padding:8px;border-radius:6px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:#22c55e">$${(p.totalWager || 0).toFixed(0)}</div>
+          <div style="font-size:10px;color:var(--text3)">Total Wager</div>
+        </div>
+        <div style="background:rgba(34,197,94,0.08);padding:8px;border-radius:6px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:#22c55e">$${(p.totalEV || 0).toFixed(2)}</div>
+          <div style="font-size:10px;color:var(--text3)">Expected Value</div>
+        </div>
+        <div style="background:rgba(34,197,94,0.08);padding:8px;border-radius:6px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:#22c55e">${(p.roi || 0).toFixed(1)}%</div>
+          <div style="font-size:10px;color:var(--text3)">Portfolio ROI</div>
+        </div>
+        <div style="background:rgba(245,158,11,0.08);padding:8px;border-radius:6px;text-align:center">
+          <div style="font-size:18px;font-weight:700;color:#f59e0b">$${(p.lineSavings || 0).toFixed(2)}</div>
+          <div style="font-size:10px;color:var(--text3)">Line Savings 💰</div>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+
+    // SMASH plays
+    if (data.tiers?.smash?.length) {
+      html += `<div class="card" style="border-left:4px solid #f59e0b">
+        <h3 style="margin-bottom:8px">🔥 SMASH PLAYS (10%+ Edge)</h3>
+        <div style="display:grid;gap:8px">`;
+      for (const p of data.tiers.smash) {
+        html += `<div style="background:var(--bg2);padding:10px;border-radius:8px;border:1px solid rgba(245,158,11,0.3)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-weight:700">${p.game || ''}</span>
+            <span style="color:#f59e0b;font-weight:700">${p.edge || ''} EDGE</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px">
+            <span>${p.pick || ''} ${p.market || ''}</span>
+            <span style="color:var(--text2)">@ ${p.book || 'DK'} ${p.ml > 0 ? '+' : ''}${p.ml || ''}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-top:4px">
+            <span>Model: ${p.modelProb || '?'}%</span>
+            <span>Wager: ${p.wager || '$0'}</span>
+            <span style="color:#22c55e">EV: ${p.ev || '$0'}</span>
+          </div>
+          ${p.shopNote ? `<div style="font-size:11px;color:#22c55e;margin-top:4px">🛒 ${p.shopNote}</div>` : ''}
+        </div>`;
+      }
+      html += '</div></div>';
+    }
+
+    // STRONG plays
+    if (data.tiers?.strong?.length) {
+      html += `<div class="card" style="border-left:4px solid #3b82f6">
+        <h3 style="margin-bottom:8px">💪 STRONG PLAYS (5-10% Edge)</h3>
+        <div style="display:grid;gap:6px">`;
+      for (const p of data.tiers.strong) {
+        html += `<div style="background:var(--bg2);padding:8px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
+          <span style="font-weight:600;min-width:110px">${p.game || ''}</span>
+          <span style="font-size:13px">${p.pick || ''} ${p.market || ''}</span>
+          <span style="font-size:12px;color:var(--text2)">@ ${p.book || 'DK'} ${p.ml > 0 ? '+' : ''}${p.ml || ''}</span>
+          <span style="font-size:12px;color:#3b82f6;font-weight:600">${p.edge || ''}</span>
+          <span style="font-size:12px;color:#22c55e">${p.ev || '$0'}</span>
+        </div>`;
+      }
+      html += '</div></div>';
+    }
+
+    // LEAN plays
+    if (data.tiers?.lean?.length) {
+      html += `<div class="card">
+        <h3 style="margin-bottom:8px">📋 LEAN PLAYS (2-5% Edge)</h3>
+        <div style="display:grid;gap:4px">`;
+      for (const p of data.tiers.lean) {
+        html += `<div style="background:var(--bg2);padding:6px 8px;border-radius:4px;display:flex;justify-content:space-between;font-size:12px;flex-wrap:wrap;gap:4px">
+          <span style="font-weight:500">${p.game || ''} — ${p.pick || ''} ${p.market || ''}</span>
+          <span style="color:var(--text2)">@ ${p.book || 'DK'} ${p.ml > 0 ? '+' : ''}${p.ml || ''} | ${p.edge || ''} | ${p.ev || '$0'}</span>
+        </div>`;
+      }
+      html += '</div></div>';
+    }
+
+    // Book allocation summary
+    if (data.bookSummary?.length) {
+      html += `<div class="card">
+        <h3 style="margin-bottom:8px">🏦 Sportsbook Allocation</h3>
+        <p style="font-size:12px;color:var(--text3);margin-bottom:8px">Where to have funds ready based on best available lines</p>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:6px">Book</th>
+            <th style="text-align:right;padding:6px">Plays</th>
+            <th style="text-align:right;padding:6px">Wager</th>
+            <th style="text-align:right;padding:6px">EV</th>
+            <th style="text-align:right;padding:6px">Deposit Needed</th>
+          </tr></thead><tbody>`;
+      for (const b of data.bookSummary) {
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+          <td style="padding:6px;font-weight:600">${b.book}</td>
+          <td style="text-align:right;padding:6px">${b.plays}</td>
+          <td style="text-align:right;padding:6px">$${b.totalWager.toFixed(0)}</td>
+          <td style="text-align:right;padding:6px;color:#22c55e">$${b.totalEV.toFixed(2)}</td>
+          <td style="text-align:right;padding:6px;color:#f59e0b">$${b.depositNeeded}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+
+    // Game-by-game details
+    if (data.games?.length) {
+      html += `<div class="card">
+        <h3 style="margin-bottom:8px">🎮 Game-by-Game Breakdown</h3>`;
+      for (const g of data.games) {
+        const hasPlays = (g.bets || g.markets || []).length > 0;
+        html += `<div style="background:var(--bg2);padding:10px;border-radius:8px;margin-bottom:8px;opacity:${hasPlays ? '1' : '0.5'}">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-weight:700">${g.game || g.matchup || ''}</span>
+            <span style="font-size:12px;color:var(--text3)">${(g.bets || g.markets || []).length} plays</span>
+          </div>`;
+        for (const m of (g.bets || g.markets || [])) {
+          const edgeColor = (m.edgePct || m.edge || 0) >= 10 ? '#f59e0b' : (m.edgePct || m.edge || 0) >= 5 ? '#3b82f6' : 'var(--text2)';
+          html += `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-top:1px solid rgba(255,255,255,0.04)">
+            <span>${m.pick || m.type || ''} ${m.market || ''}</span>
+            <span style="color:var(--text2)">@ ${m.book || 'DK'} ${m.ml > 0 ? '+' : ''}${m.ml || ''}</span>
+            <span style="color:${edgeColor};font-weight:600">${typeof m.edgePct === 'number' ? m.edgePct.toFixed(1) + '%' : (m.edge || '')}</span>
+            <span style="color:#22c55e">${typeof m.ev === 'number' ? '$' + m.ev.toFixed(2) : (m.ev || '')}</span>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    html += `<div style="text-align:center;color:var(--text3);font-size:11px;padding:16px 0">
+      SportsSim v72.0 • Line Shopping Optimizer • ${data.timestamp ? new Date(data.timestamp).toLocaleString() : ''} • 🦞 Every cent counts
+    </div>`;
+
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = `<div class="card">
+      <h2 style="margin-bottom:8px">🛒 Line Shopping</h2>
+      <p style="color:var(--text2);margin-bottom:12px">Multi-book line shopping optimizer finds the best available line across all sportsbooks for every bet in our portfolio.</p>
+      <div style="background:rgba(245,158,11,0.1);padding:12px;border-radius:8px;border:1px solid rgba(245,158,11,0.3)">
+        <p style="color:#f59e0b;font-weight:600;margin-bottom:4px">⚠️ Line shopping data not available yet</p>
+        <p style="font-size:12px;color:var(--text3)">This will activate when Odds API returns live lines for upcoming games. Check back closer to game time.</p>
+        <p style="font-size:11px;color:var(--text3);margin-top:6px">Error: ${e.message}</p>
+      </div>
+    </div>`;
+  }
+}
+
+// ==================== LIVE TRACKER TAB ====================
+async function loadLiveTrackerTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading live tracker...</p></div>';
+  try {
+    const res = await fetch('/api/live/session');
+    const data = await res.json();
+    
+    let html = '';
+    
+    if (!data || data.error || !data.active) {
+      // No active session — show setup UI
+      html += `<div class="card" style="border-left:4px solid #ef4444">
+        <h2 style="margin-bottom:8px">🔴 Opening Day Live Tracker</h2>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:16px">
+          Real-time P&L tracking for Opening Day. Track every bet, every score, every dollar as it happens.
+        </p>
+        <div style="background:rgba(239,68,68,0.08);padding:16px;border-radius:8px;text-align:center;margin-bottom:16px">
+          <div style="font-size:48px;margin-bottom:8px">⏳</div>
+          <div style="font-size:18px;font-weight:700;margin-bottom:4px">No Active Session</div>
+          <div style="font-size:13px;color:var(--text3)">Start a new tracking session on March 27 to go live</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <button onclick="startLiveSession()" style="padding:12px;background:#22c55e;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px">
+            🚀 Start Live Session
+          </button>
+          <button onclick="loadSessionHistory()" style="padding:12px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:600;cursor:pointer;font-size:14px">
+            📜 Session History
+          </button>
+        </div>
+      </div>`;
+      
+      // OD countdown
+      const odDate = new Date('2026-03-27T00:00:00Z');
+      const now = new Date();
+      const daysLeft = Math.ceil((odDate - now) / (1000 * 60 * 60 * 24));
+      
+      html += `<div class="card" style="text-align:center">
+        <div style="font-size:64px;margin-bottom:8px">🦞</div>
+        <div style="font-size:28px;font-weight:800;background:linear-gradient(135deg,#22c55e,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          ${daysLeft} DAYS TO OPENING DAY
+        </div>
+        <div style="font-size:14px;color:var(--text3);margin-top:8px">March 27, 2026 • 20 Games • 28+ Bets • Let's eat</div>
+      </div>`;
+      
+      html += `<div class="card">
+        <h3 style="margin-bottom:8px">📋 How It Works</h3>
+        <div style="font-size:13px;line-height:1.8;color:var(--text2)">
+          <div>1️⃣ <strong>Pre-Game:</strong> Auto-loads all OD bets from betting card + playbook</div>
+          <div>2️⃣ <strong>Live:</strong> Pulls real-time scores from ESPN every 30s</div>
+          <div>3️⃣ <strong>Tracking:</strong> Grades bets as games complete (W/L/P)</div>
+          <div>4️⃣ <strong>P&L:</strong> Live running total — how much we're up/down</div>
+          <div>5️⃣ <strong>CLV:</strong> Compares our entry lines to closing lines (closing line value)</div>
+        </div>
+      </div>`;
+      
+    } else {
+      // Active session — show live data
+      const s = data;
+      const picks = s.picks || [];
+      const scores = s.liveScores || {};
+      const wins = picks.filter(p => p.result === 'WIN').length;
+      const losses = picks.filter(p => p.result === 'LOSS').length;
+      const pending = picks.filter(p => !p.result || p.result === 'PENDING').length;
+      const totalPL = picks.reduce((sum, p) => sum + (p.pnl || 0), 0);
+      const totalWagered = picks.reduce((sum, p) => sum + (p.wager || 0), 0);
+      
+      html += `<div class="card" style="border-left:4px solid ${totalPL >= 0 ? '#22c55e' : '#ef4444'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2 style="margin:0">🔴 LIVE — ${s.sessionName || 'Opening Day'}</h2>
+          <button onclick="refreshLiveScores()" style="padding:6px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:12px">🔄 Refresh Scores</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px">
+          <div style="background:${totalPL >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'};padding:12px;border-radius:8px;text-align:center">
+            <div style="font-size:28px;font-weight:800;color:${totalPL >= 0 ? '#22c55e' : '#ef4444'}">${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(2)}</div>
+            <div style="font-size:11px;color:var(--text3)">P&L</div>
+          </div>
+          <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#22c55e">${wins}W</div>
+            <div style="font-size:11px;color:var(--text3)">Wins</div>
+          </div>
+          <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#ef4444">${losses}L</div>
+            <div style="font-size:11px;color:var(--text3)">Losses</div>
+          </div>
+          <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:#f59e0b">${pending}</div>
+            <div style="font-size:11px;color:var(--text3)">Pending</div>
+          </div>
+          <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center">
+            <div style="font-size:22px;font-weight:700">$${totalWagered.toFixed(0)}</div>
+            <div style="font-size:11px;color:var(--text3)">Wagered</div>
+          </div>
+          <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:${totalWagered > 0 ? (totalPL/totalWagered >= 0 ? '#22c55e' : '#ef4444') : 'var(--text)'}">${totalWagered > 0 ? ((totalPL/totalWagered)*100).toFixed(1) : '0'}%</div>
+            <div style="font-size:11px;color:var(--text3)">ROI</div>
+          </div>
+        </div>
+      </div>`;
+
+      // Bet-by-bet detail
+      html += `<div class="card">
+        <h3 style="margin-bottom:8px">🎯 Active Bets (${picks.length})</h3>
+        <div style="display:grid;gap:6px">`;
+      for (const pick of picks) {
+        const resultColor = pick.result === 'WIN' ? '#22c55e' : pick.result === 'LOSS' ? '#ef4444' : '#f59e0b';
+        const resultIcon = pick.result === 'WIN' ? '✅' : pick.result === 'LOSS' ? '❌' : '⏳';
+        html += `<div style="background:var(--bg2);padding:8px 10px;border-radius:6px;border-left:3px solid ${resultColor};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
+          <span style="font-size:13px">${resultIcon} <strong>${pick.game || ''}</strong> — ${pick.pick || pick.type || ''}</span>
+          <span style="font-size:12px;color:var(--text2)">${pick.odds > 0 ? '+' : ''}${pick.odds || pick.ml || ''}</span>
+          <span style="font-size:12px">$${(pick.wager || 0).toFixed(0)}</span>
+          <span style="font-size:12px;font-weight:700;color:${resultColor}">${pick.result || 'PENDING'} ${pick.pnl ? (pick.pnl >= 0 ? '+' : '') + '$' + pick.pnl.toFixed(2) : ''}</span>
+        </div>`;
+      }
+      html += '</div></div>';
+
+      // Controls
+      html += `<div class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+        <button onclick="startMonitoring()" style="padding:10px;background:#22c55e;color:#000;border:none;border-radius:6px;font-weight:700;cursor:pointer">▶️ Start Auto-Refresh</button>
+        <button onclick="stopMonitoring()" style="padding:10px;background:#ef4444;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">⏹ Stop</button>
+        <button onclick="refreshLiveScores()" style="padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-weight:600">🔄 Manual Refresh</button>
+        <button onclick="loadSessionHistory()" style="padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-weight:600">📜 History</button>
+      </div>`;
+    }
+
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = `<div class="card">
+      <h2>🔴 Live Tracker</h2>
+      <p style="color:var(--text2);margin-bottom:12px">Real-time P&L tracking for game day. Monitors scores, grades bets, tracks profit.</p>
+      <div style="background:rgba(239,68,68,0.1);padding:12px;border-radius:8px">
+        <p style="font-size:13px;color:var(--text3)">⚠️ Error: ${e.message}</p>
+        <p style="font-size:12px;color:var(--text3);margin-top:4px">The live tracker will activate on March 27 when games begin.</p>
+      </div>
+    </div>`;
+  }
+}
+
+// Live tracker helper functions
+async function startLiveSession() {
+  try {
+    const res = await fetch('/api/live/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: '2026-03-27', bankroll: 1000 })
+    });
+    const data = await res.json();
+    alert(data.error ? 'Error: ' + data.error : 'Session started! ' + (data.picks?.length || 0) + ' bets loaded.');
+    loadLiveTrackerTab();
+  } catch(e) { alert('Error starting session: ' + e.message); }
+}
+
+async function refreshLiveScores() {
+  try {
+    await fetch('/api/live/update-scores', { method: 'POST' });
+    loadLiveTrackerTab();
+  } catch(e) { alert('Error refreshing: ' + e.message); }
+}
+
+async function startMonitoring() {
+  try {
+    const res = await fetch('/api/live/monitoring/start', { method: 'POST' });
+    const data = await res.json();
+    alert(data.started ? 'Auto-refresh started (30s interval)' : 'Already monitoring');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function stopMonitoring() {
+  try {
+    const res = await fetch('/api/live/monitoring/stop', { method: 'POST' });
+    const data = await res.json();
+    alert(data.stopped ? 'Monitoring stopped' : 'Was not monitoring');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function loadSessionHistory() {
+  try {
+    const res = await fetch('/api/live/history');
+    const data = await res.json();
+    const wrap = document.getElementById('tab-content');
+    
+    let html = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2>📜 Session History</h2>
+        <button onclick="loadLiveTrackerTab()" style="padding:6px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;font-size:12px">← Back</button>
+      </div>`;
+    
+    if (!data.history?.length) {
+      html += '<p style="color:var(--text3);text-align:center;padding:20px">No previous sessions found.</p>';
+    } else {
+      for (const s of data.history) {
+        const plColor = (s.totalPnl || 0) >= 0 ? '#22c55e' : '#ef4444';
+        html += `<div style="background:var(--bg2);padding:12px;border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700">${s.name || s.date || 'Session'}</div>
+            <div style="font-size:12px;color:var(--text3)">${s.date || ''} • ${s.totalPicks || 0} picks</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:18px;font-weight:700;color:${plColor}">${(s.totalPnl || 0) >= 0 ? '+' : ''}$${(s.totalPnl || 0).toFixed(2)}</div>
+            <div style="font-size:11px;color:var(--text3)">${s.wins || 0}W-${s.losses || 0}L</div>
+          </div>
+        </div>`;
+      }
+    }
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    alert('Error loading history: ' + e.message);
   }
 }
 
