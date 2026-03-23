@@ -1,0 +1,323 @@
+{
+  "snapshots": [],
+  "games": {
+    "DET@SD": {
+      "away": "DET",
+      "home": "SD",
+      "opener": {
+        "homeML": 118,
+        "awayML": -138,
+        "total": 7,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": 163,
+        "awayML": -163,
+        "total": 6.8,
+        "homeWinProb": 0.38,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "MIN@BAL": {
+      "away": "MIN",
+      "home": "BAL",
+      "opener": {
+        "homeML": -162,
+        "awayML": 138,
+        "total": 8.5,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -203,
+        "awayML": 203,
+        "total": 6.8,
+        "homeWinProb": 0.67,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "ARI@LAD": {
+      "away": "ARI",
+      "home": "LAD",
+      "opener": {
+        "homeML": -238,
+        "awayML": 198,
+        "total": 7.5,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -203,
+        "awayML": 203,
+        "total": 9.2,
+        "homeWinProb": 0.67,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "WSH@CHC": {
+      "away": "WSH",
+      "home": "CHC",
+      "opener": {
+        "homeML": -201,
+        "awayML": 170,
+        "total": 8,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -172,
+        "awayML": 172,
+        "total": 8.9,
+        "homeWinProb": 0.632,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 19
+      },
+      "movements": []
+    },
+    "CWS@MIL": {
+      "away": "CWS",
+      "home": "MIL",
+      "opener": {
+        "homeML": -197,
+        "awayML": 165,
+        "total": 8.5,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -107,
+        "awayML": 107,
+        "total": 9.4,
+        "homeWinProb": 0.516,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 19
+      },
+      "movements": []
+    },
+    "BOS@CIN": {
+      "away": "BOS",
+      "home": "CIN",
+      "opener": {
+        "homeML": 134,
+        "awayML": -158,
+        "total": 8,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -102,
+        "awayML": 102,
+        "total": 7.6,
+        "homeWinProb": 0.506,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "TEX@PHI": {
+      "away": "TEX",
+      "home": "PHI",
+      "opener": {
+        "homeML": -154,
+        "awayML": 130,
+        "total": 8.5,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -138,
+        "awayML": 138,
+        "total": 8.2,
+        "homeWinProb": 0.58,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 19
+      },
+      "movements": []
+    },
+    "CLE@SEA": {
+      "away": "CLE",
+      "home": "SEA",
+      "opener": {
+        "homeML": -185,
+        "awayML": 156,
+        "total": 7,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -201,
+        "awayML": 201,
+        "total": 7.7,
+        "homeWinProb": 0.667,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "LAA@HOU": {
+      "away": "LAA",
+      "home": "HOU",
+      "opener": {
+        "homeML": -145,
+        "awayML": 122,
+        "total": 8,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -121,
+        "awayML": 121,
+        "total": 8,
+        "homeWinProb": 0.548,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "TB@STL": {
+      "away": "TB",
+      "home": "STL",
+      "opener": {
+        "homeML": 104,
+        "awayML": -124,
+        "total": 9,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": 146,
+        "awayML": -146,
+        "total": 8.3,
+        "homeWinProb": 0.407,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "PIT@NYM": {
+      "away": "PIT",
+      "home": "NYM",
+      "opener": {
+        "homeML": -122,
+        "awayML": 102,
+        "total": 7.5,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -145,
+        "awayML": 145,
+        "total": 7.1,
+        "homeWinProb": 0.591,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "OAK@TOR": {
+      "away": "OAK",
+      "home": "TOR",
+      "opener": {
+        "homeML": -182,
+        "awayML": 154,
+        "total": 8,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -203,
+        "awayML": 203,
+        "total": 9.3,
+        "homeWinProb": 0.67,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "KC@ATL": {
+      "away": "KC",
+      "home": "ATL",
+      "opener": {
+        "homeML": -152,
+        "awayML": 128,
+        "total": 8,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -176,
+        "awayML": 176,
+        "total": 6.8,
+        "homeWinProb": 0.638,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "NYY@SF": {
+      "away": "NYY",
+      "home": "SF",
+      "opener": {
+        "homeML": 142,
+        "awayML": -168,
+        "total": 7,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": 161,
+        "awayML": -161,
+        "total": 7.6,
+        "homeWinProb": 0.383,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 20
+      },
+      "movements": []
+    },
+    "COL@MIA": {
+      "away": "COL",
+      "home": "MIA",
+      "opener": {
+        "homeML": -177,
+        "awayML": 150,
+        "total": 7.5,
+        "source": "DraftKings (pre-OD)",
+        "timestamp": "2026-03-23T14:22:20.460Z"
+      },
+      "current": null,
+      "modelFirst": {
+        "homeML": -153,
+        "awayML": 153,
+        "total": 8.3,
+        "homeWinProb": 0.605,
+        "timestamp": "2026-03-23T14:22:20.460Z",
+        "signals": 19
+      },
+      "movements": []
+    }
+  },
+  "created": "2026-03-23T14:22:20.460Z",
+  "version": "1.0",
+  "lastUpdated": "2026-03-23T14:22:20.461Z"
+}
