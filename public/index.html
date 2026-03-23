@@ -194,6 +194,7 @@ function buildTabs() {
   tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
   tabs.push({ id: 'k-props', label: '🔥 K Props' });
   tabs.push({ id: 'outs-props', label: '⏱️ Outs Props' });
+  tabs.push({ id: 'batter-props', label: '🏏 Batter Props' });
   tabs.push({ id: 'nrfi', label: '🚫 NRFI' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
@@ -263,6 +264,7 @@ function showTab(id) {
   else if (id === 'stolen-bases') loadStolenBasesTab();
   else if (id === 'k-props') loadKPropsTab();
   else if (id === 'outs-props') loadOutsPropsTab();
+  else if (id === 'batter-props') loadBatterPropsTab();
   else if (id === 'nrfi') loadNRFITab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
@@ -10902,6 +10904,142 @@ async function loadNRFITab() {
     wrap.innerHTML = html;
   } catch (e) {
     wrap.innerHTML = `<div style="padding:20px;color:#ff6b6b">Error loading NRFI data: ${e.message}</div>`;
+  }
+}
+
+// ==================== BATTER PROPS TAB ====================
+async function loadBatterPropsTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading batter props...</p></div>';
+  try {
+    const [scanResp, fadeResp, backResp] = await Promise.all([
+      fetch(`${API}/api/opening-day/batter-props`),
+      fetch(`${API}/api/mlb/batter-props/regression/fade`),
+      fetch(`${API}/api/mlb/batter-props/regression/back`),
+    ]);
+    const scan = await scanResp.json();
+    const fades = await fadeResp.json();
+    const backs = await backResp.json();
+
+    let html = `<h2>🏏 MLB Batter Props — Statcast xBA/xSLG Model</h2>`;
+    html += `<div class="info-box" style="background:#1a1a2e;border:1px solid #0f3460;padding:15px;border-radius:8px;margin-bottom:15px;">
+      <p style="margin:0;color:#e94560;font-weight:bold;">📊 Statcast-Powered Batter Props</p>
+      <p style="margin:5px 0 0;color:#aaa;font-size:13px;">
+        Uses real Baseball Savant xBA/xSLG data for 651 batters. Books price off noisy BA — we use the TRUTH (xBA). 
+        Batters outperforming xBA are due for regression (fade). Underperformers are underpriced (back).
+      </p>
+    </div>`;
+
+    // Summary stats
+    html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px;">
+      <div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;color:#e94560;font-weight:bold;">${scan.gamesScanned}</div>
+        <div style="color:#888;font-size:11px;">Games Scanned</div>
+      </div>
+      <div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;color:#4ecca3;font-weight:bold;">${scan.totalBatterPropPicks}</div>
+        <div style="color:#888;font-size:11px;">Total Prop Picks</div>
+      </div>
+      <div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;color:#ffd700;font-weight:bold;">${scan.highConfidencePicks}</div>
+        <div style="color:#888;font-size:11px;">HIGH Confidence</div>
+      </div>
+      <div style="background:#1a1a2e;padding:12px;border-radius:8px;text-align:center;">
+        <div style="font-size:24px;color:#00d2ff;font-weight:bold;">${scan.averageEdge}%</div>
+        <div style="color:#888;font-size:11px;">Avg Edge vs Book</div>
+      </div>
+    </div>`;
+
+    // Top Picks Table
+    html += `<h3 style="color:#e94560;">🔥 Top Value Picks (Edge vs Book)</h3>`;
+    html += `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="background:#0f3460;color:#fff;">
+        <th style="padding:8px;text-align:left;">Grade</th>
+        <th style="padding:8px;text-align:left;">Batter</th>
+        <th style="padding:8px;text-align:left;">Game</th>
+        <th style="padding:8px;text-align:left;">vs Pitcher</th>
+        <th style="padding:8px;text-align:left;">Market</th>
+        <th style="padding:8px;text-align:center;">Side</th>
+        <th style="padding:8px;text-align:right;">Model %</th>
+        <th style="padding:8px;text-align:right;">Book %</th>
+        <th style="padding:8px;text-align:right;">Edge</th>
+        <th style="padding:8px;text-align:right;">Fair Odds</th>
+        <th style="padding:8px;text-align:left;">Signal</th>
+      </tr></thead><tbody>`;
+
+    const topDisplay = (scan.topPicks || []).slice(0, 25);
+    for (const p of topDisplay) {
+      const gradeColor = p.grade === 'A' ? '#e94560' : p.grade === 'A-' ? '#ff6b6b' : p.grade === 'B+' ? '#ffd700' : '#4ecca3';
+      const sideColor = p.side === 'OVER' ? '#4ecca3' : '#ff6b6b';
+      const luckColor = p.luckSignal.includes('OVER') ? '#ff6b6b' : p.luckSignal.includes('UNDER') ? '#4ecca3' : '#888';
+      html += `<tr style="border-bottom:1px solid #1a1a2e;">
+        <td style="padding:6px;"><span style="color:${gradeColor};font-weight:bold;">${p.grade}</span></td>
+        <td style="padding:6px;font-weight:bold;">${p.batter}</td>
+        <td style="padding:6px;color:#888;">${p.game}</td>
+        <td style="padding:6px;">${p.pitcher} (${p.pitcherHand}HP)</td>
+        <td style="padding:6px;">${p.market}</td>
+        <td style="padding:6px;text-align:center;"><span style="color:${sideColor};font-weight:bold;">${p.side}</span></td>
+        <td style="padding:6px;text-align:right;font-weight:bold;">${p.modelProb}%</td>
+        <td style="padding:6px;text-align:right;color:#888;">${p.bookImplied}%</td>
+        <td style="padding:6px;text-align:right;color:#4ecca3;font-weight:bold;">+${p.edge}%</td>
+        <td style="padding:6px;text-align:right;">${p.fairOdds > 0 ? '+' : ''}${p.fairOdds}</td>
+        <td style="padding:6px;color:${luckColor};font-size:11px;">${p.luckSignal.split(' — ')[0]}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+
+    // Regression Targets: Fades
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px;">`;
+    
+    // Fade panel
+    html += `<div style="background:#1a1a2e;padding:15px;border-radius:8px;border:1px solid #e94560;">
+      <h3 style="color:#e94560;margin-top:0;">📉 FADE These Batters (Overperforming xBA)</h3>
+      <p style="color:#888;font-size:12px;margin-bottom:10px;">BA > xBA = BABIP luck. Regression coming → UNDER hits/TB</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="color:#888;"><th style="text-align:left;padding:4px;">Batter</th><th>BA</th><th>xBA</th><th>Gap</th></tr></thead><tbody>`;
+    for (const f of (fades.targets || []).slice(0, 10)) {
+      html += `<tr style="border-bottom:1px solid #222;">
+        <td style="padding:4px;font-weight:bold;">${f.name}</td>
+        <td style="padding:4px;text-align:center;">.${(f.ba * 1000).toFixed(0)}</td>
+        <td style="padding:4px;text-align:center;">.${(f.xba * 1000).toFixed(0)}</td>
+        <td style="padding:4px;text-align:center;color:#e94560;">+${(f.baGap * 1000).toFixed(0)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+
+    // Back panel
+    html += `<div style="background:#1a1a2e;padding:15px;border-radius:8px;border:1px solid #4ecca3;">
+      <h3 style="color:#4ecca3;margin-top:0;">📈 BACK These Batters (Underperforming xBA)</h3>
+      <p style="color:#888;font-size:12px;margin-bottom:10px;">xBA > BA = unlucky. True talent higher → OVER hits/TB</p>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;">
+        <thead><tr style="color:#888;"><th style="text-align:left;padding:4px;">Batter</th><th>BA</th><th>xBA</th><th>Gap</th></tr></thead><tbody>`;
+    for (const b of (backs.targets || []).slice(0, 10)) {
+      html += `<tr style="border-bottom:1px solid #222;">
+        <td style="padding:4px;font-weight:bold;">${b.name}</td>
+        <td style="padding:4px;text-align:center;">.${(b.ba * 1000).toFixed(0)}</td>
+        <td style="padding:4px;text-align:center;">.${(b.xba * 1000).toFixed(0)}</td>
+        <td style="padding:4px;text-align:center;color:#4ecca3;">${(b.baGap * 1000).toFixed(0)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table></div>`;
+    html += `</div>`;
+
+    // Strategy Guide
+    html += `<div style="background:#1a1a2e;padding:15px;border-radius:8px;margin-top:20px;border:1px solid #333;">
+      <h3 style="color:#ffd700;margin-top:0;">📋 Batter Props Strategy Guide</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;">
+        <div><span style="color:#ff6b6b;">🎯 Hit Unders:</span> <span style="color:#ccc;">${scan.strategy?.hitUnders || ''}</span></div>
+        <div><span style="color:#ff6b6b;">💣 HR Unders:</span> <span style="color:#ccc;">${scan.strategy?.hrUnders || ''}</span></div>
+        <div><span style="color:#4ecca3;">📊 TB Overs:</span> <span style="color:#ccc;">${scan.strategy?.tbOvers || ''}</span></div>
+        <div><span style="color:#ffd700;">🏠 RBI Context:</span> <span style="color:#ccc;">${scan.strategy?.rbiContext || ''}</span></div>
+        <div><span style="color:#e94560;">📉 Luck Fades:</span> <span style="color:#ccc;">${scan.strategy?.luckFades || ''}</span></div>
+        <div><span style="color:#4ecca3;">📈 Luck Backs:</span> <span style="color:#ccc;">${scan.strategy?.luckBacks || ''}</span></div>
+      </div>
+    </div>`;
+
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="error">Error loading batter props: ${e.message}</div>`;
   }
 }
 
