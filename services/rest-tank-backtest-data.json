@@ -107,8 +107,13 @@
       "mismatchDetected": false,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 102,
+        "homeScore": 92,
+        "margin": -10,
+        "total": 194
+      },
+      "graded": true
     },
     {
       "date": "2026-03-22",
@@ -430,26 +435,54 @@
       "homeB2B": false,
       "bookSpread": null,
       "score": "122-126"
+    },
+    {
+      "gameKey": "MIN@BOS",
+      "date": "2026-03-22",
+      "actualMargin": -10,
+      "actualTotal": 194,
+      "baselineSpread": -11.8,
+      "adjustedSpread": -11.5,
+      "restTankAdj": 0.3,
+      "baselineError": 1.8,
+      "adjustedError": 1.5,
+      "improvement": 0.3,
+      "improved": true,
+      "atsResult": "HOME_COVER",
+      "awayMotivation": "COASTING",
+      "homeMotivation": "COASTING",
+      "mismatchDetected": false,
+      "mismatchType": null,
+      "awayB2B": true,
+      "homeB2B": true,
+      "bookSpread": null,
+      "score": "102-92"
     }
   ],
   "summary": {
-    "totalGames": 2,
-    "improvedCount": 0,
-    "improvedPct": 0,
-    "avgImprovement": -1.15,
-    "avgBaselineError": 15.4,
-    "avgAdjustedError": 16.6,
-    "errorReductionPct": -7.5,
+    "totalGames": 3,
+    "improvedCount": 1,
+    "improvedPct": 33.3,
+    "avgImprovement": -0.67,
+    "avgBaselineError": 10.9,
+    "avgAdjustedError": 11.5,
+    "errorReductionPct": -6.1,
     "mismatchGames": 1,
     "mismatchImproved": 0,
     "mismatchImprovedPct": 0,
     "mismatchAvgImprovement": -2,
-    "b2bGames": 1,
-    "b2bImproved": 0,
-    "b2bImprovedPct": 0,
+    "b2bGames": 2,
+    "b2bImproved": 1,
+    "b2bImprovedPct": 50,
     "booksCompared": 0,
     "modelATSHitRate": null,
     "byMotivation": [
+      {
+        "matchup": "COASTING_vs_COASTING",
+        "games": 1,
+        "improved": 1,
+        "avgImprovement": 0.3
+      },
       {
         "matchup": "TANKING_vs_TANKING",
         "games": 1,
@@ -468,5 +501,5 @@
     ],
     "lastGraded": "2026-03-22"
   },
-  "lastUpdated": "2026-03-23T01:08:10.126Z"
+  "lastUpdated": "2026-03-23T02:29:43.374Z"
 }

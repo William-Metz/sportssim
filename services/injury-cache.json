@@ -42,6 +42,16 @@
       "team": "Brooklyn Nets",
       "injuries": [
         {
+          "player": "Nic Claxton",
+          "position": "C",
+          "status": "Day-To-Day",
+          "detail": "Claxton (rest) won't play in Sunday's game in Sacramento, according to Erik Slater of ClutchPoints.com.",
+          "returnDate": "2026-03-23T00:50Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Danny Wolf",
           "position": "F",
           "status": "Day-To-Day",
@@ -57,16 +67,6 @@
           "status": "Out",
           "detail": "Clowney (wrist) won't play Sunday in Sacramento, according to Erik Slater of ClutchPoints.com",
           "returnDate": "2026-03-22T00:37Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Nic Claxton",
-          "position": "C",
-          "status": "Out",
-          "detail": "Claxton (rest) won't play in Sunday's game in Sacramento, according to Erik Slater of ClutchPoints.com.",
-          "returnDate": "2026-03-22T00:31Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -103,8 +103,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 1,
+      "outCount": 4,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "CHA": {
@@ -606,6 +606,16 @@
       "team": "LA Clippers",
       "injuries": [
         {
+          "player": "Kawhi Leonard",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Leonard (ankle) is questionable for Monday's game against the Bucks, NBA writer Justin Russo reports.",
+          "returnDate": "2026-03-23T00:19Z",
+          "impact": 4,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Bennedict Mathurin",
           "position": "G",
           "status": "Out",
@@ -614,16 +624,6 @@
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
-        },
-        {
-          "player": "Kawhi Leonard",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Leonard posted 34 points (12-22 FG, 5-9 3Pt, 5-5 FT), three rebounds, five assists, one block and two steals across 36 minutes during Saturday's 138-131 overtime win over the Mavericks.",
-          "returnDate": "2026-03-23T00:16Z",
-          "impact": 4,
-          "isOut": false,
-          "isDayToDay": true
         },
         {
           "player": "John Collins",
@@ -664,7 +664,7 @@
           "player": "Kawhi Leonard",
           "impact": 4,
           "status": "Day-To-Day",
-          "detail": "Leonard posted 34 points (12-22 FG, 5-9 3Pt, 5-5 FT), three rebounds, five assists, one block and two steals across 36 minutes during Saturday's 138-131 overtime win over the Mavericks.",
+          "detail": "Leonard (ankle) is questionable for Monday's game against the Bucks, NBA writer Justin Russo reports.",
           "isOut": false,
           "isDayToDay": true
         }
@@ -1005,6 +1005,16 @@
       "team": "New York Knicks",
       "injuries": [
         {
+          "player": "Landry Shamet",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Shamet (knee) is listed as out for Sunday's game against the Wizards.",
+          "returnDate": "2026-03-23T02:05Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Kevin McCullar Jr.",
           "position": "G",
           "status": "Day-To-Day",
@@ -1013,16 +1023,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Landry Shamet",
-          "position": "G",
-          "status": "Out",
-          "detail": "Shamet (knee) is listed as out for Sunday's game against the Wizards.",
-          "returnDate": "2026-03-21T20:51Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Miles McBride",
@@ -1036,8 +1036,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 2,
-      "dtdCount": 1,
+      "outCount": 1,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "OKC": {
@@ -1200,12 +1200,12 @@
         {
           "player": "Royce O'Neale",
           "position": "F",
-          "status": "Day-To-Day",
-          "detail": "O'Neale (knee) is questionable for Sunday's game against Toronto.",
-          "returnDate": "2026-03-22T20:32Z",
+          "status": "Out",
+          "detail": "O'Neale (knee) has been ruled out for Sunday's game against the Raptors.",
+          "returnDate": "2026-03-23T00:28Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Amir Coffey",
@@ -1259,29 +1259,29 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 1,
+      "outCount": 6,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "POR": {
       "team": "Portland Trail Blazers",
       "injuries": [
         {
+          "player": "Jerami Grant",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Grant (foot) has been ruled out for Sunday's game against the Nuggets, Sean Highkin of Rip City Radio 620 Portland reports.",
+          "returnDate": "2026-03-23T00:50Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Vit Krejci",
           "position": "G",
           "status": "Out",
           "detail": "Krejci (calf) has been ruled out for Sunday's game against the Nuggets, Sean Highkin of Rip City Radio 620 Portland reports.",
           "returnDate": "2026-03-22T19:41Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Jerami Grant",
-          "position": "F",
-          "status": "Out",
-          "detail": "Grant (foot) has been ruled out for Sunday's game against the Nuggets, Sean Highkin of Rip City Radio 620 Portland reports.",
-          "returnDate": "2026-03-22T19:39Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1308,8 +1308,8 @@
         }
       ],
       "totalImpact": 3.5,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Damian Lillard",
@@ -1324,6 +1324,36 @@
     "SAC": {
       "team": "Sacramento Kings",
       "injuries": [
+        {
+          "player": "Isaiah Stevens",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "The Kings list Stevens out for Sunday's game against the Nets due to right ankle soreness.",
+          "returnDate": "2026-03-23T00:52Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Daeqwon Plowden",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Plowden (foot) has been ruled out for Sunday's game against the Nets.",
+          "returnDate": "2026-03-23T00:52Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Russell Westbrook",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Westbrook (foot) is out for Sunday's game against the Nets.",
+          "returnDate": "2026-03-23T00:50Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
         {
           "player": "Nique Clifford",
           "position": "G",
@@ -1343,36 +1373,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Daeqwon Plowden",
-          "position": "G",
-          "status": "Out",
-          "detail": "Plowden (foot) has been ruled out for Sunday's game against the Nets.",
-          "returnDate": "2026-03-22T21:37Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Isaiah Stevens",
-          "position": "G",
-          "status": "Out",
-          "detail": "The Kings list Stevens out for Sunday's game against the Nets due to right ankle soreness.",
-          "returnDate": "2026-03-22T12:05Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Russell Westbrook",
-          "position": "G",
-          "status": "Out",
-          "detail": "Westbrook (foot) is out for Sunday's game against the Nets.",
-          "returnDate": "2026-03-22T01:05Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Drew Eubanks",
@@ -1426,8 +1426,8 @@
         }
       ],
       "totalImpact": 3.5,
-      "outCount": 8,
-      "dtdCount": 2,
+      "outCount": 5,
+      "dtdCount": 5,
       "starPlayersOut": [
         {
           "player": "Domantas Sabonis",
@@ -1589,24 +1589,34 @@
       "team": "Washington Wizards",
       "injuries": [
         {
-          "player": "Justin Champagnie",
-          "position": "F",
-          "status": "Suspension",
-          "detail": "Champagnie was issued a one-game suspension for his role in the on-court altercation during Saturday's game against OKC, according to Shams Charania of ESPN.",
-          "returnDate": "2026-03-22T17:45Z",
+          "player": "Alex Sarr",
+          "position": "C",
+          "status": "Day-To-Day",
+          "detail": "Sarr has been ruled out for Sunday's game against the Knicks due to left big toe capsulitis.",
+          "returnDate": "2026-03-23T02:05Z",
           "impact": 0,
           "isOut": false,
-          "isDayToDay": false
+          "isDayToDay": true
         },
         {
           "player": "Tre Johnson",
           "position": "G",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Johnson (foot) has been ruled out for Sunday's game against New York.",
-          "returnDate": "2026-03-22T16:40Z",
+          "returnDate": "2026-03-23T02:05Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Tristan Vukcevic",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Vukcevic won't return to Sunday's game against the Knicks due to lower-back tightness, and he'll finish with 13 points (5-9 FG, 3-6 3Pt), one rebound and one assist across 15 minutes.",
+          "returnDate": "2026-03-23T01:43Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Trae Young",
@@ -1615,16 +1625,6 @@
           "detail": "Young (quadriceps/back) has been ruled out for Sunday's game against the Knicks.",
           "returnDate": "2026-03-22T16:38Z",
           "impact": 3.5,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Alex Sarr",
-          "position": "C",
-          "status": "Out",
-          "detail": "Sarr has been ruled out for Sunday's game against the Knicks due to left big toe capsulitis.",
-          "returnDate": "2026-03-22T16:36Z",
-          "impact": 0,
           "isOut": true,
           "isDayToDay": false
         },
@@ -1670,8 +1670,8 @@
         }
       ],
       "totalImpact": 7.5,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 5,
+      "dtdCount": 3,
       "starPlayersOut": [
         {
           "player": "Trae Young",
@@ -5761,8 +5761,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774225779552,
-    "nhl": 1774225779927,
-    "mlb": 1774225780123
+    "nba": 1774232980433,
+    "nhl": 1774232980734,
+    "mlb": 1774232980911
   }
 }

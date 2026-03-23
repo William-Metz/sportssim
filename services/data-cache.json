@@ -23,10 +23,10 @@
     "WAS": {
       "name": "Washington Wizards",
       "w": 16,
-      "l": 54,
+      "l": 55,
       "ppg": 112.5,
-      "oppg": 123.8,
-      "diff": -11.3,
+      "oppg": 124.1,
+      "diff": -11.6,
       "l10": "0-10",
       "source": "espn-live"
     },
@@ -132,22 +132,22 @@
     },
     "NYK": {
       "name": "New York Knicks",
-      "w": 46,
+      "w": 47,
       "l": 25,
-      "ppg": 116.8,
-      "oppg": 110.3,
-      "diff": 6.5,
+      "ppg": 117.2,
+      "oppg": 110.4,
+      "diff": 6.8,
       "l10": "7-3",
       "source": "espn-live"
     },
     "BOS": {
       "name": "Boston Celtics",
       "w": 47,
-      "l": 23,
-      "ppg": 114.4,
+      "l": 24,
+      "ppg": 114.1,
       "oppg": 107,
-      "diff": 7.4,
-      "l10": "7-3",
+      "diff": 7.1,
+      "l10": "6-4",
       "source": "espn-live"
     },
     "SAS": {
@@ -260,16 +260,6 @@
       "l10": "4-6",
       "source": "espn-live"
     },
-    "MIN": {
-      "name": "Minnesota Timberwolves",
-      "w": 43,
-      "l": 28,
-      "ppg": 118.6,
-      "oppg": 114.8,
-      "diff": 3.8,
-      "l10": "5-5",
-      "source": "espn-live"
-    },
     "HOU": {
       "name": "Houston Rockets",
       "w": 43,
@@ -288,6 +278,16 @@
       "oppg": 116.4,
       "diff": 4.4,
       "l10": "6-4",
+      "source": "espn-live"
+    },
+    "MIN": {
+      "name": "Minnesota Timberwolves",
+      "w": 44,
+      "l": 28,
+      "ppg": 118.4,
+      "oppg": 114.5,
+      "diff": 3.9,
+      "l10": "5-5",
       "source": "espn-live"
     },
     "LAL": {
@@ -324,19 +324,19 @@
     "DAL": {
       "name": "Dallas Stars",
       "w": 43,
-      "l": 15,
+      "l": 16,
       "otl": 11,
-      "gf": 3.45,
+      "gf": 3.43,
       "ga": 2.71,
-      "gfTotal": 238,
-      "gaTotal": 187,
-      "gp": 69,
-      "l10w": 7,
-      "l10l": 1,
+      "gfTotal": 240,
+      "gaTotal": 190,
+      "gp": 70,
+      "l10w": 6,
+      "l10l": 2,
       "l10otl": 2,
       "points": 97,
-      "pointPctg": 0.702899,
-      "streak": "OT1",
+      "pointPctg": 0.692857,
+      "streak": "L1",
       "regulationWins": 33,
       "source": "nhl-api-live"
     },
@@ -476,19 +476,38 @@
     "CBJ": {
       "name": "Columbus Blue Jackets",
       "w": 37,
-      "l": 21,
+      "l": 22,
       "otl": 11,
-      "gf": 3.3,
-      "ga": 3.1,
+      "gf": 3.26,
+      "ga": 3.07,
       "gfTotal": 228,
-      "gaTotal": 214,
-      "gp": 69,
-      "l10w": 7,
-      "l10l": 0,
+      "gaTotal": 215,
+      "gp": 70,
+      "l10w": 6,
+      "l10l": 1,
       "l10otl": 3,
       "points": 85,
-      "pointPctg": 0.615942,
-      "streak": "W4",
+      "pointPctg": 0.607143,
+      "streak": "L1",
+      "regulationWins": 26,
+      "source": "nhl-api-live"
+    },
+    "NYI": {
+      "name": "New York Islanders",
+      "w": 40,
+      "l": 26,
+      "otl": 5,
+      "gf": 2.9,
+      "ga": 2.85,
+      "gfTotal": 206,
+      "gaTotal": 202,
+      "gp": 71,
+      "l10w": 5,
+      "l10l": 5,
+      "l10otl": 0,
+      "points": 85,
+      "pointPctg": 0.598592,
+      "streak": "W1",
       "regulationWins": 26,
       "source": "nhl-api-live"
     },
@@ -509,25 +528,6 @@
       "pointPctg": 0.6,
       "streak": "L1",
       "regulationWins": 27,
-      "source": "nhl-api-live"
-    },
-    "NYI": {
-      "name": "New York Islanders",
-      "w": 39,
-      "l": 26,
-      "otl": 5,
-      "gf": 2.93,
-      "ga": 2.89,
-      "gfTotal": 205,
-      "gaTotal": 202,
-      "gp": 70,
-      "l10w": 5,
-      "l10l": 5,
-      "l10otl": 0,
-      "points": 83,
-      "pointPctg": 0.592857,
-      "streak": "L2",
-      "regulationWins": 25,
       "source": "nhl-api-live"
     },
     "OTT": {
@@ -625,6 +625,25 @@
       "regulationWins": 28,
       "source": "nhl-api-live"
     },
+    "VGK": {
+      "name": "Vegas Golden Knights",
+      "w": 32,
+      "l": 25,
+      "otl": 14,
+      "gf": 3.15,
+      "ga": 3.11,
+      "gfTotal": 224,
+      "gaTotal": 221,
+      "gp": 71,
+      "l10w": 4,
+      "l10l": 6,
+      "l10otl": 0,
+      "points": 78,
+      "pointPctg": 0.549296,
+      "streak": "W1",
+      "regulationWins": 24,
+      "source": "nhl-api-live"
+    },
     "EDM": {
       "name": "Edmonton Oilers",
       "w": 34,
@@ -642,25 +661,6 @@
       "pointPctg": 0.542254,
       "streak": "L2",
       "regulationWins": 26,
-      "source": "nhl-api-live"
-    },
-    "VGK": {
-      "name": "Vegas Golden Knights",
-      "w": 31,
-      "l": 25,
-      "otl": 14,
-      "gf": 3.16,
-      "ga": 3.13,
-      "gfTotal": 221,
-      "gaTotal": 219,
-      "gp": 70,
-      "l10w": 3,
-      "l10l": 7,
-      "l10otl": 0,
-      "points": 76,
-      "pointPctg": 0.542857,
-      "streak": "L3",
-      "regulationWins": 23,
       "source": "nhl-api-live"
     },
     "NSH": {
@@ -1244,8 +1244,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774228089125,
-    "nhl": 1774228089442,
-    "mlb": 1774228090915
+    "nba": 1774232980334,
+    "nhl": 1774232980686,
+    "mlb": 1774232981207
   }
 }

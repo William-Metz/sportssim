@@ -2188,10 +2188,90 @@ function renderOpeningDay(data) {
     <div id="od-k-props-content"><div class="loading"><div class="spinner"></div></div></div>
   </div>`;
 
+  // SGP Correlated Parlays section
+  html += `<div class="card" style="margin-top:24px">
+    <h2>🎰 Opening Day SGP Builder</h2>
+    <p style="color:var(--text2);font-size:12px;margin-bottom:12px">Correlated same-game parlays — K props × ML × totals with correlation adjustments</p>
+    <div id="od-sgp-content"><div class="loading"><div class="spinner"></div></div></div>
+  </div>`;
+
   wrap.innerHTML = html;
 
-  // Load K Props async
+  // Load K Props + SGPs async
   loadODKProps();
+  loadODSGPs();
+}
+
+async function loadODSGPs() {
+  const el = document.getElementById('od-sgp-content');
+  if (!el) return;
+  try {
+    const data = await api('/api/opening-day/sgp');
+    if (!data.topSGPs || data.topSGPs.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text2)">No SGP data available.</div>';
+      return;
+    }
+    
+    let html = '';
+    
+    // Summary stats
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px">';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:#a78bfa">' + data.totalSGPs + '</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">Total Parlays</div></div>';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:#22c55e">' + data.highConfidence + '</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">High Confidence</div></div>';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:#eab308">' + data.averageEV + '%</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">Avg EV</div></div>';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:var(--accent)">' + data.gamesScanned + '</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">Games</div></div>';
+    html += '</div>';
+    
+    // Top SGPs
+    html += '<div style="display:grid;gap:12px">';
+    for (const sgp of data.topSGPs.slice(0, 12)) {
+      const gradeColor = sgp.grade === 'A+' ? '#22c55e' : sgp.grade === 'A' ? '#22c55e' : sgp.grade === 'B+' ? '#eab308' : '#94a3b8';
+      const oddsStr = (sgp.parlayOdds > 0 ? '+' : '') + sgp.parlayOdds;
+      
+      html += '<div style="background:var(--bg2);border-radius:10px;padding:14px;border-left:4px solid ' + gradeColor + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+      html += '<div style="font-weight:700;font-size:14px">' + (sgp.game || '') + '</div>';
+      html += '<div style="display:flex;gap:8px;align-items:center">';
+      html += '<span style="font-size:20px;font-weight:900;color:' + gradeColor + '">' + sgp.grade + '</span>';
+      html += '<span style="font-size:16px;font-weight:800;color:#eab308">' + oddsStr + '</span>';
+      html += '</div></div>';
+      
+      // Legs
+      for (const leg of sgp.legs) {
+        const legColor = leg.type === 'k_prop' ? '#a78bfa' : leg.type === 'ml' ? '#3b82f6' : '#eab308';
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">';
+        html += '<span style="background:' + legColor + '20;color:' + legColor + ';padding:2px 6px;border-radius:4px;font-weight:600;font-size:10px">' + leg.type.toUpperCase() + '</span>';
+        html += '<span>' + leg.label + '</span>';
+        html += '<span style="color:var(--text3);margin-left:auto">' + leg.modelProb + '%</span>';
+        html += '</div>';
+      }
+      
+      // Stats row
+      html += '<div style="display:flex;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px">';
+      html += '<span>Win: <strong>' + sgp.modelWinProb + '%</strong></span>';
+      html += '<span>Edge: <strong style="color:#22c55e">+' + sgp.edge + '%</strong></span>';
+      html += '<span>EV: <strong style="color:#eab308">' + sgp.ev + '%</strong></span>';
+      html += '<span>Kelly: <strong>' + sgp.kelly + '%</strong></span>';
+      if (sgp.correlationBoost && parseFloat(sgp.correlationBoost) > 0) {
+        html += '<span style="color:#a78bfa">Corr: +' + sgp.correlationBoost + '%</span>';
+      }
+      html += '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3)">SGP Builder unavailable: ' + e.message + '</div>';
+  }
 }
 
 async function loadODKProps() {
