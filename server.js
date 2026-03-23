@@ -102,6 +102,8 @@ let f3Model = null;
 try { f3Model = require('./services/f3-model'); } catch (e) { console.error('[server] F3 Model not loaded:', e.message); }
 let batterProps = null;
 try { batterProps = require('./services/batter-props'); } catch (e) { console.error('[server] Batter Props not loaded:', e.message); }
+let pitcherHweProps = null;
+try { pitcherHweProps = require('./services/pitcher-hwe-props'); } catch (e) { console.error('[server] Pitcher HWE Props not loaded:', e.message); }
 let lineShopping = null;
 try { lineShopping = require('./services/line-shopping'); } catch (e) { console.error('[server] Line Shopping not loaded:', e.message); }
 let odWarRoom = null;
@@ -191,7 +193,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '93.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner'] });
+  res.json({ status: 'ok', version: '95.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -6336,6 +6338,94 @@ app.get('/api/opening-day/betting-card', async (req, res) => {
       }
     }
     
+    // Inject F3 (First 3 Innings) picks into the card
+    let f3Section = null;
+    if (f3Model) {
+      try {
+        let odGames;
+        try {
+          const odModule = require('./models/mlb-opening-day');
+          odGames = odModule.getSchedule ? odModule.getSchedule() : (odModule.OPENING_DAY_GAMES || []);
+        } catch (e) { odGames = []; }
+        
+        if (odGames.length > 0) {
+          const f3Scan = f3Model.scanODGamesF3(mlb, odGames, { isOpeningDay: true });
+          const f3Games = f3Scan.games || [];
+          const f3Bets = [];
+          for (const g of f3Games) {
+            for (const vb of (g.valueBets || [])) {
+              f3Bets.push({
+                game: g.matchup,
+                pick: `F3 ${vb.direction} ${vb.line}`,
+                modelProb: vb.modelProb,
+                edge: vb.edge || 0,
+                confidence: vb.confidence,
+                reason: vb.reason || '',
+                f3Total: g.modelF3Total || g.f3?.total,
+                drawProb: g.f3?.draw || g.draw,
+              });
+            }
+          }
+          f3Bets.sort((a, b) => (b.edge || 0) - (a.edge || 0));
+          
+          f3Section = {
+            title: '🎯 F3 (FIRST 3 INNINGS) PLAYS',
+            totalGames: f3Games.length,
+            totalBets: f3Bets.length,
+            highConfidence: f3Bets.filter(b => b.confidence === 'HIGH').length,
+            edge: 'FTTO advantage: .290 wOBA first-time vs .340 third-time = 15% pitcher suppression',
+            topPicks: f3Bets.slice(0, 10),
+            allPicks: f3Bets,
+          };
+        }
+      } catch (e) {
+        f3Section = { error: e.message };
+      }
+    }
+    
+    // Inject NRFI picks into the card
+    let nrfiSection = null;
+    if (nrfiModel) {
+      try {
+        let nrfiODGames;
+        try {
+          const nrfiODModule = require('./models/mlb-opening-day');
+          nrfiODGames = nrfiODModule.getSchedule ? nrfiODModule.getSchedule() : (nrfiODModule.OPENING_DAY_GAMES || []);
+        } catch (e) { nrfiODGames = []; }
+        
+        const nrfiScan = nrfiModel.scanODGames ? nrfiModel.scanODGames(mlb, nrfiODGames, { isOpeningDay: true }) : null;
+        if (nrfiScan) {
+          const nrfiGames = nrfiScan.games || [];
+          const nrfiPicks = nrfiGames.filter(g => g.signal === 'NRFI' && g.confidence === 'HIGH');
+          const yrfiPicks = nrfiGames.filter(g => g.signal === 'YRFI' && g.confidence === 'HIGH');
+          
+          nrfiSection = {
+            title: '🚫 NRFI/YRFI PLAYS',
+            totalGames: nrfiGames.length,
+            nrfiPicks: nrfiPicks.map(g => ({
+              game: g.matchup,
+              nrfi: g.nrfi,
+              signal: 'NRFI',
+              confidence: g.confidence,
+              edge: g.edge,
+              pitchers: g.pitchers,
+            })),
+            yrfiPicks: yrfiPicks.map(g => ({
+              game: g.matchup,
+              yrfi: g.yrfi,
+              signal: 'YRFI',
+              confidence: g.confidence,
+              edge: g.edge,
+              pitchers: g.pitchers,
+            })),
+            avgNRFI: nrfiScan.avgNRFI,
+          };
+        }
+      } catch (e) {
+        nrfiSection = { error: e.message };
+      }
+    }
+    
     res.json({
       title: '🦞 MetaClaw Opening Day Betting Card',
       generated: new Date().toISOString(),
@@ -6352,6 +6442,8 @@ app.get('/api/opening-day/betting-card', async (req, res) => {
         small: { label: '🎲 SMALL (C+)', count: small.length, plays: small },
       },
       kProps: kPropSection,
+      f3Plays: f3Section,
+      nrfiPlays: nrfiSection,
       portfolio: {
         totalPlays: qualifiedPlays.length,
         totalWager: +totalWager.toFixed(0),
@@ -7087,6 +7179,70 @@ app.get('/api/opening-day/sgp/:away/:home', async (req, res) => {
 
 // ==================== NRFI/YRFI MODEL v77.0 ====================
 
+// ==================== PITCHER HITS/WALKS/ER PROPS v95.0 ====================
+
+// Scan all OD games for H/W/ER prop value
+app.get('/api/opening-day/hwe-props', async (req, res) => {
+  try {
+    if (!pitcherHweProps) return res.status(503).json({ error: 'Pitcher HWE Props not loaded' });
+    const scan = pitcherHweProps.scanODProps();
+    res.json(scan);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Top HWE prop plays
+app.get('/api/opening-day/hwe-props/top', async (req, res) => {
+  try {
+    if (!pitcherHweProps) return res.status(503).json({ error: 'Pitcher HWE Props not loaded' });
+    const limit = parseInt(req.query.limit || '20');
+    const topPlays = pitcherHweProps.getTopPlays(limit);
+    res.json(topPlays);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Pitcher-specific HWE analysis
+app.get('/api/mlb/hwe-props/:pitcher', async (req, res) => {
+  try {
+    if (!pitcherHweProps) return res.status(503).json({ error: 'Pitcher HWE Props not loaded' });
+    const pitcherName = decodeURIComponent(req.params.pitcher);
+    const oppTeam = (req.query.opp || req.query.opponent || '').toUpperCase();
+    if (!oppTeam) return res.status(400).json({ error: 'Missing opponent team param (opp=XXX)' });
+    const parkName = pitcherHweProps.TEAM_PARKS[oppTeam] || null;
+    const analysis = pitcherHweProps.analyzePitcherProps(pitcherName, oppTeam, parkName, {
+      isOpeningDay: req.query.od !== 'false',
+      tempF: req.query.temp ? parseFloat(req.query.temp) : null,
+    });
+    if (!analysis) return res.status(404).json({ error: `Pitcher ${pitcherName} not found` });
+    res.json(analysis);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Pitcher leaderboard for HWE props
+app.get('/api/mlb/hwe-props/leaderboard', async (req, res) => {
+  try {
+    if (!pitcherHweProps) return res.status(503).json({ error: 'Pitcher HWE Props not loaded' });
+    res.json(pitcherHweProps.getPitcherLeaderboard());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// HWE props status
+app.get('/api/mlb/hwe-props/status', async (req, res) => {
+  try {
+    if (!pitcherHweProps) return res.status(503).json({ error: 'Pitcher HWE Props not loaded' });
+    res.json(pitcherHweProps.getStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Scan all OD games for NRFI/YRFI value
 app.get('/api/opening-day/nrfi', async (req, res) => {
   try {
@@ -7235,7 +7391,7 @@ app.get('/api/opening-day/f3', async (req, res) => {
     // Get Opening Day games
     let odGames;
     try {
-      const odModule = require('./services/mlb-opening-day');
+      const odModule = require('./models/mlb-opening-day');
       odGames = odModule.getSchedule ? odModule.getSchedule() : (odModule.OPENING_DAY_GAMES || []);
     } catch (e) {
       odGames = [];
@@ -7290,7 +7446,7 @@ app.get('/api/mlb/f3/scan', async (req, res) => {
     // If no odds data, try Opening Day schedule
     if (games.length === 0) {
       try {
-        const odModule = require('./services/mlb-opening-day');
+        const odModule = require('./models/mlb-opening-day');
         const odGames = odModule.getSchedule ? odModule.getSchedule() : (odModule.OPENING_DAY_GAMES || []);
         for (const g of odGames) {
           games.push({ away: g.away, home: g.home });

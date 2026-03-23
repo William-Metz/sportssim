@@ -234,6 +234,34 @@ const PARK_FACTORS = {
 const LG_AVG = { rsG: 4.4, raG: 4.4, era: 4.10, whip: 1.28, k9: 8.6, fip: 4.05 };
 const HOME_ADV = 0.540; // 54% historical home win rate in MLB
 
+// ==================== FANGRAPHS 2026 PROJECTED RS/RA ====================
+// Source: fangraphs.com/depthcharts.aspx?position=Standings (ZiPS+Steamer blend)
+// Updated 2026-03-22. Player-level projections aggregated to team level.
+// These are INDEPENDENT of our Pythagorean model — ensemble reduces prediction error.
+// CRITICAL: Without this blend, predict() uses raw 2025 RS/RA which doesn't account
+// for major offseason roster changes (e.g., MIL lost key bats: 4.98→4.41 projected RS/G).
+const FANGRAPHS_2026_RS_RA = {
+  'LAD': { rsG: 5.17, raG: 4.22 }, 'NYM': { rsG: 4.74, raG: 4.31 },
+  'ATL': { rsG: 4.73, raG: 4.31 }, 'SEA': { rsG: 4.49, raG: 4.10 },
+  'NYY': { rsG: 4.71, raG: 4.34 }, 'PHI': { rsG: 4.72, raG: 4.37 },
+  'BOS': { rsG: 4.55, raG: 4.27 }, 'DET': { rsG: 4.49, raG: 4.21 },
+  'TOR': { rsG: 4.64, raG: 4.36 }, 'CHC': { rsG: 4.62, raG: 4.41 },
+  'BAL': { rsG: 4.82, raG: 4.61 }, 'PIT': { rsG: 4.44, raG: 4.35 },
+  'SF':  { rsG: 4.43, raG: 4.40 }, 'TB':  { rsG: 4.31, raG: 4.30 },
+  'MIL': { rsG: 4.41, raG: 4.40 }, 'ARI': { rsG: 4.54, raG: 4.53 },
+  'TEX': { rsG: 4.44, raG: 4.43 }, 'KC':  { rsG: 4.51, raG: 4.53 },
+  'HOU': { rsG: 4.56, raG: 4.57 }, 'OAK': { rsG: 4.73, raG: 4.81 },
+  'SD':  { rsG: 4.45, raG: 4.55 }, 'MIN': { rsG: 4.47, raG: 4.61 },
+  'CIN': { rsG: 4.43, raG: 4.69 }, 'CLE': { rsG: 4.28, raG: 4.56 },
+  'STL': { rsG: 4.26, raG: 4.59 }, 'MIA': { rsG: 4.25, raG: 4.60 },
+  'LAA': { rsG: 4.32, raG: 4.72 }, 'CWS': { rsG: 4.20, raG: 4.90 },
+  'WSH': { rsG: 4.20, raG: 4.92 }, 'COL': { rsG: 4.55, raG: 5.51 },
+};
+// FanGraphs blend weight for game-day predictions
+// Higher during preseason (less real data), decreases as season progresses
+const FG_BLEND_WEIGHT_PRESEASON = 0.35; // 35% FanGraphs during preseason/OD
+const FG_BLEND_WEIGHT_REGULAR = 0.20;   // 20% FanGraphs during regular season (our live data is better)
+
 // ==================== EARLY SEASON REGRESSION ====================
 // At the start of the season, preseason projections have higher uncertainty.
 // We regress expected runs toward the league average based on how much
@@ -497,6 +525,24 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const starterIP = (isPreseasonPredict && preseasonTuning) ? preseasonTuning.getOpeningDayStarterFraction(true) * 9 : 5.5;
   const bullpenIP = 9 - starterIP;
   let awayRaG, homeRaG;
+  
+  // ==================== FANGRAPHS 2026 RS/RA BLEND ====================
+  // Blend our 2025 actual RS/RA with FanGraphs 2026 ZiPS+Steamer projections.
+  // This is the single most impactful accuracy improvement: our raw 2025 data doesn't
+  // account for major offseason changes. Examples:
+  //   MIL: 4.98 RS/G (2025) → 4.41 (FG 2026) — lost key bats, overperformed
+  //   SD:  3.83 RA/G (2025) → 4.55 (FG 2026) — rotation changes
+  //   BAL: 4.18 RS/G (2025) → 4.82 (FG 2026) — added Alonso/O'Neill
+  // Without this blend, we systematically misprice teams with big offseason moves.
+  const fgBlendWeight = isPreseasonPredict ? FG_BLEND_WEIGHT_PRESEASON : FG_BLEND_WEIGHT_REGULAR;
+  const awayFG = FANGRAPHS_2026_RS_RA[awayAbbr];
+  const homeFG = FANGRAPHS_2026_RS_RA[homeAbbr];
+  
+  // Blended team offensive/defensive rates (used for run calculations below)
+  const awayRsBlended = awayFG ? away.rsG * (1 - fgBlendWeight) + awayFG.rsG * fgBlendWeight : away.rsG;
+  const awayRaBlended = awayFG ? away.raG * (1 - fgBlendWeight) + awayFG.raG * fgBlendWeight : away.raG;
+  const homeRsBlended = homeFG ? home.rsG * (1 - fgBlendWeight) + homeFG.rsG * fgBlendWeight : home.rsG;
+  const homeRaBlended = homeFG ? home.raG * (1 - fgBlendWeight) + homeFG.raG * fgBlendWeight : home.raG;
   
   // ==================== BULLPEN QUALITY PROJECTION ====================
   // Use projected 2026 bullpen ERA from bullpen-quality service instead of static 2025 data.

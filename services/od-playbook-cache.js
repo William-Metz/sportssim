@@ -283,6 +283,41 @@ function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction, 
     };
   }
   
+  // STEP 2b: Extract F3 (First 3 Innings) from predict() result (v93.0)
+  // F3 is our BIGGEST edge — FTTO advantage + softer lines
+  if (fullPred && fullPred.f3 && fullPred.f3.model === 'negative-binomial-f3') {
+    const f3 = fullPred.f3;
+    const f3Lines = {};
+    for (const line of [1.5, 2.0, 2.5, 3.0, 3.5]) {
+      const lineData = f3.totals?.[line];
+      if (lineData) {
+        f3Lines[line] = { 
+          underPct: +(lineData.under * 100).toFixed(1), 
+          overPct: +(lineData.over * 100).toFixed(1),
+          underML: lineData.underML,
+          overML: lineData.overML,
+        };
+      }
+    }
+    
+    entry.signals.f3 = {
+      model: 'negative-binomial-f3',
+      expectedTotal: f3.total,
+      awayF3Runs: f3.awayRuns,
+      homeF3Runs: f3.homeRuns,
+      homeWinProb: f3.homeWinProb,
+      awayWinProb: f3.awayWinProb,
+      drawProb: f3.drawProb,
+      threeWayML: f3.threeWay,
+      twoWayML: f3.twoWay,
+      lines: f3Lines,
+      bestUnder: f3.total < 2.0 ? 'U1.5' : f3.total < 2.5 ? 'U2.5' : 'U3.5',
+      spreads: f3.spreads || null,
+      teamTotals: f3.teamTotals || null,
+      topScores: f3.topScores?.slice(0, 5) || null,
+    };
+  }
+  
   // Run line analysis from predict()
   if (fullPred && fullPred.altRunLines) {
     entry.signals.runLines = {

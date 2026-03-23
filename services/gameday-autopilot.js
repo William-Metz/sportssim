@@ -49,7 +49,7 @@ try { odSgpBuilder = require('./od-sgp-builder'); } catch(e) { /* ok */ }
 try { odLiveLines = require('./od-live-lines'); } catch(e) { /* ok */ }
 try { lineShoppingService = require('./line-shopping'); } catch(e) { /* ok */ }
 try { odPlaybookCache = require('./od-playbook-cache'); } catch(e) { /* ok */ }
-try { mlbOpeningDay = require('./mlb-opening-day'); } catch(e) { /* ok */ }
+try { mlbOpeningDay = require('../models/mlb-opening-day'); } catch(e) { /* ok */ }
 
 // ==================== STATE ====================
 const STATE_PATH = path.join(__dirname, 'gameday-autopilot-state.json');
