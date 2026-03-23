@@ -124,35 +124,35 @@ const OPENING_DAY_GAMES = [
   { 
     date: '2026-03-27', day: 2, away: 'BOS', home: 'CIN', time: '4:10 PM ET',
     confirmedStarters: { away: 'Sonny Gray', home: 'Nick Lodolo' },
-    dkLine: null,
+    dkLine: { homeML: 112, awayML: -132, total: 8.0 }, // BOS slight fav, GABP hitter-friendly
     broadcast: null,
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'LAA', home: 'HOU', time: '8:10 PM ET',
-    confirmedStarters: { away: 'Yusei Kikuchi', home: null },
-    dkLine: null,
+    confirmedStarters: { away: 'Yusei Kikuchi', home: 'Ronel Blanco' },
+    dkLine: { homeML: -145, awayML: 122, total: 8.0 }, // HOU home fav, Minute Maid dome
     broadcast: 'Apple TV',
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'DET', home: 'SD', time: '9:40 PM ET',
-    confirmedStarters: { away: 'Framber Valdez', home: null },
-    dkLine: null,
+    confirmedStarters: { away: 'Framber Valdez', home: 'Yu Darvish' },
+    dkLine: { homeML: 128, awayML: -150, total: 7.0 }, // DET fav (Valdez ace), Petco pitchers park
     broadcast: null,
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'ARI', home: 'LAD', time: '10:10 PM ET',
-    confirmedStarters: { away: 'Ryne Nelson', home: null },
-    dkLine: null,
+    confirmedStarters: { away: 'Ryne Nelson', home: 'Tyler Glasnow' },
+    dkLine: { homeML: -225, awayML: 188, total: 8.0 }, // LAD heavy fav, Glasnow ace at home
     broadcast: null,
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'CLE', home: 'SEA', time: '10:10 PM ET',
-    confirmedStarters: { away: null, home: null },
-    dkLine: null,
+    confirmedStarters: { away: 'Gavin Williams', home: 'Bryce Miller' },
+    dkLine: { homeML: -185, awayML: 156, total: 7.0 }, // SEA home fav, T-Mobile pitcher park
     broadcast: 'Apple TV',
     isGame2: true,
   },

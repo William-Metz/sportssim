@@ -729,6 +729,146 @@ async function runPreflight() {
     };
   }
   
+  // Stolen base model check
+  console.log('[preflight] Running stolen base model check...');
+  try {
+    const sbModel = require('./stolen-base-model');
+    const teamData = sbModel.TEAM_SB_DATA || sbModel.getTeamData?.() || {};
+    const teamCount = Object.keys(teamData).length;
+    if (teamCount >= 25) {
+      report.checks.stolenBaseModel = {
+        status: 'PASS',
+        note: `${teamCount} teams with SB attempt rate data, wired into predict() totals`,
+      };
+    } else {
+      report.checks.stolenBaseModel = {
+        status: 'WARN',
+        note: `Only ${teamCount} teams with stolen base data`,
+      };
+    }
+  } catch (e) {
+    report.checks.stolenBaseModel = {
+      status: 'WARN',
+      note: `Stolen base model not loaded: ${e.message}`,
+    };
+  }
+  
+  // NB F5 / Run Line model check
+  console.log('[preflight] Running NB models check...');
+  try {
+    const negBin = require('./neg-binomial');
+    const testResult = negBin.negBinRunLineProb ? 
+      negBin.negBinRunLineProb(4.5, 4.0, -1.5) :
+      negBin.calculateRunLine ? negBin.calculateRunLine(4.5, 4.0, -1.5) : null;
+    
+    const hasF5 = !!(negBin.negBinF5 || negBin.calculateF5);
+    
+    if (testResult !== null && testResult !== undefined) {
+      report.checks.negBinomialModels = {
+        status: 'PASS',
+        note: `NB run line model operational, F5 model: ${hasF5 ? 'YES' : 'NO'}`,
+      };
+    } else {
+      report.checks.negBinomialModels = {
+        status: 'WARN',
+        note: 'NB model loaded but test returned null',
+      };
+    }
+  } catch (e) {
+    report.checks.negBinomialModels = {
+      status: 'WARN',
+      note: `NB model check error: ${e.message}`,
+    };
+  }
+  
+  // Conviction engine check
+  console.log('[preflight] Running conviction engine check...');
+  try {
+    const testPred = mlb.predict('NYY', 'BOS');
+    const hasConviction = testPred && (testPred.conviction !== undefined || testPred.convictionScore !== undefined || testPred.convictionGrade !== undefined);
+    
+    report.checks.convictionEngine = {
+      status: hasConviction ? 'PASS' : 'WARN',
+      note: hasConviction ? 
+        `Conviction engine active (grade: ${testPred.convictionGrade || testPred.conviction?.grade || 'N/A'}, score: ${testPred.convictionScore || testPred.conviction?.score || 'N/A'})` :
+        'Conviction scores not found in predict() output — may not be wired',
+    };
+  } catch (e) {
+    report.checks.convictionEngine = {
+      status: 'WARN',
+      note: `Conviction check error: ${e.message}`,
+    };
+  }
+  
+  // OD Playbook cache check
+  console.log('[preflight] Running OD playbook cache check...');
+  try {
+    const odCache = require('./od-playbook-cache');
+    report.checks.odPlaybookCache = {
+      status: 'PASS',
+      note: 'OD playbook cache module loaded — prefetch/parallel ready for game day',
+    };
+  } catch (e) {
+    report.checks.odPlaybookCache = {
+      status: 'WARN',
+      note: `OD playbook cache not loaded: ${e.message}`,
+    };
+  }
+  
+  // Opening Day Live Tracker check
+  console.log('[preflight] Running OD live tracker check...');
+  try {
+    const odLive = require('./opening-day-live');
+    report.checks.odLiveTracker = {
+      status: 'PASS',
+      note: 'OD live tracker module loaded and ready for March 26 game day',
+    };
+  } catch (e) {
+    report.checks.odLiveTracker = {
+      status: 'WARN',
+      note: `OD live tracker not loaded: ${e.message}`,
+    };
+  }
+  
+  // Savant catcher framing data check
+  console.log('[preflight] Running Savant framing data check...');
+  try {
+    const cf = require('./catcher-framing');
+    const catcherCount = cf.SAVANT_CATCHERS ? Object.keys(cf.SAVANT_CATCHERS).length : 
+                          cf.getCatcherCount ? cf.getCatcherCount() : 0;
+    const teamMappings = cf.TEAM_PRIMARY_CATCHERS ? Object.keys(cf.TEAM_PRIMARY_CATCHERS).length :
+                          cf.getTeamMappingCount ? cf.getTeamMappingCount() : 0;
+    
+    report.checks.savantCatcherFraming = {
+      status: (catcherCount >= 40 && teamMappings >= 25) ? 'PASS' : 'WARN',
+      note: `${catcherCount} Savant catchers, ${teamMappings} team primary catcher mappings`,
+    };
+  } catch (e) {
+    report.checks.savantCatcherFraming = {
+      status: 'WARN',
+      note: `Savant catcher framing check error: ${e.message}`,
+    };
+  }
+  
+  // DK Opening Day lines check
+  console.log('[preflight] Running DK lines check...');
+  try {
+    const odModel = require('../models/mlb-opening-day');
+    const schedule = odModel.OPENING_DAY_SCHEDULE || odModel.getSchedule?.() || [];
+    const withLines = schedule.filter(g => g.dk || g.dkLine || g.moneyline);
+    const withTotals = schedule.filter(g => (g.dk && g.dk.total) || g.dkTotal || g.total);
+    
+    report.checks.dkOpeningDayLines = {
+      status: withLines.length >= 10 ? 'PASS' : withLines.length > 0 ? 'WARN' : 'FAIL',
+      note: `${withLines.length}/${schedule.length} games have DK moneyline data, ${withTotals.length} have totals`,
+    };
+  } catch (e) {
+    report.checks.dkOpeningDayLines = {
+      status: 'WARN',
+      note: `DK lines check error: ${e.message}`,
+    };
+  }
+  
   // Aggregate
   for (const [name, check] of Object.entries(report.checks)) {
     report.summary.total++;

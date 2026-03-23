@@ -508,6 +508,32 @@ async function scanAllValue() {
   
   results.total = results.nba.length + results.mlb.length + results.nhl.length + results.polymarket.length;
   
+  // NCAA Tournament value scan (during March Madness)
+  try {
+    const ncaaTournScanner = require('./ncaa-tournament-scanner');
+    const ncaaResults = await ncaaTournScanner.scanTournamentValue();
+    if (ncaaResults && ncaaResults.valueBets && ncaaResults.valueBets.length > 0) {
+      results.ncaab = ncaaResults.valueBets.slice(0, 10).map(v => ({
+        sport: 'NCAAB',
+        game: v.game,
+        bet: v.bet,
+        type: v.type,
+        edge: v.edge,
+        confidence: v.confidence,
+        bestBook: v.bestBook,
+        evPer100: v.evPer100,
+        modelProb: v.modelProb,
+        round: v.round,
+      }));
+      results.total += results.ncaab.length;
+    } else {
+      results.ncaab = [];
+    }
+  } catch (e) {
+    results.ncaab = [];
+    // NCAA scanner may not be available — that's fine
+  }
+  
   // ==================== AUTO-RECORD TO CLV TRACKER ====================
   // Every value bet found gets auto-recorded for CLV analysis — the holy grail metric.
   // If we consistently beat closing lines, the model is REAL.

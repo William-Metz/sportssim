@@ -176,13 +176,12 @@ const TOURNAMENT_RESULTS = {
     { winner: 'ARK', loser: 'HPNT', score: '94-88', round: 2 },
     { winner: 'PUR', loser: 'MIAMI', score: '79-69', round: 2 },
     { winner: 'IAST', loser: 'KEN', score: '82-63', round: 2 },
-    // Remaining games scheduled for today March 22 (evening ET)
-    // Kansas vs St. John's (5:15 ET)
-    // Virginia vs Tennessee (6:10 ET)
-    // Florida vs Iowa (7:10 ET)
-    // Arizona vs Utah State (7:50 ET)
-    // UConn vs UCLA (8:45 ET)
-    // Alabama vs Texas Tech (9:45 ET)
+    { winner: 'STJN', loser: 'KU', score: '67-65', round: 2, notes: '5 seed over 4 seed — Dylan Darling buzzer-beater layup!' },
+    { winner: 'TENN', loser: 'UVA', score: '79-72', round: 2, notes: '6 seed over 3 seed' },
+    { winner: 'IOWA', loser: 'FLA', score: '73-72', round: 2, notes: '9 seed over 1 seed! Folgueiras 3 with 4sec left. #1 overall seed GONE.' },
+    // Arizona vs Utah State — TBD (late March 22 game)
+    // UConn vs UCLA — TBD (late March 22 game)
+    // Alabama vs Texas Tech — TBD (late March 22 game)
   ]
 };
 

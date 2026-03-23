@@ -660,18 +660,33 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   
   if (statcastService) {
     // Pitcher Statcast regression — adjust for xERA vs ERA gap
+    // CRITICAL v68: Only trust Statcast adjustment when Statcast ERA is consistent with
+    // the pitcher DB ERA. When there's a large gap (>0.75), the Statcast cache may have
+    // different season data than the pitcher profile, creating phantom edges.
     if (homePitcher && homePitcher.name) {
       homeStatcastPitcher = statcastService.getStatcastPitcherAdjustment(homePitcher.name);
       if (homeStatcastPitcher && homeStatcastPitcher.runAdjustment !== 0) {
-        // Positive runAdj = pitcher worse than ERA (away team scores MORE)
-        // Scale by 0.5 to avoid over-adjusting (Statcast is one signal among many)
-        awayStatcastAdj += homeStatcastPitcher.runAdjustment * 0.5;
+        const homeDbEra = homePitcher.era || 4.0;
+        const homeScEra = homeStatcastPitcher.era || homeDbEra;
+        const homeEraGap = Math.abs(homeDbEra - homeScEra);
+        // Only apply full weight if Statcast ERA matches pitcher DB ERA
+        // Large gaps mean we're comparing different datasets (e.g., 2025 Savant vs 2026 projections)
+        const scWeight = homeEraGap > 1.0 ? 0 : homeEraGap > 0.75 ? 0.15 : homeEraGap > 0.5 ? 0.3 : 0.5;
+        if (scWeight > 0) {
+          awayStatcastAdj += homeStatcastPitcher.runAdjustment * scWeight;
+        }
       }
     }
     if (awayPitcher && awayPitcher.name) {
       awayStatcastPitcher = statcastService.getStatcastPitcherAdjustment(awayPitcher.name);
       if (awayStatcastPitcher && awayStatcastPitcher.runAdjustment !== 0) {
-        homeStatcastAdj += awayStatcastPitcher.runAdjustment * 0.5;
+        const awayDbEra = awayPitcher.era || 4.0;
+        const awayScEra = awayStatcastPitcher.era || awayDbEra;
+        const awayEraGap = Math.abs(awayDbEra - awayScEra);
+        const scWeight = awayEraGap > 1.0 ? 0 : awayEraGap > 0.75 ? 0.15 : awayEraGap > 0.5 ? 0.3 : 0.5;
+        if (scWeight > 0) {
+          homeStatcastAdj += awayStatcastPitcher.runAdjustment * scWeight;
+        }
       }
     }
     
@@ -909,11 +924,12 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   const isEarlySeason = isPreseasonPredict || awayRegression > 0 || homeRegression > 0;
   const HCA_SHIFT = isEarlySeason ? EARLY_HCA_SHIFT : BASE_HCA_SHIFT;
   
-  // CALIBRATION v4: Tighter probability cap for early season.
+  // CALIBRATION v5: Probability cap tuning for Opening Day.
   // Full season: 0.68 max (audit of 2375 2024 games shows overconfidence at extremes)
-  // Early season: 0.64 max (higher variance, less established patterns, preseason projections noisy)
-  const MAX_WIN_PROB = isEarlySeason ? 0.64 : 0.68;
-  const MIN_WIN_PROB = isEarlySeason ? 0.36 : 0.32;
+  // Early season: 0.67 max (raised from 0.64 — Opening Day has strong team-quality separation
+  // that justifies wider range, e.g., LAD -238 = 70% implied. 0.64 was clipping real edges.)
+  const MAX_WIN_PROB = isEarlySeason ? 0.67 : 0.68;
+  const MIN_WIN_PROB = isEarlySeason ? 0.33 : 0.32;
   let homeWinProb = Math.min(MAX_WIN_PROB, Math.max(MIN_WIN_PROB, baseWinProbs.home + HCA_SHIFT));
   let awayWinProb = 1 - homeWinProb;
   
@@ -1107,7 +1123,7 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
         note: catcherFramingData.note
       } : null,
       earlySeasonRegression: (awayRegression > 0 || homeRegression > 0) ? { away: +awayRegression.toFixed(3), home: +homeRegression.toFixed(3), note: 'Regressing toward league avg due to small sample' } : null,
-      earlySeasonCalibration: isEarlySeason ? { hcaShift: HCA_SHIFT, maxWinProb: MAX_WIN_PROB, minWinProb: MIN_WIN_PROB, note: 'Tighter caps + reduced HCA for early season (49.2% HWR in first 2 weeks)' } : null,
+      earlySeasonCalibration: isEarlySeason ? { hcaShift: HCA_SHIFT, maxWinProb: MAX_WIN_PROB, minWinProb: MIN_WIN_PROB, note: 'v5 calibration: 0.67 cap + Statcast data consistency check + reduced HCA for early season' } : null,
       preseasonTuning: (awayPreseasonInfo || homePreseasonInfo) ? {
         away: awayPreseasonInfo,
         home: homePreseasonInfo,

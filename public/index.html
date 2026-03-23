@@ -198,6 +198,7 @@ function buildTabs() {
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
+  tabs.push({ id: 'od-lines', label: '📈 OD Lines' });
   tabs.push({ id: 'live-tracker', label: '🔴 Live Tracker' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
@@ -253,6 +254,7 @@ function showTab(id) {
   else if (id === 'catcher-framing') loadCatcherFramingTab();
   else if (id === 'stolen-bases') loadStolenBasesTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
+  else if (id === 'od-lines') loadODLinesTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -9631,6 +9633,152 @@ async function loadStolenBasesTab() {
   }
   
   wrap.innerHTML = h;
+}
+
+// ==================== OD LINE TRACKER TAB (v69.1) ====================
+async function loadODLinesTab() {
+  const wrap = document.getElementById('content');
+  wrap.innerHTML = '<div style="text-align:center;padding:60px"><div class="spinner"></div><p>Loading OD Line Tracker...</p></div>';
+  
+  try {
+    // First initialize the tracker with model predictions
+    try { await fetch('/api/opening-day/line-tracker/init', { method: 'POST' }); } catch (e) {}
+    
+    const res = await fetch('/api/opening-day/line-tracker');
+    const data = await res.json();
+    
+    let h = '<div style="max-width:1200px;margin:0 auto">';
+    h += '<h2>📈 Opening Day Line Movement Tracker</h2>';
+    h += `<p style="color:var(--text2)">Tracking ${data.totalGames || 0} OD games • ${data.totalSnapshots || 0} snapshots • Last updated: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : 'N/A'}</p>`;
+    
+    // Summary cards
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0">';
+    h += `<div style="background:var(--card);padding:16px;border-radius:8px;text-align:center">
+      <div style="font-size:28px;font-weight:bold;color:var(--green)">${data.totalGames || 0}</div>
+      <div style="font-size:12px;color:var(--text2)">Games Tracked</div>
+    </div>`;
+    h += `<div style="background:var(--card);padding:16px;border-radius:8px;text-align:center">
+      <div style="font-size:28px;font-weight:bold;color:var(--blue)">${data.gamesWithMovement || 0}</div>
+      <div style="font-size:12px;color:var(--text2)">Lines Moved</div>
+    </div>`;
+    h += `<div style="background:var(--card);padding:16px;border-radius:8px;text-align:center">
+      <div style="font-size:28px;font-weight:bold;color:#f59e0b">${data.gamesWithSteam || 0}</div>
+      <div style="font-size:12px;color:var(--text2)">Steam Moves</div>
+    </div>`;
+    if (data.clvAnalysis) {
+      h += `<div style="background:var(--card);padding:16px;border-radius:8px;text-align:center">
+        <div style="font-size:28px;font-weight:bold;color:${data.clvAnalysis.clvHitRate >= 55 ? 'var(--green)' : '#f59e0b'}">${data.clvAnalysis.clvHitRate}%</div>
+        <div style="font-size:12px;color:var(--text2)">CLV Hit Rate</div>
+      </div>`;
+    }
+    h += '</div>';
+    
+    // Take snapshot button
+    h += '<div style="margin:16px 0;text-align:center">';
+    h += '<button onclick="takeLineSnapshot()" style="padding:10px 24px;background:var(--green);color:black;border:none;border-radius:8px;cursor:pointer;font-weight:bold">📸 Take Snapshot Now</button>';
+    h += '</div>';
+    
+    // Game-by-game tracker
+    if (data.games && data.games.length > 0) {
+      h += '<h3>Game-by-Game Tracking</h3>';
+      h += '<div style="display:grid;gap:12px">';
+      
+      for (const game of data.games) {
+        const opener = game.opener;
+        const current = game.current;
+        const model = game.modelFirst;
+        
+        h += '<div style="background:var(--card);padding:16px;border-radius:8px">';
+        h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">`;
+        h += `<strong style="font-size:16px">${game.matchup}</strong>`;
+        
+        if (game.analysis?.modelEdgeAtOpen !== undefined) {
+          const edgeColor = Math.abs(game.analysis.modelEdgeAtOpen) > 3 ? 'var(--green)' : '#94a3b8';
+          h += `<span style="color:${edgeColor};font-weight:bold">${game.analysis.modelEdgeAtOpen > 0 ? '+' : ''}${game.analysis.modelEdgeAtOpen}% model edge</span>`;
+        }
+        h += '</div>';
+        
+        // Three columns: Opener, Model, Current
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:13px">';
+        
+        // Opener
+        h += '<div style="background:var(--bg);padding:8px;border-radius:6px">';
+        h += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">📊 DK Opener</div>';
+        if (opener) {
+          h += `<div>Home ML: <strong>${opener.homeML || 'N/A'}</strong></div>`;
+          h += `<div>Away ML: <strong>${opener.awayML || 'N/A'}</strong></div>`;
+          h += `<div>Total: <strong>${opener.total || 'N/A'}</strong></div>`;
+        } else {
+          h += '<div style="color:#666">Not posted yet</div>';
+        }
+        h += '</div>';
+        
+        // Model prediction
+        h += '<div style="background:var(--bg);padding:8px;border-radius:6px">';
+        h += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">🤖 Our Model</div>';
+        if (model) {
+          h += `<div>Home ML: <strong>${model.homeML || 'N/A'}</strong></div>`;
+          h += `<div>Away ML: <strong>${model.awayML || 'N/A'}</strong></div>`;
+          h += `<div>Total: <strong>${model.total ? model.total.toFixed(1) : 'N/A'}</strong></div>`;
+          h += `<div style="font-size:11px;color:var(--text2)">P(home): ${model.homeWinProb ? (model.homeWinProb * 100).toFixed(1) + '%' : 'N/A'}</div>`;
+        } else {
+          h += '<div style="color:#666">Not calculated yet</div>';
+        }
+        h += '</div>';
+        
+        // Current
+        h += '<div style="background:var(--bg);padding:8px;border-radius:6px">';
+        h += '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">📍 Current</div>';
+        if (current && current.homeML !== null) {
+          h += `<div>Home ML: <strong>${current.homeML}</strong></div>`;
+          h += `<div>Away ML: <strong>${current.awayML}</strong></div>`;
+          h += `<div>Total: <strong>${current.total || 'N/A'}</strong></div>`;
+        } else {
+          h += '<div style="color:#666">No live odds yet</div>';
+        }
+        h += '</div>';
+        
+        h += '</div>'; // grid
+        
+        // Movement history
+        if (game.movements && game.movements.length > 0) {
+          h += '<div style="margin-top:8px;font-size:12px;color:var(--text2)">';
+          h += `<strong>Movement:</strong> ${game.movements.map(m => `${m.type} ${m.mlShift > 0 ? '+' : ''}${m.mlShift} ML`).join(' → ')}`;
+          h += '</div>';
+        }
+        
+        // CLV grade
+        if (game.analysis?.clvGrade) {
+          h += `<div style="margin-top:4px;font-size:12px">${game.analysis.clvGrade}</div>`;
+        }
+        
+        h += '</div>'; // card
+      }
+      
+      h += '</div>'; // grid
+    } else {
+      h += '<div style="background:var(--card);padding:32px;border-radius:12px;text-align:center;color:var(--text2)">';
+      h += '<p>📈 Line tracker initialized. Click "Take Snapshot" to start tracking, or wait for live odds to appear (usually 1-2 days before game day).</p>';
+      h += '<p style="font-size:12px">Model predictions are recorded automatically. Once books post OD lines, we\'ll track every movement.</p>';
+      h += '</div>';
+    }
+    
+    h += '</div>'; // max-width
+    wrap.innerHTML = h;
+  } catch (err) {
+    wrap.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+
+async function takeLineSnapshot() {
+  try {
+    const res = await fetch('/api/opening-day/line-tracker/snapshot', { method: 'POST' });
+    const data = await res.json();
+    alert(`Snapshot taken! Games tracked: ${data.gamesTracked || 0}`);
+    loadODLinesTab(); // refresh
+  } catch (err) {
+    alert('Snapshot failed: ' + err.message);
+  }
 }
 
 </script>

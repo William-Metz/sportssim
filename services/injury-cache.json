@@ -42,6 +42,16 @@
       "team": "Brooklyn Nets",
       "injuries": [
         {
+          "player": "Danny Wolf",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Wolf sustained a left ankle injury in the second quarter of Sunday's game against the Kings and will not return, Erik Slater of ClutchPoints.com reports. He'll finish with nine points (4-7 FG, 1-2 3Pt",
+          "returnDate": "2026-03-22T22:59Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Noah Clowney",
           "position": "F",
           "status": "Out",
@@ -94,7 +104,7 @@
       ],
       "totalImpact": 0,
       "outCount": 5,
-      "dtdCount": 0,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CHA": {
@@ -599,11 +609,31 @@
           "player": "Bennedict Mathurin",
           "position": "G",
           "status": "Out",
-          "detail": "Mathurin (toe) will miss the Clippers' upcoming three-game road trip, which wraps up Saturday in Dallas, Tomer Azarly of ClutchPoints.com reports.",
-          "returnDate": "2026-03-17T22:28Z",
+          "detail": "Mathurin (toe) will remain on the inactive list for Monday's meeting with Milwaukee, NBA writer Justin Russo reports.",
+          "returnDate": "2026-03-23T00:17Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
+        },
+        {
+          "player": "Kawhi Leonard",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Leonard posted 34 points (12-22 FG, 5-9 3Pt, 5-5 FT), three rebounds, five assists, one block and two steals across 36 minutes during Saturday's 138-131 overtime win over the Mavericks.",
+          "returnDate": "2026-03-23T00:16Z",
+          "impact": 4,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "John Collins",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Collins is probable for Monday's matchup with Milwaukee due to a left ankle sprain, NBA writer Justin Russo reports.",
+          "returnDate": "2026-03-23T00:15Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Yanic Konan Niederhauser",
@@ -626,10 +656,19 @@
           "isDayToDay": false
         }
       ],
-      "totalImpact": 0,
+      "totalImpact": 1.2,
       "outCount": 3,
-      "dtdCount": 0,
-      "starPlayersOut": []
+      "dtdCount": 2,
+      "starPlayersOut": [
+        {
+          "player": "Kawhi Leonard",
+          "impact": 4,
+          "status": "Day-To-Day",
+          "detail": "Leonard posted 34 points (12-22 FG, 5-9 3Pt, 5-5 FT), three rebounds, five assists, one block and two steals across 36 minutes during Saturday's 138-131 overtime win over the Mavericks.",
+          "isOut": false,
+          "isDayToDay": true
+        }
+      ]
     },
     "LAL": {
       "team": "Los Angeles Lakers",
@@ -861,11 +900,11 @@
       "team": "Milwaukee Bucks",
       "injuries": [
         {
-          "player": "Bobby Portis",
+          "player": "Kyle Kuzma",
           "position": "F",
           "status": "Day-To-Day",
-          "detail": "Portis (ribs) is a late scratch for Saturday's game against the Suns.",
-          "returnDate": "2026-03-22T13:05Z",
+          "detail": "Kuzma (Achilles) is questionable for Monday's game versus the Clippers.",
+          "returnDate": "2026-03-22T23:52Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -873,29 +912,19 @@
         {
           "player": "Kevin Porter Jr.",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Porter (knee) is out for Saturday's game against the Suns.",
-          "returnDate": "2026-03-22T13:01Z",
+          "status": "Out",
+          "detail": "Porter (knee) has been ruled out for Monday's game against the Clippers.",
+          "returnDate": "2026-03-22T23:52Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Gary Harris",
           "position": "G",
           "status": "Day-To-Day",
-          "detail": "Harris (groin) has been ruled out for Saturday's game against the Suns.",
-          "returnDate": "2026-03-22T13:01Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
-          "player": "Kyle Kuzma",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Kuzma will not return to Saturday's game against the Suns with right Achilles tightness.",
-          "returnDate": "2026-03-22T03:54Z",
+          "detail": "Harris (groin) is probable for Monday's meeting with the Clippers.",
+          "returnDate": "2026-03-22T23:50Z",
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
@@ -912,8 +941,8 @@
         }
       ],
       "totalImpact": 5,
-      "outCount": 1,
-      "dtdCount": 4,
+      "outCount": 2,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Giannis Antetokounmpo",
@@ -929,16 +958,6 @@
       "team": "Minnesota Timberwolves",
       "injuries": [
         {
-          "player": "Naz Reid",
-          "position": "C",
-          "status": "Out",
-          "detail": "Reid (ankle) is listed as questionable for Sunday's game against Boston.",
-          "returnDate": "2026-03-21T19:03Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Anthony Edwards",
           "position": "G",
           "status": "Out",
@@ -950,7 +969,7 @@
         }
       ],
       "totalImpact": 4,
-      "outCount": 2,
+      "outCount": 1,
       "dtdCount": 0,
       "starPlayersOut": [
         {
@@ -1306,6 +1325,26 @@
       "team": "Sacramento Kings",
       "injuries": [
         {
+          "player": "Nique Clifford",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Clifford (ankle) won't return to Sunday's game versus the Nets.",
+          "returnDate": "2026-03-23T00:11Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Killian Hayes",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Hayes won't return to Sunday's game against the Nets due to a left toe injury, James Ham of ESPN 1320 Sacramento reports. He'll finish with two points (1-4 FG), four rebounds and one assist across 12 ",
+          "returnDate": "2026-03-22T23:27Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Daeqwon Plowden",
           "position": "G",
           "status": "Out",
@@ -1388,7 +1427,7 @@
       ],
       "totalImpact": 3.5,
       "outCount": 8,
-      "dtdCount": 0,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Domantas Sabonis",
@@ -1446,8 +1485,8 @@
           "player": "Collin Murray-Boyles",
           "position": "F",
           "status": "Out",
-          "detail": "Murray-Boyles (thumb) is questionable ahead of Sunday's game against Phoenix, per Josh Lewenberg of TSN.ca.",
-          "returnDate": "2026-03-21T23:06Z",
+          "detail": "Murray-Boyles (thumb) won't play Sunday in Phoenix, Michael Grange of Sportsnet.ca reports.",
+          "returnDate": "2026-03-22T23:36Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1472,24 +1511,14 @@
       "team": "Utah Jazz",
       "injuries": [
         {
-          "player": "Brice Sensabaugh",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "Sensabaugh (illness) has been ruled out for Saturday's game against the 76ers.",
-          "returnDate": "2026-03-22T12:31Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Isaiah Collier",
           "position": "G",
-          "status": "Day-To-Day",
-          "detail": "Collier (hamstring) has been ruled out for Saturday's game against the 76ers.",
-          "returnDate": "2026-03-22T12:31Z",
+          "status": "Out",
+          "detail": "Collier (hamstring) won't play Monday versus the Raptors.",
+          "returnDate": "2026-03-22T23:05Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Lauri Markkanen",
@@ -1543,8 +1572,8 @@
         }
       ],
       "totalImpact": 3,
-      "outCount": 5,
-      "dtdCount": 2,
+      "outCount": 6,
+      "dtdCount": 0,
       "starPlayersOut": [
         {
           "player": "Lauri Markkanen",
@@ -1728,12 +1757,12 @@
         {
           "player": "Tanner Pearson",
           "position": "LW",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-22T13:06Z",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-22T23:45Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Jiri Kulich",
@@ -1767,8 +1796,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 1,
+      "outCount": 4,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "CGY": {
@@ -1856,8 +1885,8 @@
           "player": "Matt Grzelcyk",
           "position": "D",
           "status": "Out",
-          "detail": "Grzelcyk (upper body) left Sunday's game against the Predators in the third period and won't return, the team announced.",
-          "returnDate": "2026-03-22T20:21Z",
+          "detail": "Grzelcyk (upper body) will not be available for the Blackhawks' upcoming four-game road trip, and his status beyond that has yet to be determined, according to Ben Pope of the Chicago Sun-Times on Sun",
+          "returnDate": "2026-03-22T23:27Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1964,8 +1993,8 @@
           "player": "Mikko Rantanen",
           "position": "RW",
           "status": "Injured Reserve",
-          "detail": "Rantanen (lower body) has resumed skating, but his return to the lineup isn't imminent, per Owen Newkirk of DLLS Sports on Tuesday.",
-          "returnDate": "2026-03-10T16:37Z",
+          "detail": "General manager Jim Nill said Sunday that Rantanen (lower body) will be a full-time participant in practice going forward and will travel with the team for its upcoming four-game road trip, Stars radi",
+          "returnDate": "2026-03-22T23:06Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -2116,6 +2145,16 @@
     "FLA": {
       "team": "Florida Panthers",
       "injuries": [
+        {
+          "player": "A.J. Greer",
+          "position": "LW",
+          "status": "Suspension",
+          "detail": "suspension",
+          "returnDate": "2026-03-23T00:01Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": false
+        },
         {
           "player": "Anton Lundell",
           "position": "C",
@@ -2804,12 +2843,12 @@
         {
           "player": "Victor Hedman",
           "position": "D",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-22T13:06Z",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-22T23:48Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Maxwell Crozier",
@@ -2843,8 +2882,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 1,
+      "outCount": 4,
+      "dtdCount": 0,
       "starPlayersOut": []
     },
     "TOR": {
@@ -4218,7 +4257,7 @@
           "player": "Stephen Kolek",
           "position": "SP",
           "status": "Out",
-          "detail": "Kolek (oblique) threw a second bullpen Saturday and could pitch in minor-league spring training games in another week, MLB.com reports.",
+          "detail": "Kolek (oblique) threw a bullpen Saturday and could pitch in minor-league games next week, MLB.com reports.",
           "returnDate": "2026-03-22T16:17Z",
           "impact": 0,
           "isOut": true,
@@ -4228,7 +4267,7 @@
           "player": "Michael Massey",
           "position": "2B",
           "status": "Day-To-Day",
-          "detail": "Massey (calf) will not travel to Texas for Monday and Tuesday's exhibitions and will instead remain in Arizona to see action in minor-league games and test his running ability to gauge his availabilit",
+          "detail": "Massey (calf) will not travel to Texas for Monday and Tuesday's exhibitions and will instead remain in Arizona to see action in minor-league games and test his running ability, Anne Rogers of MLB.com ",
           "returnDate": "2026-03-22T16:01Z",
           "impact": 0,
           "isOut": false,
@@ -5722,8 +5761,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774220488143,
-    "nhl": 1774220488467,
-    "mlb": 1774220489475
+    "nba": 1774225779552,
+    "nhl": 1774225779927,
+    "mlb": 1774225780123
   }
 }
