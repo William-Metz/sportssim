@@ -593,6 +593,14 @@ module.exports = {
   getRegressionCandidates,
   getTeamXwobaLeaderboard,
   getMatchupStatcast,
+  getStatus() {
+    return {
+      pitchers: cache.pitchers ? cache.pitchers.size || Object.keys(cache.pitchers).length : 0,
+      batters: cache.batters ? cache.batters.size || Object.keys(cache.batters).length : 0,
+      teamBatting: cache.teamBatting ? Object.keys(cache.teamBatting).length : 0,
+      lastFetch: cache.lastFetch || null,
+    };
+  },
   // Direct access for advanced use
   get cachedPitchers() { return cache.pitchers; },
   get cachedBatters() { return cache.batters; },

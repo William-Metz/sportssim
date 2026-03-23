@@ -193,6 +193,7 @@ function buildTabs() {
   tabs.push({ id: 'catcher-framing', label: '🥊 Catcher Framing' });
   tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
   tabs.push({ id: 'k-props', label: '🔥 K Props' });
+  tabs.push({ id: 'outs-props', label: '⏱️ Outs Props' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -260,6 +261,7 @@ function showTab(id) {
   else if (id === 'catcher-framing') loadCatcherFramingTab();
   else if (id === 'stolen-bases') loadStolenBasesTab();
   else if (id === 'k-props') loadKPropsTab();
+  else if (id === 'outs-props') loadOutsPropsTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
   else if (id === 'line-shop') loadLineShopTab();
@@ -10173,6 +10175,124 @@ async function refreshLiveKProps() {
     if (status) status.textContent = `❌ Error: ${e.message}`;
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+// ==================== PITCHER OUTS PROPS TAB (v76.0) ====================
+async function loadOutsPropsTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="card"><h2>⏱️ Loading Outs Props...</h2></div>';
+  
+  try {
+    const [scanResp, lbResp] = await Promise.all([
+      fetch(`${API}/api/opening-day/outs-props`),
+      fetch(`${API}/api/opening-day/outs-props/leaderboard`),
+    ]);
+    const scan = await scanResp.json();
+    const lb = await lbResp.json();
+    
+    if (scan.error) {
+      wrap.innerHTML = `<div class="card"><h2>❌ Error</h2><p>${scan.error}</p></div>`;
+      return;
+    }
+    
+    let html = `<div class="card"><h2>⏱️ Pitcher Outs Recorded — Opening Day Value Scanner</h2>
+      <p style="color:var(--text2)">OD starters get a longer leash (5.8 IP avg vs 5.5 regular) → <span style="color:#00ff88">OVER outs</span> is the systematic edge</p>
+      <div style="display:flex;gap:16px;margin:12px 0;flex-wrap:wrap">
+        <div style="background:#1a1a2e;padding:12px 16px;border-radius:8px;border:1px solid #333">
+          <div style="color:var(--text3);font-size:0.8em">Total Picks</div>
+          <div style="font-size:1.5em;font-weight:bold;color:#00ff88">${scan.totalPicks}</div>
+        </div>
+        <div style="background:#1a1a2e;padding:12px 16px;border-radius:8px;border:1px solid #333">
+          <div style="color:var(--text3);font-size:0.8em">HIGH Confidence</div>
+          <div style="font-size:1.5em;font-weight:bold;color:#ffcc00">${scan.highConfidence}</div>
+        </div>
+        <div style="background:#1a1a2e;padding:12px 16px;border-radius:8px;border:1px solid #333">
+          <div style="color:var(--text3);font-size:0.8em">Avg Edge</div>
+          <div style="font-size:1.5em;font-weight:bold;color:#00ff88">${scan.avgEdge}%</div>
+        </div>
+        <div style="background:#1a1a2e;padding:12px 16px;border-radius:8px;border:1px solid #333">
+          <div style="color:var(--text3);font-size:0.8em">OVERS / UNDERS</div>
+          <div style="font-size:1.5em;font-weight:bold">${scan.overs} / ${scan.unders}</div>
+        </div>
+      </div>
+      
+      <h3 style="margin-top:16px">🎯 Top Outs Prop Picks</h3>
+      <table>
+        <tr><th>Pitcher</th><th>Game</th><th>Day</th><th>Pick</th><th>Line</th><th>Proj IP</th><th>Exp Outs</th><th>Edge</th><th>Conf</th></tr>`;
+    
+    for (const p of scan.allPicks.slice(0, 20)) {
+      const edgeColor = p.edge > 15 ? '#00ff88' : p.edge > 10 ? '#88ff00' : p.edge > 5 ? '#ffcc00' : '#888';
+      const confBadge = p.confidence === 'HIGH' ? '🟢' : p.confidence === 'MEDIUM' ? '🟡' : '⚪';
+      html += `<tr>
+        <td><strong>${p.pitcher}</strong> <span style="color:var(--text3)">(${p.hand === 'L' ? 'L' : 'R'}, T${p.tier})</span></td>
+        <td>${p.game}</td>
+        <td>D${p.day}</td>
+        <td style="color:#00ff88;font-weight:bold">${p.pick}</td>
+        <td>${p.line}</td>
+        <td>${p.projectedIP}</td>
+        <td><strong>${p.expectedOuts}</strong></td>
+        <td style="color:${edgeColor};font-weight:bold">${p.edge}%</td>
+        <td>${confBadge} ${p.confidence}</td>
+      </tr>`;
+    }
+    
+    html += `</table></div>`;
+    
+    // Leaderboard section
+    html += `<div class="card"><h3>🏆 IP Workhorse Leaderboard — Who Goes Deepest?</h3>
+      <p style="color:var(--text2)">Avg expected outs on OD: ${lb.avgExpectedOuts}</p>
+      <table>
+        <tr><th>#</th><th>Pitcher</th><th>Team</th><th>Tier</th><th>IP/Start</th><th>OD Exp Outs</th><th>Book Line</th><th>Gap</th></tr>`;
+    
+    for (let i = 0; i < Math.min(lb.leaderboard.length, 20); i++) {
+      const p = lb.leaderboard[i];
+      const gap = p.line ? (p.expectedOuts - p.line).toFixed(1) : 'N/A';
+      const gapColor = gap !== 'N/A' && parseFloat(gap) > 0 ? '#00ff88' : '#ff4444';
+      html += `<tr>
+        <td>${i + 1}</td>
+        <td><strong>${p.pitcher}</strong></td>
+        <td>${p.team}</td>
+        <td>T${p.tier}</td>
+        <td>${p.ipPerStart}</td>
+        <td><strong>${p.expectedOuts}</strong></td>
+        <td>${p.line || 'N/A'}</td>
+        <td style="color:${gapColor}">${gap !== 'N/A' ? '+' + gap : gap}</td>
+      </tr>`;
+    }
+    
+    html += `</table></div>`;
+    
+    // Strategy card
+    html += `<div class="card" style="border:1px solid #333">
+      <h3>📋 Outs Props Strategy</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <h4 style="color:#00ff88">Why OVERS on OD</h4>
+          <ul>
+            <li>OD aces get longer leash (5.8 IP avg vs 5.5)</li>
+            <li>Managers trust #1 starters more game 1</li>
+            <li>Fresh arms after spring training = more efficient</li>
+            <li>Bullpens untested = managers let starters work through jams</li>
+            <li>Tier 1 aces get +8% IP premium on Opening Day</li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="color:#ffcc00">Key Factors</h4>
+          <ul>
+            <li>Tier 1 aces (Skubal, Cole, Crochet) go 6+ IP regularly</li>
+            <li>High-contact opponents = more balls in play = slightly longer outings</li>
+            <li>Cold weather suppresses offense = less traffic = deeper starts</li>
+            <li>Dome games eliminate weather variance</li>
+            <li>Books set lines based on season-long avg, not OD premium</li>
+          </ul>
+        </div>
+      </div>
+    </div>`;
+    
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>❌ Error loading Outs Props</h2><p>${err.message}</p></div>`;
   }
 }
 

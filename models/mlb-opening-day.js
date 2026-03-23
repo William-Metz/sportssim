@@ -758,4 +758,9 @@ async function getProjections() {
   };
 }
 
-module.exports = { getProjections, OPENING_DAY_GAMES, SPRING_TRAINING_RECORDS, SPRING_TRAINING_SIGNALS };
+// getSchedule() returns the static OD schedule array (used by checklist, betting card, etc.)
+function getSchedule() {
+  return OPENING_DAY_GAMES;
+}
+
+module.exports = { getProjections, getSchedule, OPENING_DAY_GAMES, SPRING_TRAINING_RECORDS, SPRING_TRAINING_SIGNALS };
