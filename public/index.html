@@ -199,6 +199,7 @@ function buildTabs() {
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
   tabs.push({ id: 'od-checklist', label: '🚀 OD Checklist' });
+  tabs.push({ id: 'od-final-check', label: '🏁 E2E Final' });
   tabs.push({ id: 'line-shop', label: '🛒 Line Shop' });
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
   tabs.push({ id: 'od-lines', label: '📈 OD Lines' });
@@ -249,6 +250,7 @@ function showTab(id) {
   else if (id === 'nhl-goalies') loadNHLGoaliesTab();
   else if (id === 'nba-seeding') loadNBASeedingTab();
   else if (id === 'od-checklist') loadODChecklistTab();
+  else if (id === 'od-final-check') loadODFinalCheckTab();
   else if (id === 'od-validate') loadODValidateTab();
   else if (id === 'od-weather') loadODWeatherTab();
   else if (id === 'seeding-futures') loadSeedingFuturesTab();
@@ -10375,6 +10377,114 @@ async function loadODChecklistTab() {
 }
 
 // ==================== LINE SHOPPING TAB ====================
+// ==================== OD E2E FINAL CHECK TAB (v74.0) ====================
+async function loadODFinalCheckTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Running E2E final check on all 20 OD games... This may take 30-60 seconds.</p></div>';
+  try {
+    const resp = await fetch(`${API}/api/opening-day/final-check`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    const s = data.summary || {};
+    const statusColor = s.status === 'ALL_PASS' ? '#22c55e' : s.status === 'MOSTLY_PASS' ? '#eab308' : '#ef4444';
+    const statusIcon = s.status === 'ALL_PASS' ? '🟢' : s.status === 'MOSTLY_PASS' ? '🟡' : '🔴';
+
+    let html = `<div class="card" style="background:linear-gradient(135deg,#0a0e17,#1a1a2e);border:2px solid ${statusColor};position:relative;overflow:hidden">
+      <div style="position:absolute;top:-20px;right:-20px;font-size:120px;opacity:0.05">🏁</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+        <div>
+          <h2 style="font-size:24px;margin-bottom:4px">${statusIcon} Pre-Opening Day E2E Final Check v74.0</h2>
+          <p style="color:var(--text2);font-size:14px">${s.message || ''}</p>
+          <p style="color:var(--text3);font-size:12px;margin-top:4px">OD: ${data.openingDay} (${data.daysUntil} days) • Ran: ${new Date(data.timestamp).toLocaleString()} • ${s.elapsedMs}ms</p>
+        </div>
+        <button class="refresh-btn" onclick="loadODFinalCheckTab()" style="background:${statusColor};color:#000;font-weight:700;padding:10px 20px;font-size:14px">🔄 Re-Run E2E</button>
+      </div>
+    </div>`;
+
+    // Summary stats
+    html += `<div class="stats-grid">
+      <div class="stat"><div class="val" style="color:#22c55e">${s.passed || 0}</div><div class="label">Tests Passed</div></div>
+      <div class="stat"><div class="val" style="color:#ef4444">${s.failed || 0}</div><div class="label">Tests Failed</div></div>
+      <div class="stat"><div class="val">${s.passRate || 0}%</div><div class="label">Pass Rate</div></div>
+      <div class="stat"><div class="val" style="color:#3b82f6">${s.gamesReady || 0}/${s.totalGames || 0}</div><div class="label">Games Ready</div></div>
+    </div>`;
+
+    // Group tests by section
+    const sections = {};
+    for (const t of (data.tests || [])) {
+      if (!sections[t.section]) sections[t.section] = [];
+      sections[t.section].push(t);
+    }
+
+    const sectionNames = { core: '🔧 Core', predict: '🧠 Prediction Engine', scoring: '📐 Scoring Models', signals: '📡 Signal Stack', betting: '💰 Betting Systems', pipeline: '🔗 Pipeline', data: '📊 Data', quality: '✅ Quality' };
+
+    for (const [sec, tests] of Object.entries(sections)) {
+      const allPass = tests.every(t => t.passed);
+      const secColor = allPass ? '#22c55e' : '#ef4444';
+      html += `<div class="card" style="border-left:3px solid ${secColor}">
+        <h3 style="margin-bottom:12px">${sectionNames[sec] || sec} ${allPass ? '✅' : '⚠️'}</h3>`;
+      for (const t of tests) {
+        const icon = t.passed ? '✅' : '❌';
+        const color = t.passed ? '#22c55e' : '#ef4444';
+        html += `<div style="padding:8px 12px;border-left:3px solid ${color};margin-bottom:8px;background:${color}08;border-radius:0 6px 6px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-weight:600">${icon} ${t.name}</span>
+            <span style="font-size:11px;color:var(--text3)">${t.time}ms</span>
+          </div>
+          <div style="color:var(--text2);font-size:12px;margin-top:4px">${t.detail}</div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // Game-by-game grid
+    if (data.gameResults && data.gameResults.length > 0) {
+      html += '<div class="card"><h3 style="margin-bottom:12px">⚾ Game-by-Game Readiness Grid</h3>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Game</th>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Day</th>';
+      html += '<th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Starters</th>';
+      html += '<th style="text-align:center;padding:6px;border-bottom:1px solid var(--border)">Pred</th>';
+      html += '<th style="text-align:center;padding:6px;border-bottom:1px solid var(--border)">Pitchers</th>';
+      html += '<th style="text-align:center;padding:6px;border-bottom:1px solid var(--border)">DK Lines</th>';
+      html += '<th style="text-align:right;padding:6px;border-bottom:1px solid var(--border)">Win%</th>';
+      html += '<th style="text-align:right;padding:6px;border-bottom:1px solid var(--border)">Total</th>';
+      html += '<th style="text-align:center;padding:6px;border-bottom:1px solid var(--border)">Status</th>';
+      html += '</tr></thead><tbody>';
+      for (const g of data.gameResults) {
+        const statusBadge = g.status === 'GO' ? '<span style="color:#22c55e;font-weight:700">GO ✅</span>' : '<span style="color:#eab308;font-weight:700">WARN ⚠️</span>';
+        const checkIcon = (v) => v ? '✅' : '❌';
+        html += `<tr>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;font-weight:600">${g.game}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20">${g.day || '-'}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;font-size:11px">${g.starters?.away || 'TBD'} vs ${g.starters?.home || 'TBD'}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;text-align:center">${checkIcon(g.checks?.prediction)}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;text-align:center">${checkIcon(g.checks?.pitchersInDB)}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;text-align:center">${checkIcon(g.checks?.dkLines)}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;text-align:right">${g.prediction?.homeWin || '-'}%</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;text-align:right">${g.prediction?.total || '-'}</td>
+          <td style="padding:6px;border-bottom:1px solid var(--border)20;text-align:center">${statusBadge}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+
+    // Failed tests detail
+    if (s.failedTests && s.failedTests.length > 0) {
+      html += '<div class="card" style="border-left:3px solid #ef4444"><h3 style="color:#ef4444;margin-bottom:8px">🚨 Action Items (Fix Before March 27)</h3>';
+      for (const f of s.failedTests) {
+        html += `<div style="padding:6px 0;font-size:13px"><strong>${f.section}:</strong> ${f.name} — ${f.detail}</div>`;
+      }
+      html += '</div>';
+    }
+
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>❌ E2E Final Check Error</h2><p>${e.message}</p><p style="color:var(--text3)">The final check runs async predictions for multiple games — it may take up to 60 seconds. Try again.</p></div>`;
+  }
+}
+
 async function loadLineShopTab() {
   const wrap = document.getElementById('tab-content');
   wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Shopping for best lines...</p></div>';
