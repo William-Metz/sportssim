@@ -137,8 +137,13 @@
       "mismatchDetected": false,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 98,
+        "homeScore": 120,
+        "margin": 22,
+        "total": 218
+      },
+      "graded": true
     },
     {
       "date": "2026-03-23",
@@ -457,26 +462,54 @@
       "homeB2B": true,
       "bookSpread": null,
       "score": "102-92"
+    },
+    {
+      "gameKey": "TOR@PHX",
+      "date": "2026-03-22",
+      "actualMargin": 22,
+      "actualTotal": 218,
+      "baselineSpread": -1,
+      "adjustedSpread": 2,
+      "restTankAdj": 3,
+      "baselineError": 23,
+      "adjustedError": 20,
+      "improvement": 3,
+      "improved": true,
+      "atsResult": "HOME_COVER",
+      "awayMotivation": "COASTING",
+      "homeMotivation": "COMPETING",
+      "mismatchDetected": false,
+      "mismatchType": null,
+      "awayB2B": true,
+      "homeB2B": false,
+      "bookSpread": null,
+      "score": "98-120"
     }
   ],
   "summary": {
-    "totalGames": 3,
-    "improvedCount": 1,
-    "improvedPct": 33.3,
-    "avgImprovement": -0.67,
-    "avgBaselineError": 10.9,
-    "avgAdjustedError": 11.5,
-    "errorReductionPct": -6.1,
+    "totalGames": 4,
+    "improvedCount": 2,
+    "improvedPct": 50,
+    "avgImprovement": 0.25,
+    "avgBaselineError": 13.9,
+    "avgAdjustedError": 13.7,
+    "errorReductionPct": 1.8,
     "mismatchGames": 1,
     "mismatchImproved": 0,
     "mismatchImprovedPct": 0,
     "mismatchAvgImprovement": -2,
-    "b2bGames": 2,
-    "b2bImproved": 1,
-    "b2bImprovedPct": 50,
+    "b2bGames": 3,
+    "b2bImproved": 2,
+    "b2bImprovedPct": 66.7,
     "booksCompared": 0,
     "modelATSHitRate": null,
     "byMotivation": [
+      {
+        "matchup": "COASTING_vs_COMPETING",
+        "games": 1,
+        "improved": 1,
+        "avgImprovement": 3
+      },
       {
         "matchup": "COASTING_vs_COASTING",
         "games": 1,
@@ -501,5 +534,5 @@
     ],
     "lastGraded": "2026-03-22"
   },
-  "lastUpdated": "2026-03-23T02:44:31.996Z"
+  "lastUpdated": "2026-03-23T11:29:20.547Z"
 }

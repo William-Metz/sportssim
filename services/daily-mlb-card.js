@@ -1,22 +1,26 @@
 /**
- * Daily MLB Betting Card — SportsSim v82.0
+ * Daily MLB Betting Card — SportsSim v84.0
  * ==========================================
  * THE REGULAR SEASON MONEY PRINTER.
  *
- * Replaces OD-specific playbook with a generalized daily card that works
- * for ANY game day of the 162-game MLB season (March 26 → October).
+ * Upgraded from v82 with:
+ *   - NB (Negative Binomial) totals probabilities (was: garbage linear approximation)
+ *   - F5 (First 5 Innings) value scanning with NB F5 model
+ *   - Run line value scanning via NB score matrix
+ *   - Auto-record picks to bet tracker for grading
+ *   - Results grading integration for completed games
+ *   - Season-phase-aware adjustments (opening week, summer, september)
+ *   - Smarter game-day scheduling (frequent on game days, rare on off days)
  *
  * For each day's games:
  *   1. Fetches schedule + confirmed starters from ESPN
  *   2. Runs asyncPredict (full signal stack: lineups, weather, umpires, platoon, framing, bullpen)
- *   3. Compares model to live Odds API lines → value detection
- *   4. Generates K props, NRFI, pitcher outs props
- *   5. Builds conviction-scored betting card with Kelly sizing
- *   6. Caches results for instant dashboard loads
- *
- * WHY THIS MATTERS:
- * The OD playbook was hardcoded for 20 games. The regular season has ~15 games/day
- * for 6 months. We need automated daily edge detection — this is the engine.
+ *   3. Runs NB score matrix for exact totals/run line/F5 probabilities
+ *   4. Compares model to live Odds API lines → value detection
+ *   5. Generates K props, NRFI, pitcher outs props
+ *   6. Builds conviction-scored betting card with Kelly sizing
+ *   7. Records picks to bet tracker for auto-grading
+ *   8. Caches results for instant dashboard loads
  */
 
 const fs = require('fs');
@@ -46,6 +50,8 @@ let convictionEngine = null;
 let lineShoppingService = null;
 let negBinomial = null;
 let statcastService = null;
+let pitcherResolver = null;
+let betTracker = null;
 
 // Safe requires
 try { mlbModel = require('../models/mlb'); } catch(e) {}
@@ -60,7 +66,9 @@ try { platoonService = require('./platoon-splits'); } catch(e) {}
 try { bullpenService = require('./bullpen-quality'); } catch(e) {}
 try { negBinomial = require('./neg-binomial'); } catch(e) {}
 try { statcastService = require('./statcast'); } catch(e) {}
+try { pitcherResolver = require('./pitcher-resolver'); } catch(e) {}
 try { lineShoppingService = require('./line-shopping'); } catch(e) {}
+try { betTracker = require('./bet-tracker'); } catch(e) {}
 
 // ==================== ODDS API ====================
 function fetchJSON(url, timeoutMs = 12000) {
@@ -123,7 +131,6 @@ const TEAM_NAMES = {
 function resolveTeam(name) {
   if (!name) return null;
   if (TEAM_NAMES[name]) return TEAM_NAMES[name];
-  // Try partial match
   const lower = name.toLowerCase();
   for (const [k, v] of Object.entries(TEAM_NAMES)) {
     if (k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase())) return v;
@@ -148,7 +155,7 @@ function extractGameOdds(game) {
     homeBestBook: '', awayBestBook: '',
     total: null, totalBook: '',
     overOdds: null, underOdds: null,
-    homeSpread: null, homeSpreadOdds: null, spreadBook: '',
+    homeSpread: null, homeSpreadOdds: null, awaySpread: null, awaySpreadOdds: null, spreadBook: '',
     kProps: {}, // pitcherName → { line, overOdds, underOdds, book }
     nrfi: null, // { nrfiOdds, yrfiOdds, book }
     bookCount: 0,
@@ -188,11 +195,14 @@ function extractGameOdds(game) {
             result.homeSpreadOdds = o.price;
             result.spreadBook = bk.title;
           }
+          if (o.name === game.away_team && result.awaySpread === null) {
+            result.awaySpread = o.point;
+            result.awaySpreadOdds = o.price;
+          }
         }
       }
       if (market.key === 'pitcher_strikeouts') {
         for (const o of market.outcomes || []) {
-          // Odds API returns pitcher name in description
           const pitcher = o.description || '';
           if (pitcher && !result.kProps[pitcher]) result.kProps[pitcher] = {};
           if (pitcher) {
@@ -223,8 +233,69 @@ function extractGameOdds(game) {
   return result;
 }
 
+// ==================== NB TOTALS INTEGRATION ====================
+// Uses the real NB model instead of garbage linear approximation
+function getNBTotalsProbs(awayExpRuns, homeExpRuns, line, homeTeam, date) {
+  if (!negBinomial || !awayExpRuns || !homeExpRuns || !line) return null;
+  
+  try {
+    const seasonPhase = getSeasonContext(date || new Date().toISOString().split('T')[0]);
+    // Lower r = more overdispersion (early season has more variance)
+    const rOpts = { park: homeTeam };
+    if (seasonPhase.phase === 'opening-week') rOpts.isOpeningDay = true;
+    
+    const nbTotals = negBinomial.calculateNBTotals(awayExpRuns, homeExpRuns, rOpts);
+    if (!nbTotals || !nbTotals.totalProbs) return null;
+    
+    // Find the closest line in the NB output
+    const lineKey = line;
+    if (nbTotals.totalProbs[lineKey]) {
+      return nbTotals.totalProbs[lineKey];
+    }
+    
+    // Try nearest half-point
+    const halfUp = Math.ceil(line * 2) / 2;
+    const halfDown = Math.floor(line * 2) / 2;
+    if (nbTotals.totalProbs[halfUp]) return nbTotals.totalProbs[halfUp];
+    if (nbTotals.totalProbs[halfDown]) return nbTotals.totalProbs[halfDown];
+    
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// NB Run Line probabilities
+function getNBRunLineProbs(awayExpRuns, homeExpRuns, homeTeam, date) {
+  if (!negBinomial || !awayExpRuns || !homeExpRuns) return null;
+  
+  try {
+    const seasonPhase = getSeasonContext(date || new Date().toISOString().split('T')[0]);
+    const rOpts = { park: homeTeam };
+    if (seasonPhase.phase === 'opening-week') rOpts.isOpeningDay = true;
+    
+    return negBinomial.negBinRunLineProb(awayExpRuns, homeExpRuns, rOpts);
+  } catch (e) {
+    return null;
+  }
+}
+
+// NB F5 (First 5 Innings) probabilities
+function getNBF5Probs(awayExpRuns, homeExpRuns, homeTeam, date, pitcherOpts = {}) {
+  if (!negBinomial || !awayExpRuns || !homeExpRuns) return null;
+  
+  try {
+    const seasonPhase = getSeasonContext(date || new Date().toISOString().split('T')[0]);
+    const opts = { park: homeTeam, ...pitcherOpts };
+    if (seasonPhase.phase === 'opening-week') opts.isOpeningDay = true;
+    
+    return negBinomial.negBinF5(awayExpRuns, homeExpRuns, opts);
+  } catch (e) {
+    return null;
+  }
+}
+
 // ==================== CONVICTION SCORING ====================
-// Simplified conviction engine for daily use (doesn't need full OD-specific logic)
 function calculateConviction(pred, odds, signals = {}) {
   let score = 0;
   const factors = [];
@@ -260,12 +331,13 @@ function calculateConviction(pred, odds, signals = {}) {
   // 6. Market context (0-15 pts)
   if (signals.lineMovement === 'steam') { score += 10; factors.push('Steam move in our direction'); }
   else if (signals.lineMovement === 'rlm') { score += 8; factors.push('Reverse line movement'); }
-  if (odds.bookCount >= 5) { score += 5; factors.push('Deep market coverage'); }
+  if (odds && odds.bookCount >= 5) { score += 5; factors.push('Deep market coverage'); }
 
-  // Clamp to 0-100
+  // 7. NB model confirmation (0-5 pts) — new in v84
+  if (signals.nbConfirms) { score += 5; factors.push('NB model confirms direction'); }
+
   score = Math.min(100, Math.max(0, score));
 
-  // Grade
   let grade;
   if (score >= 85) grade = 'A+';
   else if (score >= 75) grade = 'A';
@@ -276,7 +348,6 @@ function calculateConviction(pred, odds, signals = {}) {
   else if (score >= 25) grade = 'C+';
   else grade = 'C';
 
-  // Tier
   let tier;
   if (score >= 80) tier = 'SMASH';
   else if (score >= 60) tier = 'STRONG';
@@ -313,6 +384,7 @@ async function buildDailyCard(opts = {}) {
   const minEdge = opts.minEdge || 0.02;
   const oddsApiKey = opts.oddsApiKey || process.env.ODDS_API_KEY || '';
   const forceRefresh = opts.forceRefresh || false;
+  const recordPicks = opts.recordPicks !== false; // auto-record by default
 
   // Check cache
   if (!forceRefresh && lastBuild && (Date.now() - lastBuildTime) < CACHE_TTL && lastBuild.date === date) {
@@ -343,7 +415,6 @@ async function buildDailyCard(opts = {}) {
     errors.push(`Odds fetch: ${e.message}`);
   }
 
-  // Match odds to schedule games by team names
   function findOdds(awayAbbr, homeAbbr) {
     for (const g of oddsData) {
       const away = resolveTeam(g.away_team);
@@ -358,7 +429,7 @@ async function buildDailyCard(opts = {}) {
   // ==================== 3. PROCESS EACH GAME ====================
   const gameCards = [];
   const allBets = [];
-  let signalCounts = { weather: 0, lineups: 0, umpires: 0, statcast: 0, platoon: 0, framing: 0, bullpen: 0 };
+  let signalCounts = { weather: 0, lineups: 0, umpires: 0, statcast: 0, platoon: 0, framing: 0, bullpen: 0, nbTotals: 0, nbF5: 0, nbRunLine: 0 };
 
   for (const game of games) {
     const away = game.awayTeam?.abbr;
@@ -383,9 +454,10 @@ async function buildDailyCard(opts = {}) {
       props: { kProps: null, nrfi: null, outsProps: null },
       signals: {},
       conviction: null,
+      nbAnalysis: null, // NEW: NB model output
     };
 
-    // 3a. Run prediction
+    // 3a. Run prediction (asyncPredict = full signal stack)
     try {
       let pred;
       if (mlbModel && mlbModel.asyncPredict) {
@@ -418,6 +490,45 @@ async function buildDailyCard(opts = {}) {
         if (pred.platoonAdj) { signalCounts.platoon++; card.signals.platoon = pred.platoonAdj; }
         if (pred.catcherFraming) { signalCounts.framing++; card.signals.framing = pred.catcherFraming; }
         if (pred.bullpenQuality) { signalCounts.bullpen++; card.signals.bullpen = pred.bullpenQuality; }
+
+        // ===== NB MODEL ANALYSIS (NEW v84) =====
+        // Run NB score matrix for precise totals, F5, and run line probabilities
+        if (negBinomial && pred.awayExpRuns && pred.homeExpRuns) {
+          const nbResult = {};
+          
+          // NB Totals
+          try {
+            const rOpts = { park: home };
+            const seasonCtx = getSeasonContext(date);
+            if (seasonCtx.phase === 'opening-week') rOpts.isOpeningDay = true;
+            const nbTotals = negBinomial.calculateNBTotals(pred.awayExpRuns, pred.homeExpRuns, rOpts);
+            if (nbTotals && nbTotals.totalProbs) {
+              nbResult.totals = nbTotals.totalProbs;
+              nbResult.projTotal = +(pred.awayExpRuns + pred.homeExpRuns).toFixed(2);
+              signalCounts.nbTotals++;
+            }
+          } catch(e) { warnings.push(`NB totals ${gameKey}: ${e.message}`); }
+          
+          // NB F5
+          try {
+            const f5 = negBinomial.negBinF5(pred.awayExpRuns, pred.homeExpRuns, { park: home });
+            if (f5) {
+              nbResult.f5 = f5;
+              signalCounts.nbF5++;
+            }
+          } catch(e) { warnings.push(`NB F5 ${gameKey}: ${e.message}`); }
+          
+          // NB Run Lines  
+          try {
+            const rl = negBinomial.negBinRunLineProb(pred.awayExpRuns, pred.homeExpRuns, { park: home });
+            if (rl) {
+              nbResult.runLine = rl;
+              signalCounts.nbRunLine++;
+            }
+          } catch(e) { warnings.push(`NB run line ${gameKey}: ${e.message}`); }
+          
+          card.nbAnalysis = nbResult;
+        }
       }
     } catch (e) {
       warnings.push(`Prediction ${gameKey}: ${e.message}`);
@@ -429,10 +540,11 @@ async function buildDailyCard(opts = {}) {
       card.odds = extractGameOdds(oddsGame);
     }
 
-    // 3c. Find value bets (ML, Totals, Run Lines)
+    // 3c. Find value bets (ML, Totals, Run Lines, F5)
     if (card.prediction && card.odds) {
       const pred = card.prediction;
       const odds = card.odds;
+      const nb = card.nbAnalysis;
 
       // --- Moneyline value ---
       if (odds.homeML) {
@@ -495,15 +607,76 @@ async function buildDailyCard(opts = {}) {
         }
       }
 
-      // --- Totals value ---
-      if (odds.total && pred.totalRuns) {
+      // --- Totals value (NB model — v84 upgrade) ---
+      if (odds.total && pred.awayExpRuns && pred.homeExpRuns && nb && nb.totals) {
+        const line = odds.total;
+        const nbLine = nb.totals[line];
+        
+        if (nbLine) {
+          // UNDER — NB says under is positive edge
+          if (nbLine.under > 0.5 && odds.underOdds) {
+            const impliedUnder = mlToProb(odds.underOdds);
+            const underEdge = nbLine.under - impliedUnder;
+            if (underEdge >= minEdge) {
+              const sizing = kellySize(nbLine.under, odds.underOdds, bankroll, kellyFraction);
+              const bet = {
+                type: 'TOTAL', side: 'UNDER', line,
+                modelProb: +(nbLine.under * 100).toFixed(1),
+                modelTotal: nb.projTotal,
+                impliedProb: +(impliedUnder * 100).toFixed(1),
+                edge: +(underEdge * 100).toFixed(1),
+                odds: odds.underOdds, book: odds.totalBook,
+                nbML: nbLine.underML,
+                ...sizing,
+                conviction: calculateConviction(pred, odds, {
+                  edge: +(underEdge * 100).toFixed(1),
+                  hasWeather: !!card.signals.weather,
+                  hasLineups: !!card.signals.lineups,
+                  bookCount: odds.bookCount,
+                  nbConfirms: true,
+                }),
+              };
+              card.bets.push(bet);
+              allBets.push({ ...bet, game: gameKey });
+            }
+          }
+
+          // OVER — NB says over is positive edge
+          if (nbLine.over > 0.5 && odds.overOdds) {
+            const impliedOver = mlToProb(odds.overOdds);
+            const overEdge = nbLine.over - impliedOver;
+            if (overEdge >= minEdge) {
+              const sizing = kellySize(nbLine.over, odds.overOdds, bankroll, kellyFraction);
+              const bet = {
+                type: 'TOTAL', side: 'OVER', line,
+                modelProb: +(nbLine.over * 100).toFixed(1),
+                modelTotal: nb.projTotal,
+                impliedProb: +(impliedOver * 100).toFixed(1),
+                edge: +(overEdge * 100).toFixed(1),
+                odds: odds.overOdds, book: odds.totalBook,
+                nbML: nbLine.overML,
+                ...sizing,
+                conviction: calculateConviction(pred, odds, {
+                  edge: +(overEdge * 100).toFixed(1),
+                  hasWeather: !!card.signals.weather,
+                  hasLineups: !!card.signals.lineups,
+                  bookCount: odds.bookCount,
+                  nbConfirms: true,
+                }),
+              };
+              card.bets.push(bet);
+              allBets.push({ ...bet, game: gameKey });
+            }
+          }
+        }
+      }
+      // Fallback: old approximation if NB not available
+      else if (odds.total && pred.totalRuns) {
         const modelTotal = pred.totalRuns;
         const line = odds.total;
         const diff = modelTotal - line;
 
-        // UNDER if model total significantly below line
         if (diff < -0.3 && odds.underOdds) {
-          // Approximate over/under prob using NB or Poisson
           let underProb = 0.5 + Math.min(0.2, Math.abs(diff) * 0.08);
           const impliedUnder = mlToProb(odds.underOdds);
           const underEdge = underProb - impliedUnder;
@@ -514,6 +687,7 @@ async function buildDailyCard(opts = {}) {
               modelTotal: +modelTotal.toFixed(1),
               edge: +(underEdge * 100).toFixed(1),
               odds: odds.underOdds, book: odds.totalBook,
+              source: 'linear-fallback',
               ...sizing,
               conviction: calculateConviction(pred, odds, {
                 edge: +(underEdge * 100).toFixed(1),
@@ -526,8 +700,6 @@ async function buildDailyCard(opts = {}) {
             allBets.push({ ...bet, game: gameKey });
           }
         }
-
-        // OVER if model total significantly above line
         if (diff > 0.3 && odds.overOdds) {
           let overProb = 0.5 + Math.min(0.2, diff * 0.08);
           const impliedOver = mlToProb(odds.overOdds);
@@ -539,6 +711,7 @@ async function buildDailyCard(opts = {}) {
               modelTotal: +modelTotal.toFixed(1),
               edge: +(overEdge * 100).toFixed(1),
               odds: odds.overOdds, book: odds.totalBook,
+              source: 'linear-fallback',
               ...sizing,
               conviction: calculateConviction(pred, odds, {
                 edge: +(overEdge * 100).toFixed(1),
@@ -552,22 +725,134 @@ async function buildDailyCard(opts = {}) {
           }
         }
       }
+
+      // --- F5 (First 5 Innings) value — NEW v84 ---
+      if (nb && nb.f5 && nb.f5.totalProbs) {
+        // Check F5 totals against any available F5 line
+        // Most books offer F5 O/U — we use the full NB F5 model
+        const f5Total = nb.f5.projTotal || (pred.f5Total);
+        const f5Probs = nb.f5.totalProbs;
+
+        // For now, generate F5 analysis even without live F5 odds
+        // This enriches the card with F5 recommendations
+        for (const lineStr of Object.keys(f5Probs)) {
+          const fLine = parseFloat(lineStr);
+          if (Math.abs(fLine - (f5Total || 4.5)) <= 1.5) {
+            const fp = f5Probs[lineStr];
+            // Only flag significant edges
+            if (fp.under > 0.58 || fp.over > 0.58) {
+              if (!card.f5Analysis) card.f5Analysis = [];
+              card.f5Analysis.push({
+                line: fLine,
+                overProb: +(fp.over * 100).toFixed(1),
+                underProb: +(fp.under * 100).toFixed(1),
+                recommendation: fp.under > fp.over ? 'F5 UNDER' : 'F5 OVER',
+                projF5Total: f5Total ? +f5Total.toFixed(1) : null,
+              });
+            }
+          }
+        }
+
+        // F5 ML (3-way: home/away/draw)
+        if (nb.f5.homeWinProb && nb.f5.awayWinProb) {
+          card.f5ML = {
+            homeWinProb: +(nb.f5.homeWinProb * 100).toFixed(1),
+            awayWinProb: +(nb.f5.awayWinProb * 100).toFixed(1),
+            drawProb: +(nb.f5.drawProb * 100).toFixed(1),
+          };
+        }
+      }
+
+      // --- Run Line value — NEW v84 ---
+      if (nb && nb.runLine) {
+        const rl = nb.runLine;
+        
+        // Standard -1.5 run line
+        if (rl.standard && odds.homeSpread !== null) {
+          const bookSpread = odds.homeSpread;
+          
+          // Home -1.5 value
+          if (bookSpread === -1.5 && rl.standard.favCoverProb) {
+            const favIsHome = pred.homeWinProb > 0.5;
+            const coverProb = favIsHome ? rl.standard.favCoverProb : rl.standard.dogCoverProb;
+            if (coverProb && odds.homeSpreadOdds) {
+              const impliedCover = mlToProb(odds.homeSpreadOdds);
+              const rlEdge = coverProb - impliedCover;
+              if (rlEdge >= minEdge) {
+                const sizing = kellySize(coverProb, odds.homeSpreadOdds, bankroll, kellyFraction);
+                const bet = {
+                  type: 'RUN_LINE', side: 'HOME', team: home, teamName: card.homeName,
+                  line: bookSpread,
+                  modelProb: +(coverProb * 100).toFixed(1),
+                  impliedProb: +(impliedCover * 100).toFixed(1),
+                  edge: +(rlEdge * 100).toFixed(1),
+                  odds: odds.homeSpreadOdds, book: odds.spreadBook,
+                  ...sizing,
+                  conviction: calculateConviction(pred, odds, {
+                    edge: +(rlEdge * 100).toFixed(1),
+                    nbConfirms: true,
+                    bookCount: odds.bookCount,
+                  }),
+                };
+                card.bets.push(bet);
+                allBets.push({ ...bet, game: gameKey });
+              }
+            }
+          }
+          
+          // Away +1.5 value
+          if (bookSpread === -1.5 && rl.standard.dogCoverProb && odds.awaySpreadOdds) {
+            const dogIsAway = pred.homeWinProb > 0.5;
+            const coverProb = dogIsAway ? rl.standard.dogCoverProb : rl.standard.favCoverProb;
+            if (coverProb) {
+              const impliedCover = mlToProb(odds.awaySpreadOdds);
+              const rlEdge = coverProb - impliedCover;
+              if (rlEdge >= minEdge) {
+                const sizing = kellySize(coverProb, odds.awaySpreadOdds, bankroll, kellyFraction);
+                const bet = {
+                  type: 'RUN_LINE', side: 'AWAY', team: away, teamName: card.awayName,
+                  line: odds.awaySpread || 1.5,
+                  modelProb: +(coverProb * 100).toFixed(1),
+                  impliedProb: +(impliedCover * 100).toFixed(1),
+                  edge: +(rlEdge * 100).toFixed(1),
+                  odds: odds.awaySpreadOdds, book: odds.spreadBook,
+                  ...sizing,
+                  conviction: calculateConviction(pred, odds, {
+                    edge: +(rlEdge * 100).toFixed(1),
+                    nbConfirms: true,
+                    bookCount: odds.bookCount,
+                  }),
+                };
+                card.bets.push(bet);
+                allBets.push({ ...bet, game: gameKey });
+              }
+            }
+          }
+        }
+        
+        // Add run line analysis to card
+        card.runLineAnalysis = {
+          homeExpRuns: pred.homeExpRuns ? +pred.homeExpRuns.toFixed(2) : null,
+          awayExpRuns: pred.awayExpRuns ? +pred.awayExpRuns.toFixed(2) : null,
+          marginProbs: rl.marginProbs || null,
+        };
+      }
     }
 
-    // 3d. K Props — use existing K props engine for each starter
-    if (kPropsService) {
-      try {
-        for (const side of ['away', 'home']) {
-          const pitcherName = card.starters[side];
-          const oppTeam = side === 'away' ? home : away;
-          if (pitcherName && pitcherName !== 'TBD') {
-            const kPred = kPropsService.analyzeMatchup
-              ? kPropsService.analyzeMatchup(pitcherName, oppTeam)
-              : null;
+    // 3d. K Props
+    try {
+      for (const side of ['away', 'home']) {
+        const pitcherName = card.starters[side];
+        const oppTeam = side === 'away' ? home : away;
+        if (pitcherName && pitcherName !== 'TBD') {
+          let kResult = null;
+
+          // Try OD K props service first (has 40 hardcoded starters)
+          if (kPropsService && kPropsService.analyzeMatchup) {
+            const kPred = kPropsService.analyzeMatchup(pitcherName, oppTeam);
             if (kPred && kPred.adjustedExpectedKs) {
-              // Check for live K prop odds
               const liveK = card.odds?.kProps?.[pitcherName];
-              const kResult = {
+              kResult = {
                 pitcher: pitcherName,
                 side, opponent: oppTeam,
                 expectedKs: kPred.adjustedExpectedKs,
@@ -575,29 +860,61 @@ async function buildDailyCard(opts = {}) {
                 edge: kPred.edge || 0,
                 recommendation: kPred.recommendation || 'PASS',
                 confidence: kPred.confidence || 'LOW',
+                source: 'steamer',
               };
-              if (!card.props.kProps) card.props.kProps = [];
-              card.props.kProps.push(kResult);
+            }
+          }
 
-              // Add to bets if profitable
-              if (kResult.edge >= 3 && kResult.recommendation !== 'PASS') {
-                const kBet = {
-                  type: 'K_PROP', pitcher: pitcherName, side: kResult.recommendation,
-                  line: kResult.dkLine?.line, expectedKs: kResult.expectedKs,
-                  edge: kResult.edge, game: gameKey,
-                  conviction: calculateConviction(null, { bookCount: 1 }, { edge: kResult.edge }),
-                };
-                allBets.push(kBet);
+          // Fallback: Dynamic pitcher-resolver (works for ANY pitcher in our DB)
+          if (!kResult && pitcherResolver) {
+            const pitcherTeam = side === 'away' ? away : home;
+            const liveK = card.odds?.kProps?.[pitcherName];
+            const resolved = pitcherResolver.resolvePitcherProps(
+              pitcherName, pitcherTeam, oppTeam, home, {
+                date,
+                bookKLine: liveK?.line,
+                bookKOverOdds: liveK?.overOdds,
+                bookKUnderOdds: liveK?.underOdds,
               }
+            );
+            if (resolved && resolved.expectedKs > 0) {
+              kResult = {
+                pitcher: pitcherName,
+                side, opponent: oppTeam,
+                expectedKs: resolved.expectedKs,
+                dkLine: liveK || null,
+                edge: resolved.kProp?.edge || 0,
+                recommendation: resolved.kProp?.recommendation || 'PASS',
+                confidence: resolved.kProp?.confidence || 'LOW',
+                projectedK9: resolved.projectedK9,
+                tier: resolved.tier,
+                source: 'pitcher-resolver',
+              };
+            }
+          }
+
+          if (kResult) {
+            if (!card.props.kProps) card.props.kProps = [];
+            card.props.kProps.push(kResult);
+
+            // Add to bets if profitable
+            if (kResult.edge >= 3 && kResult.recommendation !== 'PASS') {
+              const kBet = {
+                type: 'K_PROP', pitcher: pitcherName, side: kResult.recommendation,
+                line: kResult.dkLine?.line, expectedKs: kResult.expectedKs,
+                edge: kResult.edge, game: gameKey,
+                conviction: calculateConviction(null, { bookCount: 1 }, { edge: kResult.edge }),
+              };
+              allBets.push(kBet);
             }
           }
         }
-      } catch (e) {
-        warnings.push(`K props ${gameKey}: ${e.message}`);
       }
+    } catch (e) {
+      warnings.push(`K props ${gameKey}: ${e.message}`);
     }
 
-    // 3e. NRFI — use NRFI model
+    // 3e. NRFI
     if (nrfiService && mlbModel && card.prediction) {
       try {
         const nrfiPred = nrfiService.predict
@@ -613,7 +930,6 @@ async function buildDailyCard(opts = {}) {
             recommendation: nrfiPred.nrfiProb > 0.55 ? 'NRFI' : nrfiPred.nrfiProb < 0.45 ? 'YRFI' : 'PASS',
             edge: 0,
           };
-          // Compare to live NRFI odds
           if (card.odds?.nrfi) {
             if (card.props.nrfi.recommendation === 'NRFI' && card.odds.nrfi.nrfiOdds) {
               const impliedNRFI = mlToProb(card.odds.nrfi.nrfiOdds);
@@ -631,22 +947,90 @@ async function buildDailyCard(opts = {}) {
       }
     }
 
+    // 3f. Outs Props
+    if (pitcherResolver) {
+      try {
+        for (const side of ['away', 'home']) {
+          const pitcherName = card.starters[side];
+          const pitcherTeam = side === 'away' ? away : home;
+          const oppTeam = side === 'away' ? home : away;
+          if (pitcherName && pitcherName !== 'TBD') {
+            const resolved = pitcherResolver.resolvePitcherProps(
+              pitcherName, pitcherTeam, oppTeam, home, { date }
+            );
+            if (resolved && resolved.expectedOuts > 0) {
+              if (!card.props.outsProps) card.props.outsProps = [];
+              card.props.outsProps.push({
+                pitcher: pitcherName,
+                side, opponent: oppTeam,
+                expectedOuts: resolved.expectedOuts,
+                projectedIP: resolved.projectedIP,
+                tier: resolved.tier,
+                recommendation: resolved.outsProp?.recommendation || 'PASS',
+                edge: resolved.outsProp?.edge || 0,
+                confidence: resolved.outsProp?.confidence || 'LOW',
+                source: 'pitcher-resolver',
+              });
+            }
+          }
+        }
+      } catch (e) {
+        warnings.push(`Outs props ${gameKey}: ${e.message}`);
+      }
+    }
+
     gameCards.push(card);
   }
 
   // ==================== 4. RANK & PORTFOLIO ====================
   allBets.sort((a, b) => (b.edge || 0) - (a.edge || 0));
 
-  // Top plays
-  const topPlays = allBets.filter(b => (b.edge || 0) >= 3).slice(0, 25);
+  const topPlays = allBets.filter(b => (b.edge || 0) >= 3).slice(0, 30);
   const smashPlays = topPlays.filter(b => b.conviction?.tier === 'SMASH');
   const strongPlays = topPlays.filter(b => b.conviction?.tier === 'STRONG');
 
-  // Portfolio summary
   let totalWager = 0, totalEV = 0;
   for (const bet of topPlays) {
     totalWager += bet.wager || 0;
     totalEV += bet.ev || 0;
+  }
+
+  // ==================== 5. RECORD PICKS TO BET TRACKER (NEW v84) ====================
+  let recordedPicks = 0;
+  if (recordPicks && betTracker && topPlays.length > 0) {
+    try {
+      for (const bet of topPlays.slice(0, 20)) { // Cap at 20 recorded picks per card
+        const betId = `daily-${date}-${bet.game}-${bet.type}-${bet.side}`.replace(/[^a-zA-Z0-9-]/g, '-');
+        try {
+          betTracker.logModelBet({
+            id: betId,
+            sport: 'mlb',
+            date,
+            game: bet.game,
+            type: bet.type,
+            side: bet.side,
+            team: bet.team,
+            line: bet.line,
+            odds: bet.odds,
+            modelProb: bet.modelProb,
+            impliedProb: bet.impliedProb,
+            edge: bet.edge,
+            wager: bet.wager,
+            ev: bet.ev,
+            conviction: bet.conviction?.score,
+            grade: bet.conviction?.grade,
+            tier: bet.conviction?.tier,
+            book: bet.book,
+            source: 'daily-mlb-card-v84',
+          });
+          recordedPicks++;
+        } catch (e) {
+          // Don't fail the whole card if bet recording fails
+        }
+      }
+    } catch (e) {
+      warnings.push(`Bet recording: ${e.message}`);
+    }
   }
 
   const elapsedMs = Date.now() - startTime;
@@ -654,7 +1038,7 @@ async function buildDailyCard(opts = {}) {
   const result = {
     timestamp: new Date().toISOString(),
     date,
-    version: '82.0.0',
+    version: '84.0.0',
     elapsedMs,
 
     // HEADLINE
@@ -667,6 +1051,12 @@ async function buildDailyCard(opts = {}) {
       totalEV: +totalEV.toFixed(2),
       roi: totalWager > 0 ? +((totalEV / totalWager) * 100).toFixed(1) : 0,
       bestPlay: topPlays[0] || null,
+      betTypes: {
+        ml: topPlays.filter(b => b.type === 'ML').length,
+        totals: topPlays.filter(b => b.type === 'TOTAL').length,
+        runLines: topPlays.filter(b => b.type === 'RUN_LINE').length,
+        kProps: topPlays.filter(b => b.type === 'K_PROP').length,
+      },
     },
 
     // SIGNAL STACK COVERAGE
@@ -674,6 +1064,9 @@ async function buildDailyCard(opts = {}) {
       ...signalCounts,
       gamesWithPredictions: gameCards.filter(g => g.prediction).length,
       gamesWithOdds: gameCards.filter(g => g.odds).length,
+      gamesWithNB: gameCards.filter(g => g.nbAnalysis).length,
+      gamesWithF5: gameCards.filter(g => g.f5Analysis?.length > 0).length,
+      gamesWithRunLine: gameCards.filter(g => g.runLineAnalysis).length,
       gamesWithKProps: gameCards.filter(g => g.props.kProps?.length > 0).length,
       gamesWithNRFI: gameCards.filter(g => g.props.nrfi).length,
     },
@@ -698,6 +1091,9 @@ async function buildDailyCard(opts = {}) {
     // SEASON CONTEXT
     seasonContext: getSeasonContext(date),
 
+    // PICK RECORDING
+    recordedPicks,
+
     // ERRORS / WARNINGS
     errors: errors.length > 0 ? errors : undefined,
     warnings: warnings.length > 0 ? warnings : undefined,
@@ -705,6 +1101,7 @@ async function buildDailyCard(opts = {}) {
     // META
     oddsApiActive: !!oddsApiKey,
     scheduleSource: schedule ? 'ESPN' : 'none',
+    nbModelActive: !!negBinomial,
     cached: false,
   };
 
@@ -727,11 +1124,10 @@ function getSeasonContext(dateStr) {
   const month = date.getMonth() + 1;
   const day = date.getDate();
 
-  // Season phases
   let phase = 'regular';
   let modifiers = [];
 
-  if (month === 3 && day >= 26 || month === 4 && day <= 2) {
+  if ((month === 3 && day >= 26) || (month === 4 && day <= 2)) {
     phase = 'opening-week';
     modifiers.push('Opening Week unders bias active');
     modifiers.push('Cold weather at northern parks');
@@ -759,27 +1155,43 @@ function getSeasonContext(dateStr) {
     modifiers.push('Tanking teams resting veterans');
     modifiers.push('Playoff contenders may rest starters late');
     modifiers.push('Motivation mismatches = biggest edges');
+  } else if (month >= 10) {
+    phase = 'postseason';
+    modifiers.push('Playoff intensity = aces go 7+ IP');
+    modifiers.push('Bullpen usage patterns change dramatically');
+    modifiers.push('Home field advantage amplified');
+    modifiers.push('Weather less relevant (warm markets in WS)');
   }
 
   return { phase, modifiers, month, day };
+}
+
+// ==================== AUTO-GRADE COMPLETED GAMES ====================
+async function gradeCompletedGames(date) {
+  if (!betTracker) return { error: 'Bet tracker not loaded' };
+  
+  try {
+    const result = await betTracker.autoGrade({ date, sport: 'mlb' });
+    return result;
+  } catch (e) {
+    return { error: e.message };
+  }
 }
 
 // ==================== CACHED ACCESS ====================
 function getCachedCard(date) {
   if (!date) date = new Date().toISOString().split('T')[0];
 
-  // Memory cache
   if (lastBuild && lastBuild.date === date && (Date.now() - lastBuildTime) < CACHE_TTL) {
     return { ...lastBuild, cached: true };
   }
 
-  // Disk cache
   try {
     const cacheFile = path.join(CACHE_DIR, `card-${date}.json`);
     if (fs.existsSync(cacheFile)) {
       const stat = fs.statSync(cacheFile);
       const age = Date.now() - stat.mtimeMs;
-      if (age < 30 * 60 * 1000) { // 30 min disk cache
+      if (age < 30 * 60 * 1000) {
         const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
         return { ...data, cached: true, cacheAge: Math.round(age / 1000) + 's' };
       }
@@ -789,13 +1201,41 @@ function getCachedCard(date) {
   return null;
 }
 
+// ==================== HISTORICAL CARD ACCESS ====================
+function getHistoricalCard(date) {
+  try {
+    const cacheFile = path.join(CACHE_DIR, `card-${date}.json`);
+    if (fs.existsSync(cacheFile)) {
+      const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+      return { ...data, historical: true };
+    }
+  } catch (e) { /* ok */ }
+  return null;
+}
+
+// ==================== LIST AVAILABLE CARDS ====================
+function listCards() {
+  try {
+    const files = fs.readdirSync(CACHE_DIR).filter(f => f.startsWith('card-') && f.endsWith('.json'));
+    return files.map(f => {
+      const date = f.replace('card-', '').replace('.json', '');
+      const stat = fs.statSync(path.join(CACHE_DIR, f));
+      return { date, size: stat.size, modified: stat.mtime.toISOString() };
+    }).sort((a, b) => b.date.localeCompare(a.date));
+  } catch (e) {
+    return [];
+  }
+}
+
 // ==================== STATUS ====================
 function getStatus() {
   return {
     service: 'daily-mlb-card',
-    version: '82.0.0',
-    lastBuild: lastBuild ? { date: lastBuild.date, timestamp: lastBuild.timestamp, games: lastBuild.headline?.gamesOnSlate, bets: lastBuild.headline?.totalBets } : null,
+    version: '84.0.0',
+    features: ['nb-totals', 'nb-f5', 'nb-run-lines', 'bet-recording', 'auto-grading', 'season-context', 'historical-cards'],
+    lastBuild: lastBuild ? { date: lastBuild.date, timestamp: lastBuild.timestamp, games: lastBuild.headline?.gamesOnSlate, bets: lastBuild.headline?.totalBets, betTypes: lastBuild.headline?.betTypes } : null,
     cacheAge: lastBuildTime ? Math.round((Date.now() - lastBuildTime) / 1000) + 's' : 'never',
+    availableCards: listCards().length,
     dependencies: {
       mlbModel: !!mlbModel,
       mlbSchedule: !!mlbSchedule,
@@ -809,6 +1249,9 @@ function getStatus() {
       bullpen: !!bullpenService,
       statcast: !!statcastService,
       lineShopping: !!lineShoppingService,
+      negBinomial: !!negBinomial,
+      betTracker: !!betTracker,
+      pitcherResolver: !!pitcherResolver,
     },
   };
 }
@@ -817,8 +1260,10 @@ function getStatus() {
 module.exports = {
   buildDailyCard,
   getCachedCard,
+  getHistoricalCard,
+  listCards,
+  gradeCompletedGames,
   getStatus,
-  // Expose for auto-scanner integration
   CACHE_DIR,
   CACHE_TTL,
 };

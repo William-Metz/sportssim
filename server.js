@@ -55,7 +55,9 @@ try { lineupMonitor = require('./services/lineup-monitor'); } catch (e) { consol
 let dailySlate = null;
 try { dailySlate = require('./services/daily-slate'); } catch (e) { console.error('[server] Daily Slate service not loaded:', e.message); }
 let dailyMlbCard = null;
+let pitcherResolver = null;
 try { dailyMlbCard = require('./services/daily-mlb-card'); } catch (e) { console.error('[server] Daily MLB Card not loaded:', e.message); }
+try { pitcherResolver = require('./services/pitcher-resolver'); } catch (e) { console.error('[server] Pitcher Resolver not loaded:', e.message); }
 let consensusEngine = null;
 try { consensusEngine = require('./services/consensus-engine'); } catch (e) { console.error('[server] Consensus Engine not loaded:', e.message); }
 let nbaHistorical = null;
@@ -106,6 +108,8 @@ let odLiveLines = null;
 try { odLiveLines = require('./services/od-live-lines'); } catch (e) { console.error('[server] OD Live Lines not loaded:', e.message); }
 let gamedayAutopilot = null;
 try { gamedayAutopilot = require('./services/gameday-autopilot'); } catch (e) { console.error('[server] Gameday Autopilot not loaded:', e.message); }
+let nbaSeriesScanner = null;
+try { nbaSeriesScanner = require('./services/nba-playoff-series-scanner'); } catch (e) { console.error('[server] NBA Playoff Series Scanner not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -175,7 +179,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '82.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test','nb-exact-run-lines','nb-f5-scoring-model','conviction-score-engine','alt-run-line-matrix','f5-three-way-ml','margin-distribution','f5-value-scanner','runline-value-scanner','f5-api-endpoints','runline-api-endpoints','spread-odds-capture','ncaa-live-scores','ncaa-bracket-auto-update','ncaa-tournament-momentum','ncaa-futures-value','ncaa-dashboard-live','platoon-splits-savant','catcher-framing-savant-58-catchers','team-framing-rankings','framing-edge-scanner','framing-betting-implications','bullpen-quality-projections','reliever-level-modeling','2026-bullpen-era-projections','bullpen-matchup-analysis','bullpen-edge-scanner','od-playbook-parallel-cache','od-playbook-timeout-fix','od-playbook-prefetch-v67','conviction-v68-market-aware','conviction-factor-detection','conviction-model-diversity','conviction-catcher-framing','conviction-stolen-bases','od-line-movement-tracker','od-line-clv-analysis','od-totals-edge-fix','od-f5-kelly-sizing','game2-dk-lines','od-betting-card-v69','pitcher-k-props-model','od-sgp-correlated-parlays','od-pregame-checklist-v71','line-shopping-optimizer-v72','park-specific-wind-model-v73','od-e2e-final-check-v74','od-team-tendencies-v75','opening-week-unders-in-predict','od-checklist-game-count-fix-v76','od-checklist-timeout-fix-v77','nrfi-yrfi-model-v77','batter-props-statcast-v78','od-war-room-unified-v79','checklist-data-feed-fix-v80','checklist-kprops-fix-v80','od-lineup-monitor-v80','gameday-autopilot-v81','daily-mlb-card-v82','regular-season-daily-scanner'] });
+  res.json({ status: 'ok', version: '84.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','ml-bridge-ld-fix','5-season-training-data','nba-historical-validation','model-accuracy-dashboard','nhl-playoff-series-pricing','nhl-stanley-cup-simulator','nhl-goalie-playoff-amplifier','nhl-division-bracket-model','nhl-bubble-race-tracker','auto-scanner-value-fix','scanner-watchdog','nhl-playoffs-dashboard','nhl-goalie-starters-dailyfaceoff','nhl-goalie-aware-predictions','nhl-backup-detection','nhl-goalie-impact-scan','nba-seeding-simulator','nba-playoff-matchup-projections','nba-play-in-tournament-sim','nba-conference-standings-mc','nba-division-winner-probabilities','opening-day-weather-forecast','seeding-futures-bridge','5-day-forecast-precache','matchup-edge-analysis','championship-seeding-model','nfl-power-ratings','nfl-pythagorean-model','nfl-season-simulator','nfl-win-totals-futures','nfl-draft-impact','nfl-regression-model','async-predict-weather-auto','async-predict-umpire-auto','parallel-signal-fetch','full-signal-stack-v58','opening-day-dryrun-test','nb-exact-run-lines','nb-f5-scoring-model','conviction-score-engine','alt-run-line-matrix','f5-three-way-ml','margin-distribution','f5-value-scanner','runline-value-scanner','f5-api-endpoints','runline-api-endpoints','spread-odds-capture','ncaa-live-scores','ncaa-bracket-auto-update','ncaa-tournament-momentum','ncaa-futures-value','ncaa-dashboard-live','platoon-splits-savant','catcher-framing-savant-58-catchers','team-framing-rankings','framing-edge-scanner','framing-betting-implications','bullpen-quality-projections','reliever-level-modeling','2026-bullpen-era-projections','bullpen-matchup-analysis','bullpen-edge-scanner','od-playbook-parallel-cache','od-playbook-timeout-fix','od-playbook-prefetch-v67','conviction-v68-market-aware','conviction-factor-detection','conviction-model-diversity','conviction-catcher-framing','conviction-stolen-bases','od-line-movement-tracker','od-line-clv-analysis','od-totals-edge-fix','od-f5-kelly-sizing','game2-dk-lines','od-betting-card-v69','pitcher-k-props-model','od-sgp-correlated-parlays','od-pregame-checklist-v71','line-shopping-optimizer-v72','park-specific-wind-model-v73','od-e2e-final-check-v74','od-team-tendencies-v75','opening-week-unders-in-predict','od-checklist-game-count-fix-v76','od-checklist-timeout-fix-v77','nrfi-yrfi-model-v77','batter-props-statcast-v78','od-war-room-unified-v79','checklist-data-feed-fix-v80','checklist-kprops-fix-v80','od-lineup-monitor-v80','gameday-autopilot-v81','daily-mlb-card-v82','regular-season-daily-scanner','pitcher-resolver-v83','dynamic-pitcher-props','any-pitcher-k-outs-projection','daily-card-nb-totals-v84','daily-card-f5-scanning','daily-card-run-lines','daily-card-auto-grading','daily-card-bet-recording','daily-card-historical-cards'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -4142,6 +4146,72 @@ app.get('/api/nba/seeding-futures/top-bets', async (req, res) => {
   }
 });
 
+// ==================== NBA PLAYOFF SERIES FUTURES SCANNER ====================
+
+// Full scan — seeding sim → weighted series probs → live odds → edges
+app.get('/api/nba/series-scanner', async (req, res) => {
+  try {
+    if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
+    const result = await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY, forceRefresh: req.query.refresh === 'true' });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Single team deep dive
+app.get('/api/nba/series-scanner/team/:team', async (req, res) => {
+  try {
+    if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
+    const result = await nbaSeriesScanner.analyzeTeam(req.params.team.toUpperCase(), { apiKey: ODDS_API_KEY });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Volatility plays only
+app.get('/api/nba/series-scanner/volatility', async (req, res) => {
+  try {
+    if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
+    const result = await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY });
+    res.json({
+      volatilityPlays: result.volatilityPlays || [],
+      seedingBattles: result.seedingBattles || [],
+      matchupMatrix: result.matchupMatrix || null,
+      timestamp: result.timestamp,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Top edges only
+app.get('/api/nba/series-scanner/edges', async (req, res) => {
+  try {
+    if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
+    const result = await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY });
+    res.json({
+      topEdges: result.topEdges || [],
+      fadeAlerts: result.fadeAlerts || [],
+      headline: result.headline,
+      timestamp: result.timestamp,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Scanner status
+app.get('/api/nba/series-scanner/status', (req, res) => {
+  try {
+    if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
+    res.json(nbaSeriesScanner.getStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Helper: Resolve NHL team names to abbreviations
 function resolveNHLTeamName(name) {
   const map = {
@@ -7723,10 +7793,74 @@ app.get('/api/mlb/daily-card/refresh', async (req, res) => {
       forceRefresh: true,
       oddsApiKey: process.env.ODDS_API_KEY || '',
     });
-    res.json({ message: 'Daily card refreshed', date, games: card.headline?.gamesOnSlate, bets: card.headline?.totalBets });
+    res.json({ message: 'Daily card refreshed', date, games: card.headline?.gamesOnSlate, bets: card.headline?.totalBets, betTypes: card.headline?.betTypes });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// Daily card: historical access
+app.get('/api/mlb/daily-card/history', (req, res) => {
+  if (!dailyMlbCard) return res.status(503).json({ error: 'Daily MLB Card service not loaded' });
+  res.json(dailyMlbCard.listCards());
+});
+
+app.get('/api/mlb/daily-card/history/:date', (req, res) => {
+  if (!dailyMlbCard) return res.status(503).json({ error: 'Daily MLB Card service not loaded' });
+  const card = dailyMlbCard.getHistoricalCard(req.params.date);
+  if (!card) return res.status(404).json({ error: 'No card found for this date' });
+  res.json(card);
+});
+
+// Daily card: grade completed games
+app.post('/api/mlb/daily-card/grade', async (req, res) => {
+  if (!dailyMlbCard) return res.status(503).json({ error: 'Daily MLB Card service not loaded' });
+  try {
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const result = await dailyMlbCard.gradeCompletedGames(date);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== PITCHER RESOLVER (v83.0) ====================
+// Dynamic pitcher prop projections for ANY pitcher — regular season engine
+app.get('/api/mlb/pitcher-props/:pitcher/:opponent/:park?', (req, res) => {
+  try {
+    if (!pitcherResolver) return res.status(503).json({ error: 'Pitcher resolver not loaded' });
+    const { pitcher, opponent, park } = req.params;
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const tempF = req.query.temp ? parseFloat(req.query.temp) : undefined;
+    const bookKLine = req.query.kLine ? parseFloat(req.query.kLine) : undefined;
+    const bookKOverOdds = req.query.kOver ? parseInt(req.query.kOver) : undefined;
+    const bookKUnderOdds = req.query.kUnder ? parseInt(req.query.kUnder) : undefined;
+    const bookOutsLine = req.query.outsLine ? parseFloat(req.query.outsLine) : undefined;
+    const bookOutsOverOdds = req.query.outsOver ? parseInt(req.query.outsOver) : undefined;
+    const bookOutsUnderOdds = req.query.outsUnder ? parseInt(req.query.outsUnder) : undefined;
+
+    // Decode pitcher name (URL-encoded spaces)
+    const pitcherName = decodeURIComponent(pitcher);
+    const homeTeam = park || opponent; // Default: opponent is at home
+
+    const result = pitcherResolver.resolvePitcherProps(pitcherName, null, opponent, homeTeam, {
+      date, tempF, bookKLine, bookKOverOdds, bookKUnderOdds, bookOutsLine, bookOutsOverOdds, bookOutsUnderOdds,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/mlb/pitcher-props/status', (req, res) => {
+  if (!pitcherResolver) return res.json({ loaded: false });
+  res.json({ loaded: true, ...pitcherResolver.getStatus() });
+});
+
+app.get('/api/mlb/pitcher-props/season-context', (req, res) => {
+  if (!pitcherResolver) return res.status(503).json({ error: 'Pitcher resolver not loaded' });
+  const date = req.query.date || new Date().toISOString().split('T')[0];
+  res.json(pitcherResolver.getSeasonContext(date));
 });
 
 // ==================== OD PRE-GAME CHECKLIST (v71.0) ====================
@@ -8424,7 +8558,11 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   🧠 ML Engine: Python sklearn ensemble (LR + GradientBoosting + RandomForest)`);
   console.log(`   🔄 Auto-scanner: 10 automated scan types on configurable intervals (incl. MLB Daily Card)`);
   if (lineShopping) console.log(`   🛒 Line Shopping: Multi-book optimizer active (${lineShopping.BOOK_PRIORITY.length} books tracked)`);
-  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE v2 (STATCAST), ARBITRAGE SCANNER, STATCAST INTEGRATION, AUTO-SCANNER, LINE SHOPPING`);
+  if (pitcherResolver) {
+    const prStatus = pitcherResolver.getStatus();
+    console.log(`   🎯 Pitcher Resolver: Dynamic props for ANY pitcher (${prStatus.pitchersInDB} pitchers, ${prStatus.teamBattingKProfiles} K profiles, Statcast: ${prStatus.statcastAvailable})`);
+  }
+  console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE v2 (STATCAST), ARBITRAGE SCANNER, STATCAST INTEGRATION, AUTO-SCANNER, LINE SHOPPING, PITCHER RESOLVER`);
   
   // Auto-refresh all data on startup
   console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats + statcast...');

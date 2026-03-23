@@ -181,6 +181,7 @@ function buildTabs() {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
     tabs.push({ id: 'nba-seeding', label: '🎯 Seeding Sim' });
     tabs.push({ id: 'rest-tank', label: '😴 Rest/Tank' });
+    tabs.push({ id: 'nba-series-scanner', label: '🎲 Series Futures' });
   }
   if (currentSport === 'nhl' || currentSport === 'all') {
     tabs.push({ id: 'nhl-playoffs', label: '🏒 NHL Playoffs' });
@@ -255,6 +256,7 @@ function showTab(id) {
   else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
   else if (id === 'nhl-goalies') loadNHLGoaliesTab();
   else if (id === 'nba-seeding') loadNBASeedingTab();
+  else if (id === 'nba-series-scanner') loadNBASeriesScannerTab();
   else if (id === 'od-checklist') loadODChecklistTab();
   else if (id === 'od-final-check') loadODFinalCheckTab();
   else if (id === 'od-validate') loadODValidateTab();
@@ -7045,7 +7047,7 @@ async function loadDailySlateTab() {
 buildTabs();
 showTab('picks');
 
-// ==================== MLB DAILY CARD TAB (v82.0) ====================
+// ==================== MLB DAILY CARD TAB (v84.0) ====================
 async function loadMLBDailyCardTab() {
   const wrap = document.getElementById('tab-content');
   wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Building today\'s MLB betting card...</p></div>';
@@ -7063,16 +7065,18 @@ async function loadMLBDailyCardTab() {
     const h = data.headline || {};
     const s = data.signals || {};
     const ctx = data.seasonContext || {};
+    const betBreak = h.betBreakdown || {};
     
     // Hero banner
     html += `<div class="card" style="background:linear-gradient(135deg,#0c2d48,#1a5e1a);border:1px solid #22c55e">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
-          <h2 style="margin:0;color:#22c55e">⚾💰 MLB Daily Card</h2>
+          <h2 style="margin:0;color:#22c55e">⚾💰 MLB Daily Card v84</h2>
           <p style="margin:4px 0 0;color:#aaa">${data.date || 'Today'} — ${h.gamesOnSlate || 0} games on slate${ctx.phase ? ' — ' + ctx.phase.replace(/-/g,' ').toUpperCase() : ''}</p>
           ${data.cached ? '<span style="font-size:10px;color:#f59e0b">📦 CACHED</span>' : ''}
+          <span style="font-size:10px;color:#67e8f9;margin-left:8px">NB Model • F5 • Run Lines</span>
         </div>
-        <div style="display:flex;gap:16px;text-align:center">
+        <div style="display:flex;gap:16px;text-align:center;flex-wrap:wrap">
           <div><div style="font-size:24px;font-weight:bold;color:#22c55e">${h.totalBets || 0}</div><div style="font-size:10px;color:#888">Plays</div></div>
           <div><div style="font-size:24px;font-weight:bold;color:#ef4444">${h.smashPlays || 0}</div><div style="font-size:10px;color:#888">SMASH</div></div>
           <div><div style="font-size:24px;font-weight:bold;color:#f59e0b">${h.strongPlays || 0}</div><div style="font-size:10px;color:#888">Strong</div></div>
@@ -7081,9 +7085,13 @@ async function loadMLBDailyCardTab() {
           <div><div style="font-size:24px;font-weight:bold;color:${(h.roi||0)>10?'#22c55e':'#f59e0b'}">${h.roi||0}%</div><div style="font-size:10px;color:#888">ROI</div></div>
         </div>
       </div>
-      <div style="margin-top:12px">
+      ${betBreak ? `<div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#aaa">
+        <span>💰 ML: ${betBreak.ml||0}</span><span>📊 Totals: ${betBreak.totals||0}</span><span>🎯 F5: ${betBreak.f5||0}</span><span>📏 Run Lines: ${betBreak.runLines||0}</span><span>🎯 K Props: ${betBreak.kProps||0}</span>
+      </div>` : ''}
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="refresh-btn" onclick="refreshMLBCard()" style="padding:6px 16px;background:#22c55e;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">🔄 Refresh Card</button>
-        <span style="font-size:11px;color:#666;margin-left:8px">Built in ${(data.elapsedMs/1000).toFixed(1)}s</span>
+        <button onclick="gradeMLBCard()" style="padding:6px 16px;background:#a78bfa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold">📊 Grade Bets</button>
+        <span style="font-size:11px;color:#666;margin-left:8px;align-self:center">Built in ${(data.elapsedMs/1000).toFixed(1)}s${data.betsRecorded ? ' • ' + data.betsRecorded + ' bets logged' : ''}</span>
       </div>
     </div>`;
     
@@ -7092,6 +7100,8 @@ async function loadMLBDailyCardTab() {
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
         <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:#22c55e">${s.gamesWithPredictions||0}/${h.gamesOnSlate||0}</div><div style="font-size:10px;color:#888">Predictions</div></div>
         <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:#22c55e">${s.gamesWithOdds||0}/${h.gamesOnSlate||0}</div><div style="font-size:10px;color:#888">Live Odds</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:#22c55e">${s.gamesWithNBTotals||s.gamesWithPredictions||0}/${h.gamesOnSlate||0}</div><div style="font-size:10px;color:#888">NB Totals</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${s.gamesWithF5>0?'#22c55e':'#888'}">${s.gamesWithF5||0}</div><div style="font-size:10px;color:#888">F5 Model</div></div>
         <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${s.weather>0?'#22c55e':'#888'}">${s.weather||0}</div><div style="font-size:10px;color:#888">Weather</div></div>
         <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${s.lineups>0?'#22c55e':'#888'}">${s.lineups||0}</div><div style="font-size:10px;color:#888">Lineups</div></div>
         <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${s.umpires>0?'#22c55e':'#888'}">${s.umpires||0}</div><div style="font-size:10px;color:#888">Umpires</div></div>
@@ -7120,9 +7130,11 @@ async function loadMLBDailyCardTab() {
       
       for (const bet of topPlays) {
         const tierColor = bet.conviction?.tier === 'SMASH' ? '#ef4444' : bet.conviction?.tier === 'STRONG' ? '#f59e0b' : '#22c55e';
+        const typeColor = bet.type === 'F5_TOTAL' || bet.type === 'F5_ML' ? '#a78bfa' : bet.type === 'RUN_LINE' ? '#67e8f9' : bet.type === 'TOTAL' ? '#f97316' : '#22c55e';
+        const typeLabel = bet.type === 'F5_TOTAL' ? 'F5 Total' : bet.type === 'F5_ML' ? 'F5 ML' : bet.type === 'RUN_LINE' ? 'Run Line' : bet.type;
         html += `<tr>
           <td><strong>${bet.game || ''}</strong></td>
-          <td>${bet.type || ''}</td>
+          <td style="color:${typeColor}">${typeLabel}</td>
           <td style="font-weight:bold">${bet.side || ''} ${bet.team || bet.line || ''}</td>
           <td style="color:#22c55e;font-weight:bold">${bet.edge || 0}%</td>
           <td>${bet.odds || ''}</td>
@@ -7161,6 +7173,7 @@ async function loadMLBDailyCardTab() {
           <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;font-size:12px">
             <span>Model: <strong>${pred.awayWinProb ? (pred.awayWinProb > 1 ? pred.awayWinProb.toFixed(1) : (pred.awayWinProb*100).toFixed(1)) : '?'}%</strong> / <strong>${pred.homeWinProb ? (pred.homeWinProb > 1 ? pred.homeWinProb.toFixed(1) : (pred.homeWinProb*100).toFixed(1)) : '?'}%</strong></span>
             <span>Total: <strong>${pred.totalRuns?.toFixed?.(1) || '?'}</strong>${odds.total ? ' (line: '+odds.total+')' : ''}</span>
+            ${pred.f5Total ? '<span style="color:#a78bfa">F5: <strong>' + pred.f5Total.toFixed(1) + '</strong></span>' : ''}
             ${odds.homeML ? '<span>ML: ' + g.away + ' ' + odds.awayML + ' / ' + g.home + ' ' + odds.homeML + '</span>' : ''}
           </div>`;
         
@@ -7182,7 +7195,9 @@ async function loadMLBDailyCardTab() {
         if (hasBets) {
           html += `<div style="margin-top:6px">`;
           for (const b of g.bets) {
-            html += `<span style="display:inline-block;background:#22c55e22;color:#22c55e;padding:2px 8px;border-radius:4px;margin:2px;font-size:11px;font-weight:bold">${b.type} ${b.side} ${b.team||b.line||''} (${b.edge}% edge, ${b.conviction?.grade||''})</span>`;
+            const betColor = b.type === 'F5_TOTAL' || b.type === 'F5_ML' ? '#a78bfa' : b.type === 'RUN_LINE' ? '#67e8f9' : b.type === 'TOTAL' ? '#f97316' : '#22c55e';
+            const betBg = b.type === 'F5_TOTAL' || b.type === 'F5_ML' ? '#a78bfa22' : b.type === 'RUN_LINE' ? '#67e8f922' : b.type === 'TOTAL' ? '#f9731622' : '#22c55e22';
+            html += `<span style="display:inline-block;background:${betBg};color:${betColor};padding:2px 8px;border-radius:4px;margin:2px;font-size:11px;font-weight:bold">${b.type} ${b.side} ${b.team||b.line||''} (${b.edge}% edge, ${b.conviction?.grade||''})</span>`;
           }
           html += `</div>`;
         }
@@ -7213,6 +7228,21 @@ async function refreshMLBCard() {
     await loadMLBDailyCardTab();
   } catch (e) {
     wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${e.message}</p></div>`;
+  }
+}
+
+async function gradeMLBCard() {
+  try {
+    const resp = await fetch(`${API}/api/mlb/daily-card/grade`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.error) {
+      alert('Grade error: ' + data.error);
+    } else {
+      alert(`Graded ${data.graded || 0} bets for ${data.date}. W: ${data.wins || 0} L: ${data.losses || 0} P&L: $${(data.pnl || 0).toFixed(2)}`);
+      await loadMLBDailyCardTab();
+    }
+  } catch (e) {
+    alert('Grade error: ' + e.message);
   }
 }
 
