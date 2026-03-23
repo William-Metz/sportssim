@@ -1757,12 +1757,12 @@
         {
           "player": "Tanner Pearson",
           "position": "LW",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-22T23:45Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T05:03Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Jiri Kulich",
@@ -1796,8 +1796,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CGY": {
@@ -1806,22 +1806,22 @@
         {
           "player": "Connor Zary",
           "position": "C",
-          "status": "Out",
-          "detail": "Zary (upper body) is day-to-day and isn't expected to play against Tampa Bay on Sunday, Pat Steinberg of Sportsnet 960 The Fan reports.",
-          "returnDate": "2026-03-22T16:43Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:51Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Yan Kuznetsov",
           "position": "D",
-          "status": "Out",
-          "detail": "Kuznetsov (upper body) will miss Sunday's game against the Lightning but is close to a return, Pat Steinberg of Sportsnet 960 The Fan reports.",
-          "returnDate": "2026-03-22T16:42Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:47Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Jonathan Huberdeau",
@@ -1845,8 +1845,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "CAR": {
@@ -1855,12 +1855,12 @@
         {
           "player": "Shayne Gostisbehere",
           "position": "D",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-22T18:51Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:51Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Pyotr Kochetkov",
@@ -1874,8 +1874,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 2,
-      "dtdCount": 0,
+      "outCount": 1,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CHI": {
@@ -1953,12 +1953,12 @@
         {
           "player": "Ross Colton",
           "position": "C",
-          "status": "Out",
-          "detail": "Colton (upper body) isn't in the lineup for Sunday's game against the Capitals, Corey Masisak of The Denver Post reports.",
-          "returnDate": "2026-03-22T16:14Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:44Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Logan O'Connor",
@@ -1982,8 +1982,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 3,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "DAL": {
@@ -2421,22 +2421,22 @@
         {
           "player": "Ryan Pulock",
           "position": "D",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-22T21:57Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:57Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Anthony Duclair",
           "position": "LW",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-22T21:51Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:57Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Alexander Romanov",
@@ -2480,8 +2480,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 6,
-      "dtdCount": 0,
+      "outCount": 4,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "NYR": {
@@ -2635,14 +2635,24 @@
       "team": "Pittsburgh Penguins",
       "injuries": [
         {
+          "player": "Kevin Hayes",
+          "position": "RW",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:54Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Ryan Shea",
           "position": "D",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-22T17:10Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T04:51Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Blake Lizotte",
@@ -2686,8 +2696,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 5,
-      "dtdCount": 0,
+      "outCount": 4,
+      "dtdCount": 2,
       "starPlayersOut": []
     },
     "SJS": {
@@ -2843,12 +2853,12 @@
         {
           "player": "Victor Hedman",
           "position": "D",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-22T23:48Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T05:03Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Maxwell Crozier",
@@ -2882,8 +2892,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "TOR": {
@@ -5761,8 +5771,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774232980433,
-    "nhl": 1774232980734,
-    "mlb": 1774232980911
+    "nba": 1774258173408,
+    "nhl": 1774258173777,
+    "mlb": 1774258174198
   }
 }

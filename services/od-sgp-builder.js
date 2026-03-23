@@ -1,8 +1,10 @@
-// services/od-sgp-builder.js — Opening Day SGP (Same Game Parlay) Builder v69.2
-// Builds optimal correlated parlays for each OD game using K props + ML + totals
+// services/od-sgp-builder.js — Opening Day SGP (Same Game Parlay) Builder v79.0
+// Builds optimal correlated parlays for each OD game using K props + ML + totals + batter props
 // KEY INSIGHT: SGPs are the highest-margin bet type because books misprice correlations
 
 const pitcherKProps = require('./pitcher-k-props');
+let batterProps = null;
+try { batterProps = require('./batter-props'); } catch (e) { /* ok */ }
 
 // ==================== CORRELATION MATRIX ====================
 // How correlated are different bet legs within the same game?
@@ -39,6 +41,27 @@ const CORRELATIONS = {
   // K OVER (both pitchers) + UNDER: STRONG POSITIVE
   // Both aces dealing = few runs
   'dual_k_over__under': 0.30,
+  
+  // ===== BATTER PROP CORRELATIONS =====
+  // K OVER + batter UNDER hits: POSITIVE (+0.15 to +0.25)
+  // Same mechanism: high Ks = fewer hits for opposing batters
+  'k_over__batter_under_hits': 0.20,
+  
+  // Batter OVER hits + OVER total: POSITIVE (+0.10 to +0.15)
+  // More offense = more hits for individual batters
+  'batter_over_hits__total_over': 0.12,
+  
+  // Batter UNDER hits + UNDER total: POSITIVE (+0.10 to +0.15)
+  // Less offense = fewer individual hits
+  'batter_under_hits__total_under': 0.12,
+  
+  // Batter HR OVER + OVER total: POSITIVE (+0.08 to +0.12)
+  // HR adds runs directly
+  'batter_hr_over__total_over': 0.10,
+  
+  // NRFI + batter UNDER hits: POSITIVE (+0.10 to +0.15)
+  // Pitcher dominance → no first inning runs AND fewer overall hits
+  'nrfi__batter_under_hits': 0.12,
 };
 
 // ==================== SGP LEG DEFINITIONS ====================
@@ -144,6 +167,110 @@ function buildGameLegs(game, kPropData) {
     });
   }
   
+  // Leg: Batter Props (top value picks for this game)
+  if (batterProps) {
+    try {
+      const awayBatters = batterProps.getBattersForTeam(game.away);
+      const homeBatters = batterProps.getBattersForTeam(game.home);
+      
+      // Get top batter picks for this game — away batters face home pitcher
+      for (const batter of awayBatters.slice(0, 3)) { // top 3 lineup spots
+        if (!game.confirmedStarters?.home) continue;
+        const pred = batterProps.predictBatterProps(batter.name, game.confirmedStarters.home, game.home, {
+          isOpeningDay: true, batterHand: batter.hand,
+        });
+        if (!pred) continue;
+        
+        // Add UNDER hits leg for high-K pitcher matchups
+        if (pred.markets?.hits_1_5 && pred.pitcherK9 >= 9.0) {
+          const m = pred.markets.hits_1_5;
+          if (m.underProb > 60) {
+            legs.push({
+              type: 'batter_prop',
+              subtype: 'hits',
+              batter: batter.name,
+              team: game.away,
+              pick: 'UNDER',
+              line: 1.5,
+              odds: -130, // typical UNDER 1.5 hits pricing
+              modelProb: m.underProb / 100,
+              label: `${batter.name} UNDER 1.5 Hits`,
+              facingPitcher: game.confirmedStarters.home,
+              pitcherK9: pred.pitcherK9,
+            });
+          }
+        }
+        
+        // HR OVER for power hitters in HR-friendly parks
+        if (pred.markets?.hr_0_5 && pred.expected?.hr >= 0.12 && pred.parkHRFactor >= 1.0) {
+          const m = pred.markets.hr_0_5;
+          if (m.overProb > 10) {
+            legs.push({
+              type: 'batter_prop',
+              subtype: 'hr',
+              batter: batter.name,
+              team: game.away,
+              pick: 'OVER',
+              line: 0.5,
+              odds: +280, // typical HR OVER pricing
+              modelProb: m.overProb / 100,
+              label: `${batter.name} HR`,
+              facingPitcher: game.confirmedStarters.home,
+            });
+          }
+        }
+      }
+      
+      // Home batters face away pitcher
+      for (const batter of homeBatters.slice(0, 3)) {
+        if (!game.confirmedStarters?.away) continue;
+        const pred = batterProps.predictBatterProps(batter.name, game.confirmedStarters.away, game.home, {
+          isOpeningDay: true, batterHand: batter.hand,
+        });
+        if (!pred) continue;
+        
+        if (pred.markets?.hits_1_5 && pred.pitcherK9 >= 9.0) {
+          const m = pred.markets.hits_1_5;
+          if (m.underProb > 60) {
+            legs.push({
+              type: 'batter_prop',
+              subtype: 'hits',
+              batter: batter.name,
+              team: game.home,
+              pick: 'UNDER',
+              line: 1.5,
+              odds: -130,
+              modelProb: m.underProb / 100,
+              label: `${batter.name} UNDER 1.5 Hits`,
+              facingPitcher: game.confirmedStarters.away,
+              pitcherK9: pred.pitcherK9,
+            });
+          }
+        }
+        
+        if (pred.markets?.hr_0_5 && pred.expected?.hr >= 0.12 && pred.parkHRFactor >= 1.0) {
+          const m = pred.markets.hr_0_5;
+          if (m.overProb > 10) {
+            legs.push({
+              type: 'batter_prop',
+              subtype: 'hr',
+              batter: batter.name,
+              team: game.home,
+              pick: 'OVER',
+              line: 0.5,
+              odds: +280,
+              modelProb: m.overProb / 100,
+              label: `${batter.name} HR`,
+              facingPitcher: game.confirmedStarters.away,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Batter props not critical for SGP
+    }
+  }
+  
   return legs;
 }
 
@@ -223,6 +350,40 @@ function getPairCorrelation(legA, legB) {
   }
   if (legB.type === 'k_prop' && legB.pick === 'UNDER' && legA.type === 'total' && legA.pick === 'OVER') {
     return CORRELATIONS['k_under__total_over'];
+  }
+  
+  // ===== BATTER PROP CORRELATIONS =====
+  
+  // K OVER + batter UNDER hits (same-pitcher: pitcher dealing = fewer hits)
+  if (legA.type === 'k_prop' && legA.pick === 'OVER' && legB.type === 'batter_prop' && legB.subtype === 'hits' && legB.pick === 'UNDER') {
+    return CORRELATIONS['k_over__batter_under_hits'];
+  }
+  if (legB.type === 'k_prop' && legB.pick === 'OVER' && legA.type === 'batter_prop' && legA.subtype === 'hits' && legA.pick === 'UNDER') {
+    return CORRELATIONS['k_over__batter_under_hits'];
+  }
+  
+  // Batter OVER hits + OVER total
+  if (legA.type === 'batter_prop' && legA.subtype === 'hits' && legA.pick === 'OVER' && legB.type === 'total' && legB.pick === 'OVER') {
+    return CORRELATIONS['batter_over_hits__total_over'];
+  }
+  if (legB.type === 'batter_prop' && legB.subtype === 'hits' && legB.pick === 'OVER' && legA.type === 'total' && legA.pick === 'OVER') {
+    return CORRELATIONS['batter_over_hits__total_over'];
+  }
+  
+  // Batter UNDER hits + UNDER total
+  if (legA.type === 'batter_prop' && legA.subtype === 'hits' && legA.pick === 'UNDER' && legB.type === 'total' && legB.pick === 'UNDER') {
+    return CORRELATIONS['batter_under_hits__total_under'];
+  }
+  if (legB.type === 'batter_prop' && legB.subtype === 'hits' && legB.pick === 'UNDER' && legA.type === 'total' && legA.pick === 'UNDER') {
+    return CORRELATIONS['batter_under_hits__total_under'];
+  }
+  
+  // Batter HR OVER + OVER total
+  if (legA.type === 'batter_prop' && legA.subtype === 'hr' && legA.pick === 'OVER' && legB.type === 'total' && legB.pick === 'OVER') {
+    return CORRELATIONS['batter_hr_over__total_over'];
+  }
+  if (legB.type === 'batter_prop' && legB.subtype === 'hr' && legB.pick === 'OVER' && legA.type === 'total' && legA.pick === 'OVER') {
+    return CORRELATIONS['batter_hr_over__total_over'];
   }
   
   return 0; // No known correlation
