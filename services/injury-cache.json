@@ -1707,16 +1707,6 @@
           "isDayToDay": false
         },
         {
-          "player": "Radko Gudas",
-          "position": "D",
-          "status": "Suspension",
-          "detail": "suspension",
-          "returnDate": "2026-03-14T00:50Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": false
-        },
-        {
           "player": "Petr Mrazek",
           "position": "G",
           "status": "Injured Reserve",
@@ -2490,12 +2480,12 @@
         {
           "player": "Jonathan Quick",
           "position": "G",
-          "status": "Out",
-          "detail": "out",
-          "returnDate": "2026-03-21T16:57Z",
+          "status": "Day-To-Day",
+          "detail": "day-to-day",
+          "returnDate": "2026-03-23T12:33Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Urho Vaakanainen",
@@ -2529,8 +2519,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "OTT": {
@@ -2635,16 +2625,6 @@
       "team": "Pittsburgh Penguins",
       "injuries": [
         {
-          "player": "Kevin Hayes",
-          "position": "RW",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-23T04:54Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Ryan Shea",
           "position": "D",
           "status": "Day-To-Day",
@@ -2697,7 +2677,7 @@
       ],
       "totalImpact": 0,
       "outCount": 4,
-      "dtdCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "SJS": {
@@ -3264,6 +3244,16 @@
       "team": "Atlanta Braves",
       "injuries": [
         {
+          "player": "Spencer Strider",
+          "position": "SP",
+          "status": "Out",
+          "detail": "Strider allowed two hits and a walk over four scoreless innings in Wednesday's Grapefruit League game against the Rays. He struck out five.",
+          "returnDate": "2026-03-23T14:07Z",
+          "impact": 0.4,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Daysbel Hernandez",
           "position": "RP",
           "status": "Day-To-Day",
@@ -3364,10 +3354,19 @@
           "isDayToDay": false
         }
       ],
-      "totalImpact": 0,
-      "outCount": 8,
+      "totalImpact": 0.4,
+      "outCount": 9,
       "dtdCount": 1,
-      "starPlayersOut": []
+      "starPlayersOut": [
+        {
+          "player": "Spencer Strider",
+          "impact": 0.4,
+          "status": "Out",
+          "detail": "Strider allowed two hits and a walk over four scoreless innings in Wednesday's Grapefruit League game against the Rays. He struck out five.",
+          "isOut": true,
+          "isDayToDay": false
+        }
+      ]
     },
     "BAL": {
       "team": "Baltimore Orioles",
@@ -3522,16 +3521,6 @@
           "isDayToDay": false
         },
         {
-          "player": "Danny Coulombe",
-          "position": "RP",
-          "status": "Day-To-Day",
-          "detail": "Coulombe was sent home Saturday with an illness, Chris Cotillo of MassLive.com reports. The nature of the illness is not known.",
-          "returnDate": "2026-03-21T16:50Z",
-          "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
-        },
-        {
           "player": "Brendan Rodgers",
           "position": "2B",
           "status": "Out",
@@ -3594,7 +3583,7 @@
       ],
       "totalImpact": 0,
       "outCount": 8,
-      "dtdCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "CHC": {
@@ -3779,6 +3768,16 @@
       "team": "Cincinnati Reds",
       "injuries": [
         {
+          "player": "Caleb Ferguson",
+          "position": "RP",
+          "status": "Out",
+          "detail": "Ferguson (oblique) is scheduled for a second MRI on March 25 to determine he's healing well, MLB.com reports.",
+          "returnDate": "2026-03-23T11:21Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Nick Lodolo",
           "position": "SP",
           "status": "Day-To-Day",
@@ -3797,16 +3796,6 @@
           "impact": 0,
           "isOut": false,
           "isDayToDay": true
-        },
-        {
-          "player": "Caleb Ferguson",
-          "position": "RP",
-          "status": "Out",
-          "detail": "The Reds signed Ferguson to a one-year contract Tuesday, Gordon Wittenmyer of The Cincinnati Enquirer reports.",
-          "returnDate": "2026-03-12T21:33Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
         },
         {
           "player": "Hunter Greene",
@@ -5771,8 +5760,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774265360051,
-    "nhl": 1774265361080,
-    "mlb": 1774265361762
+    "nba": 1774275711194,
+    "nhl": 1774275711753,
+    "mlb": 1774275711878
   }
 }

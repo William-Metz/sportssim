@@ -193,6 +193,7 @@ function buildTabs() {
   // NCAA March Madness tab — always visible during tournament
   tabs.push({ id: 'war-room', label: '⚔️ WAR ROOM' });
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
+  tabs.push({ id: 'nhl-bubble', label: '🏒 NHL Bubble' });
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
   tabs.push({ id: 'catcher-framing', label: '🥊 Catcher Framing' });
   tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
@@ -277,6 +278,7 @@ function showTab(id) {
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
   else if (id === 'line-shop') loadLineShopTab();
+  else if (id === 'nhl-bubble') loadNHLBubbleTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -12097,6 +12099,348 @@ async function forceScanAutopilot() {
     await fetch(`${API}/api/season/autopilot/scan`, { method: 'POST' });
     setTimeout(() => loadSeasonAutopilotTab(), 3000);
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================== NHL BUBBLE PLAYOFF FUTURES TAB ====================
+
+async function loadNHLBubbleTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Running NHL bubble Monte Carlo simulation...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/nhl/bubble-scan`);
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      wrap.innerHTML = `<div class="card" style="border-left:4px solid #e74c3c;padding:20px">
+        <h2>🏒 NHL Bubble Scanner</h2>
+        <p style="color:#e74c3c">Error: ${err.error || resp.statusText}</p>
+        <p style="opacity:0.7;margin-top:8px">The bubble scanner requires live NHL standings data. Try refreshing data first.</p>
+        <button onclick="loadNHLBubbleTab()" style="margin-top:12px;padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer">🔄 Retry</button>
+      </div>`;
+      return;
+    }
+    const data = await resp.json();
+    renderNHLBubbleTab(wrap, data);
+  } catch(e) {
+    wrap.innerHTML = `<div class="card" style="padding:20px"><h2>🏒 NHL Bubble Scanner</h2><p style="color:#e74c3c">Failed to load: ${e.message}</p></div>`;
+  }
+}
+
+function renderNHLBubbleTab(wrap, data) {
+  const bubbleTeams = data.bubbleDeepDive || [];
+  const edges = data.futuresEdges || [];
+  const headline = data.headline || {};
+  const simulations = data.simulations || 5000;
+  const clinchScenarios = data.clinchScenarios || [];
+  const eastStandings = data.standings?.east || [];
+  const westStandings = data.standings?.west || [];
+  
+  // Hero banner
+  let html = `
+    <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);border-radius:16px;padding:32px;margin-bottom:24px;color:white;position:relative;overflow:hidden">
+      <div style="position:absolute;top:10px;right:20px;font-size:48px;opacity:0.2">🏒</div>
+      <h1 style="margin:0 0 8px 0;font-size:28px">NHL Playoff Bubble Chaos 🫧</h1>
+      <p style="margin:0;opacity:0.85;font-size:16px">${headline.eastBubbleTeams || 0} East + ${headline.westBubbleTeams || 0} West bubble teams → matchup uncertainty = futures mispricing</p>
+      <div style="display:flex;gap:24px;margin-top:16px;flex-wrap:wrap">
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px 20px">
+          <div style="font-size:24px;font-weight:bold">${(headline.eastBubbleTeams || 0) + (headline.westBubbleTeams || 0)}</div>
+          <div style="font-size:12px;opacity:0.7">Bubble Teams</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px 20px">
+          <div style="font-size:24px;font-weight:bold;color:#2ecc71">${edges.length}</div>
+          <div style="font-size:12px;opacity:0.7">Value Bets Found</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px 20px">
+          <div style="font-size:24px;font-weight:bold">${(simulations/1000).toFixed(0)}K</div>
+          <div style="font-size:12px;opacity:0.7">MC Simulations</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px 20px">
+          <div style="font-size:24px;font-weight:bold">${data.daysUntilPlayoffs || '??'}</div>
+          <div style="font-size:12px;opacity:0.7">Days to Playoffs</div>
+        </div>
+        ${headline.mostVolatile ? `<div style="background:rgba(231,76,60,0.2);border-radius:8px;padding:12px 20px">
+          <div style="font-size:24px;font-weight:bold;color:#e74c3c">${headline.mostVolatile}</div>
+          <div style="font-size:12px;opacity:0.7">Most Volatile</div>
+        </div>` : ''}
+      </div>
+      <button onclick="refreshNHLBubble()" style="margin-top:16px;padding:8px 16px;background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);border-radius:6px;cursor:pointer;font-size:13px">🔄 Force Refresh</button>
+    </div>
+  `;
+  
+  // Bubble deep dive — teams sorted by volatility
+  if (bubbleTeams.length > 0) {
+    html += `
+      <div class="card" style="margin-bottom:20px;padding:20px">
+        <h2 style="margin:0 0 16px 0">🫧 Bubble Race — Sorted by Matchup Volatility</h2>
+        <p style="opacity:0.7;margin-bottom:16px">Higher volatility = more mispricing opportunity. Click a team for deep dive.</p>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:14px">
+            <thead>
+              <tr style="border-bottom:2px solid #333;text-align:left">
+                <th style="padding:10px">Team</th>
+                <th style="padding:10px">Conf</th>
+                <th style="padding:10px">Pts</th>
+                <th style="padding:10px">Proj Pts</th>
+                <th style="padding:10px">Playoff %</th>
+                <th style="padding:10px">R1 Win %</th>
+                <th style="padding:10px">Volatility</th>
+                <th style="padding:10px">Possible Opponents</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    for (const team of bubbleTeams) {
+      const playoffColor = team.playoffProb > 70 ? '#2ecc71' : team.playoffProb > 40 ? '#f39c12' : '#e74c3c';
+      const volColor = team.matchupVolatility > 15 ? '#e74c3c' : team.matchupVolatility > 8 ? '#f39c12' : '#3498db';
+      const opponentsList = (team.matchups || []).slice(0, 3).map(m => `${m.opponent}(${m.probability}%)`).join(', ');
+      
+      html += `
+        <tr style="border-bottom:1px solid #222;cursor:pointer" onclick="analyzeNHLBubbleTeam('${team.abbr}')">
+          <td style="padding:10px;font-weight:bold">${team.name || team.abbr}</td>
+          <td style="padding:10px">${team.conference || ''}</td>
+          <td style="padding:10px;font-weight:bold">${team.currentPts}</td>
+          <td style="padding:10px">${team.projectedPts?.avg || '?'}</td>
+          <td style="padding:10px"><span style="color:${playoffColor};font-weight:bold">${team.playoffProb}%</span></td>
+          <td style="padding:10px;font-weight:bold">${team.weightedR1WinProb}%</td>
+          <td style="padding:10px"><span style="color:${volColor};font-weight:bold">${team.matchupVolatility}%</span></td>
+          <td style="padding:10px;font-size:12px;opacity:0.8">${opponentsList || 'N/A'}</td>
+        </tr>
+      `;
+    }
+    html += '</tbody></table></div></div>';
+  }
+  
+  // Value bets from bubble uncertainty
+  if (edges.length > 0) {
+    html += `
+      <div class="card" style="margin-bottom:20px;padding:20px;border-left:4px solid #2ecc71">
+        <h2 style="margin:0 0 16px 0">💰 Bubble-Driven Value Bets (${edges.length} found)</h2>
+        <p style="opacity:0.7;margin-bottom:16px">Edge from matchup uncertainty — books price based on current seeding, we weight ALL possible matchups.</p>
+        <div style="display:grid;gap:12px">
+    `;
+    for (const edge of edges.slice(0, 20)) {
+      const edgeColor = edge.edge > 10 ? '#2ecc71' : edge.edge > 5 ? '#f39c12' : '#3498db';
+      const tierLabel = edge.confidence === 'HIGH' ? '🔥 HIGH' : edge.confidence === 'MEDIUM' ? '💪 MEDIUM' : '📊 LOW';
+      const direction = edge.direction === 'BUY' ? '🟢 BUY' : '🔴 FADE';
+      html += `
+        <div style="background:rgba(46,204,113,0.05);border:1px solid rgba(46,204,113,0.2);border-radius:8px;padding:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="font-weight:bold;font-size:16px">${direction} ${edge.teamName || edge.team}</div>
+            <div style="opacity:0.7;font-size:13px;margin-top:4px">
+              Model: ${edge.modelProb}% | Book: ${edge.bookImplied}% | 
+              Odds: ${edge.bookOdds > 0 ? '+' : ''}${edge.bookOdds} (${edge.book || '??'})
+            </div>
+            <div style="opacity:0.6;font-size:12px;margin-top:4px">
+              Playoff: ${edge.playoffProb}% | R1 Win: ${edge.r1WinProb}% | Volatility: ${edge.volatility}%
+              ${edge.isBubble ? ' | 🫧 BUBBLE' : ''}
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="color:${edgeColor};font-weight:bold;font-size:20px">${edge.edge > 0 ? '+' : ''}${edge.edge}%</div>
+            <div style="font-size:12px;opacity:0.7">${tierLabel}</div>
+            ${edge.kelly ? `<div style="font-size:11px;opacity:0.5">Kelly: ${(edge.kelly * 100).toFixed(1)}%</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    html += '</div></div>';
+  } else {
+    html += `
+      <div class="card" style="margin-bottom:20px;padding:20px;border-left:4px solid #f39c12">
+        <h2 style="margin:0 0 8px 0">📊 Bubble Analysis Complete</h2>
+        <p style="opacity:0.7">No futures odds available from The Odds API currently — but the bubble analysis above identifies which teams have the most uncertain playoff paths. Watch for books to post NHL series prices as playoffs approach. The volatility column tells you WHERE the mispricing will be biggest.</p>
+      </div>
+    `;
+  }
+  
+  // Conference standings with playoff probabilities
+  html += `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+  `;
+  
+  for (const [conf, teams] of [['🏒 Eastern Conference', eastStandings], ['🏒 Western Conference', westStandings]]) {
+    html += `<div class="card" style="padding:16px"><h3 style="margin:0 0 12px 0">${conf}</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="border-bottom:1px solid #333"><th style="padding:6px;text-align:left">#</th><th style="padding:6px;text-align:left">Team</th><th style="padding:6px">Pts</th><th style="padding:6px">GP</th><th style="padding:6px">PPG</th><th style="padding:6px">Playoff %</th></tr></thead>
+        <tbody>`;
+    teams.forEach((t, i) => {
+      const playoffColor = t.playoffProb > 95 ? '#2ecc71' : t.playoffProb > 70 ? '#8bc34a' : t.playoffProb > 40 ? '#f39c12' : t.playoffProb > 10 ? '#e74c3c' : '#666';
+      const isCutline = i === 7;
+      html += `<tr style="border-bottom:${isCutline ? '2px solid #e74c3c' : '1px solid #1a1a1a'}">
+        <td style="padding:6px;opacity:0.5">${i+1}</td>
+        <td style="padding:6px;font-weight:${i < 8 ? 'bold' : 'normal'}">${t.abbr}</td>
+        <td style="padding:6px;text-align:center;font-weight:bold">${t.pts}</td>
+        <td style="padding:6px;text-align:center">${t.gp}</td>
+        <td style="padding:6px;text-align:center">${t.ppg}</td>
+        <td style="padding:6px;text-align:center;color:${playoffColor};font-weight:bold">${t.playoffProb}%</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+  
+  // Clinch scenarios
+  if (clinchScenarios.length > 0) {
+    html += `
+      <div class="card" style="margin-bottom:20px;padding:20px">
+        <h2 style="margin:0 0 16px 0">🎯 Key Scenarios</h2>
+        <div style="display:grid;gap:8px">
+    `;
+    for (const scenario of clinchScenarios.slice(0, 12)) {
+      html += `
+        <div style="background:rgba(255,255,255,0.03);border-radius:6px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:bold">${scenario.team || scenario.abbr || '??'}</span>
+          <span style="flex:1;margin-left:16px;opacity:0.7;font-size:13px">${scenario.scenario || scenario.description || ''}</span>
+          <span style="font-size:13px;font-weight:bold;color:${scenario.impact === 'positive' ? '#2ecc71' : '#e74c3c'}">${scenario.impact || ''}</span>
+        </div>
+      `;
+    }
+    html += '</div></div>';
+  }
+  
+  // Analysis methodology
+  html += `
+    <div class="card" style="margin-bottom:20px;padding:20px;opacity:0.7">
+      <h3 style="margin:0 0 8px 0">📐 Methodology</h3>
+      <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.8">
+        <li>Monte Carlo simulation of all remaining regular season games (${simulations.toLocaleString()} sims)</li>
+        <li>Each sim → full playoff seedings → Round 1 matchup assignment</li>
+        <li>Series win probability weighted across ALL possible R1 opponents</li>
+        <li>Compare weighted-average series win % to book prices → find edge</li>
+        <li>Bubble teams have FAT probability distributions across seeds → books that price based on "most likely" seeding are systematically wrong</li>
+        <li>Matchup Volatility = max R1 win% - min R1 win% across possible opponents. Higher = more mispricing.</li>
+      </ul>
+      <p style="font-size:12px;margin-top:8px">Computed: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : 'unknown'} (${data.elapsedMs ? data.elapsedMs+'ms' : '??'})</p>
+    </div>
+  `;
+  
+  wrap.innerHTML = html;
+}
+
+async function refreshNHLBubble() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Re-running Monte Carlo simulation (force refresh)...</p></div>';
+  try {
+    const resp = await fetch(`${API}/api/nhl/bubble-scan?refresh=true`);
+    const data = await resp.json();
+    renderNHLBubbleTab(wrap, data);
+  } catch(e) {
+    wrap.innerHTML = `<div class="card"><p style="color:#e74c3c">Error: ${e.message}</p></div>`;
+  }
+}
+
+async function analyzeNHLBubbleTeam(abbr) {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Analyzing ' + abbr + '...</p></div>';
+  try {
+    const resp = await fetch(`${API}/api/nhl/bubble-scan/team/${abbr}`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card" style="padding:20px"><p style="color:#e74c3c">Error: ${data.error}</p><button onclick="loadNHLBubbleTab()" style="margin-top:12px;padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">← Back</button></div>`;
+      return;
+    }
+    
+    const team = data.team || {};
+    const edges = data.edges || [];
+    const matchups = team.matchups || [];
+    
+    let html = `
+      <div style="margin-bottom:16px">
+        <button onclick="loadNHLBubbleTab()" style="padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">← Back to Bubble Overview</button>
+      </div>
+      <div class="card" style="padding:24px;margin-bottom:20px;border-left:4px solid #3498db">
+        <h2 style="margin:0 0 12px 0">${team.name || abbr} — Bubble Deep Dive</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:16px">
+          <div style="background:rgba(52,152,219,0.1);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:bold">${team.currentPts || '?'}</div>
+            <div style="font-size:12px;opacity:0.7">Current Points</div>
+          </div>
+          <div style="background:rgba(52,152,219,0.1);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:bold">${team.projectedPts?.avg || '?'}</div>
+            <div style="font-size:12px;opacity:0.7">Projected Points</div>
+          </div>
+          <div style="background:rgba(52,152,219,0.1);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:bold;color:${team.playoffProb > 70 ? '#2ecc71' : team.playoffProb > 40 ? '#f39c12' : '#e74c3c'}">${team.playoffProb || '?'}%</div>
+            <div style="font-size:12px;opacity:0.7">Playoff Prob</div>
+          </div>
+          <div style="background:rgba(52,152,219,0.1);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:bold">${team.weightedR1WinProb || '?'}%</div>
+            <div style="font-size:12px;opacity:0.7">Weighted R1 Win</div>
+          </div>
+          <div style="background:rgba(231,76,60,0.1);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:bold;color:#e74c3c">${team.matchupVolatility || '?'}%</div>
+            <div style="font-size:12px;opacity:0.7">Matchup Volatility</div>
+          </div>
+          <div style="background:rgba(52,152,219,0.1);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;font-weight:bold">${team.numPossibleOpponents || '?'}</div>
+            <div style="font-size:12px;opacity:0.7">Possible Opponents</div>
+          </div>
+        </div>
+    `;
+    
+    // Point projection range
+    if (team.projectedPts) {
+      html += `
+        <div style="margin:16px 0;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px">
+          <h4 style="margin:0 0 8px 0">📊 Point Projection Range</h4>
+          <div style="display:flex;align-items:center;gap:16px;font-size:14px">
+            <span style="opacity:0.6">10th %ile: <b>${team.projectedPts.p10}</b></span>
+            <span>Median: <b>${team.projectedPts.median}</b></span>
+            <span style="opacity:0.6">90th %ile: <b>${team.projectedPts.p90}</b></span>
+          </div>
+        </div>
+      `;
+    }
+    
+    // Possible matchups
+    if (matchups.length > 0) {
+      html += `<h3 style="margin:16px 0 12px 0">🎯 Possible R1 Matchups (by probability)</h3>`;
+      for (const m of matchups) {
+        const barWidth = Math.max(5, m.probability * 3);
+        const winColor = m.seriesWinProb > 55 ? '#2ecc71' : m.seriesWinProb > 45 ? '#f39c12' : '#e74c3c';
+        html += `
+          <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:14px;margin-bottom:8px;display:grid;grid-template-columns:120px 1fr 120px;align-items:center;gap:16px">
+            <div style="font-weight:bold;font-size:15px">${m.opponentName || m.opponent}</div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <div style="background:#3498db;height:8px;width:${barWidth}%;border-radius:4px;min-width:20px"></div>
+                <span style="font-size:13px;opacity:0.7">${m.probability}% matchup prob</span>
+              </div>
+              <div style="font-size:12px;opacity:0.5">Contributes ${m.contribution}% to weighted R1 win</div>
+            </div>
+            <div style="text-align:right">
+              <div style="color:${winColor};font-weight:bold;font-size:18px">${m.seriesWinProb}%</div>
+              <div style="font-size:11px;opacity:0.6">Series Win</div>
+            </div>
+          </div>
+        `;
+      }
+    }
+    
+    // Futures edges for this team
+    if (edges.length > 0) {
+      html += `<h3 style="margin:20px 0 12px 0">💰 Value Bets for ${team.name || abbr}</h3>`;
+      for (const edge of edges) {
+        const edgeColor = edge.edge > 5 ? '#2ecc71' : edge.edge > 2 ? '#f39c12' : '#3498db';
+        html += `
+          <div style="background:rgba(46,204,113,0.05);border:1px solid rgba(46,204,113,0.2);border-radius:8px;padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="font-weight:bold">${edge.direction === 'BUY' ? '🟢 BUY' : '🔴 FADE'}</span>
+              <span style="margin-left:8px;opacity:0.7">Model: ${edge.modelProb}% vs Book: ${edge.bookImplied}%</span>
+              <span style="margin-left:8px;opacity:0.5">(${edge.bookOdds > 0 ? '+' : ''}${edge.bookOdds} @ ${edge.book})</span>
+            </div>
+            <div style="color:${edgeColor};font-weight:bold;font-size:18px">${edge.edge > 0 ? '+' : ''}${edge.edge}%</div>
+          </div>
+        `;
+      }
+    }
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = `<div class="card" style="padding:20px"><p style="color:#e74c3c">Error analyzing ${abbr}: ${e.message}</p><button onclick="loadNHLBubbleTab()" style="margin-top:12px;padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">← Back</button></div>`;
+  }
 }
 
 </script>

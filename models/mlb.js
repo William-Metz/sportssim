@@ -54,19 +54,62 @@ function getTeams() {
       const anyRealGames = Object.values(live).some(t => !t.isSpringTraining && t.gp > 10);
       
       if (anyRealGames) {
-        // Regular season: merge live runs data with static pitching metrics
+        // ==================== PROGRESSIVE BAYESIAN BLEND ====================
+        // CRITICAL v87.0: Instead of raw-replacing static data with live data,
+        // progressively blend preseason projections with live results.
+        //
+        // WHY: After 3 games, a team's RS/G might be 8.5 — that's noise, not signal.
+        // We should weight preseason projections heavily early, fading to live data
+        // as sample grows. The regression target should be the preseason projection,
+        // NOT league average (which throws away all our preseason analysis).
+        //
+        // BAYESIAN PRIOR: preseason projection = prior, live data = evidence
+        // Weight formula: liveWeight = gamesPlayed / (gamesPlayed + priorStrength)
+        //   priorStrength = 50 games → at 50 GP, it's 50/50 prior vs evidence
+        //   This is equivalent to treating projections as 50 games of evidence.
+        //
+        // Research basis: Baseball Prospectus/FanGraphs use 50-80 game priors
+        // for stabilization of team-level run scoring rates.
+        
+        const PRIOR_STRENGTH = 50; // preseason projection worth ~50 games of data
+        
+        // Get preseason-adjusted projections (includes roster changes, FG blend, etc.)
+        const projectedTeams = getPreseasonProjectedTeams();
+        
         const merged = {};
         for (const [abbr, staticTeam] of Object.entries(STATIC_TEAMS)) {
           const liveTeam = live[abbr];
           if (liveTeam && !liveTeam.isSpringTraining) {
+            const gp = (liveTeam.w || 0) + (liveTeam.l || 0);
+            
+            // Get preseason projection for this team (with roster change adjustments)
+            const projected = projectedTeams[abbr] || staticTeam;
+            const projRsG = projected.rsG;
+            const projRaG = projected.raG;
+            
+            // Bayesian blend weight: how much to trust live data vs projection
+            const liveWeight = gp / (gp + PRIOR_STRENGTH);
+            const priorWeight = 1 - liveWeight;
+            
+            // Blend runs scored and allowed
+            const blendedRsG = (liveTeam.rsG * liveWeight) + (projRsG * priorWeight);
+            const blendedRaG = (liveTeam.raG * liveWeight) + (projRaG * priorWeight);
+            
             merged[abbr] = {
               ...staticTeam,
               w: liveTeam.w,
               l: liveTeam.l,
-              rsG: liveTeam.rsG,
-              raG: liveTeam.raG,
+              rsG: +blendedRsG.toFixed(3),
+              raG: +blendedRaG.toFixed(3),
+              _rawLiveRsG: liveTeam.rsG,  // keep raw for diagnostics
+              _rawLiveRaG: liveTeam.raG,
+              _projRsG: projRsG,
+              _projRaG: projRaG,
+              _liveWeight: +liveWeight.toFixed(3),
+              _gamesPlayed: gp,
               l10: liveTeam.l10 || staticTeam.l10,
-              _isLiveData: true
+              _isLiveData: true,
+              _isBlended: true
             };
           } else {
             merged[abbr] = staticTeam;
@@ -77,6 +120,39 @@ function getTeams() {
     }
   }
   return STATIC_TEAMS;
+}
+
+/**
+ * Get preseason-projected RS/G and RA/G for all teams.
+ * Applies roster change adjustments from preseason-tuning service.
+ * This is the "prior" for Bayesian blending with live data.
+ */
+function getPreseasonProjectedTeams() {
+  const projected = {};
+  for (const [abbr, team] of Object.entries(STATIC_TEAMS)) {
+    let adjRsG = team.rsG;
+    let adjRaG = team.raG;
+    
+    // Apply preseason tuning adjustments (roster changes, spring training signals)
+    if (preseasonTuning) {
+      try {
+        const oda = preseasonTuning.getOpeningDayAdjustments(abbr, false);
+        // offAdj is direct run modification (positive = more runs scored)
+        adjRsG += (oda.offAdj || 0);
+        // defAdj modifies runs allowed (positive = worse defense = more runs allowed)
+        adjRaG += (oda.defAdj || 0);
+      } catch (e) { /* preseason tuning optional */ }
+    }
+    
+    // Apply FanGraphs blend if available
+    // (The static team data already has FG blend applied in STATIC_TEAMS for 2026)
+    
+    projected[abbr] = {
+      rsG: Math.max(2.5, Math.min(7.0, adjRsG)),
+      raG: Math.max(2.5, Math.min(7.0, adjRaG)),
+    };
+  }
+  return projected;
 }
 
 async function refreshData() {
@@ -164,18 +240,39 @@ const HOME_ADV = 0.540; // 54% historical home win rate in MLB
 // real data we have. After ~40 games, the regression disappears.
 // This prevents overconfident bets on Opening Day.
 function getEarlySeasonRegression(teamData) {
-  // Check if this is real regular season data vs preseason projections
+  // v87.0: CRITICAL FIX — Now that getTeams() does Bayesian blending (preseason projection
+  // as prior, live data as evidence), the early-season regression function's role changes.
+  //
+  // OLD BEHAVIOR: Regressed expected runs toward LEAGUE AVERAGE — this was wrong because
+  // it threw away all preseason analysis. A team projected for 5.5 RS/G would get regressed
+  // toward 4.35 instead of toward 5.5.
+  //
+  // NEW BEHAVIOR: The Bayesian blend in getTeams() already handles projection→live weighting.
+  // This regression function now applies a MUCH smaller correction for model uncertainty:
+  //   - Preseason/no data: 12% uncertainty premium (model less confident in preseason projections)
+  //   - Games 1-20: Linear ramp from 12% → 0% (model gaining confidence as sample grows)
+  //   - Games 20+: No regression needed (Bayesian blend handles the rest)
+  //
+  // The regression target is still league average, but at much lower magnitude since
+  // the primary blending is already done in getTeams().
+  
   const gp = (teamData.w || 0) + (teamData.l || 0);
   
-  // If the team has played a full 162-game season worth of projected data,
-  // check if it's actually a projection by seeing if we're near Opening Day
+  // Check if preseason projection (no live data yet)
   const isProjection = gp >= 130 && !teamData._isLiveData;
   
-  if (isProjection) return 0.22; // 22% regression for preseason projections
+  if (isProjection) return 0.12; // 12% uncertainty premium for preseason (was 22%)
   
-  if (gp >= 40) return 0; // full confidence after 40 real games
-  if (gp === 0) return 0.35; // truly no data: 35% regression
-  // Linear ramp: 35% at 0 games → 0% at 40 games
+  if (teamData._isBlended) {
+    // Already Bayesian-blended — minimal additional regression needed
+    // Just a small uncertainty buffer that fades with sample size
+    if (gp >= 20) return 0;
+    return Math.max(0, 0.08 * (1 - gp / 20)); // 8% → 0% over first 20 games
+  }
+  
+  // Non-blended data (shouldn't happen in normal flow, but fallback)
+  if (gp >= 40) return 0;
+  if (gp === 0) return 0.35;
   return Math.max(0, 0.35 * (1 - gp / 40));
 }
 
@@ -195,13 +292,13 @@ function getPreseasonConfidence(awayTeam, homeTeam) {
   
   if (isAPreseason || isHPreseason) {
     // Opening Day / preseason: predictions are less reliable
-    // Return a confidence factor (0-1) that should be used to shrink edges
-    return 0.75; // 75% confidence — edges should be reduced by 25%
+    // v87.0: Slightly higher confidence since Bayesian blend handles uncertainty better
+    return 0.80; // 80% confidence — edges reduced by 20% (was 25%)
   }
   
-  // Early season with some real data
+  // Early season with blended data — confidence ramps faster with Bayesian blend
   const minGP = Math.min(awayGP, homeGP);
-  if (minGP < 20) return Math.min(1.0, 0.75 + minGP * 0.0125);
+  if (minGP < 15) return Math.min(1.0, 0.80 + minGP * 0.0133);
   return 1.0;
 }
 
