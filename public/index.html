@@ -196,6 +196,7 @@ function buildTabs() {
   tabs.push({ id: 'nba-periods', label: '🔢 NBA Quarters' });
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
   tabs.push({ id: 'nhl-bubble', label: '🏒 NHL Bubble' });
+  tabs.push({ id: 'nhl-daily', label: '🏒 NHL Daily' });
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
   tabs.push({ id: 'catcher-framing', label: '🥊 Catcher Framing' });
   tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
@@ -205,6 +206,7 @@ function buildTabs() {
   tabs.push({ id: 'hwe-props', label: '📊 H/W/ER Props' });
   tabs.push({ id: 'nrfi', label: '🚫 NRFI' });
   tabs.push({ id: 'f3-model', label: '🎯 F3 Model' });
+  tabs.push({ id: 'f7-model', label: '7️⃣ F7 Model' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -283,10 +285,12 @@ function showTab(id) {
   else if (id === 'hwe-props') loadHWEPropsTab();
   else if (id === 'nrfi') loadNRFITab();
   else if (id === 'f3-model') loadF3ModelTab();
+  else if (id === 'f7-model') loadF7ModelTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
   else if (id === 'line-shop') loadLineShopTab();
   else if (id === 'nhl-bubble') loadNHLBubbleTab();
+  else if (id === 'nhl-daily') loadNHLDailyTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -11754,6 +11758,148 @@ async function analyzeF3Matchup() {
   }
 }
 
+// ==================== F7 (FIRST 7 INNINGS) MODEL TAB ====================
+async function loadF7ModelTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading F7 bullpen chaos eliminator...</p></div>';
+  
+  try {
+    const [odRes, statusRes] = await Promise.all([
+      fetch('/api/opening-day/f7').then(r => r.json()).catch(() => null),
+      fetch('/api/mlb/f7/status').then(r => r.json()).catch(() => null),
+    ]);
+    
+    let html = '<div style="padding:16px">';
+    html += '<h2 style="color:#00ff88;margin-bottom:4px">7️⃣ F7 First-7-Innings Model — Bullpen Chaos Eliminator</h2>';
+    html += '<p style="color:#888;margin-bottom:16px">Removes 8th/9th inning bullpen variance. Bad bullpen teams are overpriced on full game totals.</p>';
+    
+    // Status card
+    if (statusRes) {
+      html += '<div style="background:#1a1a2e;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #333">';
+      html += '<h3 style="color:#ffd700;margin-bottom:8px">📊 Model Status</h3>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">';
+      html += `<div><span style="color:#888">Version:</span> <span style="color:#00ff88">${statusRes.version || '?'}</span></div>`;
+      html += `<div><span style="color:#888">NB F7:</span> <span style="color:${statusRes.nbF7Available ? '#00ff88' : '#ff6b6b'}">${statusRes.nbF7Available ? '✅' : '❌'}</span></div>`;
+      html += `<div><span style="color:#888">OD Games:</span> <span style="color:#fff">${statusRes.odGames || 0}</span></div>`;
+      html += `<div><span style="color:#888">OD Starters:</span> <span style="color:#fff">${statusRes.odStarters || 0}</span></div>`;
+      html += '</div>';
+      html += `<div style="margin-top:8px;color:#888;font-size:0.85em">🏆 Worst BP: ${statusRes.worstBullpen || '?'} | Best BP: ${statusRes.bestBullpen || '?'}</div>`;
+      html += '</div>';
+    }
+    
+    if (odRes) {
+      // Worst/Best bullpens
+      if (odRes.worstBullpens && odRes.worstBullpens.length > 0) {
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">';
+        // Worst
+        html += '<div style="background:#2a1a1a;padding:12px;border-radius:8px;border:1px solid #552222">';
+        html += '<h3 style="color:#ff6b6b;margin-bottom:8px">🔥 Worst Bullpens (F7 UNDER targets)</h3>';
+        for (const bp of odRes.worstBullpens) {
+          html += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #332222">`;
+          html += `<span style="color:#fff;font-weight:bold">${bp.team}</span>`;
+          html += `<span style="color:#ff6b6b">${bp.note}</span>`;
+          html += '</div>';
+        }
+        html += '</div>';
+        // Best
+        if (odRes.bestBullpens && odRes.bestBullpens.length > 0) {
+          html += '<div style="background:#1a2a1a;padding:12px;border-radius:8px;border:1px solid #225522">';
+          html += '<h3 style="color:#00ff88;margin-bottom:8px">🛡️ Best Bullpens (F7 converges with full game)</h3>';
+          for (const bp of odRes.bestBullpens) {
+            html += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #223322">`;
+            html += `<span style="color:#fff;font-weight:bold">${bp.team}</span>`;
+            html += `<span style="color:#00ff88">${bp.note}</span>`;
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+      
+      // Top F7 Plays
+      if (odRes.topPlays && odRes.topPlays.length > 0) {
+        html += '<div style="background:#1a1a2e;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #333">';
+        html += `<h3 style="color:#ffd700;margin-bottom:8px">🎯 Top F7 Plays (${odRes.playCount} found)</h3>`;
+        html += '<table style="width:100%;border-collapse:collapse"><thead><tr style="background:#111;border-bottom:2px solid #333">';
+        html += '<th style="padding:8px;text-align:left">Game</th>';
+        html += '<th style="padding:8px;text-align:left">Play</th>';
+        html += '<th style="padding:8px;text-align:right">Model Total</th>';
+        html += '<th style="padding:8px;text-align:center">Signal</th>';
+        html += '<th style="padding:8px;text-align:left">Reason</th>';
+        html += '</tr></thead><tbody>';
+        
+        for (const play of odRes.topPlays) {
+          const signalColor = play.signal === 'STRONG_UNDER' ? '#00ff88' : play.signal === 'LEAN_UNDER' ? '#88ff88' : '#ffd700';
+          html += `<tr style="border-bottom:1px solid #222">`;
+          html += `<td style="padding:8px"><strong>${play.game}</strong><br><span style="color:#888;font-size:0.8em">${play.awayPitcher} vs ${play.homePitcher}</span></td>`;
+          html += `<td style="padding:8px;color:${signalColor};font-weight:bold">${play.play}</td>`;
+          html += `<td style="padding:8px;text-align:right">${play.modelTotal}</td>`;
+          html += `<td style="padding:8px;text-align:center;color:${signalColor}">${play.signal}</td>`;
+          html += `<td style="padding:8px;color:#888;font-size:0.85em">${play.reason || ''}</td>`;
+          html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+      }
+      
+      // All games
+      if (odRes.games && odRes.games.length > 0) {
+        html += `<div style="background:#111;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #333">`;
+        html += `<h3 style="color:#ffd700;margin-bottom:8px">📋 All ${odRes.count} OD Games — F7 Analysis</h3>`;
+        
+        for (const game of odRes.games) {
+          const bpSignal = game.bullpenEdge?.signal || 'NEUTRAL';
+          const bpColor = bpSignal.includes('UNDER') ? '#00ff88' : bpSignal.includes('OVER') ? '#ff6b6b' : '#888';
+          
+          html += '<div style="background:#1a1a2e;padding:10px;border-radius:6px;margin-bottom:8px;border-left:3px solid ' + bpColor + '">';
+          html += '<div style="display:flex;justify-content:space-between;align-items:center">';
+          html += `<div><strong style="color:#fff">${game.awayTeam}@${game.homeTeam}</strong> <span style="color:#888">Day ${game.day}</span></div>`;
+          html += `<div style="color:${bpColor};font-weight:bold">${bpSignal} ${game.bullpenEdge?.gapPct || ''}</div>`;
+          html += '</div>';
+          html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;font-size:0.85em">';
+          html += `<div><span style="color:#888">F7 Total:</span> <strong style="color:#ffd700">${game.f7?.totalF7?.toFixed(2) || '?'}</strong></div>`;
+          html += `<div><span style="color:#888">Full Total:</span> ${game.fullGame?.total?.toFixed(2) || '?'}</div>`;
+          html += `<div><span style="color:#888">${game.awayTeam} BP:</span> <span style="color:${(game.bullpenShifts?.away?.shift||0) > 0 ? '#ff6b6b' : '#00ff88'}">${(game.bullpenShifts?.away?.shift||0) > 0 ? '+' : ''}${(game.bullpenShifts?.away?.shift||0).toFixed(2)}</span></div>`;
+          html += `<div><span style="color:#888">${game.homeTeam} BP:</span> <span style="color:${(game.bullpenShifts?.home?.shift||0) > 0 ? '#ff6b6b' : '#00ff88'}">${(game.bullpenShifts?.home?.shift||0) > 0 ? '+' : ''}${(game.bullpenShifts?.home?.shift||0).toFixed(2)}</span></div>`;
+          html += '</div>';
+          
+          // Signals
+          if (game.signals && game.signals.length > 0) {
+            html += '<div style="margin-top:4px">';
+            for (const sig of game.signals) {
+              const sigColor = sig.type.includes('BAD') ? '#ff6b6b' : sig.type.includes('ELITE') ? '#00ff88' : '#ffd700';
+              html += `<span style="color:${sigColor};font-size:0.8em;margin-right:8px">⚡ ${sig.note}</span>`;
+            }
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+      
+      // Strategy guide
+      html += '<div style="background:#1a2a1a;padding:12px;border-radius:8px;border:1px solid #225522">';
+      html += '<h3 style="color:#00ff88;margin-bottom:8px">📖 F7 Betting Strategy</h3>';
+      html += '<ul style="color:#ccc;line-height:1.8">';
+      html += '<li><strong>Bad Bullpen F7 UNDER:</strong> MIL, PHI, CIN, COL — their 8th/9th inflate full game total, but F7 avoids that. Books often price F7 total as ~78% of full game — wrong for these teams.</li>';
+      html += '<li><strong>Elite Closer Fade:</strong> BAL (Helsley), MIN (Hader), NYM (Williams) — their elite closers compress 8th/9th scoring, making F7 and full game totals converge. Less edge vs full game lines.</li>';
+      html += '<li><strong>Opening Day Special:</strong> OD aces go DEEP (5.8 IP avg). F7 is almost entirely ace-on-ace. Combined with untested bullpens, F7 UNDER on bad-BP teams is the premium play.</li>';
+      html += '<li><strong>Cross-market:</strong> Compare F7 total to F5 total and full game total. If F7 total is significantly lower than 78% of full game, bad bullpen is creating the gap → F7 UNDER value.</li>';
+      html += '</ul></div>';
+    } else {
+      html += '<div style="background:#2a1a1a;padding:16px;border-radius:8px;border:1px solid #552222">';
+      html += '<h3 style="color:#ff6b6b">⚠️ F7 Model Data Not Available</h3>';
+      html += '<p style="color:#888">Check /api/mlb/f7/status for diagnostics.</p>';
+      html += '</div>';
+    }
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+    
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:16px;color:#ff6b6b">Error loading F7 tab: ${e.message}</div>`;
+  }
+}
+
 // ==================== BATTER PROPS TAB ====================
 async function loadBatterPropsTab() {
   const wrap = document.getElementById('tab-content');
@@ -13067,6 +13213,135 @@ async function analyzeNHLBubbleTeam(abbr) {
     wrap.innerHTML = html;
   } catch(e) {
     wrap.innerHTML = `<div class="card" style="padding:20px"><p style="color:#e74c3c">Error analyzing ${abbr}: ${e.message}</p><button onclick="loadNHLBubbleTab()" style="margin-top:12px;padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">← Back</button></div>`;
+  }
+}
+
+// ==================== NHL DAILY CARD TAB (v98.0) ====================
+async function loadNHLDailyTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Building NHL Daily Card...</p></div>';
+  
+  try {
+    const [cardRes, statusRes, bubbleRes] = await Promise.all([
+      fetch('/api/nhl/daily-card').then(r => r.json()).catch(() => null),
+      fetch('/api/nhl/daily-card/status').then(r => r.json()).catch(() => null),
+      fetch('/api/nhl/daily-card/bubble').then(r => r.json()).catch(() => null),
+    ]);
+    
+    let html = '<div style="padding:16px">';
+    html += '<h2 style="color:#00ff88;margin-bottom:4px">🏒 NHL Daily Betting Card</h2>';
+    html += '<p style="color:#888;margin-bottom:16px">Goalie mismatches + bubble desperation + B2B detection = daily NHL edge finder</p>';
+    
+    // Refresh button
+    html += '<div style="margin-bottom:16px"><button onclick="loadNHLDailyTab()" style="padding:8px 16px;background:#2ecc71;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:bold">🔄 Refresh Card</button></div>';
+    
+    // Status card
+    if (statusRes) {
+      html += '<div style="background:#1a1a2e;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #333">';
+      html += '<h3 style="color:#ffd700;margin-bottom:8px">📊 Status</h3>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px">';
+      html += `<div><span style="color:#888">Version:</span> <span style="color:#00ff88">${statusRes.version || '?'}</span></div>`;
+      html += `<div><span style="color:#888">Last Build:</span> <span style="color:#fff">${statusRes.lastBuildAge || 'never'}</span></div>`;
+      html += `<div><span style="color:#888">Games Today:</span> <span style="color:#fff">${statusRes.gamesInLastBuild || 0}</span></div>`;
+      html += '</div></div>';
+    }
+    
+    // Bubble summary
+    if (bubbleRes && bubbleRes.bubble) {
+      const b = bubbleRes.bubble;
+      html += '<div style="background:#1a1a2e;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #e74c3c">';
+      html += '<h3 style="color:#e74c3c;margin-bottom:8px">🔥 East Bubble Watch</h3>';
+      if (b.teams && b.teams.length > 0) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+        for (const team of b.teams) {
+          const color = team.status === 'IN' ? '#2ecc71' : team.status === 'BUBBLE' ? '#f39c12' : '#e74c3c';
+          html += `<span style="background:#0a0a1a;padding:4px 10px;border-radius:4px;border:1px solid ${color}">`;
+          html += `<span style="color:${color}">${team.team}</span> <span style="color:#888">${team.points || '?'}pts</span>`;
+          html += '</span>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Main card
+    if (cardRes && cardRes.card && cardRes.card.length > 0) {
+      // Portfolio summary
+      if (cardRes.portfolio) {
+        const p = cardRes.portfolio;
+        html += '<div style="background:#1a1a2e;padding:12px;border-radius:8px;margin-bottom:16px;border:1px solid #2ecc71">';
+        html += '<h3 style="color:#2ecc71;margin-bottom:8px">💰 Portfolio</h3>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">';
+        html += `<div><span style="color:#888">Plays:</span> <span style="color:#fff;font-weight:bold">${p.totalPlays || 0}</span></div>`;
+        html += `<div><span style="color:#888">Value Plays:</span> <span style="color:#00ff88;font-weight:bold">${p.valuePlays || 0}</span></div>`;
+        html += `<div><span style="color:#888">EV:</span> <span style="color:#ffd700;font-weight:bold">$${(p.totalEV || 0).toFixed(2)}</span></div>`;
+        html += `<div><span style="color:#888">ROI:</span> <span style="color:#00ff88;font-weight:bold">${(p.roi || 0).toFixed(1)}%</span></div>`;
+        html += '</div></div>';
+      }
+      
+      // Game cards
+      html += '<h3 style="color:#ffd700;margin-bottom:12px">🎯 Today\'s Games</h3>';
+      for (const game of cardRes.card) {
+        const edgeColor = game.edge > 5 ? '#2ecc71' : game.edge > 2 ? '#f39c12' : '#888';
+        html += '<div style="background:#1a1a2e;padding:14px;border-radius:8px;margin-bottom:10px;border:1px solid #333">';
+        
+        // Header
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+        html += `<div style="font-size:1.1em;font-weight:bold;color:#fff">${game.away || '?'} @ ${game.home || '?'}</div>`;
+        if (game.conviction) {
+          const convColor = game.conviction >= 80 ? '#2ecc71' : game.conviction >= 60 ? '#f39c12' : '#888';
+          html += `<span style="color:${convColor};font-weight:bold">${game.conviction} conv</span>`;
+        }
+        html += '</div>';
+        
+        // Prediction
+        if (game.prediction) {
+          html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">';
+          html += `<div style="text-align:center;background:#0a0a1a;padding:6px;border-radius:4px"><span style="color:#888;font-size:0.8em">Away Win</span><br><span style="color:#fff;font-weight:bold">${((game.prediction.awayWinProb || 0) * 100).toFixed(1)}%</span></div>`;
+          html += `<div style="text-align:center;background:#0a0a1a;padding:6px;border-radius:4px"><span style="color:#888;font-size:0.8em">Total</span><br><span style="color:#ffd700;font-weight:bold">${(game.prediction.total || 0).toFixed(1)}</span></div>`;
+          html += `<div style="text-align:center;background:#0a0a1a;padding:6px;border-radius:4px"><span style="color:#888;font-size:0.8em">Home Win</span><br><span style="color:#fff;font-weight:bold">${((game.prediction.homeWinProb || 0) * 100).toFixed(1)}%</span></div>`;
+          html += '</div>';
+        }
+        
+        // Signals
+        if (game.signals && game.signals.length > 0) {
+          html += '<div style="margin-bottom:6px">';
+          for (const sig of game.signals) {
+            const sigColor = sig.type === 'BACKUP_GOALIE' ? '#e74c3c' : sig.type === 'BUBBLE' ? '#f39c12' : sig.type === 'B2B' ? '#9b59b6' : '#888';
+            html += `<span style="display:inline-block;background:#0a0a1a;padding:2px 8px;border-radius:4px;margin:2px;font-size:0.85em;border:1px solid ${sigColor}">`;
+            html += `<span style="color:${sigColor}">${sig.type}</span>: <span style="color:#ccc">${sig.note || sig.team || ''}</span>`;
+            html += '</span> ';
+          }
+          html += '</div>';
+        }
+        
+        // Plays
+        if (game.plays && game.plays.length > 0) {
+          html += '<div style="margin-top:8px;border-top:1px solid #333;padding-top:8px">';
+          for (const play of game.plays) {
+            const playEdgeColor = (play.edge || 0) > 5 ? '#2ecc71' : (play.edge || 0) > 2 ? '#f39c12' : '#888';
+            html += `<div style="display:flex;justify-content:space-between;padding:3px 0">`;
+            html += `<span style="color:#fff">${play.pick || play.type || '?'}</span>`;
+            html += `<span style="color:${playEdgeColor}">${play.edge ? play.edge.toFixed(1) + '% edge' : ''} ${play.odds || ''}</span>`;
+            html += '</div>';
+          }
+          html += '</div>';
+        }
+        
+        html += '</div>';
+      }
+    } else if (cardRes && cardRes.error) {
+      html += `<div class="card" style="padding:20px"><p style="color:#f39c12">⚠️ ${cardRes.error}</p></div>`;
+    } else if (cardRes && cardRes.building) {
+      html += '<div class="card" style="padding:20px"><p style="color:#f39c12">⏳ Card is building... refresh in a few seconds.</p></div>';
+    } else {
+      html += '<div class="card" style="padding:20px"><p style="color:#888">No NHL games today or data not available yet.</p></div>';
+    }
+    
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = `<div class="card" style="padding:20px"><p style="color:#e74c3c">Error loading NHL daily card: ${e.message}</p><button onclick="loadNHLDailyTab()" style="margin-top:12px;padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">🔄 Retry</button></div>`;
   }
 }
 

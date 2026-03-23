@@ -1168,6 +1168,37 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     });
   }
   
+  // NB F7 (First 7 Innings) — bullpen chaos eliminator (v98.0)
+  let nbF7Data = null;
+  if (negBinomial && negBinomial.negBinF7) {
+    // Get bullpen ERA shifts
+    let awayBPShift = 0, homeBPShift = 0;
+    try {
+      const bpService = require('../services/bullpen-quality');
+      if (bpService && bpService.getTeamBullpen) {
+        const awayBP = bpService.getTeamBullpen(away);
+        const homeBP = bpService.getTeamBullpen(home);
+        awayBPShift = awayBP?.eraShift || 0;
+        homeBPShift = homeBP?.eraShift || 0;
+      }
+    } catch (e) {
+      // Use defaults from f7-model
+      const F7_BP_SHIFTS = { 'MIL': 0.58, 'PHI': 0.42, 'CIN': 0.35, 'COL': 0.30, 'CWS': 0.28, 'WSH': 0.25, 'NYM': -0.53, 'MIN': -0.69, 'BAL': -0.57 };
+      awayBPShift = F7_BP_SHIFTS[away] || 0;
+      homeBPShift = F7_BP_SHIFTS[home] || 0;
+    }
+    
+    nbF7Data = negBinomial.negBinF7(awayExpRuns, homeExpRuns, {
+      ...nbOpts,
+      isOpeningDay: isPreseasonPredict,
+      awayPitcherRating: awayPitcher ? (awayPitcher.rating || 50) : 50,
+      homePitcherRating: homePitcher ? (homePitcher.rating || 50) : 50,
+      awayBullpenShift: awayBPShift,
+      homeBullpenShift: homeBPShift,
+      temperature: (weatherData && weatherData.temperature) ? weatherData.temperature : null,
+    });
+  }
+  
   const homeML = probToML(homeWinProb);
   const awayML = probToML(awayWinProb);
 
@@ -1266,6 +1297,19 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
       teamTotals: nbF3Data.teamTotals,
       topScores: nbF3Data.topScores,
       model: 'negative-binomial-f3',
+    } : null,
+    f7: nbF7Data ? {
+      awayRuns: nbF7Data.awayF7Runs,
+      homeRuns: nbF7Data.homeF7Runs,
+      total: nbF7Data.totalF7,
+      ml: nbF7Data.ml,
+      totals: nbF7Data.totals,
+      spreads: nbF7Data.spreads,
+      awayTeamTotals: nbF7Data.awayTeamTotals,
+      homeTeamTotals: nbF7Data.homeTeamTotals,
+      bullpenEdge: nbF7Data.bullpenEdge,
+      f7Factor: nbF7Data.f7Factor,
+      model: 'negative-binomial-f7',
     } : null,
     parkFactor: pf,
     awayPower: awayR.power,

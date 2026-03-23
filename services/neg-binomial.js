@@ -1458,6 +1458,245 @@ function mlToProb(ml) {
 }
 
 
+// ==================== F7 (FIRST 7 INNINGS) MODEL ====================
+/**
+ * Negative Binomial First 7 Innings (F7) Model
+ * 
+ * THE EDGE: F7 eliminates the last 2 innings of bullpen chaos.
+ * - Starter typically goes 5.5-7 IP → F7 captures MOST of the starter
+ * - Only 1-2 innings of early relief (setup men, not closers)
+ * - Removes 8th/9th inning drama: tired relievers, blown saves, extras setup
+ * - CRUCIAL for bad-bullpen teams: MIL (lost Devin Williams), CIN, COL
+ * - F7 = starter's full outing + early relief ONLY
+ * 
+ * Historical data: first 7 innings produce ~76-78% of total runs
+ * Slightly less than 7/9 (77.8%) because bullpens in 8th/9th give up MORE
+ * - Late-game bullpen fatigue = higher scoring rate in final 2 innings
+ * - Closer usage patterns = higher-leverage situations
+ * 
+ * Odds API markets:
+ * - h2h_1st_7_innings (F7 moneyline)
+ * - totals_1st_7_innings (F7 total)
+ * - spreads_1st_7_innings (F7 spread)
+ * - alternates for each
+ */
+function negBinF7(awayExpRuns, homeExpRuns, opts = {}) {
+  // F7 fraction of full-game runs
+  // Historical data: first 7 innings produce 76-78% of total runs
+  // Less than 7/9 (77.8%) because late-game bullpens yield MORE runs
+  // (tired arms, mop-up duty, high-leverage situations)
+  let f7Factor = opts.f7Factor || 0.770;
+  
+  if (opts.isOpeningDay) {
+    // OD starters go deeper (5.8 IP vs 5.5), bullpens barely used in F7
+    // F7 scoring is even more starter-dominated on OD
+    f7Factor = 0.755;
+  }
+  
+  // ==================== BULLPEN QUALITY ADJUSTMENT ====================
+  // F7 vs full game diff is primarily about bullpen quality
+  // Bad bullpens inflate 8th/9th scoring → F7 total is LOWER relative to full
+  // Good bullpens compress 8th/9th → F7 total is CLOSER to full game
+  // This is THE KEY EDGE — teams with bad bullpens are overpriced on F7 totals
+  const awayBullpenAdj = opts.awayBullpenShift || 0; // ERA shift (positive = worse bullpen)
+  const homeBullpenAdj = opts.homeBullpenShift || 0;
+  
+  // Bad bullpen = F7 runs are LOWER fraction of full game runs
+  // Because bad bullpen inflates 8th/9th but F7 doesn't include that
+  // e.g., MIL bullpen ERA shift +0.58 → F7 factor decreases ~1.5%
+  const awayBPFactor = 1.0 - (awayBullpenAdj * 0.025); // bad BP = lower F7 fraction for opponent
+  const homeBPFactor = 1.0 - (homeBullpenAdj * 0.025);
+  
+  // ==================== PITCHER QUALITY ADJUSTMENT ====================
+  // Starter quality matters — good starters dominate F7 more than F5
+  // because they're still in the game for innings 6-7
+  // Elite starters: go 6.5+ IP → they ARE the F7
+  // Bad starters: pulled by inning 5-6 → F7 has more bullpen
+  const awayPR = opts.awayPitcherRating || 50;
+  const homePR = opts.homePitcherRating || 50;
+  
+  // Starter stamina effect: aces suppress innings 6-7 more
+  const awaySuppressF7 = Math.max(0, (awayPR - 40) / 1200); // 0 to 0.042
+  const homeSuppressF7 = Math.max(0, (homePR - 40) / 1200);
+  
+  // Away pitcher faces HOME batters → suppresses HOME team F7 runs
+  const homeF7Runs = Math.max(0.5, homeExpRuns * f7Factor * homeBPFactor - homeExpRuns * awaySuppressF7);
+  // Home pitcher faces AWAY batters → suppresses AWAY team F7 runs
+  const awayF7Runs = Math.max(0.5, awayExpRuns * f7Factor * awayBPFactor - awayExpRuns * homeSuppressF7);
+  
+  // ==================== WEATHER ADJUSTMENT ====================
+  let weatherAdj = 1.0;
+  if (opts.temperature) {
+    if (opts.temperature < 55) {
+      // Cold → slight scoring suppression (less than F3 effect — players warm by 7th)
+      weatherAdj = 1.0 - Math.min(0.03, (55 - opts.temperature) * 0.001);
+    } else if (opts.temperature > 85) {
+      // Hot → slight scoring boost
+      weatherAdj = 1.0 + Math.min(0.02, (opts.temperature - 85) * 0.001);
+    }
+  }
+  
+  const adjHomeF7 = homeF7Runs * weatherAdj;
+  const adjAwayF7 = awayF7Runs * weatherAdj;
+  
+  // ==================== NB OVERDISPERSION ====================
+  // F7 has SLIGHTLY less variance than full game (fewer innings for extreme outcomes)
+  // but MORE variance than F3 or F5 (more innings = more opportunities)
+  const baseR = opts.r || getGameR(opts);
+  const f7R = baseR * 1.1; // Slightly higher r than full game (1.0), less than F5 (1.3)
+  
+  const maxRuns = 16; // F7 cap between F5 (12) and full game (20)
+  
+  // ==================== BUILD SCORE MATRIX ====================
+  const scoreMatrix = [];
+  let matrixSum = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    scoreMatrix[a] = [];
+    for (let h = 0; h <= maxRuns; h++) {
+      const p = negBinPMF(a, adjAwayF7, f7R) * negBinPMF(h, adjHomeF7, f7R);
+      scoreMatrix[a][h] = p;
+      matrixSum += p;
+    }
+  }
+  // Normalize
+  if (matrixSum > 0 && matrixSum < 0.99) {
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        scoreMatrix[a][h] /= matrixSum;
+      }
+    }
+  }
+  
+  // ==================== WIN/DRAW PROBABILITIES ====================
+  // F7 CAN end in a draw (unlike full game). Draw probability matters for ML pricing.
+  let awayWin = 0, homeWin = 0, draw = 0;
+  for (let a = 0; a <= maxRuns; a++) {
+    for (let h = 0; h <= maxRuns; h++) {
+      const prob = scoreMatrix[a][h];
+      if (a > h) awayWin += prob;
+      else if (h > a) homeWin += prob;
+      else draw += prob;
+    }
+  }
+  
+  // ==================== TOTALS ====================
+  const totalF7 = adjAwayF7 + adjHomeF7;
+  const totals = {};
+  for (let line = 3.5; line <= 14.5; line += 0.5) {
+    let over = 0, under = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        if ((a + h) > line) over += scoreMatrix[a][h];
+        else under += scoreMatrix[a][h];
+      }
+    }
+    totals[line] = { over, under };
+  }
+  
+  // ==================== F7 SPREADS ====================
+  const spreads = {};
+  for (let line = -3.5; line <= 3.5; line += 0.5) {
+    if (line === 0) continue;
+    let awayCover = 0, homeCover = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      for (let h = 0; h <= maxRuns; h++) {
+        const awayMargin = a - h;
+        if (awayMargin + line > 0) awayCover += scoreMatrix[a][h]; // away covers +line
+        else if (awayMargin + line < 0) homeCover += scoreMatrix[a][h];
+        // push = 0 (rare on half-lines)
+      }
+    }
+    spreads[line] = { awayCover, homeCover };
+  }
+  
+  // ==================== TEAM TOTALS ====================
+  const awayTeamTotals = {};
+  const homeTeamTotals = {};
+  for (let line = 0.5; line <= 9.5; line += 0.5) {
+    let awayOver = 0, homeOver = 0;
+    for (let a = 0; a <= maxRuns; a++) {
+      const pA = negBinPMF(a, adjAwayF7, f7R) / (matrixSum > 0 ? 1 : 1);
+      // Simplify: use marginal probability
+      let margP = 0;
+      for (let h = 0; h <= maxRuns; h++) {
+        margP += scoreMatrix[a][h];
+      }
+      if (a > line) awayOver += margP;
+    }
+    for (let h = 0; h <= maxRuns; h++) {
+      let margP = 0;
+      for (let a = 0; a <= maxRuns; a++) {
+        margP += scoreMatrix[a][h];
+      }
+      if (h > line) homeOver += margP;
+    }
+    awayTeamTotals[line] = { over: awayOver, under: 1 - awayOver };
+    homeTeamTotals[line] = { over: homeOver, under: 1 - homeOver };
+  }
+  
+  // ==================== BULLPEN EDGE ANALYSIS ====================
+  // THE MONEY: Compare F7 total to full game total
+  // Big gap = bad bullpen team → F7 UNDER is value vs full game pricing
+  const fullGameTotal = awayExpRuns + homeExpRuns;
+  const f7Fraction = totalF7 / fullGameTotal;
+  // Use the base f7Factor (including OD adj) as expected baseline
+  // The bullpen edge is the ADDITIONAL gap beyond what f7Factor already accounts for
+  // f7Factor handles starter length, OD effects — bullpen shifts + pitcher suppress are the edge
+  const baselineF7 = (awayExpRuns * f7Factor + homeExpRuns * f7Factor) / fullGameTotal;
+  const bullpenEdge = baselineF7 - f7Fraction;
+  // Positive bullpenEdge = F7 total is LOWER than baseline → books may overprice F7 total
+  
+  let bullpenSignal = 'NEUTRAL';
+  let bullpenNote = '';
+  if (bullpenEdge > 0.025) {
+    bullpenSignal = 'STRONG_UNDER';
+    bullpenNote = `F7 total ${(bullpenEdge * 100).toFixed(1)}% below naive 7/9 scaling — bad bullpen(s) inflate late-game scoring. F7 UNDER value.`;
+  } else if (bullpenEdge > 0.015) {
+    bullpenSignal = 'LEAN_UNDER';
+    bullpenNote = `F7 total slightly suppressed vs naive 7/9 — moderate bullpen gap favors F7 UNDER.`;
+  } else if (bullpenEdge < -0.015) {
+    bullpenSignal = 'LEAN_OVER';
+    bullpenNote = `Good bullpens compress late-game scoring — F7 total closer to full game. F7 OVER lean.`;
+  } else {
+    bullpenNote = 'Bullpen quality balanced — no significant F7 vs full game gap.';
+  }
+  
+  return {
+    awayF7Runs: adjAwayF7,
+    homeF7Runs: adjHomeF7,
+    totalF7,
+    f7Factor,
+    f7R,
+    ml: {
+      away: awayWin,
+      home: homeWin,
+      draw,
+    },
+    totals,
+    spreads,
+    awayTeamTotals,
+    homeTeamTotals,
+    bullpenEdge: {
+      signal: bullpenSignal,
+      note: bullpenNote,
+      f7Fraction,
+      baselineFraction: baselineF7,
+      gapPct: (bullpenEdge * 100).toFixed(2) + '%',
+      fullGameTotal,
+    },
+    weatherAdj,
+    opts: {
+      isOpeningDay: opts.isOpeningDay || false,
+      awayPitcherRating: awayPR,
+      homePitcherRating: homePR,
+      awayBullpenShift: awayBullpenAdj,
+      homeBullpenShift: homeBullpenAdj,
+      temperature: opts.temperature,
+    },
+  };
+}
+
+
 module.exports = {
   negBinPMF,
   negBinCDF,
@@ -1465,6 +1704,7 @@ module.exports = {
   negBinRunLineProb,
   negBinF5,
   negBinF3,
+  negBinF7,
   convictionScore,
   calculateNBTotals,
   compareModels,

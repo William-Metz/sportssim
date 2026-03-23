@@ -56,9 +56,11 @@ let dailySlate = null;
 try { dailySlate = require('./services/daily-slate'); } catch (e) { console.error('[server] Daily Slate service not loaded:', e.message); }
 let dailyMlbCard = null;
 let dailyNbaCard = null;
+let dailyNhlCard = null;
 let pitcherResolver = null;
 try { dailyMlbCard = require('./services/daily-mlb-card'); } catch (e) { console.error('[server] Daily MLB Card not loaded:', e.message); }
 try { dailyNbaCard = require('./services/daily-nba-card'); } catch (e) { console.error('[server] Daily NBA Card not loaded:', e.message); }
+try { dailyNhlCard = require('./services/daily-nhl-card'); } catch (e) { console.error('[server] Daily NHL Card not loaded:', e.message); }
 try { pitcherResolver = require('./services/pitcher-resolver'); } catch (e) { console.error('[server] Pitcher Resolver not loaded:', e.message); }
 let consensusEngine = null;
 try { consensusEngine = require('./services/consensus-engine'); } catch (e) { console.error('[server] Consensus Engine not loaded:', e.message); }
@@ -100,6 +102,8 @@ let nrfiModel = null;
 try { nrfiModel = require('./services/nrfi-model'); } catch (e) { console.error('[server] NRFI Model not loaded:', e.message); }
 let f3Model = null;
 try { f3Model = require('./services/f3-model'); } catch (e) { console.error('[server] F3 Model not loaded:', e.message); }
+let f7Model = null;
+try { f7Model = require('./services/f7-model'); } catch (e) { console.error('[server] F7 Model not loaded:', e.message); }
 let batterProps = null;
 try { batterProps = require('./services/batter-props'); } catch (e) { console.error('[server] Batter Props not loaded:', e.message); }
 let pitcherHweProps = null;
@@ -195,7 +199,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '96.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection'] });
+  res.json({ status: 'ok', version: '98.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -7519,6 +7523,81 @@ app.get('/api/mlb/f3/status', (req, res) => {
   res.json(f3Model.getStatus());
 });
 
+// ==================== F7 FIRST-7-INNINGS MODEL (v98.0) ====================
+// Bullpen chaos eliminator — removes 8th/9th inning variance
+// Key edge: bad bullpen teams overpriced on full game totals, F7 captures this
+
+// F7 matchup analysis for any two teams
+app.get('/api/mlb/f7/:away/:home', (req, res) => {
+  try {
+    if (!f7Model) return res.status(503).json({ error: 'F7 model not loaded' });
+    const { away, home } = req.params;
+    const awayPitcher = req.query.awayPitcher || req.query.ap;
+    const homePitcher = req.query.homePitcher || req.query.hp;
+    const result = f7Model.predictF7(away.toUpperCase(), home.toUpperCase(), {
+      awayPitcher,
+      homePitcher,
+      isOpeningDay: req.query.od === '1',
+      temperature: req.query.temp ? parseFloat(req.query.temp) : undefined,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Scan Opening Day games for F7 value
+app.get('/api/opening-day/f7', (req, res) => {
+  try {
+    if (!f7Model) return res.status(503).json({ error: 'F7 model not loaded' });
+    const result = f7Model.scanODGames();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// F7 scan for today's MLB games (regular season)
+app.get('/api/mlb/f7/scan', (req, res) => {
+  try {
+    if (!f7Model) return res.status(503).json({ error: 'F7 model not loaded' });
+    
+    // Try to get games from live odds data
+    const games = [];
+    try {
+      const liveData = require('./services/live-data');
+      const allOdds = liveData.getAllOdds ? liveData.getAllOdds() : {};
+      const mlbOdds = allOdds.mlb || [];
+      for (const game of mlbOdds) {
+        const away = (game.away || game.away_team || '').toUpperCase();
+        const home = (game.home || game.home_team || '').toUpperCase();
+        if (away && home) {
+          games.push({ away, home });
+        }
+      }
+    } catch (e) { /* ok */ }
+    
+    // If no live games, use Opening Day schedule
+    if (games.length === 0) {
+      const result = f7Model.scanODGames({ isOpeningDay: req.query.od === '1' });
+      return res.json(result);
+    }
+    
+    const result = f7Model.scanGames(games, {
+      isOpeningDay: req.query.od === '1',
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// F7 model status
+app.get('/api/mlb/f7/status', (req, res) => {
+  if (!f7Model) return res.status(503).json({ error: 'F7 model not loaded' });
+  res.json(f7Model.getStatus());
+});
+
 // ==================== BATTER PROPS ENDPOINTS ====================
 
 // Scan all OD games for batter prop value
@@ -8413,6 +8492,79 @@ app.get('/api/nba/daily-card/mismatches', async (req, res) => {
       count: (result.mismatchSpotlight || []).length,
       date: result.date,
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== DAILY NHL CARD (v98.0) ====================
+// Full daily NHL betting card with goalie starters, bubble signals, value detection
+// East bubble chaos = massive mispricing on puck lines and totals
+
+// Build today's NHL betting card
+app.get('/api/nhl/daily-card', async (req, res) => {
+  try {
+    if (!dailyNhlCard) return res.status(503).json({ error: 'Daily NHL Card service not loaded' });
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const forceRefresh = req.query.refresh === '1';
+    const result = await dailyNhlCard.buildDailyCard({
+      date,
+      forceRefresh,
+      serverGetAllOdds: fetchOdds,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// NHL daily card status
+app.get('/api/nhl/daily-card/status', (req, res) => {
+  try {
+    if (!dailyNhlCard) return res.status(503).json({ error: 'Daily NHL Card service not loaded' });
+    res.json(dailyNhlCard.getStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// NHL daily card history
+app.get('/api/nhl/daily-card/history', (req, res) => {
+  try {
+    if (!dailyNhlCard) return res.status(503).json({ error: 'Daily NHL Card service not loaded' });
+    res.json(dailyNhlCard.getHistory());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// NHL bubble status (standalone)
+app.get('/api/nhl/daily-card/bubble', (req, res) => {
+  try {
+    if (!dailyNhlCard) return res.status(503).json({ error: 'Daily NHL Card service not loaded' });
+    res.json(dailyNhlCard.getBubbleStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// NHL B2B detection
+app.get('/api/nhl/daily-card/b2b', (req, res) => {
+  try {
+    if (!dailyNhlCard) return res.status(503).json({ error: 'Daily NHL Card service not loaded' });
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    res.json(dailyNhlCard.detectB2B(date));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Grade NHL play result
+app.post('/api/nhl/daily-card/grade', (req, res) => {
+  try {
+    if (!dailyNhlCard) return res.status(503).json({ error: 'Daily NHL Card service not loaded' });
+    const { play, result } = req.body;
+    res.json(dailyNhlCard.gradePlay(play, result));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

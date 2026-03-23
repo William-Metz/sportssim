@@ -328,6 +328,45 @@ function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction, 
     };
   }
   
+  // STEP 2c: F7 (First 7 Innings) — bullpen chaos eliminator (v98.0)
+  // Key edge: bad bullpen teams overpriced on full game totals
+  try {
+    const f7Model = require('./f7-model');
+    if (f7Model && f7Model.predictF7) {
+      const f7 = f7Model.predictF7(away, home, {
+        awayPitcher: entry.awayPitcher?.name,
+        homePitcher: entry.homePitcher?.name,
+        isOpeningDay: true,
+        temperature: entry.signals?.weather?.temperature,
+      });
+      if (f7 && !f7.error) {
+        const f7Lines = {};
+        if (f7.f7 && f7.f7.totals) {
+          for (const line of [4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5]) {
+            const ld = f7.f7.totals[line];
+            if (ld) {
+              f7Lines[line] = {
+                underPct: +(ld.under * 100).toFixed(1),
+                overPct: +(ld.over * 100).toFixed(1),
+              };
+            }
+          }
+        }
+        entry.signals.f7 = {
+          model: 'negative-binomial-f7',
+          totalF7: f7.f7?.totalF7,
+          awayF7Runs: f7.f7?.awayF7Runs,
+          homeF7Runs: f7.f7?.homeF7Runs,
+          ml: f7.f7?.ml,
+          lines: f7Lines,
+          bullpenEdge: f7.bullpenEdge,
+          signals: f7.signals,
+          bullpenShifts: f7.bullpenShifts,
+        };
+      }
+    }
+  } catch (e) { /* F7 not critical */ }
+  
   // Conviction score from predict()
   if (fullPred && fullPred.conviction) {
     entry.signals.conviction = fullPred.conviction;
