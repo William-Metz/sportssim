@@ -192,6 +192,7 @@ function buildTabs() {
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
   tabs.push({ id: 'catcher-framing', label: '🥊 Catcher Framing' });
   tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
+  tabs.push({ id: 'k-props', label: '🔥 K Props' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -253,6 +254,7 @@ function showTab(id) {
   else if (id === 'platoon-splits') loadPlatoonSplitsTab();
   else if (id === 'catcher-framing') loadCatcherFramingTab();
   else if (id === 'stolen-bases') loadStolenBasesTab();
+  else if (id === 'k-props') loadKPropsTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
 }
@@ -2179,7 +2181,79 @@ function renderOpeningDay(data) {
 
   html += `</tbody></table></div></div>`;
 
+  // ==================== K PROPS SECTION ====================
+  html += `<div class="card" style="margin-top:24px">
+    <h2>⚡ Opening Day Pitcher K Props</h2>
+    <p style="color:var(--text2);font-size:12px;margin-bottom:12px">Steamer projections × opponent K% × park K factors × OD premium</p>
+    <div id="od-k-props-content"><div class="loading"><div class="spinner"></div></div></div>
+  </div>`;
+
   wrap.innerHTML = html;
+
+  // Load K Props async
+  loadODKProps();
+}
+
+async function loadODKProps() {
+  const el = document.getElementById('od-k-props-content');
+  if (!el) return;
+  try {
+    const data = await api('/api/opening-day/k-props');
+    if (!data.topPicks || data.topPicks.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text2)">No K prop data available.</div>';
+      return;
+    }
+    
+    let html = '';
+    
+    // Summary stats
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px">';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:#22c55e">' + data.highConfidencePicks + '</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">High Confidence</div></div>';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:#eab308">' + data.totalKPropPicks + '</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">Total Picks</div></div>';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:var(--accent)">' + data.averageEdge + '%</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">Avg Edge</div></div>';
+    html += '<div style="background:var(--bg2);border-radius:10px;padding:12px;text-align:center">';
+    html += '<div style="font-size:24px;font-weight:900;color:#a78bfa">' + data.gamesScanned + '</div>';
+    html += '<div style="font-size:10px;color:var(--text2)">Games Scanned</div></div>';
+    html += '</div>';
+    
+    // K Props table
+    html += '<div style="overflow-x:auto"><table><thead><tr>';
+    html += '<th>Grade</th><th>Pitcher</th><th>Matchup</th><th>Model Ks</th><th>DK Line</th><th>Pick</th><th>Edge</th><th>Prob</th><th>Factors</th>';
+    html += '</tr></thead><tbody>';
+    
+    for (const p of data.topPicks) {
+      const gradeColor = p.grade === 'A' ? '#22c55e' : p.grade === 'B' ? '#eab308' : '#94a3b8';
+      const edgeColor = p.edge >= 10 ? '#22c55e' : p.edge >= 5 ? '#eab308' : '#94a3b8';
+      const pickColor = p.recommendation === 'OVER' ? '#22c55e' : '#ef4444';
+      const dkLine = p.dkLine ? p.dkLine.line : '—';
+      const overUnder = p.recommendation || '—';
+      const prob = p.recommendation === 'OVER' ? p.overProb : p.underProb;
+      const factors = (p.factors || []).join(' ');
+      
+      html += '<tr>';
+      html += '<td style="font-weight:900;color:' + gradeColor + ';font-size:18px">' + p.grade + '</td>';
+      html += '<td style="font-weight:600">' + p.pitcher + ' <span style="color:var(--text3);font-size:11px">(' + p.team + ')</span></td>';
+      html += '<td style="font-size:12px">' + (p.team) + ' vs ' + p.opponent + '</td>';
+      html += '<td style="font-weight:700;color:var(--accent)">' + p.adjustedExpectedKs + '</td>';
+      html += '<td>' + dkLine + '</td>';
+      html += '<td style="font-weight:700;color:' + pickColor + '">' + overUnder + '</td>';
+      html += '<td style="font-weight:700;color:' + edgeColor + '">+' + p.edge + '%</td>';
+      html += '<td>' + (prob || '—') + '%</td>';
+      html += '<td style="font-size:10px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + factors + '</td>';
+      html += '</tr>';
+    }
+    
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3)">K Props model unavailable: ' + e.message + '</div>';
+  }
 }
 
 // ==================== PLAYER PROPS TAB ====================
@@ -9778,6 +9852,209 @@ async function takeLineSnapshot() {
     loadODLinesTab(); // refresh
   } catch (err) {
     alert('Snapshot failed: ' + err.message);
+  }
+}
+
+// ==================== K PROPS TAB ====================
+async function loadKPropsTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="card"><h2>🔥 Loading K Props...</h2></div>';
+  try {
+    const [scanRes, lbRes, vulnRes] = await Promise.all([
+      fetch(`${API}/api/mlb/kprops/scan`),
+      fetch(`${API}/api/mlb/kprops/leaderboard`),
+      fetch(`${API}/api/mlb/kprops/vulnerability`),
+    ]);
+    const scan = await scanRes.json();
+    const lb = await lbRes.json();
+    const vuln = await vulnRes.json();
+
+    let html = `<div class="card"><h2>🔥 Pitcher K Props — Opening Day Value Scanner</h2>
+      <p>Model: Steamer K/9 × projected IP × team K% adj × park factor × weather × OD premium</p>
+      <p><strong>${scan.gamesScanned} games scanned</strong> | <strong>${scan.totalKPropPicks} value bets</strong> | <strong>${scan.highConfidencePicks} HIGH confidence</strong> | Avg edge: ${scan.averageEdge}%</p>
+    </div>`;
+
+    // Top Picks section
+    if (scan.topPicks && scan.topPicks.length > 0) {
+      html += `<div class="card"><h2>⭐ SMASH & STRONG K Prop Picks</h2>
+      <table><tr><th>Pitcher</th><th>Team</th><th>vs</th><th>K/9</th><th>Proj Ks</th><th>DK Line</th><th>Pick</th><th>Edge</th><th>Grade</th><th>Factors</th></tr>`;
+      for (const p of scan.topPicks) {
+        const edgeColor = p.edge >= 8 ? '#00ff88' : p.edge >= 5 ? '#88ff00' : '#ffcc00';
+        const gradeColor = p.grade.startsWith('A') ? '#00ff88' : p.grade.startsWith('B') ? '#88ff00' : '#ffcc00';
+        html += `<tr>
+          <td><strong>${p.pitcher}</strong> ${p.hand === 'L' ? '🫲' : ''} ${p.tier === 1 ? '⭐' : ''}</td>
+          <td>${p.team}</td>
+          <td>${p.opponent}</td>
+          <td>${p.blendedK9}</td>
+          <td><strong>${p.adjustedExpectedKs}</strong> (${p.low}-${p.high})</td>
+          <td>${p.dkLine ? p.dkLine.line + ' Ks' : 'N/A'}</td>
+          <td style="color:${p.recommendation === 'OVER' ? '#00ff88' : '#ff4444'};font-weight:bold">${p.recommendation}</td>
+          <td style="color:${edgeColor};font-weight:bold">${p.edge}%</td>
+          <td style="color:${gradeColor};font-weight:bold;font-size:1.2em">${p.grade}</td>
+          <td style="font-size:0.8em">${(p.factors || []).join('<br>')}</td>
+        </tr>`;
+      }
+      html += '</table></div>';
+    }
+
+    // All picks (full list)
+    if (scan.allPicks && scan.allPicks.length > 0) {
+      html += `<div class="card"><h2>📋 All K Prop Projections (${scan.allPicks.length})</h2>
+      <table><tr><th>Pitcher</th><th>Team</th><th>vs</th><th>K/9</th><th>Proj Ks</th><th>DK Line</th><th>Pick</th><th>Edge</th><th>O%</th><th>U%</th><th>O EV</th><th>U EV</th></tr>`;
+      for (const p of scan.allPicks) {
+        const recColor = p.recommendation === 'OVER' ? '#00ff88' : p.recommendation === 'UNDER' ? '#ff4444' : '#888';
+        html += `<tr>
+          <td>${p.pitcher} ${p.hand === 'L' ? '🫲' : ''}</td>
+          <td>${p.team}</td>
+          <td>${p.opponent}</td>
+          <td>${p.blendedK9}</td>
+          <td><strong>${p.adjustedExpectedKs}</strong></td>
+          <td>${p.dkLine ? p.dkLine.line : 'N/A'}</td>
+          <td style="color:${recColor};font-weight:bold">${p.recommendation}</td>
+          <td>${p.edge}%</td>
+          <td>${p.overProb}%</td>
+          <td>${p.underProb}%</td>
+          <td style="color:${p.overEV > 0 ? '#00ff88' : '#ff4444'}">${p.overEV}%</td>
+          <td style="color:${p.underEV > 0 ? '#00ff88' : '#ff4444'}">${p.underEV}%</td>
+        </tr>`;
+      }
+      html += '</table></div>';
+    }
+
+    // K/9 Leaderboard
+    if (lb.leaderboard && lb.leaderboard.length > 0) {
+      html += `<div class="card"><h2>📊 Steamer K/9 Leaderboard — OD Starters</h2>
+      <table><tr><th>#</th><th>Pitcher</th><th>Team</th><th>Hand</th><th>K/9</th><th>xK/9</th><th>Tier</th><th>Proj IP</th><th>Base Ks</th><th>Notes</th></tr>`;
+      lb.leaderboard.forEach((p, i) => {
+        const tierEmoji = p.tier === 1 ? '⭐' : p.tier === 2 ? '🔵' : p.tier === 3 ? '⚪' : '⬜';
+        html += `<tr>
+          <td>${i + 1}</td>
+          <td><strong>${p.pitcher}</strong></td>
+          <td>${p.team}</td>
+          <td>${p.hand === 'L' ? '🫲 LHP' : 'RHP'}</td>
+          <td style="font-weight:bold;color:${p.k9 >= 10 ? '#00ff88' : p.k9 >= 9 ? '#88ff00' : '#fff'}">${p.k9}</td>
+          <td>${p.xK9}</td>
+          <td>${tierEmoji} ${p.tier}</td>
+          <td>${p.projectedIP}</td>
+          <td>${p.baseExpectedKs}</td>
+          <td style="font-size:0.8em">${p.note || ''}</td>
+        </tr>`;
+      });
+      html += '</table></div>';
+    }
+
+    // Team K Vulnerability
+    if (vuln.teams && vuln.teams.length > 0) {
+      html += `<div class="card"><h2>🎯 Team K% Vulnerability Rankings</h2>
+      <p>Teams ranked by strikeout rate — higher K% = more exploitable by high-K pitchers</p>
+      <table><tr><th>#</th><th>Team</th><th>K%</th><th>vs Lg Avg</th><th>Rating</th></tr>`;
+      vuln.teams.forEach((t, i) => {
+        const ratingColor = t.rating === 'VERY HIGH' ? '#ff4444' : t.rating === 'HIGH' ? '#ff8800' : t.rating === 'AVERAGE' ? '#ffcc00' : t.rating === 'LOW' ? '#88ff00' : '#00ff88';
+        html += `<tr>
+          <td>${i + 1}</td>
+          <td><strong>${t.team}</strong></td>
+          <td style="font-weight:bold">${t.kPct}%</td>
+          <td style="color:${t.vsLgAvg > 0 ? '#ff4444' : '#00ff88'}">${t.vsLgAvg > 0 ? '+' : ''}${t.vsLgAvg}%</td>
+          <td style="color:${ratingColor};font-weight:bold">${t.rating}</td>
+        </tr>`;
+      });
+      html += '</table></div>';
+    }
+
+    // Matchup Analyzer
+    html += `<div class="card"><h2>🔍 K Prop Matchup Analyzer</h2>
+    <p>Analyze any pitcher K prop matchup:</p>
+    <select id="kprops-pitcher" style="padding:8px;margin:4px;background:#2a2a3e;color:#e0e0e0;border:1px solid #444;border-radius:4px">
+      <option value="">Select Pitcher...</option>`;
+    if (lb.leaderboard) {
+      for (const p of lb.leaderboard) {
+        html += `<option value="${p.pitcher}">${p.pitcher} (${p.team}, ${p.k9} K/9)</option>`;
+      }
+    }
+    html += `</select>
+    <select id="kprops-opponent" style="padding:8px;margin:4px;background:#2a2a3e;color:#e0e0e0;border:1px solid #444;border-radius:4px">
+      <option value="">Select Opponent...</option>`;
+    if (vuln.teams) {
+      for (const t of vuln.teams) {
+        html += `<option value="${t.team}">${t.team} (${t.kPct}% K rate)</option>`;
+      }
+    }
+    html += `</select>
+    <button onclick="analyzeKProps()" style="padding:8px 16px;background:#6366f1;color:white;border:none;border-radius:4px;cursor:pointer;margin:4px">Analyze</button>
+    <div id="kprops-result" style="margin-top:12px"></div>
+    </div>`;
+
+    // Strategy guide
+    html += `<div class="card"><h2>📖 K Prop Strategy Guide</h2>
+    <ul style="line-height:1.8">
+      <li><strong>Opening Day K Premium (+6%):</strong> Ace starters go deeper (5.8 IP vs 5.5), face lineups for first time in 2026, rusty batters K more</li>
+      <li><strong>Cold Weather Boost:</strong> Sub-50°F games see 3-4% more strikeouts — ball feels harder, grip is worse for batters</li>
+      <li><strong>High-K Opponents:</strong> CWS (25.8%), OAK (25.2%), MIA (24.5%), COL (24.2%) are the most exploitable</li>
+      <li><strong>K-Friendly Parks:</strong> Petco (1.05x), T-Mobile (1.04x), Oracle (1.04x), Dodger Stadium (1.03x)</li>
+      <li><strong>LHP Advantage:</strong> Left-handed pitchers get natural 1.5% K boost due to platoon advantage</li>
+      <li><strong>Target:</strong> Tier 1 aces (10+ K/9) vs high-K teams in cold, K-friendly parks = SMASH OVER</li>
+    </ul></div>`;
+
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>❌ Error loading K Props</h2><p>${err.message}</p></div>`;
+  }
+}
+
+async function analyzeKProps() {
+  const pitcher = document.getElementById('kprops-pitcher').value;
+  const opponent = document.getElementById('kprops-opponent').value;
+  const resultDiv = document.getElementById('kprops-result');
+  if (!pitcher || !opponent) {
+    resultDiv.innerHTML = '<p style="color:#ffcc00">Select both a pitcher and opponent</p>';
+    return;
+  }
+  resultDiv.innerHTML = '<p>Analyzing...</p>';
+  try {
+    const res = await fetch(`${API}/api/mlb/kprops/matchup/${encodeURIComponent(pitcher)}/${opponent}`);
+    const data = await res.json();
+    if (data.error) { resultDiv.innerHTML = `<p style="color:red">${data.error}</p>`; return; }
+
+    const recColor = data.recommendation === 'OVER' ? '#00ff88' : data.recommendation === 'UNDER' ? '#ff4444' : '#888';
+    const gradeColor = data.grade && data.grade.startsWith('A') ? '#00ff88' : data.grade && data.grade.startsWith('B') ? '#88ff00' : '#ffcc00';
+
+    let html = `<div style="background:#1e1e2e;border:1px solid #444;border-radius:8px;padding:16px;margin-top:8px">
+      <h3>${data.pitcher} (${data.team}, ${data.hand === 'L' ? '🫲 LHP' : 'RHP'}) vs ${data.opponent}</h3>
+      <p>Park: ${data.park} | Tier: ${data.tier}</p>
+      <table>
+        <tr><td>Steamer K/9</td><td><strong>${data.steamerK9}</strong></td><td>xK/9 (Savant)</td><td><strong>${data.xK9}</strong></td></tr>
+        <tr><td>Blended K/9</td><td><strong>${data.blendedK9}</strong></td><td>Projected IP</td><td><strong>${data.projectedIP}</strong></td></tr>
+        <tr><td>Raw Expected Ks</td><td>${data.rawExpectedKs}</td><td>Adjusted Expected Ks</td><td style="font-size:1.3em;font-weight:bold;color:#00ff88">${data.adjustedExpectedKs}</td></tr>
+        <tr><td>80% Range</td><td>${data.low} — ${data.high}</td><td>Std Dev</td><td>${data.sd}</td></tr>
+      </table>
+      <h4>Adjustments</h4>
+      <table>
+        <tr><td>Team K% Adj</td><td>${data.adjustments.teamKAdj}</td><td>Park K Factor</td><td>${data.adjustments.parkKFactor}</td></tr>
+        <tr><td>Weather K Mult</td><td>${data.adjustments.weatherKMult}</td><td>OD Premium</td><td>${data.adjustments.openerMult}</td></tr>
+        <tr><td>LHP Adj</td><td>${data.adjustments.handAdj}</td><td></td><td></td></tr>
+      </table>`;
+
+    if (data.dkLine) {
+      html += `<h4>DK Value Detection</h4>
+      <table>
+        <tr><td>DK Line</td><td><strong>${data.dkLine.line} Ks</strong> (O ${data.dkLine.overOdds} / U ${data.dkLine.underOdds})</td></tr>
+        <tr><td>Over Prob</td><td>${data.overProb}%</td><td>Under Prob</td><td>${data.underProb}%</td></tr>
+        <tr><td>Over EV</td><td style="color:${data.overEV > 0 ? '#00ff88' : '#ff4444'}">${data.overEV}%</td><td>Under EV</td><td style="color:${data.underEV > 0 ? '#00ff88' : '#ff4444'}">${data.underEV}%</td></tr>
+        <tr><td>Recommendation</td><td style="color:${recColor};font-weight:bold;font-size:1.3em">${data.recommendation} ${data.dkLine.line} Ks</td></tr>
+        <tr><td>Edge</td><td style="font-weight:bold">${data.edge}%</td><td>Grade</td><td style="color:${gradeColor};font-weight:bold;font-size:1.3em">${data.grade}</td></tr>
+      </table>`;
+    }
+
+    if (data.factors && data.factors.length > 0) {
+      html += `<h4>Key Factors</h4><ul>`;
+      data.factors.forEach(f => { html += `<li>${f}</li>`; });
+      html += '</ul>';
+    }
+
+    html += '</div>';
+    resultDiv.innerHTML = html;
+  } catch (err) {
+    resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }
 }
 
