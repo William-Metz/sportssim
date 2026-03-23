@@ -1,0 +1,11 @@
+[package]
+name = "engine-sports"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+engine-core = { path = "../core" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+rand.workspace = true
