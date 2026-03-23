@@ -199,7 +199,40 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '98.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection'] });
+  res.json({ status: 'ok', version: '99.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix'] });
+});
+
+// Deep health check — reports memory, uptime, service availability
+app.get('/api/health/deep', (req, res) => {
+  const mem = process.memoryUsage();
+  const uptime = process.uptime();
+  const services = {
+    nba: !!nba, mlb: !!mlb, nhl: !!nhl, nfl: !!nfl, ncaa: !!ncaa,
+    liveData: !!liveData, rollingStats: !!rollingStats, injuries: !!injuries,
+    weather: !!weather, statcast: !!statcast, autoScanner: !!autoScanner,
+    kelly: !!kelly, lineMovement: !!lineMovement, playerProps: !!playerProps,
+    polymarket: !!polymarket, dailyPicks: !!dailyPicks, calibration: !!calibration,
+    odPlaybookCache: !!odPlaybookCache, pitcherKProps: !!pitcherKProps,
+    nrfiModel: !!nrfiModel, f3Model: !!f3Model, f7Model: !!f7Model,
+    dailyMlbCard: !!dailyMlbCard, dailyNbaCard: !!dailyNbaCard, dailyNhlCard: !!dailyNhlCard,
+    batterProps: !!batterProps, nbaPeriodMarkets: !!nbaPeriodMarkets,
+    regularSeasonAutopilot: !!regularSeasonAutopilot,
+  };
+  const loadedCount = Object.values(services).filter(Boolean).length;
+  res.json({
+    status: 'ok',
+    version: '99.0.0',
+    uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`,
+    uptimeSeconds: Math.round(uptime),
+    memory: {
+      rss: `${Math.round(mem.rss / 1024 / 1024)}MB`,
+      heapUsed: `${Math.round(mem.heapUsed / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)}MB`,
+      external: `${Math.round(mem.external / 1024 / 1024)}MB`,
+    },
+    services: { loaded: loadedCount, total: Object.keys(services).length, detail: services },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -4256,8 +4289,34 @@ app.get('/api/nba/seeding-futures/top-bets', async (req, res) => {
 app.get('/api/nba/series-scanner', async (req, res) => {
   try {
     if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
-    const result = await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY, forceRefresh: req.query.refresh === 'true' });
-    res.json(result);
+    
+    // Non-blocking: try cache first
+    const cached = nbaSeriesScanner.getCachedScan();
+    if (cached && req.query.refresh !== 'true') {
+      return res.json(cached);
+    }
+    
+    // If force refresh or no cache, try building with timeout
+    if (req.query.refresh === 'true') {
+      // Kick background rebuild, return cached if available
+      nbaSeriesScanner.warmCache({ apiKey: ODDS_API_KEY }).catch(() => {});
+      if (cached) return res.json({ ...cached, rebuildTriggered: true });
+      return res.json({ building: true, message: 'Scan rebuild triggered. Try again in 30s.' });
+    }
+    
+    // No cache at all — try to build with 25s timeout
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000));
+    try {
+      const result = await Promise.race([
+        nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY }),
+        timeoutPromise,
+      ]);
+      res.json(result);
+    } catch (e) {
+      // Build timed out — kick background and return status
+      nbaSeriesScanner.warmCache({ apiKey: ODDS_API_KEY }).catch(() => {});
+      res.json({ building: true, message: 'Scan building in background. Try again in 30s.' });
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -4278,7 +4337,7 @@ app.get('/api/nba/series-scanner/team/:team', async (req, res) => {
 app.get('/api/nba/series-scanner/volatility', async (req, res) => {
   try {
     if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
-    const result = await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY });
+    const result = nbaSeriesScanner.getCachedScan() || await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY });
     res.json({
       volatilityPlays: result.volatilityPlays || [],
       seedingBattles: result.seedingBattles || [],
@@ -4294,11 +4353,13 @@ app.get('/api/nba/series-scanner/volatility', async (req, res) => {
 app.get('/api/nba/series-scanner/edges', async (req, res) => {
   try {
     if (!nbaSeriesScanner) return res.status(503).json({ error: 'NBA Playoff Series Scanner not loaded' });
-    const result = await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY });
+    const result = nbaSeriesScanner.getCachedScan() || await nbaSeriesScanner.runFullScan({ apiKey: ODDS_API_KEY });
     res.json({
       topEdges: result.topEdges || [],
       fadeAlerts: result.fadeAlerts || [],
       headline: result.headline,
+      futuresData: result.futuresData || null,
+      teamProfiles: (result.teamProfiles || []).slice(0, 20),
       timestamp: result.timestamp,
     });
   } catch (e) {
@@ -9281,11 +9342,14 @@ app.get('/api/season/autopilot/edges/:gameKey', (req, res) => {
 app.get('/api/opening-day/final-check', async (req, res) => {
   try {
     if (!odFinalCheck) return res.status(500).json({ error: 'Final check service not loaded' });
-    const results = await odFinalCheck.runFinalCheck({
+    // Run with a generous 45s timeout (the full check runs 20 games)
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Final check timed out after 45s — try /api/opening-day/checklist for cached data')), 45000));
+    const check = odFinalCheck.runFinalCheck({
       mlb, mlbOpeningDay, negBinomial: require('./services/neg-binomial'),
       pitcherKProps, odSgpBuilder, odPlaybookCache, openingWeekUnders,
       stolenBaseModel, bullpenQuality, lineShopping, lineupFetcher, getAllOdds
     });
+    const results = await Promise.race([check, timeout]);
     res.json(results);
   } catch (e) {
     res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0, 5) });
@@ -9726,7 +9790,9 @@ app.get('/api/line-shop/best/:sport', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎯 SportsSim v74.0 running on port ${PORT}`);
+  const mem = process.memoryUsage();
+  console.log(`🎯 SportsSim v99.0.0 running on port ${PORT}`);
+  console.log(`   Memory: RSS ${Math.round(mem.rss / 1024 / 1024)}MB, Heap ${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
   console.log(`   MLB teams: ${Object.keys(mlb.getTeams()).length}`);
@@ -9766,24 +9832,43 @@ app.listen(PORT, '0.0.0.0', () => {
   }
   console.log(`   Features: LIVE DATA, rolling stats, injuries, line movement, Kalshi scanner, PLAYER PROPS, pitcher model, Poisson totals, Kelly optimizer, WEATHER, POLYMARKET, BET TRACKER, DAILY PICKS ENGINE, ESPN STARTERS, SCHEDULE, UMPIRE TENDENCIES, PROBABILITY CALIBRATION, SGP CORRELATION ENGINE, ALT LINES SCANNER, ML ENGINE v2 (STATCAST), ARBITRAGE SCANNER, STATCAST INTEGRATION, AUTO-SCANNER, LINE SHOPPING, PITCHER RESOLVER`);
   
-  // Auto-refresh all data on startup
-  console.log('   📡 Fetching live data + rolling stats + injuries + weather + player stats + statcast...');
-  Promise.all([
-    liveData.refreshAll(),
-    rollingStats.refreshAll(),
-    injuries.refreshAll(),
-    weather.getAllWeather().catch(() => ({})),
-    playerStatsService.refreshAll().catch(() => ({ nba: 0, mlb: 0, nhl: 0 })),
-    statcast.refreshStatcast().catch(() => ({ pitchers: 0, batters: 0, error: true }))
-  ]).then(async ([liveResults, rollingResults, injuryResults, weatherResults, playerResults, statcastResults]) => {
-    console.log('   ✅ Live data:', JSON.stringify(liveResults));
-    console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
-    console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
-    console.log(`   ✅ Weather: ${Object.keys(weatherResults).length} parks cached`);
-    console.log(`   ✅ Player stats: NBA ${playerResults.nba}, MLB ${playerResults.mlb}, NHL ${playerResults.nhl}`);
-    console.log(`   ✅ Statcast: ${statcastResults.pitchers} pitchers, ${statcastResults.batters} batters${statcastResults.fromCache ? ' (cache)' : ' (fresh)'}`);
-    console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
-    console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
+  // Staggered startup: load data SEQUENTIALLY to avoid OOM on 1GB VM
+  // Health check is already responding — data loads happen in background
+  console.log('   📡 Starting staggered data load (sequential to avoid OOM)...');
+  (async () => {
+    try {
+      // Phase 1: Core standings (lightweight)
+      console.log('   📡 [1/6] Loading live standings...');
+      const liveResults = await liveData.refreshAll().catch(e => ({ error: e.message }));
+      console.log('   ✅ Live data:', JSON.stringify(liveResults));
+      
+      // Phase 2: Rolling stats
+      console.log('   📡 [2/6] Loading rolling stats...');
+      const rollingResults = await rollingStats.refreshAll().catch(e => ({ error: e.message }));
+      console.log('   ✅ Rolling stats:', JSON.stringify(rollingResults));
+      
+      // Phase 3: Injuries
+      console.log('   📡 [3/6] Loading injuries...');
+      const injuryResults = await injuries.refreshAll().catch(e => ({ error: e.message }));
+      console.log('   ✅ Injuries:', JSON.stringify(injuryResults));
+      
+      // Phase 4: Weather (moderate)
+      console.log('   📡 [4/6] Loading weather...');
+      const weatherResults = await weather.getAllWeather().catch(() => ({}));
+      console.log(`   ✅ Weather: ${Object.keys(weatherResults).length} parks cached`);
+      
+      // Phase 5: Player stats
+      console.log('   📡 [5/6] Loading player stats...');
+      const playerResults = await playerStatsService.refreshAll().catch(() => ({ nba: 0, mlb: 0, nhl: 0 }));
+      console.log(`   ✅ Player stats: NBA ${playerResults.nba}, MLB ${playerResults.mlb}, NHL ${playerResults.nhl}`);
+      
+      // Phase 6: Statcast (HEAVIEST — 853 pitchers + 651 batters)
+      console.log('   📡 [6/6] Loading Statcast (heavy)...');
+      const statcastResults = await statcast.refreshStatcast().catch(() => ({ pitchers: 0, batters: 0, error: true }));
+      console.log(`   ✅ Statcast: ${statcastResults.pitchers} pitchers, ${statcastResults.batters} batters${statcastResults.fromCache ? ' (cache)' : ' (fresh)'}`);
+      
+      console.log(`   NBA teams (live): ${Object.keys(nba.getTeams()).length}`);
+      console.log(`   NHL teams (live): ${Object.keys(nhl.getTeams()).length}`);
     
     // Take initial line movement snapshot
     try {
@@ -9856,46 +9941,47 @@ app.listen(PORT, '0.0.0.0', () => {
       });
     }
     
-  }).catch(e => {
-    console.error('   ⚠️ Data refresh failed:', e.message);
-    console.log('   Using static fallback data');
+    } catch (e) {
+      console.error('   ⚠️ Data refresh failed:', e.message);
+      console.log('   Using static fallback data');
     
-    // Still initialize auto-scanner even if data refresh failed
-    autoScanner.init({
-      dailyPicks,
-      nba, mlb, nhl,
-      getAllOdds,
-      lineMovement,
-      injuries,
-      rollingStats,
-      weather,
-      playerProps,
-      umpireService,
-      calibration,
-      mlBridge,
-      sgpEngine,
-      altLines,
-      polymarketValue,
-      arbitrage,
-      clvTracker,
-      liveData,
-      playerStatsService,
-      statcast
-    });
-    autoScanner.startAllTimers();
-    console.log('   🚀 Auto-scanner initialized (with fallback data)');
-    
-    // Initialize OD Playbook Cache even with fallback data
-    if (odPlaybookCache) {
-      odPlaybookCache.init({
-        mlb, mlbOpeningDay, weather, umpireService, calibration,
-        preseasonTuning, statcast, rollingStats, injuries,
-        bullpenQuality, lineupFetcher, openingWeekUnders,
-        stolenBaseModel, fetchOdds,
+      // Still initialize auto-scanner even if data refresh failed
+      autoScanner.init({
+        dailyPicks,
+        nba, mlb, nhl,
+        getAllOdds,
+        lineMovement,
+        injuries,
+        rollingStats,
+        weather,
+        playerProps,
+        umpireService,
+        calibration,
+        mlBridge,
+        sgpEngine,
+        altLines,
+        polymarketValue,
+        arbitrage,
+        clvTracker,
+        liveData,
+        playerStatsService,
+        statcast
       });
-      console.log('   📋 OD Playbook Cache initialized (fallback)');
+      autoScanner.startAllTimers();
+      console.log('   🚀 Auto-scanner initialized (with fallback data)');
+    
+      // Initialize OD Playbook Cache even with fallback data
+      if (odPlaybookCache) {
+        odPlaybookCache.init({
+          mlb, mlbOpeningDay, weather, umpireService, calibration,
+          preseasonTuning, statcast, rollingStats, injuries,
+          bullpenQuality, lineupFetcher, openingWeekUnders,
+          stolenBaseModel, fetchOdds,
+        });
+        console.log('   📋 OD Playbook Cache initialized (fallback)');
+      }
     }
-  });
+  })();
 
   // Periodic line movement snapshots every 30 min (kept separate from auto-scanner for backward compat)
   setInterval(async () => {
@@ -9912,18 +9998,22 @@ app.listen(PORT, '0.0.0.0', () => {
   const DATA_REFRESH_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
   setInterval(async () => {
     try {
-      console.log('🔄 Periodic data refresh starting...');
-      await Promise.all([
-        liveData.refreshAll(true),
-        rollingStats.refreshAll(true),
-        injuries.refreshAll(true)
-      ]);
+      console.log('🔄 Periodic data refresh starting (sequential)...');
+      await liveData.refreshAll(true).catch(e => console.error('  ⚠️ Live data refresh failed:', e.message));
+      await rollingStats.refreshAll(true).catch(e => console.error('  ⚠️ Rolling stats refresh failed:', e.message));
+      await injuries.refreshAll(true).catch(e => console.error('  ⚠️ Injuries refresh failed:', e.message));
       console.log('✅ Periodic data refresh complete');
     } catch (e) {
       console.error('⚠️ Periodic data refresh failed:', e.message);
     }
   }, DATA_REFRESH_INTERVAL);
   console.log('   ⏰ Auto data refresh: every 2 hours');
+
+  // Memory monitoring — log every 30 min to detect leaks
+  setInterval(() => {
+    const mem = process.memoryUsage();
+    console.log(`📊 Memory: RSS ${Math.round(mem.rss / 1024 / 1024)}MB, Heap ${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB, External ${Math.round(mem.external / 1024 / 1024)}MB`);
+  }, 30 * 60 * 1000);
 
   // Start lineup monitor for game-day lineup tracking
   if (lineupMonitor) {

@@ -32,6 +32,8 @@
  */
 
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const playoffSeries = require('./playoff-series');
 
 // Safe requires
@@ -46,6 +48,60 @@ try { restTankService = require('./nba-rest-tank'); } catch(e) {}
 let scanCache = null;
 let scanCacheTime = 0;
 const SCAN_CACHE_TTL = 20 * 60 * 1000; // 20 min — seeding battles shift daily
+let isBuilding = false;
+
+// Disk cache for persistence across deploys/restarts
+const DISK_CACHE_PATH = path.join(__dirname, 'nba-series-disk-cache.json');
+
+function saveToDisk(data) {
+  try {
+    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify({ data, savedAt: Date.now() }));
+  } catch (e) { /* disk save optional */ }
+}
+
+function loadFromDisk() {
+  try {
+    if (!fs.existsSync(DISK_CACHE_PATH)) return null;
+    const raw = JSON.parse(fs.readFileSync(DISK_CACHE_PATH, 'utf8'));
+    // Disk cache valid for 2 hours (longer than memory TTL)
+    if (raw.data && raw.savedAt && (Date.now() - raw.savedAt) < 2 * 60 * 60 * 1000) {
+      return raw.data;
+    }
+    return null;
+  } catch (e) { return null; }
+}
+
+// Load disk cache on startup
+try {
+  const diskData = loadFromDisk();
+  if (diskData) {
+    scanCache = diskData;
+    scanCacheTime = Date.now() - SCAN_CACHE_TTL + (5 * 60 * 1000); // Mark as 15min old (so fresh enough)
+    console.log('[nba-series-scanner] Loaded disk cache on startup');
+  }
+} catch (e) { /* startup load optional */ }
+
+/**
+ * Get cached scan result without blocking. Returns null if no cache.
+ */
+function getCachedScan() {
+  if (scanCache) return { ...scanCache, cached: true, cacheAge: Math.round((Date.now() - scanCacheTime) / 1000) };
+  return null;
+}
+
+/**
+ * Warm the cache in background. Call on startup or periodically.
+ */
+async function warmCache(opts = {}) {
+  if (isBuilding) return;
+  try {
+    console.log('[nba-series-scanner] Warming cache...');
+    await runFullScan({ ...opts, forceRefresh: true });
+    console.log('[nba-series-scanner] Cache warmed successfully');
+  } catch (e) {
+    console.error('[nba-series-scanner] Cache warm error:', e.message);
+  }
+}
 
 // ==================== CONFIG ====================
 const ODDS_API_BASE = 'https://api.the-odds-api.com/v4/sports';
@@ -180,7 +236,7 @@ async function getSeedingDistribution() {
   if (!nbaSeedingSim || !nbaSeedingSim.runSimulation) return null;
   
   try {
-    const sim = await nbaSeedingSim.runSimulation(5000);
+    const sim = await nbaSeedingSim.runSimulation(2000);
     return sim;
   } catch (e) {
     console.error('[nba-series-scanner] Seeding sim error:', e.message);
@@ -678,6 +734,14 @@ async function runFullScan(opts = {}) {
     return { ...scanCache, cached: true };
   }
   
+  // Prevent concurrent builds
+  if (isBuilding) {
+    if (scanCache) return { ...scanCache, cached: true, buildInProgress: true };
+    return { building: true, message: 'Scan is building, try again in 30s' };
+  }
+  
+  isBuilding = true;
+  
   const startTime = Date.now();
   const errors = [];
   
@@ -690,6 +754,7 @@ async function runFullScan(opts = {}) {
   }
   
   if (!seedingData) {
+    isBuilding = false;
     return {
       error: 'Seeding simulation not available',
       timestamp: new Date().toISOString(),
@@ -738,7 +803,7 @@ async function runFullScan(opts = {}) {
   
   const result = {
     timestamp: new Date().toISOString(),
-    version: '84.0.0',
+    version: '99.0.0',
     elapsedMs,
     
     // HEADLINE
@@ -782,6 +847,10 @@ async function runFullScan(opts = {}) {
   // Cache
   scanCache = result;
   scanCacheTime = Date.now();
+  isBuilding = false;
+  
+  // Persist to disk
+  saveToDisk(result);
   
   return result;
 }
@@ -898,8 +967,10 @@ function generateTeamAnalysis(profile) {
 function getStatus() {
   return {
     service: 'nba-playoff-series-scanner',
-    version: '84.0.0',
+    version: '99.0.0',
     cacheAge: scanCacheTime ? Math.round((Date.now() - scanCacheTime) / 1000) + 's' : 'never',
+    hasDiskCache: fs.existsSync(DISK_CACHE_PATH),
+    isBuilding,
     dependencies: {
       seedingSim: !!nbaSeedingSim,
       nbaModel: !!nbaModel,
@@ -919,5 +990,7 @@ module.exports = {
   trackSeedingBattles,
   buildMatchupMatrix,
   detectEdges,
+  getCachedScan,
+  warmCache,
   getStatus,
 };
