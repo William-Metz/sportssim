@@ -47,6 +47,8 @@ try { injuryService = require('./injuries'); } catch(e) {}
 try { rollingStats = require('./rolling-stats'); } catch(e) {}
 try { seedingSim = require('./nba-seeding-sim'); } catch(e) {}
 try { playoffSeries = require('./playoff-series'); } catch(e) {}
+let periodMarkets = null;
+try { periodMarkets = require('./nba-period-markets'); } catch(e) {}
 
 // ==================== CACHE ====================
 const CACHE_DIR = path.join(__dirname, 'daily-nba-cache');
@@ -595,6 +597,49 @@ async function buildDailyCard(opts = {}) {
       hasMismatch: restTank && Math.abs(restTank.netAdjustment || 0) >= 2.0,
     };
 
+    // Period market structural edges (v97.0)
+    if (periodMarkets) {
+      try {
+        const awayMotiv = restTank?.awayMotivation || 'COMPETING';
+        const homeMotiv = restTank?.homeMotivation || 'COMPETING';
+        const edges = periodMarkets.findStructuralEdges(awayAbbr, homeAbbr, {
+          awayMotivation: awayMotiv,
+          homeMotivation: homeMotiv,
+        });
+        if (edges && edges.edges && edges.edges.length > 0) {
+          card.periodEdges = edges.edges.slice(0, 5); // top 5 structural edges
+          // Add best period bets to allBets
+          for (const edge of edges.edges) {
+            if (edge.edgePct >= 3.0) {
+              const conviction = calculateConviction(pred, lines, restTank, edge.edgePct, 'period');
+              const bet = {
+                type: 'PERIOD',
+                game: gameKey,
+                awayTeam: awayAbbr,
+                homeTeam: homeAbbr,
+                market: edge.market,
+                period: edge.period,
+                side: edge.side,
+                modelValue: edge.modelValue,
+                bookValue: edge.bookValue || null,
+                edge: +edge.edgePct.toFixed(1),
+                description: edge.description || `${edge.period} ${edge.market} ${edge.side}`,
+                conviction,
+                grade: convictionGrade(conviction),
+                tier: convictionTier(conviction),
+                source: edge.source || 'structural',
+              };
+              gameBets.push(bet);
+              card.bets.push(bet);
+              card.betCount = card.bets.length;
+            }
+          }
+        }
+      } catch (e) {
+        // Period market errors are non-fatal
+      }
+    }
+
     gameCards.push(card);
     allBets.push(...gameBets);
   }
@@ -645,6 +690,7 @@ async function buildDailyCard(opts = {}) {
       totalEV: +totalEV.toFixed(2),
       roi: totalWager > 0 ? +((totalEV / totalWager) * 100).toFixed(1) : 0,
       mismatchGames: mismatchGames.length,
+      periodBets: allBets.filter(b => b.type === 'PERIOD').length,
       bestPlay: allBets.length > 0 ? {
         game: allBets[0].pick,
         edge: allBets[0].edge,

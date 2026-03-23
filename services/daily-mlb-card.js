@@ -71,6 +71,8 @@ try { lineShoppingService = require('./line-shopping'); } catch(e) {}
 try { betTracker = require('./bet-tracker'); } catch(e) {}
 let batterPropsService = null;
 try { batterPropsService = require('./batter-props'); } catch(e) {}
+let pitcherHweService = null;
+try { pitcherHweService = require('./pitcher-hwe-props'); } catch(e) {}
 
 // ==================== ODDS API ====================
 function fetchJSON(url, timeoutMs = 12000) {
@@ -1072,6 +1074,70 @@ async function buildDailyCard(opts = {}) {
       }
     }
 
+    // 3h. Pitcher HWE Props — Hits Allowed, Walks, Earned Runs (v97.0)
+    // These are soft markets with less sharp action = bigger edges
+    if (pitcherHweService) {
+      try {
+        for (const side of ['away', 'home']) {
+          const pitcherName = card.starters[side];
+          const pitcherTeam = side === 'away' ? away : home;
+          const oppTeam = side === 'away' ? home : away;
+          if (!pitcherName || pitcherName === 'TBD') continue;
+
+          const analysis = pitcherHweService.analyzePitcherProps(pitcherName, oppTeam, home, {
+            isOpeningDay: getSeasonContext(date).phase === 'opening-week',
+          });
+          if (!analysis) continue;
+
+          if (!card.props.hweProps) card.props.hweProps = [];
+
+          // Process each market: hits, walks, earnedRuns
+          for (const [mKey, market] of Object.entries(analysis)) {
+            if (!market || typeof market !== 'object' || !market.expected) continue;
+            if (!['hitsAllowed', 'walks', 'earnedRuns'].includes(mKey)) continue;
+
+            // Evaluate value vs DK lines if available
+            let valueBet = null;
+            if (pitcherHweService.evaluatePropValue && market.line) {
+              valueBet = pitcherHweService.evaluatePropValue(
+                pitcherName, mKey, market.line, market.overOdds || -110, market.underOdds || -110
+              );
+            }
+
+            const edge = valueBet?.edge || market.edge || 0;
+            const recommendation = valueBet?.recommendation || market.recommendation || 'PASS';
+
+            if (Math.abs(edge) >= 4 && recommendation !== 'PASS') {
+              const propType = mKey === 'hitsAllowed' ? 'HITS_ALLOWED' : 
+                               mKey === 'walks' ? 'WALKS' : 'EARNED_RUNS';
+              const bet = {
+                type: 'HWE_PROP',
+                subType: propType,
+                pitcher: pitcherName,
+                team: pitcherTeam,
+                opponent: oppTeam,
+                side: recommendation,
+                expected: +market.expected.toFixed(2),
+                line: market.line || null,
+                edge: +edge.toFixed(1),
+                confidence: Math.abs(edge) >= 8 ? 'HIGH' : Math.abs(edge) >= 5 ? 'MEDIUM' : 'LOW',
+                game: gameKey,
+                xStat: market.xStat || null, // Statcast expected stat used
+                conviction: calculateConviction(card.prediction, card.odds, { 
+                  edge: Math.abs(edge),
+                  hasStatcast: true, // HWE props always use Statcast data
+                }),
+              };
+              allBets.push(bet);
+              card.props.hweProps.push(bet);
+            }
+          }
+        }
+      } catch (e) {
+        warnings.push(`HWE props ${gameKey}: ${e.message}`);
+      }
+    }
+
     gameCards.push(card);
   }
 
@@ -1150,6 +1216,7 @@ async function buildDailyCard(opts = {}) {
         runLines: topPlays.filter(b => b.type === 'RUN_LINE').length,
         kProps: topPlays.filter(b => b.type === 'K_PROP').length,
         batterProps: topPlays.filter(b => b.type === 'BATTER_PROP').length,
+        hweProps: topPlays.filter(b => b.type === 'HWE_PROP').length,
       },
     },
 
@@ -1164,6 +1231,7 @@ async function buildDailyCard(opts = {}) {
       gamesWithKProps: gameCards.filter(g => g.props.kProps?.length > 0).length,
       gamesWithNRFI: gameCards.filter(g => g.props.nrfi).length,
       gamesWithBatterProps: gameCards.filter(g => g.props.batterProps?.length > 0).length,
+      gamesWithHWEProps: gameCards.filter(g => g.props.hweProps?.length > 0).length,
     },
 
     // PORTFOLIO
@@ -1348,6 +1416,7 @@ function getStatus() {
       betTracker: !!betTracker,
       pitcherResolver: !!pitcherResolver,
       batterProps: !!batterPropsService,
+      pitcherHweProps: !!pitcherHweService,
     },
   };
 }
