@@ -194,6 +194,7 @@ function buildTabs() {
   tabs.push({ id: 'stolen-bases', label: '🏃 SB Revolution' });
   tabs.push({ id: 'k-props', label: '🔥 K Props' });
   tabs.push({ id: 'outs-props', label: '⏱️ Outs Props' });
+  tabs.push({ id: 'nrfi', label: '🚫 NRFI' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
   tabs.push({ id: 'od-weather', label: '🌤️ OD Weather' });
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
@@ -262,6 +263,7 @@ function showTab(id) {
   else if (id === 'stolen-bases') loadStolenBasesTab();
   else if (id === 'k-props') loadKPropsTab();
   else if (id === 'outs-props') loadOutsPropsTab();
+  else if (id === 'nrfi') loadNRFITab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
   else if (id === 'od-lines') loadODLinesTab();
   else if (id === 'line-shop') loadLineShopTab();
@@ -10783,6 +10785,123 @@ async function loadLineShopTab() {
         <p style="font-size:11px;color:var(--text3);margin-top:6px">Error: ${e.message}</p>
       </div>
     </div>`;
+  }
+}
+
+// ==================== NRFI/YRFI TAB v77.0 ====================
+async function loadNRFITab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div><p>Loading NRFI model...</p></div>';
+  
+  try {
+    const resp = await fetch(API + '/api/opening-day/nrfi');
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div style="padding:20px;color:#ff6b6b">Error: ${data.error}</div>`;
+      return;
+    }
+    
+    const games = data.games || [];
+    const nrfiPicks = games.filter(g => g.signal === 'NRFI');
+    const yrfiPicks = games.filter(g => g.signal === 'YRFI');
+    
+    let html = `
+      <div style="padding:20px;max-width:1200px;margin:0 auto">
+        <h2 style="margin-bottom:5px">🚫 NRFI/YRFI Model — First Inning Scoring</h2>
+        <p style="color:#aaa;margin-bottom:20px">Opening Day aces + rusty bats = NRFI goldmine. Poisson 1st-inning scoring model with pitcher quality, leadoff batter, park, and weather adjustments.</p>
+        
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#00ff88">${data.nrfiPicks}</div>
+            <div style="color:#aaa;font-size:13px">NRFI Plays</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#ff6b6b">${data.yrfiPicks}</div>
+            <div style="color:#aaa;font-size:13px">YRFI Plays</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#ffd700">${data.highConfidence}</div>
+            <div style="color:#aaa;font-size:13px">High Confidence</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:10px;padding:15px;text-align:center">
+            <div style="font-size:28px;font-weight:bold;color:#fff">${data.avgNRFI}%</div>
+            <div style="color:#aaa;font-size:13px">Avg NRFI %</div>
+          </div>
+        </div>
+        
+        <div style="background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:15px;margin-bottom:20px">
+          <h3 style="margin-top:0;color:#ffd700">💡 Strategy Guide</h3>
+          <p style="color:#ccc;margin:5px 0"><strong>Thesis:</strong> ${data.strategy?.thesis || 'OD aces dominate 1st innings'}</p>
+          <p style="color:#00ff88;margin:5px 0"><strong>Best NRFI:</strong> ${data.strategy?.bestNRFI || 'Two aces in pitcher park'}</p>
+          <p style="color:#ff6b6b;margin:5px 0"><strong>Best YRFI:</strong> ${data.strategy?.bestYRFI || 'Hitter park + weak starters'}</p>
+          <p style="color:#aaa;margin:5px 0"><strong>Sizing:</strong> ${data.strategy?.kellySizing || 'Quarter-Kelly on single-inning plays'}</p>
+          <p style="color:#aaa;margin:5px 0"><strong>SGP Tip:</strong> ${data.strategy?.correlation || 'NRFI + F5 UNDER = positive correlation'}</p>
+        </div>`;
+    
+    // Game cards
+    html += `<h3>📊 All ${games.length} Opening Day Games</h3>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:12px">`;
+    
+    for (const g of games) {
+      if (g.error) continue;
+      
+      const signalColor = g.signal === 'NRFI' ? '#00ff88' : g.signal === 'YRFI' ? '#ff6b6b' : '#888';
+      const signalEmoji = g.signal === 'NRFI' ? '🚫' : g.signal === 'YRFI' ? '✅' : '➖';
+      const starStr = '⭐'.repeat(g.stars || 0) + '☆'.repeat(5 - (g.stars || 0));
+      const confBadge = g.confidence === 'HIGH' ? '<span style="background:#00ff88;color:#000;padding:2px 6px;border-radius:4px;font-size:11px">HIGH</span>' :
+                        g.confidence === 'MEDIUM' ? '<span style="background:#ffd700;color:#000;padding:2px 6px;border-radius:4px;font-size:11px">MED</span>' : '';
+      
+      // NRFI bar visual
+      const nrfiPct = g.nrfi || 50;
+      const nrfiBarColor = nrfiPct >= 55 ? '#00ff88' : nrfiPct <= 45 ? '#ff6b6b' : '#888';
+      
+      html += `
+        <div style="background:#1a1a2e;border-radius:10px;padding:15px;border-left:3px solid ${signalColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <span style="font-weight:bold;font-size:16px">${g.matchup}</span>
+              <span style="color:#aaa;font-size:12px;margin-left:8px">Day ${g.day || '?'}</span>
+            </div>
+            <div>${signalEmoji} <span style="color:${signalColor};font-weight:bold">${g.signal}</span> ${confBadge}</div>
+          </div>
+          
+          <div style="font-size:12px;color:#aaa;margin-bottom:8px">
+            ${g.pitchers?.away || '?'} vs ${g.pitchers?.home || '?'}
+          </div>
+          
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="color:#00ff88;font-weight:bold">NRFI ${g.nrfi}%</span>
+              <span style="color:#ff6b6b;font-weight:bold">YRFI ${g.yrfi}%</span>
+            </div>
+            <div style="background:#333;height:10px;border-radius:5px;overflow:hidden">
+              <div style="background:${nrfiBarColor};height:100%;width:${nrfiPct}%;transition:width 0.3s"></div>
+            </div>
+          </div>
+          
+          <div style="font-size:11px;color:#aaa;display:flex;justify-content:space-between;margin-bottom:5px">
+            <span>Fair ML: ${g.fairNrfiML > 0 ? '+' : ''}${g.fairNrfiML}</span>
+            <span>Edge: ${g.edge}%</span>
+            <span>${starStr}</span>
+          </div>
+          
+          <div style="font-size:11px;color:#666;border-top:1px solid #333;padding-top:5px;margin-top:5px">
+            <div>Away P(0): ${g.breakdown?.awayP0 || '?'}% | Home P(0): ${g.breakdown?.homeP0 || '?'}%</div>
+            <div>Park: ${g.breakdown?.parkFactor || '?'}x | OD Boost: +${g.breakdown?.odBoost || 0}%${g.breakdown?.temp ? ' | Temp: ' + g.breakdown.temp + '°F' : ''}</div>
+          </div>
+          
+          ${g.firstInning ? `
+          <div style="font-size:11px;color:#666;margin-top:5px">
+            <span>1st Inn 3-Way: Away ${g.firstInning.threeWayML.awayWins}% | Tie ${g.firstInning.threeWayML.tie}% | Home ${g.firstInning.threeWayML.homeWins}%</span>
+          </div>` : ''}
+        </div>`;
+    }
+    
+    html += '</div></div>';
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div style="padding:20px;color:#ff6b6b">Error loading NRFI data: ${e.message}</div>`;
   }
 }
 

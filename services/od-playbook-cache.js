@@ -946,4 +946,15 @@ async function refresh() {
   }
 }
 
-module.exports = { init, getPlaybook, refresh, processGame };
+/**
+ * Get cached playbook WITHOUT triggering a build (instant, non-blocking)
+ * Returns null if no cache exists. Used by checklist endpoint to avoid timeout.
+ */
+function getCachedOnly() {
+  if (!cachedPlaybook) return null;
+  const age = cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000) : null;
+  const isFresh = cacheTimestamp && (Date.now() - cacheTimestamp < CACHE_TTL_MS);
+  return { ...cachedPlaybook, cached: true, fresh: isFresh, cacheAge: age ? age + 's' : 'unknown' };
+}
+
+module.exports = { init, getPlaybook, refresh, processGame, getCachedOnly };
