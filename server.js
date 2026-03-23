@@ -104,6 +104,8 @@ let batterProps = null;
 try { batterProps = require('./services/batter-props'); } catch (e) { console.error('[server] Batter Props not loaded:', e.message); }
 let pitcherHweProps = null;
 try { pitcherHweProps = require('./services/pitcher-hwe-props'); } catch (e) { console.error('[server] Pitcher HWE Props not loaded:', e.message); }
+let nbaPeriodMarkets = null;
+try { nbaPeriodMarkets = require('./services/nba-period-markets'); } catch (e) { console.error('[server] NBA Period Markets not loaded:', e.message); }
 let lineShopping = null;
 try { lineShopping = require('./services/line-shopping'); } catch (e) { console.error('[server] Line Shopping not loaded:', e.message); }
 let odWarRoom = null;
@@ -193,7 +195,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '95.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props'] });
+  res.json({ status: 'ok', version: '96.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -8411,6 +8413,83 @@ app.get('/api/nba/daily-card/mismatches', async (req, res) => {
       count: (result.mismatchSpotlight || []).length,
       date: result.date,
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== NBA PERIOD MARKETS (v96.0) ====================
+// Quarter & Half period-level betting markets — structural edge detection
+// Less efficiently priced than full-game markets = more edge
+
+// Predict period-level outcomes for a matchup
+app.get('/api/nba/periods/:away/:home', async (req, res) => {
+  try {
+    if (!nbaPeriodMarkets) return res.status(503).json({ error: 'NBA Period Markets not loaded' });
+    const { away, home } = req.params;
+    const isPlayoffs = req.query.playoffs === '1' || req.query.playoffs === 'true';
+    const result = await nbaPeriodMarkets.asyncPredictPeriods(away.toUpperCase(), home.toUpperCase(), { isPlayoffs });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Find structural quarter/half edges for a matchup (works without live odds)
+app.get('/api/nba/periods/edges/:away/:home', async (req, res) => {
+  try {
+    if (!nbaPeriodMarkets) return res.status(503).json({ error: 'NBA Period Markets not loaded' });
+    const { away, home } = req.params;
+    // Auto-detect motivation via rest/tank service
+    let awayMotiv = 'COMPETING', homeMotiv = 'COMPETING';
+    if (restTankSvc) {
+      try {
+        const standings = nbaModel.getTeams();
+        const today = new Date().toISOString().split('T')[0];
+        const rtData = await restTankSvc.getGameAdjustment(away.toUpperCase(), home.toUpperCase(), standings, today);
+        if (rtData) {
+          if (rtData.away?.motivation?.motivation) awayMotiv = rtData.away.motivation.motivation;
+          if (rtData.home?.motivation?.motivation) homeMotiv = rtData.home.motivation.motivation;
+        }
+      } catch (e) {}
+    }
+    const result = nbaPeriodMarkets.findStructuralEdges(away.toUpperCase(), home.toUpperCase(), { 
+      awayMotivation: req.query.awayMotiv || awayMotiv,
+      homeMotivation: req.query.homeMotiv || homeMotiv
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Scan all today's games for structural period edges
+app.get('/api/nba/periods/scan', async (req, res) => {
+  try {
+    if (!nbaPeriodMarkets) return res.status(503).json({ error: 'NBA Period Markets not loaded' });
+    const result = await nbaPeriodMarkets.scanStructuralEdges();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Scan all period markets for value vs live odds
+app.get('/api/nba/periods/value', async (req, res) => {
+  try {
+    if (!nbaPeriodMarkets) return res.status(503).json({ error: 'NBA Period Markets not loaded' });
+    const result = await nbaPeriodMarkets.scanPeriodValue();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Period markets status
+app.get('/api/nba/periods/status', (req, res) => {
+  try {
+    if (!nbaPeriodMarkets) return res.status(503).json({ error: 'NBA Period Markets not loaded' });
+    res.json(nbaPeriodMarkets.getStatus());
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -193,6 +193,7 @@ function buildTabs() {
   // NCAA March Madness tab — always visible during tournament
   tabs.push({ id: 'war-room', label: '⚔️ WAR ROOM' });
   tabs.push({ id: 'nba-daily-card', label: '🏀 NBA CARD' });
+  tabs.push({ id: 'nba-periods', label: '🔢 NBA Quarters' });
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
   tabs.push({ id: 'nhl-bubble', label: '🏒 NHL Bubble' });
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
@@ -272,6 +273,7 @@ function showTab(id) {
   else if (id === 'march-madness') loadMarchMadnessTab();
   else if (id === 'war-room') loadWarRoomTab();
   else if (id === 'nba-daily-card') loadNBADailyCardTab();
+  else if (id === 'nba-periods') loadNBAPeriodsTab();
   else if (id === 'platoon-splits') loadPlatoonSplitsTab();
   else if (id === 'catcher-framing') loadCatcherFramingTab();
   else if (id === 'stolen-bases') loadStolenBasesTab();
