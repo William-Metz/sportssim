@@ -5653,6 +5653,7 @@ function renderPlaybook(data) {
         <span class="game-teams">${game.away} <span class="at">@</span> ${game.home}</span>
         <span style="background:${gradeColor}20;color:${gradeColor};padding:4px 12px;border-radius:6px;font-weight:900;font-size:16px">${gr.grade}</span>
         ${gr.betCount > 0 ? `<span style="background:#22c55e20;color:#22c55e;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${gr.betCount} BETS</span>` : ''}
+        ${gr.conviction ? `<span style="background:${gradeColor}10;color:${gradeColor};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">🎯 ${gr.conviction.score}/100 ${gr.conviction.action}</span>` : ''}
       </div>
       <div>
         <span class="game-time">${game.time} • ${game.park}</span>

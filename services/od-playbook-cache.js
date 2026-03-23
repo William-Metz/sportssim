@@ -157,6 +157,16 @@ function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction, 
         predictOpts.umpire = umpireData;
       }
       
+      // v68.0: Inject market data for conviction scoring
+      // Use DK lines from the OD schedule, or live odds if available
+      if (game.dkLine) {
+        predictOpts.market = {
+          homeML: game.dkLine.homeML,
+          awayML: game.dkLine.awayML,
+          total: game.dkLine.total,
+        };
+      }
+      
       fullPred = deps.mlb.predict(game.away, game.home, predictOpts);
     }
   } catch (e) {

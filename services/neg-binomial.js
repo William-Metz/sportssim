@@ -1036,11 +1036,31 @@ function convictionScore(prediction, market = {}, opts = {}) {
     breakdown.push({ signal: 'statcast', points: 3, detail: 'Statcast xERA/xwOBA active' });
   }
   
+  // Catcher framing data
+  if (prediction.factors?.catcherFraming && prediction.factors.catcherFraming.framingGap) {
+    dataPoints += 2;
+    const gap = Math.abs(prediction.factors.catcherFraming.framingGap);
+    breakdown.push({ signal: 'catcherFraming', points: 2, detail: `Catcher framing data (${gap.toFixed(1)} gap)` });
+  }
+  
+  // Platoon split data  
+  if (prediction.factors?.awayPlatoon || prediction.factors?.homePlatoon) {
+    dataPoints += 2;
+    breakdown.push({ signal: 'platoonData', points: 2, detail: 'Savant platoon split data' });
+  }
+  
+  // Bullpen quality projections
+  if (prediction.factors?.bullpenProjection) {
+    dataPoints += 2;
+    breakdown.push({ signal: 'bullpenData', points: 2, detail: 'Bullpen quality projections' });
+  }
+  
   dataPoints = Math.min(15, dataPoints);
   score += dataPoints;
   
   // 5. MARKET CONTEXT (0-10 points)
-  // Line movement, CLV history, market efficiency signals
+  // v68.0: Line movement, CLV history, market efficiency signals
+  // Without market data: score based on prediction model diversity
   let marketPoints = 0;
   
   if (opts.lineMovement) {
@@ -1054,6 +1074,30 @@ function convictionScore(prediction, market = {}, opts = {}) {
     } else if (opts.lineMovement === 'against') {
       marketPoints += 0;
       breakdown.push({ signal: 'lineMove', points: 0, detail: '⚠️ Line moving against us' });
+    }
+  } else if (market.homeML) {
+    // Have market data but no movement info — give partial credit
+    marketPoints += 3;
+    breakdown.push({ signal: 'marketData', points: 3, detail: 'Market comparison available' });
+  } else {
+    // No market data at all — give points for prediction model diversity instead
+    // (more model types contributing = better convergence)
+    let modelCount = 0;
+    if (prediction.homeWinProb) modelCount++; // Analytical
+    if (prediction.monteCarlo) modelCount++; // Monte Carlo  
+    if (prediction.ml) modelCount++; // ML ensemble
+    if (prediction.f5?.model === 'negative-binomial-f5') modelCount++; // NB F5
+    if (prediction.altRunLines?.model === 'negative-binomial') modelCount++; // NB run lines
+    
+    if (modelCount >= 4) {
+      marketPoints += 5;
+      breakdown.push({ signal: 'modelDiversity', points: 5, detail: `${modelCount} model types contributing` });
+    } else if (modelCount >= 2) {
+      marketPoints += 3;
+      breakdown.push({ signal: 'modelDiversity', points: 3, detail: `${modelCount} model types contributing` });
+    } else {
+      marketPoints += 1;
+      breakdown.push({ signal: 'modelDiversity', points: 1, detail: 'Limited model coverage' });
     }
   }
   
@@ -1126,6 +1170,27 @@ function convictionScore(prediction, market = {}, opts = {}) {
     } else if (maxDelta >= 0.15) {
       situationalPoints += 2;
       breakdown.push({ signal: 'bullpen', points: 2, detail: `Bullpen projection shift: ${maxDelta.toFixed(2)} ERA delta` });
+    }
+  }
+  
+  // Catcher framing edge — large framing gap creates real edge on totals
+  if (prediction.factors?.catcherFraming) {
+    const gap = Math.abs(prediction.factors.catcherFraming.framingGap || 0);
+    if (gap >= 20) {
+      situationalPoints += 4;
+      breakdown.push({ signal: 'framingEdge', points: 4, detail: `Massive framing gap: ${gap.toFixed(1)} run differential` });
+    } else if (gap >= 10) {
+      situationalPoints += 2;
+      breakdown.push({ signal: 'framingEdge', points: 2, detail: `Significant framing gap: ${gap.toFixed(1)} run differential` });
+    }
+  }
+  
+  // Stolen base revolution — aggressive teams create totals edge
+  if (prediction.factors?.stolenBases) {
+    const sbAdj = Math.abs(prediction.factors.stolenBases.netTotalAdj || 0);
+    if (sbAdj >= 0.10) {
+      situationalPoints += 2;
+      breakdown.push({ signal: 'stolenBases', points: 2, detail: `SB run impact: ${(sbAdj).toFixed(2)} extra runs` });
     }
   }
   
