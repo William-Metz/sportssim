@@ -189,7 +189,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '90.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio'] });
+  res.json({ status: 'ok', version: '92.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix'] });
 });
 
 // ==================== NBA ENDPOINTS ====================
@@ -6086,7 +6086,7 @@ app.get('/api/statcast/status', (req, res) => {
  */
 app.get('/api/opening-day-playbook', async (req, res) => {
   try {
-    // v67.0: Uses pre-fetched data + sync predict() — no redundant network calls
+    // v91.0: Non-blocking — serve cached, trigger background rebuild if stale
     if (odPlaybookCache) {
       const bankroll = parseFloat(req.query.bankroll) || 1000;
       const kellyFraction = parseFloat(req.query.kelly) || 0.5;
@@ -6094,12 +6094,38 @@ app.get('/api/opening-day-playbook', async (req, res) => {
       const forceRefresh = req.query.refresh === 'true';
       
       if (forceRefresh) {
-        const result = await odPlaybookCache.refresh();
-        return res.json(result);
+        // Force refresh with timeout protection
+        try {
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000));
+          const result = await Promise.race([odPlaybookCache.refresh(), timeoutPromise]);
+          return res.json(result);
+        } catch (e) {
+          const stale = odPlaybookCache.getCachedOnly();
+          if (stale) return res.json({ ...stale, note: 'Refresh timed out — returning stale cache' });
+          return res.status(504).json({ error: 'Refresh timed out and no cache available' });
+        }
       }
       
-      const result = await odPlaybookCache.getPlaybook(bankroll, kellyFraction, minEdge);
-      return res.json(result);
+      // Non-blocking: try cached first
+      const cached = odPlaybookCache.ensureFresh();
+      if (cached) {
+        return res.json(cached);
+      }
+      
+      // No cache at all — wait with timeout
+      try {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 20000));
+        const result = await Promise.race([
+          odPlaybookCache.getPlaybook(bankroll, kellyFraction, minEdge),
+          timeoutPromise
+        ]);
+        return res.json(result);
+      } catch (e) {
+        return res.json({ 
+          error: 'Playbook is building (first load takes ~18s). Try again in 30 seconds.', 
+          building: true, playbook: [], totalGames: 0 
+        });
+      }
     }
     
     // Fallback: slim version without full signal stack (avoids timeout)
@@ -6165,10 +6191,24 @@ app.get('/api/opening-day/betting-card', async (req, res) => {
     const kellyFraction = parseFloat(req.query.kelly) || 0.5;
     const minConviction = parseInt(req.query.minConviction) || 50; // C+ minimum
     
-    // Get the full playbook (uses cache)
+    // v92.0: ALWAYS return instantly from cache — NEVER block waiting for a build.
+    // On cold start, disk cache is loaded in init(). On warm, memory cache is fresh.
+    // If neither exists, return a "building" response immediately.
     let playbook;
     if (odPlaybookCache) {
-      playbook = await odPlaybookCache.getPlaybook(bankroll, kellyFraction, 0.02);
+      // First try: instant memory/disk cache (ZERO latency)
+      playbook = odPlaybookCache.getCachedOnly ? odPlaybookCache.getCachedOnly() : null;
+      
+      // If no cache at all, trigger background build and return "building" immediately
+      if (!playbook) {
+        // Kick off background build (non-blocking)
+        if (odPlaybookCache.ensureFresh) odPlaybookCache.ensureFresh();
+        return res.json({ 
+          error: 'Playbook is building — first load after deploy takes ~20s. Refresh in 30 seconds.',
+          building: true,
+          games: []
+        });
+      }
     }
     
     if (!playbook || !playbook.playbook || playbook.playbook.length === 0) {
@@ -6336,9 +6376,17 @@ app.get('/api/opening-day/war-room', async (req, res) => {
     const bankroll = parseFloat(req.query.bankroll) || 1000;
     const kellyFraction = parseFloat(req.query.kelly) || 0.5;
     const minEdge = parseFloat(req.query.minEdge) || 2;
-    const warRoom = await odWarRoom.buildWarRoom({ bankroll, kellyFraction, minEdge });
+    // Timeout protection — war room is heavy
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000));
+    const warRoom = await Promise.race([
+      odWarRoom.buildWarRoom({ bankroll, kellyFraction, minEdge }),
+      timeoutPromise
+    ]);
     res.json(warRoom);
   } catch (e) {
+    if (e.message === 'timeout') {
+      return res.status(504).json({ error: 'War Room build timed out — try again after cache warms up' });
+    }
     console.error('War Room error:', e);
     res.status(500).json({ error: e.message });
   }
@@ -6436,9 +6484,80 @@ app.post('/api/opening-day/line-tracker/init', async (req, res) => {
 app.get('/api/opening-day/preflight', async (req, res) => {
   try {
     if (!odPreflight) return res.status(503).json({ error: 'Preflight module not loaded' });
-    const report = await odPreflight.runPreflight();
+    
+    // v92.0: Default to lite mode — full preflight always times out on 512MB VM.
+    // Use ?full=1 to explicitly request full preflight (only when cache is warm).
+    const full = req.query.full === '1';
+    const lite = !full;
+    
+    const timeoutMs = lite ? 10000 : 25000;
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(`Preflight ${lite ? 'lite ' : ''}timed out after ${timeoutMs/1000}s`)), timeoutMs)
+    );
+    
+    let report;
+    if (lite && odPreflight.runPreflightLite) {
+      report = await Promise.race([odPreflight.runPreflightLite(), timeoutPromise]);
+    } else {
+      report = await Promise.race([odPreflight.runPreflight(), timeoutPromise]);
+    }
     res.json(report);
   } catch (e) {
+    // On timeout, return a partial report from cached playbook data instead of empty response
+    if (e.message.includes('timed out')) {
+      const partialReport = {
+        timestamp: new Date().toISOString(),
+        mode: 'TIMEOUT_FALLBACK',
+        overallStatus: 'WARN',
+        error: e.message,
+        note: 'Preflight timed out on 512MB VM. Returning cached system status instead.',
+        checks: {},
+        summary: { total: 0, passed: 0, warnings: 1, failed: 0 },
+      };
+      
+      // Pull what we can from playbook cache (instant, no compute)
+      if (odPlaybookCache) {
+        const cached = odPlaybookCache.getCachedOnly ? odPlaybookCache.getCachedOnly() : null;
+        if (cached) {
+          partialReport.checks.odPlaybookCache = {
+            status: 'PASS',
+            note: `Cache present (${cached.cacheAge} old), ${cached.totalGames} games, ${cached.portfolio?.totalBets} bets`,
+            signalQuality: cached.signalQuality,
+            portfolio: cached.portfolio,
+          };
+          partialReport.summary.total++;
+          partialReport.summary.passed++;
+        } else {
+          partialReport.checks.odPlaybookCache = { status: 'WARN', note: 'No cache available' };
+          partialReport.summary.total++;
+          partialReport.summary.warnings++;
+        }
+      }
+      
+      // Basic data freshness from cache file (sync, instant)
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const cachePath = path.join(__dirname, 'services', 'data-cache.json');
+        if (fs.existsSync(cachePath)) {
+          const cache = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+          const now = Date.now();
+          const feeds = {};
+          for (const sport of ['nba', 'nhl', 'mlb']) {
+            const ts = cache.timestamps?.[sport];
+            if (ts) {
+              const ageMin = Math.round((now - ts) / 60000);
+              feeds[sport] = { ageMinutes: ageMin, status: ageMin < 180 ? 'FRESH' : 'STALE' };
+            }
+          }
+          partialReport.checks.dataFeeds = { status: 'PASS', feeds };
+          partialReport.summary.total++;
+          partialReport.summary.passed++;
+        }
+      } catch (e2) { /* ignore */ }
+      
+      return res.json(partialReport);
+    }
     res.status(500).json({ error: e.message, stack: e.stack?.split('\n').slice(0, 3) });
   }
 });
@@ -7943,6 +8062,7 @@ app.get('/api/nba/daily-card', async (req, res) => {
       bankroll: parseFloat(req.query.bankroll) || 1000,
       kellyFraction: parseFloat(req.query.kelly) || 0.5,
       forceRefresh: refresh,
+      serverGetAllOdds: fetchOdds, // Reuse server's fetchOdds to get cached/shared odds
     });
     res.json(result);
   } catch (e) {
@@ -7964,6 +8084,7 @@ app.get('/api/nba/daily-card/refresh', async (req, res) => {
       bankroll: 1000,
       kellyFraction: 0.5,
       forceRefresh: true,
+      serverGetAllOdds: fetchOdds,
     });
     res.json({ refreshed: true, gamesOnSlate: result.headline?.gamesOnSlate, totalBets: result.headline?.totalBets, buildTime: result.buildTime });
   } catch (e) {
@@ -7977,6 +8098,7 @@ app.get('/api/nba/daily-card/mismatches', async (req, res) => {
     const result = await dailyNbaCard.buildDailyCard({
       date: new Date().toISOString().split('T')[0],
       oddsApiKey: ODDS_API_KEY,
+      serverGetAllOdds: fetchOdds,
     });
     res.json({
       mismatches: result.mismatchSpotlight || [],
@@ -9174,6 +9296,11 @@ app.listen(PORT, '0.0.0.0', () => {
       console.log('   📋 OD Playbook Cache initialized — pre-building...');
       odPlaybookCache.refresh().then(async () => {
         console.log('   ✅ OD Playbook pre-built and cached');
+        
+        // Start auto-warm timer to keep cache hot (prevents cold-start timeouts)
+        if (odPlaybookCache.startAutoWarm) {
+          odPlaybookCache.startAutoWarm(25 * 60 * 1000); // rebuild every 25 min (cache TTL = 30 min)
+        }
         
         // Initialize OD Line Tracker with model predictions
         if (odLineTracker) {

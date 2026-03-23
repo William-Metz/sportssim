@@ -8,23 +8,74 @@
  * 3. Processing all 20 games in parallel
  * 4. Caching results with 10-min TTL
  * 5. Pre-computing on startup
+ * 6. **v92.0: DISK PERSISTENCE** — survives restarts/deploys/auto-stop wake-ups
  * 
  * v67.0 - CRITICAL FIX: asyncPredict was re-fetching weather/lineup/umpire per game
  *   = 20×4 = 80 redundant network calls within 8s timeout → F5/conviction all falling back to Poisson.
  *   Fix: pre-fetch shared data once, pass to predict() directly. NB F5/conviction are synchronous.
+ * 
+ * v92.0 - CRITICAL FIX: Endpoints timeout on cold start because in-memory cache is empty.
+ *   Fix: persist cache to disk on every build, load from disk on init().
+ *   Endpoints ALWAYS have data — even stale — so they never return empty.
  */
+
+const fs = require('fs');
+const path = require('path');
+
+const DISK_CACHE_PATH = path.join(__dirname, 'playbook-disk-cache.json');
 
 let cachedPlaybook = null;
 let cacheTimestamp = null;
 let isBuilding = false;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min cache
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min cache (playbook data changes slowly)
+let autoWarmTimer = null;
 
 // Dependencies injected from server
 let deps = {};
 
+/**
+ * Save playbook cache to disk for persistence across restarts
+ */
+function saveToDisk(playbook) {
+  try {
+    const diskData = {
+      playbook,
+      savedAt: Date.now(),
+      savedAtISO: new Date().toISOString(),
+    };
+    fs.writeFileSync(DISK_CACHE_PATH, JSON.stringify(diskData), 'utf8');
+    console.log(`[od-playbook-cache] Saved to disk (${(JSON.stringify(diskData).length / 1024).toFixed(0)}KB)`);
+  } catch (e) {
+    console.error('[od-playbook-cache] Disk save failed:', e.message);
+  }
+}
+
+/**
+ * Load playbook cache from disk (used on startup)
+ */
+function loadFromDisk() {
+  try {
+    if (!fs.existsSync(DISK_CACHE_PATH)) return false;
+    const raw = fs.readFileSync(DISK_CACHE_PATH, 'utf8');
+    const diskData = JSON.parse(raw);
+    if (diskData && diskData.playbook && diskData.savedAt) {
+      cachedPlaybook = diskData.playbook;
+      cacheTimestamp = diskData.savedAt;
+      const ageMin = Math.round((Date.now() - diskData.savedAt) / 60000);
+      console.log(`[od-playbook-cache] Loaded from disk (${ageMin}min old, ${diskData.playbook.totalGames || '?'} games)`);
+      return true;
+    }
+  } catch (e) {
+    console.error('[od-playbook-cache] Disk load failed:', e.message);
+  }
+  return false;
+}
+
 function init(dependencies) {
   deps = dependencies;
-  console.log('[od-playbook-cache] Initialized with dependencies');
+  // Load from disk immediately — gives endpoints instant data on cold start
+  const loaded = loadFromDisk();
+  console.log(`[od-playbook-cache] Initialized with dependencies${loaded ? ' + disk cache restored' : ''}`);
 }
 
 /**
@@ -940,6 +991,8 @@ async function refresh() {
   try {
     cachedPlaybook = await buildPlaybook();
     cacheTimestamp = Date.now();
+    // Persist to disk so it survives restarts/deploys
+    saveToDisk(cachedPlaybook);
     return cachedPlaybook;
   } finally {
     isBuilding = false;
@@ -957,4 +1010,50 @@ function getCachedOnly() {
   return { ...cachedPlaybook, cached: true, fresh: isFresh, cacheAge: age ? age + 's' : 'unknown' };
 }
 
-module.exports = { init, getPlaybook, refresh, processGame, getCachedOnly };
+/**
+ * Ensure cache is warm — if stale or missing, trigger async rebuild in background.
+ * Returns immediately with whatever is cached (or null). NEVER blocks.
+ */
+function ensureFresh() {
+  const cached = getCachedOnly();
+  if (cached && cached.fresh) return cached;
+  
+  // Stale or missing — trigger background rebuild if not already building
+  if (!isBuilding) {
+    console.log('[od-playbook-cache] Cache stale/missing — triggering background rebuild...');
+    isBuilding = true;
+    buildPlaybook().then(result => {
+      cachedPlaybook = result;
+      cacheTimestamp = Date.now();
+      saveToDisk(cachedPlaybook);
+      console.log('[od-playbook-cache] Background rebuild complete');
+    }).catch(e => {
+      console.error('[od-playbook-cache] Background rebuild failed:', e.message);
+    }).finally(() => {
+      isBuilding = false;
+    });
+  }
+  
+  return cached; // Return stale data if we have it, or null
+}
+
+/**
+ * Start auto-warm timer — rebuilds cache on interval so endpoints never cold-start.
+ * Call after init() and first refresh().
+ */
+function startAutoWarm(intervalMs = 25 * 60 * 1000) {
+  if (autoWarmTimer) clearInterval(autoWarmTimer);
+  autoWarmTimer = setInterval(async () => {
+    if (isBuilding) return;
+    console.log('[od-playbook-cache] Auto-warm: refreshing cache...');
+    try {
+      await refresh();
+      console.log('[od-playbook-cache] Auto-warm: cache refreshed');
+    } catch (e) {
+      console.error('[od-playbook-cache] Auto-warm failed:', e.message);
+    }
+  }, intervalMs);
+  console.log(`[od-playbook-cache] Auto-warm started (every ${Math.round(intervalMs / 60000)}min)`);
+}
+
+module.exports = { init, getPlaybook, refresh, processGame, getCachedOnly, ensureFresh, startAutoWarm };

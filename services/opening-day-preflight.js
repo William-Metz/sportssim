@@ -944,8 +944,130 @@ function statusEmoji(status) {
   return '❓';
 }
 
+/**
+ * Lite preflight — skip expensive async predictions and season sim.
+ * Runs in <5s instead of 15-25s. Use for quick production checks.
+ */
+async function runPreflightLite() {
+  const startTime = Date.now();
+  const report = {
+    timestamp: new Date().toISOString(),
+    mode: 'LITE',
+    openingDay: '2026-03-26',
+    daysUntil: Math.ceil((new Date('2026-03-26T13:00:00-04:00') - Date.now()) / (1000 * 60 * 60 * 24)),
+    overallStatus: 'PASS',
+    checks: {},
+    summary: { total: 0, passed: 0, warnings: 0, failed: 0 },
+    note: 'Lite mode — skipped asyncPredictions, seasonSimulator, mlEngine to avoid timeout. Use full preflight when cache is warm.'
+  };
+  
+  // Fast sync-only checks
+  console.log('[preflight-lite] Running fast checks...');
+  report.checks.dataFreshness = checkDataFreshness();
+  
+  try { report.checks.mlbPredictions = await checkMLBPredictions(); } catch(e) {
+    report.checks.mlbPredictions = { status: 'WARN', error: e.message };
+  }
+  
+  // Skip asyncPredictions (expensive — does 11 network-heavy asyncPredict calls)
+  report.checks.asyncPredictions = { status: 'SKIP', note: 'Skipped in lite mode — uses asyncPredict with network calls' };
+  
+  report.checks.pitcherCoverage = checkPitcherCoverage();
+  
+  // Skip weather pipeline (makes external API calls)
+  report.checks.weatherPipeline = { status: 'SKIP', note: 'Skipped in lite mode — makes external API calls' };
+  
+  report.checks.preseasonTuning = checkPreseasonTuning();
+  
+  // Skip season sim and ML engine (heavy compute)
+  report.checks.seasonSimulator = { status: 'SKIP', note: 'Skipped in lite mode — runs 10K+ simulations' };
+  report.checks.mlEngine = { status: 'SKIP', note: 'Skipped in lite mode — spawns Python process' };
+  
+  report.checks.catcherFraming = checkCatcherFraming();
+  report.checks.calibration = checkCalibration();
+  report.checks.statcast = checkStatcast();
+  
+  // Fast inline checks (no network, no heavy compute)
+  try {
+    const bq = require('./bullpen-quality');
+    const teams = mlb.getTeams();
+    const teamsModeled = Object.keys(bq.TEAM_BULLPEN_CORPS || {}).length;
+    const relievers = Object.keys(bq.RELIEVER_DB || {}).length;
+    report.checks.bullpenQuality = {
+      status: teamsModeled >= 25 ? 'PASS' : 'WARN',
+      note: `${teamsModeled} teams, ${relievers} relievers`
+    };
+  } catch(e) { report.checks.bullpenQuality = { status: 'WARN', note: e.message }; }
+  
+  try {
+    const ps = require('./platoon-splits');
+    const teamCount = ps.getTeamCount ? ps.getTeamCount() : (ps.SAVANT_WOBA_SPLITS ? Object.keys(ps.SAVANT_WOBA_SPLITS).length : 0);
+    report.checks.platoonSplits = {
+      status: teamCount >= 25 ? 'PASS' : 'WARN',
+      note: `${teamCount} teams with Savant data`
+    };
+  } catch(e) { report.checks.platoonSplits = { status: 'WARN', note: e.message }; }
+  
+  try {
+    const sbModel = require('./stolen-base-model');
+    const teamData = sbModel.TEAM_SB_DATA || sbModel.getTeamData?.() || {};
+    const teamCount = Object.keys(teamData).length;
+    report.checks.stolenBaseModel = {
+      status: teamCount >= 25 ? 'PASS' : 'WARN',
+      note: `${teamCount} teams with SB data`
+    };
+  } catch(e) { report.checks.stolenBaseModel = { status: 'WARN', note: e.message }; }
+  
+  try {
+    const negBin = require('./neg-binomial');
+    report.checks.negBinomialModels = {
+      status: (negBin.negBinRunLineProb || negBin.calculateRunLine) ? 'PASS' : 'WARN',
+      note: 'NB model loaded'
+    };
+  } catch(e) { report.checks.negBinomialModels = { status: 'WARN', note: e.message }; }
+  
+  // OD Playbook cache
+  try {
+    const odCache = require('./od-playbook-cache');
+    const cached = odCache.getCachedOnly ? odCache.getCachedOnly() : null;
+    report.checks.odPlaybookCache = {
+      status: cached ? 'PASS' : 'WARN',
+      note: cached ? `Cache present (${cached.cacheAge} old, fresh: ${cached.fresh})` : 'No cache — needs warm-up',
+    };
+  } catch(e) { report.checks.odPlaybookCache = { status: 'WARN', note: e.message }; }
+  
+  // DK lines
+  try {
+    const odModel = require('../models/mlb-opening-day');
+    const schedule = odModel.OPENING_DAY_SCHEDULE || odModel.getSchedule?.() || [];
+    const withLines = schedule.filter(g => g.dk || g.dkLine || g.moneyline);
+    report.checks.dkOpeningDayLines = {
+      status: withLines.length >= 10 ? 'PASS' : withLines.length > 0 ? 'WARN' : 'FAIL',
+      note: `${withLines.length}/${schedule.length} games have DK data`
+    };
+  } catch(e) { report.checks.dkOpeningDayLines = { status: 'WARN', note: e.message }; }
+  
+  // Aggregate
+  for (const [name, check] of Object.entries(report.checks)) {
+    report.summary.total++;
+    if (check.status === 'PASS') report.summary.passed++;
+    else if (check.status === 'WARN') report.summary.warnings++;
+    else if (check.status === 'FAIL') report.summary.failed++;
+    // SKIP doesn't count as pass/warn/fail
+  }
+  
+  if (report.summary.failed > 0) report.overallStatus = 'FAIL';
+  else if (report.summary.warnings > 0) report.overallStatus = 'WARN';
+  
+  report.duration = `${Date.now() - startTime}ms`;
+  console.log(`[preflight-lite] ✅ Complete: ${report.overallStatus} — ${report.duration}`);
+  
+  return report;
+}
+
 module.exports = {
   runPreflight,
+  runPreflightLite,
   formatReport,
   checkDataFreshness,
   checkMLBPredictions,

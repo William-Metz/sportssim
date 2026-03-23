@@ -306,6 +306,7 @@ async function buildDailyCard(opts = {}) {
     bankroll = 1000,
     kellyFraction = 0.5,
     forceRefresh = false,
+    serverGetAllOdds = null, // Reuse server's cached odds to avoid redundant API calls
   } = opts;
 
   // Check cache
@@ -320,13 +321,60 @@ async function buildDailyCard(opts = {}) {
   // ==================== 1. FETCH LIVE ODDS ====================
   let oddsData = [];
   try {
-    oddsData = await fetchNBAOdds(oddsApiKey);
+    // Prefer server's cached odds (no extra API call needed)
+    if (serverGetAllOdds) {
+      try {
+        oddsData = await serverGetAllOdds('basketball_nba');
+        if (!Array.isArray(oddsData)) oddsData = [];
+      } catch (e) {
+        warnings.push(`Server odds fallback: ${e.message}`);
+      }
+    }
+    // Fall back to direct API call if server odds empty/unavailable
+    if (oddsData.length === 0) {
+      oddsData = await fetchNBAOdds(oddsApiKey);
+    }
   } catch (e) {
     errors.push(`Odds fetch: ${e.message}`);
   }
 
   if (oddsData.length === 0) {
-    warnings.push('No NBA odds available — games may not be scheduled yet or API key missing');
+    // v92.0: Fall back to ESPN scoreboard for game discovery
+    // Odds API may not have lines yet (early in the day) or rate limited
+    try {
+      const espnUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${date.replace(/-/g, '')}`;
+      const fetch = require('node-fetch');
+      const espnResp = await fetch(espnUrl, { timeout: 8000 });
+      if (espnResp.ok) {
+        const espnData = await espnResp.json();
+        for (const event of (espnData.events || [])) {
+          const comp = event.competitions?.[0];
+          if (!comp) continue;
+          const homeComp = comp.competitors?.find(c => c.homeAway === 'home');
+          const awayComp = comp.competitors?.find(c => c.homeAway === 'away');
+          if (!homeComp || !awayComp) continue;
+          // Build a minimal odds-like object so the rest of the pipeline works
+          oddsData.push({
+            id: event.id,
+            sport_key: 'basketball_nba',
+            commence_time: event.date,
+            home_team: homeComp.team?.displayName || homeComp.team?.shortDisplayName || 'Unknown',
+            away_team: awayComp.team?.displayName || awayComp.team?.shortDisplayName || 'Unknown',
+            bookmakers: [], // No odds available — prediction-only cards
+            _source: 'espn_fallback',
+          });
+        }
+        if (oddsData.length > 0) {
+          warnings.push(`No Odds API data — using ESPN scoreboard fallback (${oddsData.length} games). Lines unavailable.`);
+        }
+      }
+    } catch (e) {
+      warnings.push(`ESPN fallback failed: ${e.message}`);
+    }
+  }
+
+  if (oddsData.length === 0) {
+    warnings.push('No NBA games found from Odds API or ESPN — no games scheduled today');
   }
 
   // ==================== 2. FETCH REST/TANK ANALYSIS ====================

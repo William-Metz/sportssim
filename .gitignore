@@ -13,3 +13,4 @@ ml-env/
 data/
 __pycache__/
 services/daily-card-cache/
+services/daily-nba-cache/
