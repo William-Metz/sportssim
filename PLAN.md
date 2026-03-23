@@ -210,22 +210,25 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-23 00:00 UTC*
-*Current phase: 2.9 — Final Pre-Season Sprint*
+*Last updated: 2026-03-23 02:00 UTC*
+*Current phase: 2.9 — Final Pre-Season Sprint + OD War Room*
 *✅ Phase 2.75 COMPLETE: All playoff preview, lineup pipeline, F5 unders, NHL playoffs, goalie starters LIVE*
 *✅ Phase 3 PARTIAL: NHL playoff series + NBA seeding simulator + NFL futures + stolen base model DONE*
-*✅ v67.0: OD Playbook timeout FIXED (prefetch+parallel cache). Stolen base model LIVE. OD Live Tracker BUILT.*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v67.0.0 — 512MB VM stable, data 14min fresh, all feeds live*
-*✅ OD PLAYBOOK: 20 games, 28 bets, $43.87 EV, avg 6.1% edge. Build time 17.7s (cached). All signals active.*
+*✅ v69.1: Conviction Engine v68 (market-aware) + OD Betting Card v69 + Line Movement Tracker. All LIVE on production.*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v68.0.0 (local v69.1) — 512MB VM stable, data 19min fresh, all feeds live*
+*✅ OD BETTING CARD LIVE: 28 plays — 2 SMASH (A/A+), 16 STRONG (B+), $302 wagered, $43.87 EV (14.5% portfolio ROI)*
+*🔥 TOP SMASH PLAYS: DET@SD F5 UNDER 4.5 (81 conviction, 17.9% edge, Skubal vs Cease). DET ML -138 (3.1% edge).*
+*🔥 TOP STRONG: MIN@BAL F5 UNDER 4.5 (79 conviction, 18.2% edge, Ryan vs Rogers). Multiple F5 unders 70+ conviction.*
 *🔧 REMAINING: Pre-Opening Day final check (task 054) — MUST DO by March 26 (3 DAYS LEFT)*
-*⚡ TODAY (Monday March 23): 10 NBA games — LAL@DET, IND@ORL, OKC@PHI, SAS@MIA, MEM@ATL, HOU@CHI, TOR@UTA, GSW@DAL, BKN@POR, MIL@LAC*
-*📊 33 ACTIVE VALUE BETS: NYY AL East +20.3%, OAK OVER +18.5%, BAL UNDER +13.7%, CHC OVER +13.1%, TOR OVER +12.7%*
-*🏀 NBA STANDINGS: OKC 56-15 RESTING, SAS 53-18 RESTING B2B, DET 51-19 RESTING, BOS 47-23, LAL 46-25 COASTING 3in4*
-*🏀 KEY MISMATCHES TODAY: IND(TANKING B2B)@ORL(DESPERATE) = HUGE. SAS(RESTING B2B)@MIA(DESPERATE B2B). OKC(RESTING)@PHI(DESPERATE B2B). TOR(COASTING)@UTA(TANKING B2B).*
-*🏀 SEEDING BATTLES: TOR(39-30) vs ATL(39-32) vs PHI(39-32) E 5/6/7. PHX(39-32) W play-in. MIA(38-33)/ORL(38-32)/CHA(E 8-10) play-in chaos.*
-*🏒 NHL BUBBLE UPDATE: PIT/MTL/BOS/DET ALL at 84pts. CBJ/NYI at 83pts. 6 teams, 1 point, 4 spots. COL(100), DAL(96), CAR(94), BUF(92) clear top seeds.*
-*💰 MLB FUTURES: 33 value bets. OD Playbook LIVE with NB F5, conviction scores, run lines, weather, bullpen quality, platoon splits, catcher framing.*
-*🏈 NFL: Win total futures model LIVE. MIA OVER 4.5 (+39.6% edge), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%). Draft April 24 = early mover window.*
+*🆕 NEW EDGE: Pitcher K Props — Steamer K/9 projections available (Skubal 10.94, Skenes 10.99, Crochet 11.14). Build K prop model for OD = high-margin market.*
+*⚡ TODAY (Monday March 23): 10 NBA games — rest/tank mismatches everywhere*
+*📊 35 ACTIVE VALUE BETS: NYY AL East +20.7%, OAK OVER +17.9%, BAL UNDER +13.3%, TOR OVER +13.2%, CHC OVER +12.8%*
+*🏀 NBA: OKC 56-15 RESTING, SAS 53-18 RESTING B2B, DET 51-19 RESTING. IND(TANKING B2B)@ORL(DESPERATE)=HUGE 5.7pt swing.*
+*🏀 SEEDING: TOR(39-30) vs ATL(39-32) vs PHI(39-32) E 5/6/7. MIA(38-33)/ORL(38-32) play-in chaos. GSW(33-38) DESPERATE.*
+*🏒 NHL: COL(100), DAL(97), CAR(94), BUF(94). BUBBLE: PIT(86)/MTL(86)/BOS(86)/CBJ(85)/DET(84)/NYI(83). 6 teams, 3pts, 4 spots.*
+*💰 MLB: 35 value bets. OD Playbook + Betting Card LIVE. Signals: NB F5 20/20, Conviction 20/20, RunLines 20/20, Weather 15/20.*
+*🏈 NFL: Win totals LIVE. MIA OVER 4.5 (+39.6%), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%). Draft 32 days.*
+*🆕 SPRING TRAINING: LAD 19-8 (#1 Cactus), SF 19-9 (#2). CWS 15-14 (better than expected). CHC 12-16 (concerning).*
 *MLB OPENING DAY: 4 DAYS (March 27) 🔥🔥🔥*
 *NBA PLAYOFFS: 20 DAYS (April 12)*
 *NHL PLAYOFFS: 27 DAYS (April 19)*
