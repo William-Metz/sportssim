@@ -176,11 +176,11 @@ async function fetchNBAFutures(apiKey) {
  * Get current seeding probabilities from the seeding sim.
  * Returns { teams: { [abbr]: { seeds: { [1-15]: prob }, playoffProb, ... } } }
  */
-function getSeedingDistribution() {
-  if (!nbaSeedingSim || !nbaSeedingSim.runSeedingSim) return null;
+async function getSeedingDistribution() {
+  if (!nbaSeedingSim || !nbaSeedingSim.runSimulation) return null;
   
   try {
-    const sim = nbaSeedingSim.runSeedingSim({ simulations: 10000 });
+    const sim = await nbaSeedingSim.runSimulation(5000);
     return sim;
   } catch (e) {
     console.error('[nba-series-scanner] Seeding sim error:', e.message);
@@ -684,7 +684,7 @@ async function runFullScan(opts = {}) {
   // 1. Run seeding simulation
   let seedingData = null;
   try {
-    seedingData = getSeedingDistribution();
+    seedingData = await getSeedingDistribution();
   } catch (e) {
     errors.push(`Seeding sim: ${e.message}`);
   }
@@ -834,7 +834,7 @@ function kellySize(prob, ml) {
 async function analyzeTeam(teamAbbr, opts = {}) {
   const apiKey = opts.apiKey || process.env.ODDS_API_KEY || '';
   
-  const seedingData = getSeedingDistribution();
+  const seedingData = await getSeedingDistribution();
   if (!seedingData) return { error: 'Seeding simulation not available' };
   
   const profile = computeWeightedSeriesProb(teamAbbr, seedingData);

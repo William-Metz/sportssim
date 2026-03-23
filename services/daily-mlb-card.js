@@ -69,6 +69,8 @@ try { statcastService = require('./statcast'); } catch(e) {}
 try { pitcherResolver = require('./pitcher-resolver'); } catch(e) {}
 try { lineShoppingService = require('./line-shopping'); } catch(e) {}
 try { betTracker = require('./bet-tracker'); } catch(e) {}
+let batterPropsService = null;
+try { batterPropsService = require('./batter-props'); } catch(e) {}
 
 // ==================== ODDS API ====================
 function fetchJSON(url, timeoutMs = 12000) {
@@ -127,6 +129,23 @@ const TEAM_NAMES = {
   'Mariners': 'SEA', 'Cardinals': 'STL', 'Rays': 'TB', 'Rangers': 'TEX',
   'Blue Jays': 'TOR', 'Nationals': 'WSH',
 };
+
+// Park lookups for batter props (v85.0)
+const TEAM_PARKS_LOCAL = {
+  'ARI': 'Chase Field', 'ATL': 'Truist Park', 'BAL': 'Camden Yards', 'BOS': 'Fenway Park',
+  'CHC': 'Wrigley Field', 'CIN': 'Great American Ball Park', 'CLE': 'Progressive Field',
+  'COL': 'Coors Field', 'CWS': 'Guaranteed Rate Field', 'DET': 'Comerica Park',
+  'HOU': 'Minute Maid Park', 'KC': 'Kauffman Stadium', 'LAA': 'Angel Stadium',
+  'LAD': 'Dodger Stadium', 'MIA': 'LoanDepot Park', 'MIL': 'American Family Field',
+  'MIN': 'Target Field', 'NYM': 'Citi Field', 'NYY': 'Yankee Stadium', 'OAK': 'Coliseum',
+  'PHI': 'Citizens Bank Park', 'PIT': 'PNC Park', 'SD': 'Petco Park', 'SF': 'Oracle Park',
+  'SEA': 'T-Mobile Park', 'STL': 'Busch Stadium', 'TB': 'Tropicana Field',
+  'TEX': 'Globe Life Field', 'TOR': 'Rogers Centre', 'WSH': 'Nationals Park',
+};
+const DOME_PARKS_LOCAL = new Set([
+  'Tropicana Field', 'Globe Life Field', 'Minute Maid Park', 'Chase Field',
+  'Rogers Centre', 'LoanDepot Park', 'American Family Field',
+]);
 
 function resolveTeam(name) {
   if (!name) return null;
@@ -979,6 +998,80 @@ async function buildDailyCard(opts = {}) {
       }
     }
 
+    // 3g. Batter Props (v85.0 — hits, HR, total bases via Statcast xBA/xSLG edge)
+    if (batterPropsService) {
+      try {
+        const isOW = getSeasonContext(date).phase === 'opening-week';
+        const park = TEAM_PARKS_LOCAL[home] || 'Unknown';
+        const isDome = DOME_PARKS_LOCAL.has(park);
+        
+        for (const side of ['away', 'home']) {
+          const pitcherName = card.starters[side === 'away' ? 'home' : 'away'];
+          const teamAbbr = side === 'away' ? away : home;
+          if (!pitcherName || pitcherName === 'TBD') continue;
+          
+          const teamBatters = batterPropsService.getBattersForTeam(teamAbbr);
+          for (const batter of teamBatters.slice(0, 6)) { // top 6 in lineup
+            const pred = batterPropsService.predictBatterProps(batter.name, pitcherName, home, {
+              isOpeningDay: isOW,
+              batterHand: batter.hand,
+              isDome,
+            });
+            if (!pred || !pred.markets) continue;
+            
+            // Check each market for value
+            for (const [mKey, market] of Object.entries(pred.markets)) {
+              // Find live odds for this batter if available
+              const livePlayerLines = null; // TODO: wire live lines when available
+              
+              // Only interested in high-edge batter prop plays (8%+ edge vs estimated book)
+              const overEdge = market.overProb - 50;
+              const underEdge = market.underProb - 50;
+              const bestSide = overEdge > underEdge ? 'OVER' : 'UNDER';
+              const bestEdge = bestSide === 'OVER' ? overEdge : underEdge;
+              const bestProb = bestSide === 'OVER' ? market.overProb : market.underProb;
+              
+              // Use model-estimated book implied prob for edge (book uses surface BA/SLG)
+              const batterData = pred.statcast || {};
+              const luckBonus = batterData.luckSignal === 'UNDERPERFORMING' && bestSide === 'OVER' ? 3 :
+                batterData.luckSignal === 'OVERPERFORMING' && bestSide === 'UNDER' ? 3 : 0;
+              
+              const effectiveEdge = bestEdge - 50 + luckBonus; // Rough edge estimate
+              
+              if (bestProb >= 58 && effectiveEdge >= 5) {
+                const bet = {
+                  type: 'BATTER_PROP',
+                  subType: mKey.split('_')[0].toUpperCase(), // HITS, HR, TB, RBI, RUNS
+                  batter: batter.name,
+                  team: teamAbbr,
+                  side: bestSide,
+                  market: market.label,
+                  line: market.line,
+                  modelProb: +bestProb.toFixed(1),
+                  expected: market.expected,
+                  edge: +effectiveEdge.toFixed(1),
+                  fairOdds: bestSide === 'OVER' ? market.overFairOdds : market.underFairOdds,
+                  luckSignal: batterData.luckSignal || 'NEUTRAL',
+                  pitcher: pitcherName,
+                  game: gameKey,
+                  conviction: calculateConviction(card.prediction, card.odds, {
+                    edge: effectiveEdge,
+                    hasStatcast: pred.source === 'statcast' || pred.dataQuality === 'HIGH',
+                    modelAgreement: luckBonus > 0 ? 2 : 1,
+                  }),
+                };
+                allBets.push(bet);
+                if (!card.props.batterProps) card.props.batterProps = [];
+                card.props.batterProps.push(bet);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        warnings.push(`Batter props ${gameKey}: ${e.message}`);
+      }
+    }
+
     gameCards.push(card);
   }
 
@@ -1056,6 +1149,7 @@ async function buildDailyCard(opts = {}) {
         totals: topPlays.filter(b => b.type === 'TOTAL').length,
         runLines: topPlays.filter(b => b.type === 'RUN_LINE').length,
         kProps: topPlays.filter(b => b.type === 'K_PROP').length,
+        batterProps: topPlays.filter(b => b.type === 'BATTER_PROP').length,
       },
     },
 
@@ -1069,6 +1163,7 @@ async function buildDailyCard(opts = {}) {
       gamesWithRunLine: gameCards.filter(g => g.runLineAnalysis).length,
       gamesWithKProps: gameCards.filter(g => g.props.kProps?.length > 0).length,
       gamesWithNRFI: gameCards.filter(g => g.props.nrfi).length,
+      gamesWithBatterProps: gameCards.filter(g => g.props.batterProps?.length > 0).length,
     },
 
     // PORTFOLIO
@@ -1231,8 +1326,8 @@ function listCards() {
 function getStatus() {
   return {
     service: 'daily-mlb-card',
-    version: '84.0.0',
-    features: ['nb-totals', 'nb-f5', 'nb-run-lines', 'bet-recording', 'auto-grading', 'season-context', 'historical-cards'],
+    version: '85.0.0',
+    features: ['nb-totals', 'nb-f5', 'nb-run-lines', 'bet-recording', 'auto-grading', 'season-context', 'historical-cards', 'batter-props-statcast'],
     lastBuild: lastBuild ? { date: lastBuild.date, timestamp: lastBuild.timestamp, games: lastBuild.headline?.gamesOnSlate, bets: lastBuild.headline?.totalBets, betTypes: lastBuild.headline?.betTypes } : null,
     cacheAge: lastBuildTime ? Math.round((Date.now() - lastBuildTime) / 1000) + 's' : 'never',
     availableCards: listCards().length,
@@ -1252,6 +1347,7 @@ function getStatus() {
       negBinomial: !!negBinomial,
       betTracker: !!betTracker,
       pitcherResolver: !!pitcherResolver,
+      batterProps: !!batterPropsService,
     },
   };
 }

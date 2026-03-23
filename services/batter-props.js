@@ -1,4 +1,4 @@
-// services/batter-props.js — MLB Batter Props Model v78.0
+// services/batter-props.js — MLB Batter Props Model v85.0
 // =======================================================
 // Uses Statcast xBA/xSLG/xwOBA data for 651 batters to model:
 //   - Hits (O/U 0.5, 1.5, 2.5)
@@ -1177,10 +1177,160 @@ function getTeamForBatter(name) {
   return 'UNK';
 }
 
+// ==================== DAILY BATTER PROPS SCAN (v85.0) ====================
+// Generic scan that works for ANY game day — not just Opening Day.
+// Uses ESPN schedule + confirmed starters for any date.
+
+let mlbScheduleService = null;
+try { mlbScheduleService = require('./mlb-schedule'); } catch(e) {}
+
+/**
+ * Scan all games on a given date for batter prop value.
+ * Works for Opening Day, regular season, playoffs — any MLB game day.
+ *
+ * @param {object} opts - { date, weatherData, liveLines, isOpeningWeek }
+ * @returns {object} - scan results with top picks, game details, summary
+ */
+async function scanDailyBatterProps(opts = {}) {
+  const date = opts.date || new Date().toISOString().split('T')[0];
+  const { weatherData = {}, liveLines = null } = opts;
+  
+  // Determine season phase
+  const isOpeningDay = date === '2026-03-26' || date === '2026-03-27';
+  const isOpeningWeek = opts.isOpeningWeek || isOpeningDay || 
+    (date >= '2026-03-26' && date <= '2026-04-02');
+  
+  // Fetch live batter prop lines from Odds API
+  let actualLiveLines = liveLines;
+  if (!actualLiveLines) {
+    try {
+      actualLiveLines = await fetchLiveBatterLines();
+    } catch (e) { /* ok */ }
+  }
+
+  let games = [];
+  
+  // Try OD schedule first (for March 26-27)
+  if (isOpeningDay) {
+    try {
+      const od = require('../models/mlb-opening-day');
+      const odGames = od.OPENING_DAY_GAMES || [];
+      games = odGames.filter(g => g.date === date).map(g => ({
+        away: g.away,
+        home: g.home,
+        date: g.date,
+        time: g.time,
+        awayStarter: g.confirmedStarters?.away || null,
+        homeStarter: g.confirmedStarters?.home || null,
+      }));
+    } catch(e) { /* fallback to ESPN */ }
+  }
+  
+  // ESPN schedule for regular season
+  if (games.length === 0 && mlbScheduleService) {
+    try {
+      const sched = await mlbScheduleService.getSchedule(date);
+      if (sched && sched.games) {
+        games = sched.games.map(g => ({
+          away: g.awayTeam?.abbr,
+          home: g.homeTeam?.abbr,
+          date,
+          time: g.startTime || g.time || 'TBD',
+          awayStarter: g.awayTeam?.probablePitcher?.name || null,
+          homeStarter: g.homeTeam?.probablePitcher?.name || null,
+        })).filter(g => g.away && g.home);
+      }
+    } catch (e) { /* ok */ }
+  }
+
+  const allPicks = [];
+  const gameResults = [];
+
+  for (const game of games) {
+    const park = TEAM_PARKS[game.home] || 'Unknown';
+    const isDome = DOME_PARKS.has(park);
+    const gameKey = `${game.away}@${game.home}`;
+    const tempF = weatherData[gameKey]?.temp || null;
+
+    const awayBatters = getBattersForTeam(game.away);
+    const homeBatters = getBattersForTeam(game.home);
+
+    const gamePicks = [];
+
+    // Away batters face home starter
+    for (const batter of awayBatters) {
+      if (!game.homeStarter) continue;
+      const pred = predictBatterProps(batter.name, game.homeStarter, game.home, {
+        isOpeningDay: isOpeningWeek,
+        tempF,
+        isDome,
+        batterHand: batter.hand,
+      });
+      if (pred) {
+        const picks = extractValuePicks(pred, game, actualLiveLines);
+        gamePicks.push(...picks);
+      }
+    }
+
+    // Home batters face away starter
+    for (const batter of homeBatters) {
+      if (!game.awayStarter) continue;
+      const pred = predictBatterProps(batter.name, game.awayStarter, game.home, {
+        isOpeningDay: isOpeningWeek,
+        tempF,
+        isDome,
+        batterHand: batter.hand,
+      });
+      if (pred) {
+        const picks = extractValuePicks(pred, game, actualLiveLines);
+        gamePicks.push(...picks);
+      }
+    }
+
+    gameResults.push({
+      game: gameKey,
+      date: game.date,
+      time: game.time,
+      park,
+      awayStarter: game.awayStarter || 'TBD',
+      homeStarter: game.homeStarter || 'TBD',
+      picksCount: gamePicks.length,
+      battersAnalyzed: awayBatters.length + homeBatters.length,
+    });
+
+    allPicks.push(...gamePicks);
+  }
+
+  // Sort by edge descending
+  allPicks.sort((a, b) => b.edge - a.edge);
+
+  const topPicks = allPicks.filter(p => p.edge >= 8.0);
+  const highConf = allPicks.filter(p => p.confidence === 'HIGH');
+
+  return {
+    timestamp: new Date().toISOString(),
+    date,
+    isOpeningDay,
+    isOpeningWeek,
+    gamesScanned: gameResults.length,
+    totalBatterPropPicks: allPicks.length,
+    highConfidencePicks: highConf.length,
+    topPicksCount: topPicks.length,
+    averageEdge: allPicks.length > 0
+      ? +(allPicks.reduce((s, p) => s + p.edge, 0) / allPicks.length).toFixed(1) : 0,
+    topPicks: topPicks.slice(0, 40),
+    allPicks: allPicks.slice(0, 100),
+    gameDetails: gameResults,
+    summary: buildScanSummary(topPicks, allPicks),
+    liveOddsAvailable: !!actualLiveLines,
+  };
+}
+
 // ==================== MODULE EXPORTS ====================
 module.exports = {
   predictBatterProps,
   scanODBatterProps,
+  scanDailyBatterProps,
   getBatterMatchup,
   getStatcastLeaderboard,
   getRegressionTargets,
