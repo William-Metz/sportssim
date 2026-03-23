@@ -192,6 +192,7 @@ function buildTabs() {
   tabs.push({ id: 'nfl-futures', label: '🏈 NFL Futures' });
   // NCAA March Madness tab — always visible during tournament
   tabs.push({ id: 'war-room', label: '⚔️ WAR ROOM' });
+  tabs.push({ id: 'nba-daily-card', label: '🏀 NBA CARD' });
   tabs.push({ id: 'march-madness', label: '🏀 March Madness' });
   tabs.push({ id: 'nhl-bubble', label: '🏒 NHL Bubble' });
   tabs.push({ id: 'platoon-splits', label: '🔄 Platoon Splits' });
@@ -268,6 +269,7 @@ function showTab(id) {
   else if (id === 'nfl-futures') loadNFLFuturesTab();
   else if (id === 'march-madness') loadMarchMadnessTab();
   else if (id === 'war-room') loadWarRoomTab();
+  else if (id === 'nba-daily-card') loadNBADailyCardTab();
   else if (id === 'platoon-splits') loadPlatoonSplitsTab();
   else if (id === 'catcher-framing') loadCatcherFramingTab();
   else if (id === 'stolen-bases') loadStolenBasesTab();
@@ -7258,6 +7260,200 @@ async function gradeMLBCard() {
     }
   } catch (e) {
     alert('Grade error: ' + e.message);
+  }
+}
+
+// ==================== NBA DAILY CARD TAB (v90.0) ====================
+
+async function loadNBADailyCardTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Building today\'s NBA betting card...</p></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/nba/daily-card`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    const h = data.headline || {};
+    const sig = data.signals || {};
+    
+    // Hero banner
+    html += `<div class="card" style="background:linear-gradient(135deg,#1a0a3e,#0c2d48);border:1px solid #a78bfa">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:#a78bfa">🏀💰 NBA Daily Card v90</h2>
+          <p style="margin:4px 0 0;color:#aaa">${data.date || 'Today'} — ${h.gamesOnSlate || 0} games on slate</p>
+          ${data.cached ? '<span style="font-size:10px;color:#f59e0b">📦 CACHED</span>' : ''}
+          <span style="font-size:10px;color:#67e8f9;margin-left:8px">Rest/Tank • Conviction • Kelly</span>
+        </div>
+        <div style="display:flex;gap:16px;text-align:center;flex-wrap:wrap">
+          <div><div style="font-size:24px;font-weight:bold;color:#a78bfa">${h.totalBets || 0}</div><div style="font-size:10px;color:#888">Plays</div></div>
+          <div><div style="font-size:24px;font-weight:bold;color:#ef4444">${h.smashPlays || 0}</div><div style="font-size:10px;color:#888">SMASH</div></div>
+          <div><div style="font-size:24px;font-weight:bold;color:#f59e0b">${h.strongPlays || 0}</div><div style="font-size:10px;color:#888">Strong</div></div>
+          <div><div style="font-size:24px;font-weight:bold;color:#22c55e">$${(h.totalWager||0)}</div><div style="font-size:10px;color:#888">Wagered</div></div>
+          <div><div style="font-size:24px;font-weight:bold;color:#22c55e">+$${typeof (h.totalEV) === 'number' ? h.totalEV.toFixed(2) : '0'}</div><div style="font-size:10px;color:#888">Exp Value</div></div>
+          <div><div style="font-size:24px;font-weight:bold;color:${(h.roi||0)>10?'#22c55e':'#f59e0b'}">${h.roi||0}%</div><div style="font-size:10px;color:#888">ROI</div></div>
+          <div><div style="font-size:24px;font-weight:bold;color:#ef4444">${h.mismatchGames || 0}</div><div style="font-size:10px;color:#888">Mismatches</div></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="refreshNBACard()" style="padding:6px 16px;background:#a78bfa;color:#000;border:none;border-radius:6px;cursor:pointer;font-weight:bold">🔄 Refresh Card</button>
+        <span style="font-size:11px;color:#666;margin-left:8px;align-self:center">Built in ${(data.elapsedMs/1000).toFixed(1)}s</span>
+      </div>
+    </div>`;
+    
+    // Mismatch Spotlight
+    const mismatches = data.mismatchSpotlight || [];
+    if (mismatches.length > 0) {
+      html += `<div class="card" style="border-left:3px solid #ef4444"><h3>🔥 REST/TANK MISMATCH SPOTLIGHT (${mismatches.length})</h3>
+        <p style="font-size:11px;color:#888;margin-top:4px">These games have massive motivation/rest asymmetry — books are SLOW to adjust</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:10px">`;
+      
+      for (const m of mismatches) {
+        const swingColor = Math.abs(m.netSwing || 0) >= 4.0 ? '#ef4444' : Math.abs(m.netSwing || 0) >= 2.5 ? '#f59e0b' : '#22c55e';
+        const awayMotColor = m.awayMotivation === 'TANKING' ? '#ef4444' : m.awayMotivation === 'RESTING' ? '#f59e0b' : m.awayMotivation === 'DESPERATE' ? '#22c55e' : '#888';
+        const homeMotColor = m.homeMotivation === 'TANKING' ? '#ef4444' : m.homeMotivation === 'RESTING' ? '#f59e0b' : m.homeMotivation === 'DESPERATE' ? '#22c55e' : '#888';
+        html += `<div style="background:var(--bg2);padding:12px;border-radius:8px;border-left:3px solid ${swingColor}">
+          <div style="font-weight:bold;font-size:14px">${m.game || ''}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px">
+            <span style="color:${awayMotColor};font-size:12px;font-weight:bold">${m.awayMotivation || '?'}${m.isB2BAway ? ' (B2B)' : ''}</span>
+            <span style="font-size:10px;color:#888">vs</span>
+            <span style="color:${homeMotColor};font-size:12px;font-weight:bold">${m.homeMotivation || '?'}${m.isB2BHome ? ' (B2B)' : ''}</span>
+          </div>
+          <div style="text-align:center;margin-top:6px;font-size:18px;font-weight:bold;color:${swingColor}">${(m.netSwing || 0) > 0 ? '+' : ''}${(m.netSwing || 0).toFixed(1)} pt swing</div>
+          ${m.bestBet ? `<div style="margin-top:6px;font-size:11px;color:#22c55e">Best: ${m.bestBet.pick || m.bestBet.type} ${m.bestBet.edge || 0}% edge</div>` : ''}
+        </div>`;
+      }
+      html += `</div></div>`;
+    }
+    
+    // Signal Coverage
+    html += `<div class="card"><h3>📡 Signal Coverage</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:#22c55e">${sig.predictions || 0}/${h.gamesOnSlate||0}</div><div style="font-size:10px;color:#888">Predictions</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:#22c55e">${sig.odds || 0}/${h.gamesOnSlate||0}</div><div style="font-size:10px;color:#888">Live Odds</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${(sig.restTank||0)>0?'#ef4444':'#888'}">${sig.restTank || 0}</div><div style="font-size:10px;color:#888">Rest/Tank</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${(sig.injuries||0)>0?'#f59e0b':'#888'}">${sig.injuries || 0}</div><div style="font-size:10px;color:#888">Injuries</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${(sig.rolling||0)>0?'#22c55e':'#888'}">${sig.rolling || 0}</div><div style="font-size:10px;color:#888">Rolling L10</div></div>
+        <div style="background:var(--bg2);padding:8px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:bold;color:${(sig.calibrated||0)>0?'#22c55e':'#888'}">${sig.calibrated || 0}</div><div style="font-size:10px;color:#888">Calibrated</div></div>
+      </div>
+    </div>`;
+    
+    // All bets table
+    const allBets = data.allBets || [];
+    if (allBets.length > 0) {
+      html += `<div class="card"><h3>🎯 All Plays (${allBets.length})</h3>
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>Game</th><th>Type</th><th>Pick</th><th>Edge</th><th>Odds</th><th>Book</th><th>Wager</th><th>EV</th><th>Conv</th><th>Grade</th><th>Tier</th>
+        </tr></thead><tbody>`;
+      
+      for (const bet of allBets) {
+        const tierColor = bet.tier === 'SMASH' ? '#ef4444' : bet.tier === 'STRONG' ? '#f59e0b' : bet.tier === 'LEAN' ? '#22c55e' : '#888';
+        const typeColor = bet.type === 'SPREAD' ? '#a78bfa' : bet.type === 'TOTAL' ? '#f97316' : '#22c55e';
+        html += `<tr>
+          <td><strong>${bet.game || ''}</strong></td>
+          <td style="color:${typeColor}">${bet.type || ''}</td>
+          <td style="font-weight:bold">${bet.pick || ''}</td>
+          <td style="color:#22c55e;font-weight:bold">${bet.edge || 0}%</td>
+          <td>${bet.odds || ''}</td>
+          <td style="font-size:11px">${bet.book || ''}</td>
+          <td>$${bet.wager || 0}</td>
+          <td style="color:#22c55e">+$${typeof bet.ev === 'number' ? bet.ev.toFixed(2) : '0'}</td>
+          <td>${bet.conviction || 0}</td>
+          <td style="font-weight:bold">${bet.grade || ''}</td>
+          <td style="color:${tierColor};font-weight:bold">${bet.tier || ''}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div></div>`;
+    } else {
+      html += `<div class="card"><h3>📊 No NBA value plays found</h3><p style="color:#888">No games on slate today, or odds not yet posted. Check back closer to game time.</p></div>`;
+    }
+    
+    // Game-by-game cards
+    const games = data.games || [];
+    if (games.length > 0) {
+      html += `<div class="card"><h3>🏟️ Game-by-Game (${games.length})</h3>`;
+      for (const g of games) {
+        const pred = g.prediction || {};
+        const odds = g.odds || {};
+        const rt = g.restTank || {};
+        const hasBets = g.bets && g.bets.length > 0;
+        const borderColor = g.hasMismatch ? '#ef4444' : hasBets ? '#22c55e' : '#333';
+        
+        const awayMotColor = rt.awayMotivation === 'TANKING' ? '#ef4444' : rt.awayMotivation === 'RESTING' ? '#f59e0b' : rt.awayMotivation === 'DESPERATE' ? '#22c55e' : '#888';
+        const homeMotColor = rt.homeMotivation === 'TANKING' ? '#ef4444' : rt.homeMotivation === 'RESTING' ? '#f59e0b' : rt.homeMotivation === 'DESPERATE' ? '#22c55e' : '#888';
+        
+        html += `<div style="background:var(--bg2);padding:12px;border-radius:8px;margin:8px 0;border-left:3px solid ${borderColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div>
+              <strong style="font-size:16px">${g.away || '?'} @ ${g.home || '?'}</strong>
+              ${g.hasMismatch ? '<span style="font-size:10px;background:#ef444433;color:#ef4444;padding:1px 6px;border-radius:4px;margin-left:8px">⚡ MISMATCH</span>' : ''}
+            </div>
+            <div style="font-size:12px">
+              <span style="color:${awayMotColor};font-weight:bold">${rt.awayMotivation || ''}${rt.isB2BAway ? ' B2B' : ''}</span>
+              <span style="color:#888"> vs </span>
+              <span style="color:${homeMotColor};font-weight:bold">${rt.homeMotivation || ''}${rt.isB2BHome ? ' B2B' : ''}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;font-size:12px">
+            <span>Win: <strong>${pred.awayWin ? (pred.awayWin > 1 ? pred.awayWin.toFixed(1) : (pred.awayWin*100).toFixed(1)) : '?'}%</strong> / <strong>${pred.homeWin ? (pred.homeWin > 1 ? pred.homeWin.toFixed(1) : (pred.homeWin*100).toFixed(1)) : '?'}%</strong></span>
+            <span>Spread: <strong>${pred.spread != null ? (pred.spread > 0 ? '+' : '') + pred.spread.toFixed(1) : '?'}</strong>${odds.spread ? ' (line: '+odds.spread+')' : ''}</span>
+            <span>Total: <strong>${pred.total ? pred.total.toFixed(1) : '?'}</strong>${odds.total ? ' (line: '+odds.total+')' : ''}</span>
+            ${odds.homeML ? '<span>ML: ' + (g.away||'') + ' ' + (odds.awayML||'') + ' / ' + (g.home||'') + ' ' + (odds.homeML||'') + '</span>' : ''}
+          </div>`;
+        
+        // Rest/tank detail
+        if (rt.netAdjustment && Math.abs(rt.netAdjustment) >= 1.0) {
+          html += `<div style="margin-top:4px;font-size:11px;color:#ef4444">🔄 Rest/Tank swing: ${rt.netAdjustment > 0 ? '+' : ''}${rt.netAdjustment.toFixed(1)} pts</div>`;
+        }
+        
+        // Bets
+        if (hasBets) {
+          html += `<div style="margin-top:6px">`;
+          for (const b of g.bets) {
+            const betColor = b.type === 'SPREAD' ? '#a78bfa' : b.type === 'TOTAL' ? '#f97316' : '#22c55e';
+            const betBg = b.type === 'SPREAD' ? '#a78bfa22' : b.type === 'TOTAL' ? '#f9731622' : '#22c55e22';
+            html += `<span style="display:inline-block;background:${betBg};color:${betColor};padding:2px 8px;border-radius:4px;margin:2px;font-size:11px;font-weight:bold">${b.type} ${b.pick || ''} (${b.edge}% edge, ${b.grade || ''})</span>`;
+          }
+          html += `</div>`;
+        }
+        
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    
+    // Errors/Warnings
+    if (data.errors && data.errors.length > 0) {
+      html += `<div class="card" style="border-left:3px solid #ef4444"><h3>❌ Errors (${data.errors.length})</h3><ul style="font-size:12px;color:#ef4444">`;
+      for (const e of data.errors) html += `<li>${e}</li>`;
+      html += `</ul></div>`;
+    }
+    if (data.warnings && data.warnings.length > 0) {
+      html += `<div class="card" style="border-left:3px solid #f59e0b"><h3>⚠️ Warnings (${data.warnings.length})</h3><ul style="font-size:12px;color:#888">`;
+      for (const w of data.warnings) html += `<li>${w}</li>`;
+      html += `</ul></div>`;
+    }
+    
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${err.message}</p></div>`;
+  }
+}
+
+async function refreshNBACard() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Rebuilding NBA card with fresh data...</p></div>';
+  try {
+    await fetch(`${API}/api/nba/daily-card/refresh`);
+    await loadNBADailyCardTab();
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error</h2><p>${e.message}</p></div>`;
   }
 }
 

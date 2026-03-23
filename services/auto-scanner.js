@@ -36,6 +36,7 @@ const INTERVALS = {
   valueScan:      20 * 60 * 1000,   // Every 20 min — catch value before it disappears
   polymarket:     45 * 60 * 1000,   // Every 45 min — prediction markets move slower
   dailyMlbCard:   20 * 60 * 1000,   // Every 20 min — MLB daily card with full signal stack
+  dailyNbaCard:   20 * 60 * 1000,   // Every 20 min — NBA daily card with rest/tank + conviction
   
   // Supporting scans — run less frequently
   sgpScan:        60 * 60 * 1000,   // Every 60 min — SGP combos
@@ -96,6 +97,43 @@ async function scanDailyMlbCard() {
         side: card.headline.bestPlay.side,
         edge: card.headline.bestPlay.edge,
         type: card.headline.bestPlay.type,
+      } : null,
+      date,
+      elapsedMs: card.elapsedMs,
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+/**
+ * Run Daily NBA Card — rest/tank conviction engine
+ * Uses daily-nba-card.js for full signal stack with mismatch detection
+ */
+async function scanDailyNbaCard() {
+  try {
+    const dailyNbaCard = require('./daily-nba-card');
+    const date = new Date().toISOString().split('T')[0];
+    const card = await dailyNbaCard.buildDailyCard({
+      date,
+      forceRefresh: true,
+      oddsApiKey: process.env.ODDS_API_KEY || '',
+      bankroll: 1000,
+      kellyFraction: 0.5,
+    });
+    return {
+      gamesScanned: card.headline?.gamesOnSlate || 0,
+      totalBets: card.headline?.totalBets || 0,
+      smashPlays: card.headline?.smashPlays || 0,
+      strongPlays: card.headline?.strongPlays || 0,
+      totalEV: card.headline?.totalEV || 0,
+      roi: card.headline?.roi || 0,
+      mismatchGames: card.headline?.mismatchGames || 0,
+      topPlay: card.headline?.bestPlay ? {
+        game: card.headline.bestPlay.game,
+        edge: card.headline.bestPlay.edge,
+        conviction: card.headline.bestPlay.conviction,
+        grade: card.headline.bestPlay.grade,
       } : null,
       date,
       elapsedMs: card.elapsedMs,
@@ -843,6 +881,7 @@ const SCAN_REGISTRY = {
   dailyPicks: { fn: scanDailyPicks, name: 'Daily Picks', interval: INTERVALS.dailyPicks, priority: 1 },
   valueScan: { fn: scanAllValue, name: 'Value Detection', interval: INTERVALS.valueScan, priority: 1 },
   dailyMlbCard: { fn: scanDailyMlbCard, name: 'MLB Daily Card', interval: INTERVALS.dailyMlbCard, priority: 1 },
+  dailyNbaCard: { fn: scanDailyNbaCard, name: 'NBA Daily Card', interval: INTERVALS.dailyNbaCard, priority: 1 },
   polymarket: { fn: scanPolymarketDeep, name: 'Polymarket Deep Scan', interval: INTERVALS.polymarket, priority: 2 },
   sgpScan: { fn: scanSGPs, name: 'SGP Combos', interval: INTERVALS.sgpScan, priority: 2 },
   altLines: { fn: scanAltLines, name: 'Alt Lines', interval: INTERVALS.altLines, priority: 2 },
