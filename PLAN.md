@@ -210,21 +210,24 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-23 06:00 UTC — Planning Session #36*
+*Last updated: 2026-03-23 08:00 UTC — Planning Session #38*
 *Current phase: 2.9 — Final Pre-Season Sprint + OD War Room*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v75.0.0 — 512MB VM stable, all feeds 20min fresh, all systems GO*
-*✅ Phase 2.75 COMPLETE + Phase 3 PARTIAL: NHL playoffs, goalie starters, NBA seeding sim, NFL futures, stolen base model, conviction engine, K props, SGP builder, team tendencies, line shopping, park wind model ALL LIVE*
-*✅ OD BETTING CARD LIVE: 28 plays — 2 SMASH (A/A+, 81 conviction), 16 STRONG (B+). $302 wagered, $43.87 EV (14.5% ROI)*
-*🔥 TOP SMASH: DET@SD F5 UNDER 4.5 (Skubal vs Cease, 17.9% edge). MIN@BAL F5 UNDER 4.5 (Ryan vs Rogers, 18.2% edge).*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v76.0.0 — 512MB VM stable, all systems GO*
+*✅ Phase 2.75 COMPLETE + Phase 3 PARTIAL: NHL playoffs, goalie starters, NBA seeding sim, NFL futures, stolen base model, conviction engine, K props, outs props, SGP builder, team tendencies, line shopping, park wind model ALL LIVE*
+*✅ OD BETTING CARD EXPANDED: 36 plays — 2 SMASH (A/A+, 81 conviction), 15 STRONG (B+), 17 LEAN (B), 2 SMALL (C+). $1,291 wagered, $239.97 EV (18.6% ROI)*
+*🔥 TOP SMASH: DET@SD F5 UNDER 4.5 (Skubal vs Cease, 18.4% edge, 81 conviction). DET ML -138 (3.2% edge, multi-model agreement).*
+*🔥 BEST EV PLAYS: MIN@BAL UNDER 8.5 ($15.36 EV), ARI@LAD OVER 7.5 ($14.68 EV), CWS ML +165 ($15.38 EV).*
 *🔥 K PROPS: 37 picks, 22 high confidence. Misiorowski OVER 5.5 (+23.6%), Crochet OVER 7.5 (+15.4%), Skenes OVER 6.5 (+13.6%).*
-*🚨 CRITICAL FINDING: OD Checklist endpoint shows 0 games (checklist bug?) — model data IS present. Must debug for March 25 final check.*
+*🔥 OUTS PROPS: 40 picks, 23 HIGH confidence. ALL OVERS (OD premium drives systematic edge). Peralta OVER 15.5 (+18.8%), Smith OVER 13.5 (+17.1%).*
+*✅ OD Checklist bug FIXED in v76 — getSchedule() export added, shows 20/20 games. But endpoint still timing out in production — needs optimization for March 25 final check.*
 *🚨 CONFIRMED: MLB Day 1 = March 26 (PIT@NYM, CWS@MIL, WSH@CHC + 8 more). Day 2 = March 27 (NYY@SF, OAK@TOR + 7 more).*
-*📊 ACTIVE VALUE BETS: NYY AL East +21.4%, OAK OVER +18.8%, BAL UNDER +13.5%, TOR OVER +13.1%, CHC OVER +13.0%, CWS OVER +13.0%*
-*🏀 NBA TODAY: SAS@MIA, MEM@ATL, OKC@PHI, GSW@DAL + more. REST/TANK model tracking continues (task 051).*
-*🏒 NHL STANDINGS: COL(100), DAL(97), CAR(94), BUF(94), MIN(92), TBL(90). EAST BUBBLE: PIT(86)/MTL(86)/BOS(86)/CBJ(85)/DET(84)/NYI(83). VGK beat DAL 3-2 (March 22). CAR crushed PIT 5-1.*
+*📊 MLB FUTURES VALUE: NYY AL East +20.6%, OAK OVER +18.2%, BAL UNDER +14.5%, CHC OVER +13.2%, CWS OVER +13.1%*
+*🏀 NBA TODAY (10 games): IND(TANKING -4.0)@ORL(DESPERATE +1.7)=5.7pt swing, SAS(RESTING -4.8)@MIA(DESPERATE 0)=4.8pt, TOR(COASTING)@UTA(TANKING -4.3)=4.3pt, BKN(TANKING -4.3)@POR(DESPERATE -0.3)=4.0pt. OKC@PHI, GSW@DAL, LAL@DET, HOU@CHI, MEM@ATL, MIL@LAC.*
+*🏒 NHL STANDINGS: COL(100), DAL(97), CAR(94), BUF(94), MIN(92), TBL(90). EAST BUBBLE UNCHANGED: PIT(86)/MTL(86)/BOS(86)/CBJ(85)/DET(84)/NYI(83). OTT@NYR tonight (bubble implications). CGY beat TBL 4-3 OT (March 22).*
 *🏈 NFL: Win totals LIVE. MIA OVER 4.5 (+39.6%), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%). Draft 32 days.*
-*🆕 NEW EDGE IDEAS: (1) MLB pitcher outs recorded props — Odds API supports pitcher_outs market. (2) Batter hits/HR/RBI props using Statcast xBA/xSLG data. (3) NHL playoff series futures with 84pt East bubble chaos = asymmetric mispricing.*
-*🆕 KEY TASK: OD checklist game-count bug fix (new P0) → Pre-OD final check March 25 evening (054 P0) → Go live March 26 AM*
+*🆕 NEW EDGE DISCOVERY: NRFI/YRFI (No Run First Inning) model — The Odds API has `totals_1st_1_innings` + `h2h_1st_1_innings` + `h2h_3_way_1st_1_innings` markets for MLB! Our Poisson scoring model can calculate 1st inning scoreless probability per pitcher. OD aces on NRFI = historically massive edge (ace starters suppress first-inning scoring, rusty OD bats compound the effect). Created task 076.*
+*🆕 ALSO DISCOVERED: Odds API has `totals_1st_3_innings` (first 3 innings), `totals_1st_7_innings` — even more granular period markets we can model with NB scoring.*
+*🆕 KEY TASKS: Fix OD checklist timeout (P1) → Pre-OD final check March 25 evening (054 P0) → Build NRFI model (076 P1) → Go live March 26 AM*
 *⚾ MLB OPENING DAY 1: 3 DAYS (March 26) 🔥🔥🔥*
 *⚾ MLB OPENING DAY 2: 4 DAYS (March 27) 🔥🔥🔥*
 *🏀 NBA PLAYOFFS: 20 DAYS (April 12)*
