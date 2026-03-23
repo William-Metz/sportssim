@@ -6545,6 +6545,36 @@ app.get('/api/opening-day/k-props/top', async (req, res) => {
 
 // ==================== OD SGP (Same Game Parlay) BUILDER ====================
 
+// Live K Props — fetch real-time lines from The Odds API
+app.get('/api/opening-day/k-props/live', async (req, res) => {
+  try {
+    if (!pitcherKProps) return res.status(503).json({ error: 'Pitcher K Props model not loaded' });
+    const result = await pitcherKProps.fetchLiveKProps(ODDS_API_KEY);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update K prop lines with live odds and re-scan
+app.post('/api/opening-day/k-props/refresh', async (req, res) => {
+  try {
+    if (!pitcherKProps) return res.status(503).json({ error: 'Pitcher K Props model not loaded' });
+    const updateResult = await pitcherKProps.updateLiveKLines(ODDS_API_KEY);
+    
+    // Re-scan with updated lines
+    const scan = pitcherKProps.scanODKProps({ isOpeningDay: true });
+    
+    res.json({
+      liveUpdate: updateResult,
+      scan,
+      message: `Updated ${updateResult.updated} pitcher lines from live odds (${updateResult.added} new). ${updateResult.changes?.length || 0} line changes detected.`,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Full OD SGP scan — correlated parlays for all games
 app.get('/api/opening-day/sgp', async (req, res) => {
   try {

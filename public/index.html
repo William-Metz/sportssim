@@ -9954,6 +9954,10 @@ async function loadKPropsTab() {
     let html = `<div class="card"><h2>🔥 Pitcher K Props — Opening Day Value Scanner</h2>
       <p>Model: Steamer K/9 × projected IP × team K% adj × park factor × weather × OD premium</p>
       <p><strong>${scan.gamesScanned} games scanned</strong> | <strong>${scan.totalKPropPicks} value bets</strong> | <strong>${scan.highConfidencePicks} HIGH confidence</strong> | Avg edge: ${scan.averageEdge}%</p>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="refresh-btn" onclick="refreshLiveKProps()" id="live-k-btn" style="background:#f59e0b;color:#000">📡 Fetch Live Lines</button>
+        <span id="live-k-status" style="font-size:12px;color:var(--text3);align-self:center"></span>
+      </div>
     </div>`;
 
     // Top Picks section
@@ -10139,6 +10143,35 @@ async function analyzeKProps() {
     resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
   }
 }
+// ==================== LIVE K PROPS REFRESH ====================
+async function refreshLiveKProps() {
+  const btn = document.getElementById('live-k-btn');
+  const status = document.getElementById('live-k-status');
+  if (btn) btn.disabled = true;
+  if (status) status.textContent = 'Fetching live lines from The Odds API...';
+  
+  try {
+    const resp = await fetch(`${API}/api/opening-day/k-props/refresh`, { method: 'POST' });
+    const data = await resp.json();
+    
+    if (data.error) {
+      if (status) status.textContent = `❌ ${data.error}`;
+    } else {
+      const changes = data.liveUpdate?.changes?.length || 0;
+      const updated = data.liveUpdate?.updated || 0;
+      const added = data.liveUpdate?.added || 0;
+      if (status) status.textContent = `✅ ${updated} updated, ${added} new, ${changes} line changes. Reloading...`;
+      
+      // Reload the tab after a short delay
+      setTimeout(() => loadKPropsTab(), 1500);
+    }
+  } catch (e) {
+    if (status) status.textContent = `❌ Error: ${e.message}`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // ==================== OD PRE-GAME CHECKLIST TAB (v71.0) ====================
 async function loadODChecklistTab() {
   const wrap = document.getElementById('tab-content');

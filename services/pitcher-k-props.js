@@ -595,6 +595,177 @@ function getStatus() {
   };
 }
 
+// ==================== LIVE ODDS API K PROPS (v71.0) ====================
+// Fetches real-time pitcher_strikeouts market from The Odds API
+// Updates DK_K_PROP_LINES with actual live lines from books
+
+let liveKPropsCache = null;
+let liveKPropsCacheTime = 0;
+const LIVE_K_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Fetch live K prop lines from The Odds API
+ * Market: pitcher_strikeouts (Over/Under on individual pitcher Ks)
+ * @param {string} apiKey - The Odds API key
+ * @returns {Object} { pitchers: { [name]: { line, overOdds, underOdds, books } }, fetched, gameCount }
+ */
+async function fetchLiveKProps(apiKey) {
+  if (!apiKey) return { error: 'No API key', pitchers: {} };
+  
+  // Check cache
+  if (liveKPropsCache && (Date.now() - liveKPropsCacheTime) < LIVE_K_CACHE_TTL) {
+    return { ...liveKPropsCache, cached: true };
+  }
+  
+  try {
+    const fetch = require('node-fetch');
+    // The Odds API v4: event player props
+    // First get MLB events
+    const eventsUrl = `https://api.the-odds-api.com/v4/sports/baseball_mlb/events?apiKey=${apiKey}`;
+    const eventsResp = await fetch(eventsUrl);
+    const events = await eventsResp.json();
+    
+    if (!Array.isArray(events) || events.length === 0) {
+      return { error: 'No MLB events found (season may not have started)', pitchers: {}, gameCount: 0 };
+    }
+    
+    const pitchers = {};
+    let gamesScanned = 0;
+    
+    // Fetch pitcher_strikeouts prop for each event
+    // The Odds API uses: /v4/sports/{sport}/events/{eventId}/odds?markets=pitcher_strikeouts
+    for (const event of events.slice(0, 25)) { // Cap at 25 games to save API quota
+      try {
+        const propsUrl = `https://api.the-odds-api.com/v4/sports/baseball_mlb/events/${event.id}/odds?apiKey=${apiKey}&regions=us&markets=pitcher_strikeouts&oddsFormat=american`;
+        const propsResp = await fetch(propsUrl);
+        const propsData = await propsResp.json();
+        gamesScanned++;
+        
+        // Parse bookmaker data
+        const bookmakers = propsData.bookmakers || [];
+        for (const book of bookmakers) {
+          for (const market of (book.markets || [])) {
+            if (market.key !== 'pitcher_strikeouts') continue;
+            
+            // Group outcomes by player (description field has the pitcher name)
+            const playerLines = {};
+            for (const outcome of (market.outcomes || [])) {
+              const name = outcome.description || outcome.name;
+              if (!name) continue;
+              
+              if (!playerLines[name]) playerLines[name] = {};
+              if (outcome.name === 'Over') {
+                playerLines[name].overOdds = outcome.price;
+                playerLines[name].line = outcome.point;
+              } else if (outcome.name === 'Under') {
+                playerLines[name].underOdds = outcome.price;
+                playerLines[name].line = outcome.point;
+              }
+            }
+            
+            // Merge into pitchers object — prefer DraftKings, then FanDuel, then any book
+            for (const [pName, pLine] of Object.entries(playerLines)) {
+              if (!pLine.line) continue;
+              
+              const existing = pitchers[pName];
+              const bookPriority = book.key === 'draftkings' ? 3 : book.key === 'fanduel' ? 2 : 1;
+              const existingPriority = existing?._bookPriority || 0;
+              
+              if (!existing || bookPriority > existingPriority) {
+                pitchers[pName] = {
+                  line: pLine.line,
+                  overOdds: pLine.overOdds || -110,
+                  underOdds: pLine.underOdds || -110,
+                  book: book.title || book.key,
+                  _bookPriority: bookPriority,
+                  game: `${event.away_team} @ ${event.home_team}`,
+                  gameTime: event.commence_time,
+                };
+              }
+            }
+          }
+        }
+        
+        // Small delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 100));
+      } catch (e) {
+        // Skip individual game errors
+        continue;
+      }
+    }
+    
+    // Clean up internal fields
+    for (const p of Object.values(pitchers)) {
+      delete p._bookPriority;
+    }
+    
+    const result = {
+      pitchers,
+      fetched: new Date().toISOString(),
+      gameCount: gamesScanned,
+      pitcherCount: Object.keys(pitchers).length,
+      source: 'the-odds-api',
+    };
+    
+    liveKPropsCache = result;
+    liveKPropsCacheTime = Date.now();
+    
+    return result;
+  } catch (e) {
+    return { error: e.message, pitchers: {} };
+  }
+}
+
+/**
+ * Update the static DK_K_PROP_LINES with live data
+ * Returns count of updated pitchers
+ */
+async function updateLiveKLines(apiKey) {
+  const live = await fetchLiveKProps(apiKey);
+  if (live.error || !live.pitchers) return { updated: 0, error: live.error };
+  
+  let updated = 0;
+  let added = 0;
+  const changes = [];
+  
+  for (const [pitcherName, liveData] of Object.entries(live.pitchers)) {
+    const existing = DK_K_PROP_LINES[pitcherName];
+    
+    if (existing) {
+      // Check if line changed
+      if (existing.line !== liveData.line || existing.overOdds !== liveData.overOdds || existing.underOdds !== liveData.underOdds) {
+        changes.push({
+          pitcher: pitcherName,
+          old: { line: existing.line, overOdds: existing.overOdds, underOdds: existing.underOdds },
+          new: { line: liveData.line, overOdds: liveData.overOdds, underOdds: liveData.underOdds },
+          book: liveData.book,
+        });
+      }
+      updated++;
+    } else {
+      added++;
+    }
+    
+    DK_K_PROP_LINES[pitcherName] = {
+      line: liveData.line,
+      overOdds: liveData.overOdds,
+      underOdds: liveData.underOdds,
+      source: 'live',
+      book: liveData.book,
+      lastUpdate: liveData.game ? new Date().toISOString() : undefined,
+    };
+  }
+  
+  return {
+    updated,
+    added,
+    total: Object.keys(DK_K_PROP_LINES).length,
+    changes,
+    fetched: live.fetched,
+    gameCount: live.gameCount,
+  };
+}
+
 module.exports = {
   predictKs,
   scanODKProps,
@@ -603,6 +774,8 @@ module.exports = {
   getTeamKVulnerability,
   getWeatherKMultiplier,
   getStatus,
+  fetchLiveKProps,
+  updateLiveKLines,
   STEAMER_K9_PROJECTIONS,
   TEAM_BATTING_K_PCT,
   PARK_K_FACTORS,
