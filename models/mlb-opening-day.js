@@ -122,13 +122,6 @@ const OPENING_DAY_GAMES = [
   },
   // Day 2 series continuations (Game 2 starters)
   { 
-    date: '2026-03-27', day: 2, away: 'BOS', home: 'CIN', time: '4:10 PM ET',
-    confirmedStarters: { away: 'Sonny Gray', home: 'Nick Lodolo' },
-    dkLine: { homeML: 112, awayML: -132, total: 8.0 }, // BOS slight fav, GABP hitter-friendly
-    broadcast: null,
-    isGame2: true,
-  },
-  { 
     date: '2026-03-27', day: 2, away: 'LAA', home: 'HOU', time: '8:10 PM ET',
     confirmedStarters: { away: 'Yusei Kikuchi', home: 'Ronel Blanco' },
     dkLine: { homeML: -145, awayML: 122, total: 8.0 }, // HOU home fav, Minute Maid dome

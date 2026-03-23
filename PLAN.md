@@ -210,10 +210,12 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-23 10:00 UTC — Planning Session #40*
-*Current phase: 2.9 — Final Pre-Season Sprint + OD War Room COMPLETE 🎯*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v78.0.0 — 512MB VM stable, all systems GO, data 52min fresh*
-*✅ Phase 2.9 COMPLETE: ALL OD SYSTEMS OPERATIONAL — War Room, Betting Card, K Props, Outs Props, NRFI Model, Batter Props, SGP Builder, Checklist ALL LIVE*
+*Last updated: 2026-03-23 16:00 UTC — Planning Session #41*
+*Current phase: 3.0 — OD Final Sprint + Daily Card Engine + Regular Season Prep*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v90.0.0 — 512MB VM stable, data 37min fresh, core endpoints responding*
+*✅ NEW v85-v90: Batter Props daily scan, Regular Season Autopilot, Bayesian Progressive Blend, NHL Bubble Scanner, OD Gameday Verify, OD Pitcher Sync + Pre-Flight, Daily NBA Card (rest/tank conviction engine)*
+*🚨 P0 BUG: OD betting-card + preflight endpoints TIMING OUT in prod (>15s). Core health/value fine. Must fix before March 25 final check.*
+*🚨 NBA Daily Card: returning 0 games — "No NBA odds available" warning. Needs investigation.*
 *✅ OD BETTING CARD FINAL: 37 plays — 5 SMASH (A/A+, 81-83 conviction), 18 STRONG (B+), 12 LEAN (B), 2 SMALL (C+). $1,330 wagered, $244.98 EV (18.4% ROI)*
 *🔥 TOP SMASH #1: MIN@BAL UNDER 8.5 (Ryan vs Rogers, 20.1% edge, 83 conviction, $15.36 EV). Also BAL ML -162 and F5 UNDER 4.5.*
 *🔥 TOP SMASH #2: DET@SD F5 UNDER 4.5 (Skubal vs Cease, 18.3% edge, 81 conviction). DET ML -138 (3.2% edge).*
@@ -223,13 +225,12 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 *🔥 NRFI: 4 NRFI picks (DET@SD 57.7%, KC@ATL 57.3%), 2 YRFI picks (WSH@CHC 56.7%).*
 *✅ OD Checklist timeout FIXED v77.0 — getCachedOnly() non-blocking reads. All bugs squashed.*
 *🚨 CONFIRMED: MLB Day 1 = March 26 (PIT@NYM, CWS@MIL, WSH@CHC + 8 more). Day 2 = March 27 (NYY@SF, OAK@TOR + 7 more).*
-*📊 MLB FUTURES VALUE: NYY AL East +21.4%, OAK OVER +19%, BAL UNDER +13.7%, CHC OVER +13.5%, TOR OVER +12.2%*
-*📊 33 ACTIVE VALUE BETS across all markets (futures + game-day + Polymarket)*
-*🏀 NBA STANDINGS: OKC 56-15, SAS 53-18, DET 51-19, BOS 47-23, LAL/NYK 46-25, CLE 44-27, HOU 43-27, DEN/MIN 43-28. TOR(39-30), ATL/PHI/PHX(39-32) battling for E6-8 + W8. 10 games today.*
-*🏒 NHL STANDINGS: COL(100), DAL(97), CAR/BUF(94), MIN(92), TBL(90). EAST BUBBLE: PIT/MTL/BOS(86), CBJ(85), DET(84), NYI(83). OTT(81)@NYR tonight.*
+*📊 MLB FUTURES VALUE (LIVE): NYY AL East +21.3%, OAK OVER +18.9%, BAL UNDER +14.4%, CWS OVER +12.4%, TOR OVER +12.3%, ATL UNDER +12.1%*
+*🏀 NBA STANDINGS (3/23): OKC 56-15, SAS 53-18, DET 51-19, BOS 47-24, NYK 47-25, LAL 46-25, CLE 44-27, HOU 43-27, DEN/MIN 44-28. TOR(39-31), PHX(40-32), ATL/PHI(39-32). 10 games tonight.*
+*🏒 NHL STANDINGS (3/23): COL(100), DAL(97), CAR/BUF(94), MIN(92), TBL(90). EAST BUBBLE: PIT/MTL/BOS(86), CBJ(85), DET(84), NYI(83). OTT(81)@NYR tonight.*
 *🏈 NFL: Win totals LIVE. MIA OVER 4.5 (+39.6%), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%). Draft 32 days.*
-*🔑 SIGNAL QUALITY: NB F5 20/20 ✅, Conviction 20/20 ✅, Run Lines 20/20 ✅, Weather 15/20 ✅, Lineups 0/20 (pending game day), Umpires 0 (pending assignment)*
-*📋 REMAINING PRE-OD TASKS: (054) Pre-OD final check March 25 eve → (075) Batter props for regular season → GO LIVE March 26 AM*
+*📋 CRITICAL PATH: Fix OD timeouts → Pre-OD final check March 25 eve → GO LIVE March 26 AM → Regular season autopilot*
+*🆕 EDGE: Odds API first-3-innings model + pitcher_hits_allowed/pitcher_walks props = untapped markets*
 *⚾ MLB OPENING DAY 1: 3 DAYS (March 26) 🔥🔥🔥*
 *⚾ MLB OPENING DAY 2: 4 DAYS (March 27) 🔥🔥🔥*
 *🏀 NBA PLAYOFFS: 20 DAYS (April 12)*
