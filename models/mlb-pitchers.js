@@ -146,6 +146,7 @@ const PITCHERS = {
     { name: 'Braxton Garrett', team: 'MIA', hand: 'L', era: 4.28, fip: 4.12, xfip: 4.18, whip: 1.25, k9: 8.5, bb9: 2.5, hr9: 1.1, ip: 160, war: 1.5 },
     { name: 'Edward Cabrera', team: 'MIA', hand: 'R', era: 4.55, fip: 4.35, xfip: 4.42, whip: 1.30, k9: 9.5, bb9: 3.5, hr9: 1.1, ip: 130, war: 1.0 },
     { name: 'Ryan Weathers', team: 'MIA', hand: 'L', era: 4.82, fip: 4.58, xfip: 4.65, whip: 1.35, k9: 7.8, bb9: 3.2, hr9: 1.2, ip: 120, war: 0.5 },
+    { name: 'Eury Perez', team: 'MIA', hand: 'R', era: 4.15, fip: 3.88, xfip: 3.95, whip: 1.18, k9: 9.2, bb9: 2.8, hr9: 1.0, ip: 90, war: 1.5 }, // Elite prospect, big arm. Limited IP in 2025 (injury recovery)
     { name: 'Max Meyer', team: 'MIA', hand: 'R', era: 4.65, fip: 4.42, xfip: 4.50, whip: 1.28, k9: 8.8, bb9: 3.0, hr9: 1.1, ip: 125, war: 0.8 },
     { name: 'Sandy Alcantara', team: 'MIA', hand: 'R', era: 5.36, fip: 4.27, xfip: 4.35, whip: 1.27, k9: 7.3, bb9: 2.9, hr9: 1.1, ip: 175, war: 0.5 }, // 2025 return from Tommy John: 11-12, 5.36 ERA in 31 starts. FIP (4.27) much better than ERA — unlucky or still recovering. Former Cy Young winner. Opening Day starter.
   ],
@@ -173,6 +174,7 @@ const PITCHERS = {
     { name: 'Jameson Taillon', team: 'CHC', hand: 'R', era: 4.05, fip: 3.90, xfip: 3.98, whip: 1.22, k9: 7.5, bb9: 2.2, hr9: 1.1, ip: 170, war: 2.0 },
     { name: 'Javier Assad', team: 'CHC', hand: 'R', era: 3.88, fip: 3.75, xfip: 3.82, whip: 1.18, k9: 7.8, bb9: 2.5, hr9: 0.9, ip: 155, war: 2.2 },
     { name: 'Jordan Wicks', team: 'CHC', hand: 'L', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 8.0, bb9: 3.0, hr9: 1.0, ip: 130, war: 1.2 },
+    { name: 'Kyle Hendricks', team: 'CHC', hand: 'R', era: 4.78, fip: 4.58, xfip: 4.65, whip: 1.32, k9: 6.2, bb9: 2.0, hr9: 1.3, ip: 120, war: 0.5 }, // Veteran contact manager, low K but great control
   ],
   'STL': [
     { name: 'Sonny Gray', team: 'BOS', hand: 'R', era: 3.45, fip: 3.32, xfip: 3.40, whip: 1.10, k9: 9.5, bb9: 2.5, hr9: 0.9, ip: 185, war: 4.2 }, // TRADED to BOS offseason 2025-26
@@ -231,6 +233,7 @@ const PITCHERS = {
     { name: 'Austin Gomber', team: 'COL', hand: 'L', era: 5.05, fip: 4.82, xfip: 4.90, whip: 1.38, k9: 7.5, bb9: 3.0, hr9: 1.4, ip: 155, war: 0.2 },
     { name: 'Kyle Freeland', team: 'COL', hand: 'L', era: 5.35, fip: 5.08, xfip: 5.15, whip: 1.42, k9: 7.0, bb9: 3.2, hr9: 1.5, ip: 150, war: -0.2 },
     { name: 'Ryan Feltner', team: 'COL', hand: 'R', era: 5.15, fip: 4.92, xfip: 5.00, whip: 1.35, k9: 8.0, bb9: 2.8, hr9: 1.4, ip: 145, war: 0.5 },
+    { name: 'German Marquez', team: 'COL', hand: 'R', era: 4.85, fip: 4.62, xfip: 4.70, whip: 1.30, k9: 8.5, bb9: 2.5, hr9: 1.3, ip: 130, war: 0.8 }, // Returning from TJ surgery. Coors inflates ERA but solid FIP
     { name: 'Dakota Hudson', team: 'COL', hand: 'R', era: 5.45, fip: 5.18, xfip: 5.25, whip: 1.45, k9: 6.5, bb9: 3.5, hr9: 1.3, ip: 140, war: -0.5 },
   ],
 };

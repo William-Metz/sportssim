@@ -34,6 +34,8 @@ let platoonSplitsService = null;
 try { platoonSplitsService = require('../services/platoon-splits'); } catch (e) { /* no platoon splits */ }
 let stolenBaseModel = null;
 try { stolenBaseModel = require('../services/stolen-base-model'); } catch (e) { /* no SB model */ }
+let odTeamTendencies = null;
+try { odTeamTendencies = require('../services/od-team-tendencies'); } catch (e) { /* no OD tendencies */ }
 
 // Negative Binomial model — upgrades Poisson for overdispersion in MLB scoring
 let negBinomial = null;
@@ -1245,6 +1247,98 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
     }
   }
   
+  // ==================== OPENING WEEK UNDERS (v75.0) ====================
+  // Moved from asyncPredict → predict so ALL prediction paths get this critical adjustment.
+  // Opening Day/Week games have systematically lower totals (~7.80 avg vs ~8.90 reg season):
+  // - Ace starters pitch 5.8+ IP (less bullpen exposure)
+  // - Hitters need 50-100 ABs to calibrate timing (cold bats)
+  // - Cold weather at northern parks suppresses offense
+  // - Expanded rosters mean fresher bullpens
+  // Without this adjustment, model runs +0.47 R/G hot vs DK on average across 20 OD games.
+  let openingWeekUnders = null;
+  try { openingWeekUnders = require('../services/opening-week-unders'); } catch (e) { /* optional */ }
+  
+  if (openingWeekUnders && result.totalRuns) {
+    const homeTeam = getTeams()[homeAbbr];
+    const homePark = homeTeam?.park || '';
+    const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+    
+    // Determine pitcher tiers from resolved pitcher info
+    const homeStarterTier = result.homePitcher?.tier === 'ACE' ? 1 : 
+                            result.homePitcher?.tier === 'FRONTLINE' ? 2 :
+                            result.homePitcher?.rating >= 50 ? 3 : 4;
+    const awayStarterTier = result.awayPitcher?.tier === 'ACE' ? 1 :
+                            result.awayPitcher?.tier === 'FRONTLINE' ? 2 :
+                            result.awayPitcher?.rating >= 50 ? 3 : 4;
+    
+    const owAdj = openingWeekUnders.getOpeningWeekAdjustment(gameDate, homePark, {
+      homeStarterTier: opts.homeStarterTier || homeStarterTier,
+      awayStarterTier: opts.awayStarterTier || awayStarterTier
+    });
+    
+    if (owAdj.active && owAdj.reduction > 0) {
+      // Adjust the total runs down
+      const adjustedTotal = +(result.totalRuns * (1 - owAdj.reduction)).toFixed(1);
+      result.openingWeek = {
+        active: true,
+        reduction: owAdj.reductionPct,
+        originalTotal: result.totalRuns,
+        adjustedTotal,
+        runsReduced: +(result.totalRuns - adjustedTotal).toFixed(1),
+        factors: owAdj.factors,
+        note: owAdj.note
+      };
+      result.totalRuns = adjustedTotal;
+      
+      // Also adjust F5 total proportionally
+      if (result.f5Total) {
+        result.f5Total = +(result.f5Total * (1 - owAdj.reduction * 0.8)).toFixed(1); // F5 less affected (aces go deeper)
+      }
+    }
+  }
+  
+  // ==================== OD TEAM TENDENCIES (v75.0) ====================
+  // Historical Opening Day team records → fine-tune ML and totals predictions.
+  // Some teams systematically over/underperform on Opening Day.
+  if (odTeamTendencies && result.homeWinProb) {
+    const gameDate = opts.gameDate || new Date().toISOString().split('T')[0];
+    // Only apply during Opening Day window (March 25 - April 2)
+    const month = parseInt(gameDate.split('-')[1]);
+    const day = parseInt(gameDate.split('-')[2]);
+    const isODWindow = (month === 3 && day >= 25) || (month === 4 && day <= 2);
+    
+    if (isODWindow) {
+      try {
+        const tendencyAdj = odTeamTendencies.getODTendencyAdjustment(awayAbbr, homeAbbr, {
+          isDayGame: opts.isDayGame || false
+        });
+        
+        if (tendencyAdj && (Math.abs(tendencyAdj.homeShift) > 0.005 || Math.abs(1 - tendencyAdj.totalsMult) > 0.003)) {
+          // Apply WP shift (capped at ±3% to prevent over-reliance on small samples)
+          const cappedShift = Math.max(-0.03, Math.min(0.03, tendencyAdj.homeShift));
+          result.homeWinProb = Math.max(0.15, Math.min(0.85, result.homeWinProb + cappedShift));
+          
+          // Apply totals multiplier
+          if (result.totalRuns && tendencyAdj.totalsMult !== 1) {
+            result.totalRuns = +(result.totalRuns * tendencyAdj.totalsMult).toFixed(1);
+            if (result.f5Total) {
+              result.f5Total = +(result.f5Total * (1 + (tendencyAdj.totalsMult - 1) * 0.6)).toFixed(1); // F5 dampened
+            }
+          }
+          
+          result.odTendencies = {
+            active: true,
+            homeShift: cappedShift,
+            totalsMult: tendencyAdj.totalsMult,
+            signals: tendencyAdj.signals,
+            homeRecord: tendencyAdj.homeRecord,
+            awayRecord: tendencyAdj.awayRecord
+          };
+        }
+      } catch (e) { /* OD tendencies optional */ }
+    }
+  }
+  
   return result;
 }
 
@@ -1676,42 +1770,8 @@ async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
     } : null
   };
   
-  // Apply Opening Week unders adjustment to totals
-  let openingWeekUnders = null;
-  try { openingWeekUnders = require('../services/opening-week-unders'); } catch (e) { /* optional */ }
-  
-  if (openingWeekUnders && result.totalRuns) {
-    const homeTeam = getTeams()[homeAbbr];
-    const homePark = homeTeam?.park || '';
-    
-    // Determine pitcher tiers from resolved pitcher info
-    const homeStarterTier = result.homePitcher?.tier === 'ACE' ? 1 : 
-                            result.homePitcher?.tier === 'FRONTLINE' ? 2 :
-                            result.homePitcher?.rating >= 50 ? 3 : 4;
-    const awayStarterTier = result.awayPitcher?.tier === 'ACE' ? 1 :
-                            result.awayPitcher?.tier === 'FRONTLINE' ? 2 :
-                            result.awayPitcher?.rating >= 50 ? 3 : 4;
-    
-    const owAdj = openingWeekUnders.getOpeningWeekAdjustment(gameDate, homePark, {
-      homeStarterTier: opts.homeStarterTier || homeStarterTier,
-      awayStarterTier: opts.awayStarterTier || awayStarterTier
-    });
-    
-    if (owAdj.active && owAdj.reduction > 0) {
-      // Adjust the total runs down
-      const adjustedTotal = +(result.totalRuns * (1 - owAdj.reduction)).toFixed(1);
-      result.openingWeek = {
-        active: true,
-        reduction: owAdj.reductionPct,
-        originalTotal: result.totalRuns,
-        adjustedTotal,
-        runsReduced: +(result.totalRuns - adjustedTotal).toFixed(1),
-        factors: owAdj.factors,
-        note: owAdj.note
-      };
-      result.totalRuns = adjustedTotal;
-    }
-  }
+  // NOTE: Opening Week unders adjustment is now applied inside predict() (v75.0)
+  // so it runs on ALL prediction paths (sync + async). No duplicate adjustment needed here.
   
   return result;
 }
