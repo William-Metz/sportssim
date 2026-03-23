@@ -12,3 +12,4 @@ services/scan-status.json
 ml-env/
 data/
 __pycache__/
+services/daily-card-cache/
