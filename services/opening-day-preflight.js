@@ -60,18 +60,27 @@ function checkDataFreshness() {
       const now = Date.now();
       
       for (const sport of ['nba', 'nhl', 'mlb']) {
-        const key = `${sport}_standings`;
-        if (cache[key]) {
-          const age = now - cache[key].timestamp;
+        // live-data.js uses cache.nba/nhl/mlb with cache.timestamps.nba/nhl/mlb
+        const hasData = cache[sport] && Object.keys(cache[sport]).length > 0;
+        const ts = cache.timestamps && cache.timestamps[sport];
+        if (hasData && ts) {
+          const age = now - ts;
           const ageMinutes = Math.round(age / 60000);
           const stale = ageMinutes > 180; // >3 hours is stale
           results.checks.push({
             name: `${sport.toUpperCase()} standings data`,
             status: stale ? 'WARN' : 'PASS',
-            detail: `${ageMinutes} minutes old`,
+            detail: `${ageMinutes} minutes old, ${Object.keys(cache[sport]).length} teams`,
             freshness: ageMinutes
           });
           if (stale) results.status = 'WARN';
+        } else if (hasData) {
+          results.checks.push({
+            name: `${sport.toUpperCase()} standings data`,
+            status: 'WARN',
+            detail: `Data loaded (${Object.keys(cache[sport]).length} teams) but no timestamp`
+          });
+          if (results.status !== 'FAIL') results.status = 'WARN';
         } else {
           results.checks.push({
             name: `${sport.toUpperCase()} standings data`,
