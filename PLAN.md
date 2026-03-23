@@ -155,8 +155,8 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 - [x] **NBA Playoff Seeding Simulator** — DONE (v54.0). Monte Carlo remaining schedule, conference standings, key battles, play-in tournament sim, division winner probabilities. API: /api/nba/seeding-sim, /api/nba/seeding-sim/battles, /api/nba/seeding-sim/matchups.
 - [x] ✅ **F3 First-3-Innings Model** — DONE v93.0. NB scoring with FTTO advantage (first-time-through-order = aces dominate F3 even more than F5), 4 API endpoints, dashboard tab. Odds API supports h2h_1st_3_innings, spreads_1st_3_innings, totals_1st_3_innings + alternates.
 - [ ] 🔥 **NFL Win Total Futures Model** — NFL Draft April 24. Win total futures are live on books now. Model built (v56.0) with MIA OVER 4.5 (+39.6%), BAL UNDER 11.5 (+24.4%). Next: incorporate draft picks + FA signings to update projections post-draft.
-- [ ] 🔥 **MLB Pitcher Hits/Walks/ER Props** — NEW EDGE: Odds API supports player_pitcher_hits_allowed, player_pitcher_walks, player_pitcher_earned_runs markets. Our Statcast xBA/xwOBA/xERA data for 853 pitchers is perfectly suited to model these. Soft market = big edges. Task 084.
-- [ ] 🔥 **NBA Quarter/Half Markets** — NEW EDGE: Odds API supports h2h_q1-q4, totals_q1-q4, spreads_h1-h2. Can model with existing power ratings + pace/scoring distribution data. Quarter markets are less efficiently priced. Task 085.
+- [x] ✅ **MLB Pitcher Hits/Walks/ER Props** — DONE v95.0. Poisson models for hits/walks/ER with Statcast xBA/xERA. 5 API endpoints, dashboard tab. Soft market props wired into daily card.
+- [x] ✅ **NBA Quarter/Half Markets** — DONE v96.0. Quarter/half scoring model with team profiles, motivation impact, structural edge scanner. Period value detection. Wired into NBA daily card v97.
 - [ ] **Soccer model (EPL/Champions League)** — Year-round opportunity, draw underbet by public
 - [ ] UFC/MMA model
 - [ ] Kalshi scanner (all markets) — ✅ NBA done
@@ -215,26 +215,26 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-23 20:00 UTC — Planning Session #42*
+*Last updated: 2026-03-23 22:00 UTC — Planning Session #43*
 *Current phase: 3.0 — OD D-Day Countdown + Regular Season Prep + Multi-Sport Edge Expansion*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v93.0.0 — 512MB VM stable, all core endpoints responding*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v95.0.0 — 512MB VM stable, all core endpoints responding (v96/v97 pushed but deploy didn't trigger — this push should fix)*
 *✅ ALL OD BUGS SQUASHED: Betting card returns instantly (disk cache), preflight defaults to LITE, NBA daily card has ESPN fallback*
-*✅ NEW v91-v93: F3 First-3-Innings Model, Rust quantitative engine, OD endpoint timeout fix, NBA daily card ESPN fallback, disk cache persistence*
-*✅ OD BETTING CARD LIVE: 35 plays — 5 SMASH (A/A+, 83 conviction), min edge 22.6%. Returning from disk cache instantly.*
+*✅ NEW v93-v97: F3 First-3-Innings (v93), Pitcher HWE Props (v95 — hits/walks/ER Poisson with Statcast xBA/xERA), NBA Period Markets (v96 — quarter/half scoring model), Integration wiring (v97)*
+*✅ OD BETTING CARD LIVE: 36 plays — 5 SMASH (A/A+, 83 conviction), 17 STRONG, 14 LEAN. Returning from disk cache instantly.*
 *🔥 TOP SMASH #1: MIN@BAL UNDER 8.5 (Ryan vs Rogers, 22.6% edge, 83 conviction, $17.27 EV).*
-*🔥 K PROPS: 37 picks, 22 high confidence, 7.5% avg edge. Misiorowski OVER 5.5 (+23.6%), Boyd OVER 4.5 (+16.4%), Crochet OVER 7.5 (+15.4%).*
+*🔥 TOP SMASH #2: MIN@BAL F5 UNDER 4.5 (20.9% edge, 83 conviction).*
+*🔥 TOP SMASH #3: DET@SD F5 UNDER 4.5 (Skubal vs Cease, 19.7% edge, 81 conviction).*
+*🔥 K PROPS: 35 picks, 22 high confidence. Misiorowski OVER 5.5 (+23.6%), Boyd OVER 4.5 (+16.4%), Crochet OVER 7.5 (+15.4%).*
 *🔥 OUTS PROPS: 40 picks, 23 HIGH confidence. ALL OVERS (OD premium). Peralta OVER 15.5 (+18.8%).*
 *🔥 NRFI: 4 NRFI picks (DET@SD 57.7%, KC@ATL 57.3%), 2 YRFI picks (WSH@CHC 56.7%).*
-*🔥 F3 MODEL LIVE (v93): First-3-innings NB scoring, FTTO advantage (first-time-through-order), 4 API endpoints, dashboard tab.*
-*📊 VALUE BETS: 32 active value bets (futures + Polymarket). NYY AL East +21.3%, OAK OVER +18.9%, BAL UNDER +14.4%.*
-*🏀 NBA (3/23): OKC 56-15, SAS 53-18, DET 51-19. 10 games TONIGHT — massive rest/tank mismatches. IND(TANKING B2B -4.0)@ORL(DESPERATE +1.7) = 5.7pt swing. SAS(RESTING B2B -4.8)@MIA(DESPERATE 0) = 4.8pt. OKC(RESTING -2.5)@PHI(DESPERATE B2B 0). Rest/tank model LIVE and detecting edges.*
-*🏒 NHL (3/23): COL(100), DAL(97), CAR/BUF(94), MIN(92). EAST BUBBLE STILL TIGHT: PIT/MTL/BOS(86), CBJ(85), DET(84), NYI(83). OTT@NYR tonight — every game matters for bubble.*
-*🏈 NFL: Win totals LIVE. MIA OVER 4.5 (+39.6%), BAL UNDER 11.5 (+24.4%). Draft 32 days.*
-*🆕 EDGE DISCOVERED: Odds API has MLB 1st-7-innings markets (h2h/spreads/totals/alternates) + player_pitcher_hits_allowed, player_pitcher_walks, player_pitcher_earned_runs props. ALL UNTAPPED by our model. These are soft markets with smaller sample sizes = bigger edges.*
-*🆕 EDGE DISCOVERED: NBA quarter/half markets (h2h_q1-q4, totals_q1-q4, spreads_h1-h2) available in Odds API. Can model with our existing power ratings + pace data.*
+*📊 VALUE BETS: 33 active value bets. MLB: NYY AL East +22.2%, OAK OVER +17.9%, BAL UNDER +13.7%, CHC OVER +13.6%. NFL: MIA OVER 4.5 (+39.5%), TEN UNDER 6.5 (+26%), BAL UNDER 11.5 (+23.3%).*
+*🏀 NBA (3/23): OKC 56-15, SAS 53-18, DET 51-19. 10 games TONIGHT — massive rest/tank mismatches. IND(TANKING B2B -4.0)@ORL(DESPERATE +1.7) = 5.7pt swing. SAS(RESTING B2B -4.8)@MIA(DESPERATE 0) = 4.8pt. TOR(COASTING)@UTA(TANKING B2B -4.3) = 4.3pt. OKC(RESTING -2.5)@PHI(DESPERATE B2B 0). GSW(DESPERATE 5g/7d)@DAL(REBUILDING B2B -3.0). Rest/tank model LIVE and detecting all edges.*
+*🏒 NHL (3/23): COL(100), DAL(97), CAR/BUF(94), MIN(92). EAST BUBBLE UNCHANGED: PIT/MTL/BOS(86), CBJ(85), DET(84), NYI(83). 6 teams within 3pts for 4 spots = MASSIVE mispricing in playoff series futures.*
+*🏈 NFL: 15 win total value bets LIVE. MIA OVER 4.5, TEN UNDER 6.5, BAL UNDER 11.5, SEA OVER 10.5 all HIGH confidence. Draft 32 days.*
 *📋 CRITICAL PATH: Pre-OD final check March 25 eve → GO LIVE March 26 AM → Regular season autopilot → NBA playoff futures scan*
-*⚾ MLB OPENING DAY 1: 3 DAYS (March 26) 🔥🔥🔥*
-*⚾ MLB OPENING DAY 2: 4 DAYS (March 27) 🔥🔥🔥*
-*🏀 NBA PLAYOFFS: 20 DAYS (April 12)*
-*🏒 NHL PLAYOFFS: 27 DAYS (April 19)*
-*🏈 NFL DRAFT: 32 DAYS (April 24)*
+*🚨 DEPLOY GAP: v96 (NBA period markets) and v97 (HWE+period integration) pushed to GitHub but Fly.io deploy didn't trigger. This planning commit should trigger deploy → production goes to v97.*
+*⚾ MLB OPENING DAY 1: 2 DAYS (March 26) 🔥🔥🔥*
+*⚾ MLB OPENING DAY 2: 3 DAYS (March 27) 🔥🔥🔥*
+*🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
+*🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
+*🏈 NFL DRAFT: 31 DAYS (April 24)*
