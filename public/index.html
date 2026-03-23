@@ -198,6 +198,7 @@ function buildTabs() {
   tabs.push({ id: 'seeding-futures', label: '🎯 Seeding→$' });
   tabs.push({ id: 'consensus', label: '🧠 Consensus' });
   tabs.push({ id: 'model-accuracy', label: '📊 Model Accuracy' });
+  tabs.push({ id: 'od-checklist', label: '🚀 OD Checklist' });
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
   tabs.push({ id: 'od-lines', label: '📈 OD Lines' });
   tabs.push({ id: 'live-tracker', label: '🔴 Live Tracker' });
@@ -246,6 +247,7 @@ function showTab(id) {
   else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
   else if (id === 'nhl-goalies') loadNHLGoaliesTab();
   else if (id === 'nba-seeding') loadNBASeedingTab();
+  else if (id === 'od-checklist') loadODChecklistTab();
   else if (id === 'od-validate') loadODValidateTab();
   else if (id === 'od-weather') loadODWeatherTab();
   else if (id === 'seeding-futures') loadSeedingFuturesTab();
@@ -10135,6 +10137,205 @@ async function analyzeKProps() {
     resultDiv.innerHTML = html;
   } catch (err) {
     resultDiv.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+  }
+}
+// ==================== OD PRE-GAME CHECKLIST TAB (v71.0) ====================
+async function loadODChecklistTab() {
+  const wrap = document.getElementById('tab-content');
+  try {
+    const resp = await fetch(`${API}/api/opening-day/checklist`);
+    const data = await resp.json();
+    
+    if (data.error) {
+      wrap.innerHTML = `<div class="card"><h2>❌ Error</h2><p>${data.error}</p></div>`;
+      return;
+    }
+    
+    let html = '';
+    
+    // Hero banner — countdown style
+    const statusColor = data.overallStatus === 'GO' ? '#22c55e' : data.overallStatus === 'CAUTION' ? '#eab308' : '#ef4444';
+    const statusIcon = data.overallStatus === 'GO' ? '🟢' : data.overallStatus === 'CAUTION' ? '🟡' : '🔴';
+    const statusText = data.overallStatus === 'GO' ? 'ALL SYSTEMS GO' : data.overallStatus === 'CAUTION' ? 'CAUTION' : 'NO-GO';
+    
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a0e17 0%,#1a0a2e 50%,#0a1a17 100%);border:2px solid ${statusColor};position:relative;overflow:hidden">
+      <div style="position:absolute;top:-40px;right:-40px;font-size:180px;opacity:0.04">🦞</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:${statusColor};font-weight:700;margin-bottom:4px">OPENING DAY MISSION CONTROL</div>
+          <h2 style="font-size:28px;margin-bottom:4px">${statusIcon} ${statusText}</h2>
+          <p style="color:var(--text2);font-size:14px">${data.message || ''}</p>
+          <div style="display:flex;gap:20px;margin-top:12px;flex-wrap:wrap">
+            <div style="text-align:center;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:32px;font-weight:800;color:${statusColor}">${data.daysUntil}</div>
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Days</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:32px;font-weight:800;color:#fff">${data.hoursUntil || '—'}</div>
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Hours</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:32px;font-weight:800;color:#22c55e">${data.readyCount}</div>
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Ready</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:32px;font-weight:800;color:#eab308">${data.warnCount}</div>
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Warn</div>
+            </div>
+            <div style="text-align:center;background:rgba(255,255,255,0.03);padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div style="font-size:32px;font-weight:800;color:#ef4444">${data.failCount}</div>
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Fail</div>
+            </div>
+          </div>
+        </div>
+        <button class="refresh-btn" onclick="loadODChecklistTab()" style="background:${statusColor};color:#000;font-weight:700;padding:10px 20px;font-size:14px">🔄 Re-Check All</button>
+      </div>
+    </div>`;
+    
+    // Section renderer
+    const sectionMeta = {
+      model: { icon: '🧠', title: 'Core Model', desc: 'MLB prediction engine, team data, pitcher database' },
+      data: { icon: '📡', title: 'Data Feeds', desc: 'Live sports data, odds API, auto-scanner' },
+      signals: { icon: '📊', title: 'Signal Stack', desc: 'Weather, umpires, lineups, platoon splits, framing, bullpen' },
+      bets: { icon: '💰', title: 'Betting Card', desc: 'Playbook, DK lines, K props, SGPs, conviction scores' },
+      deploy: { icon: '🚀', title: 'Deployment', desc: 'Server health, CLV tracker, live tracker, line tracker' },
+      games: { icon: '⚾', title: 'Game Readiness', desc: 'Per-game validation: pitchers, lines, predictions' },
+    };
+    
+    for (const [key, meta] of Object.entries(sectionMeta)) {
+      const section = data.sections?.[key];
+      if (!section) continue;
+      
+      const secColor = section.status === 'GO' ? '#22c55e' : section.status === 'WARN' ? '#eab308' : '#ef4444';
+      const secIcon = section.status === 'GO' ? '✅' : section.status === 'WARN' ? '⚠️' : '❌';
+      const passCount = section.checks.filter(c => c.status === 'GO').length;
+      
+      html += `<div class="card" style="border-left:3px solid ${secColor}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <h3 style="font-size:16px;margin-bottom:2px">${meta.icon} ${meta.title} ${secIcon}</h3>
+            <p style="color:var(--text3);font-size:12px">${meta.desc}</p>
+          </div>
+          <div style="background:${secColor}15;color:${secColor};padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700">
+            ${passCount}/${section.checks.length} GO
+          </div>
+        </div>`;
+      
+      for (const check of section.checks) {
+        const cColor = check.status === 'GO' ? '#22c55e' : check.status === 'WARN' ? '#eab308' : '#ef4444';
+        const cIcon = check.status === 'GO' ? '🟢' : check.status === 'WARN' ? '🟡' : '🔴';
+        
+        html += `<div style="padding:6px 10px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:12px">${cIcon}</span>
+            <span style="font-size:13px;font-weight:500">${check.name}</span>
+          </div>
+          <span style="font-size:12px;color:var(--text2);max-width:60%;text-align:right">${check.detail}</span>
+        </div>`;
+      }
+      
+      // Special: betting card top plays
+      if (key === 'bets' && section.checks[0]?.data?.topPlays) {
+        const betData = section.checks[0].data;
+        html += `<div style="margin-top:12px;padding:10px;background:rgba(34,197,94,0.05);border-radius:8px;border:1px solid rgba(34,197,94,0.15)">
+          <div style="font-size:12px;font-weight:700;color:#22c55e;margin-bottom:8px">💰 PORTFOLIO SUMMARY</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px">
+            <span><strong>${betData.totalPlays}</strong> plays</span>
+            <span><strong>$${betData.totalWager?.toFixed(0) || 0}</strong> wagered</span>
+            <span style="color:#22c55e"><strong>$${betData.totalEV?.toFixed(2) || 0}</strong> EV</span>
+            <span style="color:#f59e0b"><strong>${betData.smashPlays || 0}</strong> SMASH</span>
+            <span style="color:#3b82f6"><strong>${betData.strongPlays || 0}</strong> STRONG</span>
+          </div>`;
+        
+        if (betData.topPlays && betData.topPlays.length > 0) {
+          html += `<div style="margin-top:8px;font-size:12px;font-weight:700;color:var(--text2)">TOP PLAYS:</div>`;
+          for (const play of betData.topPlays) {
+            const gradeColor = ['A+','A'].includes(play.grade) ? '#f59e0b' : ['A-','B+'].includes(play.grade) ? '#3b82f6' : '#6b7280';
+            html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+              <span>${play.game} — <strong>${play.pick}</strong> (${play.type})</span>
+              <span>
+                <span style="color:#22c55e;font-weight:700">+${(play.edge * 100).toFixed(1)}%</span>
+                <span style="background:${gradeColor}20;color:${gradeColor};padding:1px 6px;border-radius:4px;font-weight:700;margin-left:6px">${play.grade}</span>
+                <span style="color:var(--text3);margin-left:6px">$${play.wager?.toFixed(0) || 0}</span>
+              </span>
+            </div>`;
+          }
+        }
+        html += '</div>';
+      }
+      
+      html += '</div>';
+    }
+    
+    // Game-by-game grid
+    if (data.games && data.games.length > 0) {
+      html += `<div class="card">
+        <h3 style="margin-bottom:12px">⚾ Game-by-Game Status (${data.games.filter(g => g.status === 'GO').length}/${data.games.length} Ready)</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">`;
+      
+      for (const game of data.games) {
+        const gColor = game.status === 'GO' ? '#22c55e' : '#eab308';
+        const gIcon = game.status === 'GO' ? '✅' : '⚠️';
+        const pred = game.prediction;
+        const awayFav = pred && pred.awayWin > pred.homeWin;
+        
+        html += `<div style="background:rgba(255,255,255,0.02);border:1px solid ${gColor}30;border-radius:8px;padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-weight:700;font-size:13px">${game.matchup}</span>
+            <span style="font-size:11px">${gIcon} Day ${game.day}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">
+            ${game.starters.away} vs ${game.starters.home}
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${game.checks.pitchersInDB ? '#22c55e15' : '#ef444415'};color:${game.checks.pitchersInDB ? '#22c55e' : '#ef4444'}">Pitchers ${game.checks.pitchersInDB ? '✓' : '✗'}</span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${game.checks.dkLines ? '#22c55e15' : '#ef444415'};color:${game.checks.dkLines ? '#22c55e' : '#ef4444'}">DK Lines ${game.checks.dkLines ? '✓' : '✗'}</span>
+            <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${game.checks.dome ? '#3b82f615' : game.checks.weatherAvailable ? '#22c55e15' : '#eab30815'};color:${game.checks.dome ? '#3b82f6' : game.checks.weatherAvailable ? '#22c55e' : '#eab308'}">${game.checks.dome ? '🏟️ Dome' : game.checks.weatherAvailable ? 'Weather ✓' : 'Weather ?'}</span>
+          </div>`;
+        
+        if (pred) {
+          html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:11px">
+            <span style="color:${awayFav ? '#22c55e' : 'var(--text2)'}">${game.matchup.split('@')[0]} ${pred.awayWin}%</span>
+            <span style="color:var(--text3)">O/U ${pred.total}</span>
+            <span style="color:${!awayFav ? '#22c55e' : 'var(--text2)'}">${game.matchup.split('@')[1]} ${pred.homeWin}%</span>
+          </div>`;
+          if (game.lines) {
+            html += `<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px">
+              <span>ML ${game.lines.awayML > 0 ? '+' : ''}${game.lines.awayML}</span>
+              <span>DK ${game.lines.total}</span>
+              <span>ML ${game.lines.homeML > 0 ? '+' : ''}${game.lines.homeML}</span>
+            </div>`;
+          }
+        }
+        
+        html += '</div>';
+      }
+      
+      html += '</div></div>';
+    }
+    
+    // Action items / next steps
+    html += `<div class="card" style="border-left:3px solid #8b5cf6">
+      <h3 style="margin-bottom:8px">📋 Pre-Game Action Items</h3>
+      <div style="font-size:13px;line-height:1.8">
+        <div>⬜ <strong>March 26 Evening:</strong> Verify all pitcher confirmations (ESPN/DailyFaceoff)</div>
+        <div>⬜ <strong>March 26 Evening:</strong> Check weather forecasts are fresh for all outdoor parks</div>
+        <div>⬜ <strong>March 27 Morning:</strong> Confirm confirmed lineups load via lineup-fetcher</div>
+        <div>⬜ <strong>March 27 Morning:</strong> Capture final DK lines snapshot via line tracker</div>
+        <div>⬜ <strong>March 27 Morning:</strong> Run full playbook refresh for latest odds</div>
+        <div>⬜ <strong>March 27 Pre-Game:</strong> Record all bets in CLV tracker</div>
+        <div>⬜ <strong>March 27 First Pitch:</strong> Activate Live Tracker for real-time P&L</div>
+      </div>
+    </div>`;
+    
+    // Footer
+    html += `<div style="text-align:center;color:var(--text3);font-size:11px;padding:16px 0">
+      SportsSim v71.0 • OD Pre-Game Checklist • ${new Date(data.timestamp).toLocaleString()} • ${data.totalChecks} checks • 🦞 Let's eat
+    </div>`;
+    
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = `<div class="card"><h2>❌ Error loading checklist</h2><p>${e.message}</p></div>`;
   }
 }
 
