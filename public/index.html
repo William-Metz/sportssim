@@ -163,6 +163,7 @@ function buildTabs() {
   }
   tabs.push({ id: 'daily-slate', label: '💰 Daily Slate' });
   tabs.push({ id: 'mlb-daily-card', label: '⚾💰 MLB Card' });
+  tabs.push({ id: 'season-autopilot', label: '🤖 Autopilot' });
   tabs.push({ id: 'alt-lines', label: '📐 Alt Lines' });
   tabs.push({ id: 'statcast', label: '🔬 Statcast' });
   tabs.push({ id: 'arb', label: '🔀 Arb Scanner' });
@@ -251,6 +252,7 @@ function showTab(id) {
   else if (id === 'lineups') loadLineupsTab();
   else if (id === 'daily-slate') loadDailySlateTab();
   else if (id === 'mlb-daily-card') loadMLBDailyCardTab();
+  else if (id === 'season-autopilot') loadSeasonAutopilotTab();
   else if (id === 'consensus') loadConsensusTab();
   else if (id === 'model-accuracy') loadModelAccuracyTab();
   else if (id === 'nhl-playoffs') loadNHLPlayoffsTab();
@@ -11907,6 +11909,194 @@ async function loadNBASeriesScannerTab() {
   } catch (e) {
     wrap.innerHTML = `<div class="error">Error loading NBA Series Scanner: ${e.message}</div>`;
   }
+}
+
+// ==================== SEASON AUTOPILOT TAB (v86.0) ====================
+async function loadSeasonAutopilotTab() {
+  const wrap = document.getElementById('content');
+  wrap.innerHTML = '<div class="card"><h2>Loading Season Autopilot...</h2></div>';
+  
+  try {
+    const resp = await fetch(`${API}/api/season/autopilot/status`);
+    const status = await resp.json();
+    
+    let gamesResp = null;
+    try {
+      const gr = await fetch(`${API}/api/season/autopilot/games`);
+      gamesResp = await gr.json();
+    } catch(e) {}
+
+    let html = `<div style="max-width:1200px;margin:0 auto;">`;
+    
+    // Header
+    html += `<div class="card" style="background:linear-gradient(135deg,#0a0a1a,#1a1a3a);border:2px solid ${status.isRunning ? '#22c55e' : '#ef4444'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="margin:0;color:${status.isRunning ? '#22c55e' : '#ef4444'}">🤖 Regular Season Autopilot ${status.version || 'v86'}</h2>
+          <p style="margin:4px 0 0;color:#888">Automated daily game-day orchestration for the full 162-game season</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="startSeasonAutopilot()" style="background:#22c55e;color:#000;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold">▶ Start</button>
+          <button onclick="stopSeasonAutopilot()" style="background:#ef4444;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold">⏹ Stop</button>
+          <button onclick="forceScanAutopilot()" style="background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold">🔄 Force Scan</button>
+        </div>
+      </div>
+    </div>`;
+    
+    // Status cards row
+    const modeColors = { 'idle': '#888', 'pre-game': '#f59e0b', 'active': '#22c55e', 'post-game': '#8b5cf6', 'off-day': '#6b7280' };
+    const modeColor = modeColors[status.mode] || '#888';
+    
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px">`;
+    
+    // Mode
+    html += `<div class="card" style="text-align:center;border-left:4px solid ${modeColor}">
+      <div style="font-size:28px;font-weight:bold;color:${modeColor}">${(status.mode || 'idle').toUpperCase()}</div>
+      <div style="color:#888;font-size:12px">Mode</div>
+    </div>`;
+    
+    // Games
+    const g = status.games || {};
+    html += `<div class="card" style="text-align:center;border-left:4px solid #3b82f6">
+      <div style="font-size:28px;font-weight:bold;color:#3b82f6">${g.total || 0}</div>
+      <div style="color:#888;font-size:12px">Games: ${g.scheduled||0} sched / ${g.inProgress||0} live / ${g.final||0} final</div>
+    </div>`;
+    
+    // Coverage
+    const cov = status.coverage || {};
+    html += `<div class="card" style="text-align:center;border-left:4px solid #f59e0b">
+      <div style="font-size:14px;color:#f59e0b;font-weight:bold">
+        📋 ${cov.lineupsConfirmed || 0} lineups &nbsp; 💰 ${cov.withOdds || 0} odds &nbsp; 🌤️ ${cov.withWeather || 0} weather
+      </div>
+      <div style="color:#888;font-size:12px">Signal Coverage</div>
+    </div>`;
+    
+    // Card summary
+    const card = status.bettingCard || {};
+    html += `<div class="card" style="text-align:center;border-left:4px solid #22c55e">
+      <div style="font-size:20px;font-weight:bold;color:#22c55e">${card.totalBets || 0} bets · $${(card.totalEV || 0).toFixed(0)} EV</div>
+      <div style="color:#888;font-size:12px">${card.smashPlays || 0} SMASH · ${card.strongPlays || 0} STRONG · ${(card.roi || 0).toFixed(1)}% ROI</div>
+    </div>`;
+    
+    html += `</div>`;
+    
+    // Daily Stats
+    const ds = status.dailyStats || {};
+    html += `<div class="card">
+      <h3 style="margin:0 0 8px;color:#f59e0b">📊 Today's Stats</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#3b82f6">${ds.gamesDetected||0}</span><br><small style="color:#888">Games</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#22c55e">${ds.lineupsConfirmed||0}</span><br><small style="color:#888">Lineups</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#ef4444">${ds.pitcherScratches||0}</span><br><small style="color:#888">Scratches</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#f59e0b">${ds.oddsUpdates||0}</span><br><small style="color:#888">Odds Updates</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#8b5cf6">${ds.cardRebuilds||0}</span><br><small style="color:#888">Card Rebuilds</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#22c55e">${ds.betsRecorded||0}</span><br><small style="color:#888">Bets Recorded</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#3b82f6">${ds.betsGraded||0}</span><br><small style="color:#888">Bets Graded</small></div>
+        <div style="text-align:center"><span style="font-size:20px;font-weight:bold;color:#f59e0b">${ds.alertsGenerated||0}</span><br><small style="color:#888">Alerts</small></div>
+      </div>
+    </div>`;
+    
+    // Games Grid
+    if (Array.isArray(gamesResp) && gamesResp.length > 0) {
+      html += `<div class="card">
+        <h3 style="margin:0 0 12px;color:#22c55e">⚾ Today's Games (${gamesResp.length})</h3>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+          <tr style="border-bottom:1px solid #333;color:#888">
+            <th style="text-align:left;padding:6px">Game</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Starters</th>
+            <th>📋</th><th>💰</th><th>🌤️</th>
+            <th>Win%</th>
+            <th>Total</th>
+            <th>ML</th>
+          </tr>`;
+      
+      for (const game of gamesResp) {
+        const statusEmoji = game.status === 'scheduled' ? '📅' : game.status === 'in-progress' ? '⚾' : game.status === 'final' ? '✅' : '❓';
+        const pred = game.prediction || {};
+        const odds = game.liveOdds || {};
+        
+        html += `<tr style="border-bottom:1px solid #222">
+          <td style="padding:6px;font-weight:bold">${game.gameKey}</td>
+          <td style="text-align:center">${game.gameTime || 'TBD'}</td>
+          <td style="text-align:center">${statusEmoji} ${game.status}</td>
+          <td style="font-size:11px">${game.starters?.away || 'TBD'} vs ${game.starters?.home || 'TBD'}</td>
+          <td style="text-align:center">${game.lineupsConfirmed ? '✅' : '❌'}</td>
+          <td style="text-align:center">${game.hasOdds ? '✅' : '❌'}</td>
+          <td style="text-align:center">${game.hasWeather ? '✅' : '❌'}</td>
+          <td style="text-align:center">${pred.homeWinProb ? (pred.homeWinProb > 1 ? pred.homeWinProb.toFixed(0) : (pred.homeWinProb*100).toFixed(0)) + '%' : '—'}</td>
+          <td style="text-align:center">${pred.totalRuns ? pred.totalRuns.toFixed(1) : odds.total || '—'}</td>
+          <td style="text-align:center;font-size:11px">${odds.homeML ? odds.homeML : '—'} / ${odds.awayML ? odds.awayML : '—'}</td>
+        </tr>`;
+      }
+      
+      html += `</table></div></div>`;
+    }
+    
+    // Recent Alerts
+    const alerts = status.recentAlerts || [];
+    if (alerts.length > 0) {
+      html += `<div class="card">
+        <h3 style="margin:0 0 12px;color:#f59e0b">🔔 Recent Alerts (${status.totalAlerts || alerts.length})</h3>
+        <div style="max-height:300px;overflow-y:auto">`;
+      
+      for (const alert of alerts.slice(0, 30)) {
+        const severityColor = alert.severity === 'critical' ? '#ef4444' : alert.severity === 'warning' ? '#f59e0b' : '#888';
+        const time = new Date(alert.timestamp).toLocaleTimeString();
+        html += `<div style="padding:6px 0;border-bottom:1px solid #222;font-size:13px">
+          <span style="color:${severityColor};font-weight:bold">[${time}]</span>
+          <span style="color:#ccc">${alert.message}</span>
+          ${alert.game ? `<span style="color:#888;margin-left:4px">(${alert.game})</span>` : ''}
+        </div>`;
+      }
+      
+      html += `</div></div>`;
+    }
+    
+    // Scan Timing
+    const ls = status.lastScans || {};
+    html += `<div class="card">
+      <h3 style="margin:0 0 8px;color:#3b82f6">⏱️ Scan Timing</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-size:13px">
+        <div>📅 Schedule: <span style="color:#ccc">${ls.schedule ? new Date(ls.schedule).toLocaleTimeString() : 'never'}</span></div>
+        <div>📋 Lineups: <span style="color:#ccc">${ls.lineups ? new Date(ls.lineups).toLocaleTimeString() : 'never'}</span></div>
+        <div>💰 Odds: <span style="color:#ccc">${ls.odds ? new Date(ls.odds).toLocaleTimeString() : 'never'}</span></div>
+        <div>🌤️ Weather: <span style="color:#ccc">${ls.weather ? new Date(ls.weather).toLocaleTimeString() : 'never'}</span></div>
+        <div>🔄 Card Rebuild: <span style="color:#ccc">${ls.cardRebuild ? new Date(ls.cardRebuild).toLocaleTimeString() : 'never'}</span></div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#888">
+        Scans: ${(status.scanCounts||{}).schedule||0} schedule · ${(status.scanCounts||{}).lineups||0} lineups · ${(status.scanCounts||{}).odds||0} odds · ${(status.scanCounts||{}).weather||0} weather · ${(status.scanCounts||{}).rebuilds||0} rebuilds · ${(status.scanCounts||{}).grades||0} gradings
+      </div>
+    </div>`;
+    
+    html += `</div>`;
+    wrap.innerHTML = html;
+    
+  } catch (e) {
+    wrap.innerHTML = `<div class="card"><h2>⚠️ Error loading Season Autopilot</h2><p>${e.message}</p><button onclick="loadSeasonAutopilotTab()" style="background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">🔄 Retry</button></div>`;
+  }
+}
+
+async function startSeasonAutopilot() {
+  try {
+    await fetch(`${API}/api/season/autopilot/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    setTimeout(() => loadSeasonAutopilotTab(), 2000);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function stopSeasonAutopilot() {
+  try {
+    await fetch(`${API}/api/season/autopilot/stop`, { method: 'POST' });
+    await loadSeasonAutopilotTab();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function forceScanAutopilot() {
+  try {
+    await fetch(`${API}/api/season/autopilot/scan`, { method: 'POST' });
+    setTimeout(() => loadSeasonAutopilotTab(), 3000);
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 </script>
