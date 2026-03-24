@@ -99,8 +99,11 @@ function getOpeningWeekAdjustment(gameDate, homePark, opts = {}) {
   
   if (daysSinceOpening === 0) {
     // Opening Day — strongest effect
-    totalReduction += 0.07;
-    factors.push({ factor: 'Opening Day', reduction: 0.07, note: 'Fresh arms, rusty bats, umpire zones tight. Unders 57.3% historically.' });
+    // CALIBRATION v107: Historical OD avg total = 7.8 vs model avg ~8.7 = ~10.3% gap
+    // Previous 7% was too conservative. Upping to 10% base matches actual data better.
+    // Sources: 2015-2025 OD data — 57.3% unders, avg total 7.8 runs
+    totalReduction += 0.10;
+    factors.push({ factor: 'Opening Day', reduction: 0.10, note: 'Fresh arms, rusty bats, umpire zones tight, expanded rosters. Unders 57.3% historically. Avg OD total = 7.8 runs.' });
   } else if (daysSinceOpening <= 2) {
     // Days 2-3
     totalReduction += 0.05;
@@ -149,10 +152,11 @@ function getOpeningWeekAdjustment(gameDate, homePark, opts = {}) {
     totalReduction = indoorCap;
   }
   
-  // Cap at 12% max reduction (don't over-adjust)
-  if (totalReduction > 0.12) {
-    totalReduction = 0.12;
-    factors.push({ factor: 'Cap applied', reduction: 0, note: 'Max 12% reduction cap hit.' });
+  // Cap at 15% max reduction (don't over-adjust, but allow ace+cold combos to express)
+  // v107: Raised from 12% — ace matchup at cold park on OD can be 10+3+2 = 15%
+  if (totalReduction > 0.15) {
+    totalReduction = 0.15;
+    factors.push({ factor: 'Cap applied', reduction: 0, note: 'Max 15% reduction cap hit.' });
   }
   
   return {

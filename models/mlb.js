@@ -996,6 +996,20 @@ function predict(awayAbbr, homeAbbr, opts = {}) {
   awayRaG = Math.max(1.5, Math.min(10, awayRaG));
   homeRaG = Math.max(1.5, Math.min(10, homeRaG));
 
+  // CALIBRATION v107: Early-season totals compression
+  // Problem: our model totals average 5% higher than DK lines for Opening Day games.
+  // This is because we're using 2025 full-season RS/G data, but OD run environments are
+  // depressed (cold, fresh arms, rusty bats) AND the 2026 run environment may differ.
+  // Solution: Apply a mild totals compression toward league average for preseason predictions.
+  // This doesn't affect ML (win probability stays the same since both sides compressed equally).
+  // Only affects total runs and O/U calculations.
+  if (isPreseasonPredict) {
+    const lgAvgRuns = LG_AVG.rsG; // ~4.45
+    const compressionFactor = 0.05; // 5% compression toward league avg
+    awayRaG = awayRaG * (1 - compressionFactor) + lgAvgRuns * compressionFactor;
+    homeRaG = homeRaG * (1 - compressionFactor) + lgAvgRuns * compressionFactor;
+  }
+
   let awayExpRuns = awayRaG;
   let homeExpRuns = homeRaG;
   

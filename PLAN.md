@@ -215,27 +215,29 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-24 06:00 UTC — Planning Session #46*
-*Current phase: 3.0 — OD D-Day T-MINUS 2 + v103-v105 Deploy + Regular Season Prep*
-*✅ PRODUCTION: sportssim.fly.dev v102.0.0 — HEALTHY. Health 391ms, data feeds 6-7min fresh (all ESPN+NHL API green).*
-*🚨 DEPLOY GAP: Local is v105.0.0 but production is v102.0.0. v103 (MLB results grader), v104 (OD eve validation), v105 (auto-grade pipeline + CLV measurement) NOT DEPLOYED. This commit should trigger deploy.*
-*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training), NHL 32 teams (COL 46W-13L). All fresh.*
-*✅ OD BETTING CARD: 34 plays — 3 SMASH (MIN@BAL UNDER 8.5 22.6% edge, F5 UNDER 22.1%, BAL ML 6.2%), 15 STRONG, 14 LEAN, 2 SMALL. Portfolio: $1,298 wager, $258.93 EV (19.9% ROI).*
+*Last updated: 2026-03-24 08:00 UTC — Planning Session #47*
+*Current phase: 3.0 — OD D-Day T-MINUS 2 + v106 DEPLOYED + Pre-OD Final Check Tomorrow*
+*✅ PRODUCTION: sportssim.fly.dev v106.0.0 — HEALTHY (387ms). Deploy gap CLOSED. All v103-v106 features live (auto-grade, CLV, game monitor, weather 48h, pitcher cross-validation).*
+*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training), NHL 32 teams (COL 46W-13L). All fresh (59min age, auto-refresh active).*
+*✅ OD BETTING CARD (37 plays): 3 SMASH (MIN@BAL UNDER 8.5 22.6% edge, F5 UNDER 22.4%, BAL ML 6.2%), 22 STRONG, 12 LEAN. Portfolio: $1,420 wager, $274.80 EV (19.4% ROI).*
 *🔥 TOP SMASH: MIN@BAL UNDER 8.5 (Ryan vs Rogers, 22.6% edge, 83 conviction, A grade).*
-*🔥 K PROPS: 21 high confidence. Misiorowski OVER 5.5 (+23.6%), Boyd OVER 4.5 (+16.4%), Crochet OVER 7.5 (+15.4%).*
-*🔥 OUTS PROPS: 23 HIGH confidence. ALL OVERS (OD premium). Peralta OVER 15.5 (+18.8%).*
+*🔥 K PROPS: 32 picks, 21 high confidence. Misiorowski OVER 5.5 (+23.6%), Burrows OVER 4.5 (+21.9%), Boyd OVER 4.5 (+16.4%).*
+*🔥 TOP GAMES: MIN@BAL (A, 83 conv, $35.81 EV), PIT@NYM (B+, 79 conv, $19.13 EV), OAK@TOR (B+, 78 conv), KC@ATL (B+, 77 conv), CWS@MIL (B+, 74 conv).*
 *📊 VALUE BETS: MLB futures: NYY AL East +21.2%, OAK OVER +18.6%, BAL UNDER +14.1%, CHC OVER +12.4%. NFL: MIA OVER 4.5 (+39.5%), TEN UNDER 6.5 (+26%), BAL UNDER 11.5 (+23.3%).*
-*🏀 NBA (3/24 RESULTS — ALL FINAL): OKC 57-15 (#1), SAS 54-18, DET 52-19, BOS 47-24, NYK 47-25, LAL 46-26. REST/TANK VALIDATION: OKC beat PHI by 20 (RESTING won), SA beat MIA by 25 (RESTING won), IND beat ORL by 2 (TANKING beat DESPERATE B2B AGAIN!). Key: RESTING = 5/5 wins all-time, DESPERATE B2B = 0/4 all-time. Elite depth > motivation.*
-*🏒 NHL (3/24): Only 1 game today — OTT 2 @ NYR 1 (NYR lost, significant for bubble). East bubble still tight. COL(102+), DAL(97+), CAR(96+). MTL/BOS/PIT(86-88), CBJ/NYI(85), DET(84).*
-*🏀 NBA STANDINGS UPDATED: East 6-10: TOR(40-31), ATL(40-32), PHI(39-33), ORL(38-33), MIA(38-34). West play-in: PHX(40-32). DEN/MIN(44-28) tied W4/5.*
-*🏈 NFL: 15+ win total value bets LIVE. MIA OVER 4.5, TEN UNDER 6.5, BAL UNDER 11.5, SEA OVER 10.5 all HIGH confidence. Draft 31 days.*
-*📋 CRITICAL PATH: TODAY March 25 = Pre-OD FINAL CHECK → GO LIVE March 26 AM → OD1 (11 games) → OD2 March 27 (9 games) → Regular season autopilot*
-*🚨 D-DAY CHECKLIST: (1) March 25 AM — deploy v105 with auto-grade pipeline. (2) March 25 PM — pull 48hr weather + verify lineup pipeline. (3) March 25 EVE — full end-to-end preflight. (4) March 26 AM — GO LIVE. (5) March 26 PM — capture closing lines. (6) March 26 NIGHT — auto-grade all OD1 bets.*
+*🏀 NBA (3/24 RESULTS — ALL FINAL): OKC 57-15 (#1), SAS 54-18, DET 52-19, BOS 47-24, NYK 47-25, LAL 46-25.*
+*🏀 REST/TANK RESULTS: OKC 123 PHI 103 (+20 RESTING), SA 136 MIA 111 (+25 RESTING), IND 128 ORL 126 (+2 TANKING beats DESPERATE), DET 113 LAL 110 (+3), TOR 143 UTAH 127 (+16), BKN 99 POR 134 (-35 TANKING BLOWN OUT), GS 137 DAL 131 (+6 DESPERATE wins), MEM 107 ATL 146 (ATL rout), HOU 124 CHI 132, MIL 96 LAC 129.*
+*🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%) avg +16pt margin. DESPERATE B2B 0/5 SU (0%). KEY: BKN got blown out 99-134 by POR — first TANKING team to lose badly. BKN = worst tanking team (15-57). IND (also tanking) still beat ORL twice.*
+*🏒 NHL (3/24): OTT 2 @ NYR 1 (NYR lost, bad for bubble). Tomorrow: BOS@BUF, NYR@TOR — both bubble-relevant.*
+*🏀 NBA STANDINGS: East 6-10: TOR(40-31), ATL(40-32), PHI(39-33), ORL(38-33), MIA(38-34). West: DEN/MIN(44-28) tied W4/5. PHX(40-32) W play-in.*
+*🏈 NFL: 15+ win total value bets LIVE. Draft 31 days.*
+*📋 CRITICAL PATH: TOMORROW March 25 = Pre-OD FINAL CHECK → March 26 AM GO LIVE → OD1 (11 games) → OD2 March 27 (9 games) → Regular season autopilot*
+*🚨 D-DAY CHECKLIST: (1) March 25 AM — verify v106 stable, all endpoints healthy. (2) March 25 PM — pull 48hr weather + verify lineup pipeline. (3) March 25 EVE — full end-to-end preflight. (4) March 26 AM — GO LIVE. (5) March 26 PM — capture closing lines. (6) March 26 NIGHT — auto-grade all OD1 bets.*
 *⚾ MLB OPENING DAY 1: 2 DAYS (March 26) 🔥🔥🔥*
 *⚾ MLB OPENING DAY 2: 3 DAYS (March 27) 🔥🔥🔥*
 *🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
 *🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
 *🏈 NFL DRAFT: 31 DAYS (April 24)*
-*🆕 REST/TANK BACKTEST INSIGHT: Over 2 sessions (March 23-24), RESTING teams (OKC, SAS, DET) went 5-0 SU with avg margin of +18.4. DESPERATE teams went 0-4 when B2B. Model recalibrated in v102 — RESTING adj now -0.5 (was -1.5), DESPERATE adj 0.3 (was 1.0). Key insight: elite bench depth trumps motivation adjustment every time.*
-*🆕 NEW PRIORITY: v103-v105 deploy MUST happen before March 25 final check. Auto-grade pipeline (v105) is critical for OD bet grading.*
-*🆕 EDGE RESEARCH: (1) Batter props (task 075) — post-OD priority, Statcast xBA/xSLG for 651 batters. (2) Regular season daily scanner (task 078) — critical for April daily money printing. (3) NHL bubble resolution — 3 weeks of maximum mispricing before playoff matchups lock.*
+*🆕 REST/TANK BACKTEST INSIGHT (UPDATED): Over 2 sessions (March 23-24), RESTING teams went 7-0 SU avg +16pt. DESPERATE B2B 0-5. TANKING teams split — IND won both vs ORL but BKN got destroyed by POR. Model insight: RESTING adj should be near 0 (elite depth makes it irrelevant), DESPERATE B2B adj should be STRONGLY negative. TANKING results depend on roster quality — IND/CHA type tankers still competitive, BKN-tier tankers get wrecked.*
+*🆕 PRIORITY SHIFT: v106 deployed and healthy. Deploy gap CLOSED. Primary focus: (1) Pre-OD final check March 25 (task 054). (2) Regular season daily scanner (task 078) — money printing machine for April. (3) NBA playoff series futures scanner (task 079) — 19 days to exploit volatile seedings.*
+*🆕 EDGE RESEARCH: (1) Batter props (task 075) — post-OD priority, Statcast xBA/xSLG for 651 batters. (2) Regular season daily scanner (task 078) — critical for April daily money printing. (3) NHL bubble resolution — 3 weeks mispricing. (4) March 25 NBA has 12 games — OKC@BOS (B2B RESTING vs top East team), SA@MEM, DAL@DEN huge for playoff seeding. More rest/tank data points incoming.*
+*🆕 MARCH 25 NBA PREVIEW (12 games): OKC@BOS (RESTING B2B test vs elite team), SA@MEM (RESTING continues?), MIA@CLE (DESPERATE vs TOP), DAL@DEN (W4/5 seeding battle), HOU@MIN (W4/5 impact), ATL@DET (East seeding). Massive slate for rest/tank + seeding data.*
