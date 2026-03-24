@@ -501,8 +501,53 @@ function getSourceLog() {
   return sourceLog;
 }
 
+/**
+ * Fetch lineups for ALL games on a date using best available source.
+ * Returns array of games with lineup data from MLB Stats API → ESPN fallback.
+ */
+async function fetchAllGames(dateStr = null) {
+  loadDeps();
+  
+  if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+  
+  // Try MLB Stats API first (authoritative, faster lineup data)
+  if (mlbStatsLineups) {
+    try {
+      const data = await mlbStatsLineups.fetchAllLineups(dateStr);
+      if (data.games && data.games.length > 0) {
+        return {
+          date: dateStr,
+          source: 'mlb-stats-api',
+          gamesFound: data.gamesFound,
+          gamesWithLineups: data.gamesWithLineups,
+          games: data.games,
+          fetchedAt: data.fetchedAt,
+        };
+      }
+    } catch (e) { /* fall through to ESPN */ }
+  }
+  
+  // Fallback to ESPN
+  if (lineupFetcher) {
+    try {
+      const data = await lineupFetcher.fetchLineups(dateStr.replace(/-/g, ''));
+      return {
+        date: dateStr,
+        source: 'espn',
+        gamesFound: data.gamesFound || data.games?.length || 0,
+        gamesWithLineups: data.gamesWithLineups || 0,
+        games: data.games || [],
+        fetchedAt: data.fetchedAt || new Date().toISOString(),
+      };
+    } catch (e) { /* both failed */ }
+  }
+  
+  return { date: dateStr, source: 'none', gamesFound: 0, gamesWithLineups: 0, games: [] };
+}
+
 module.exports = {
   getLineupAdjustments,
+  fetchAllGames,
   compareAllSources,
   getStatus,
   getSourceLog,

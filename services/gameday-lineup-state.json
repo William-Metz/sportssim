@@ -1,0 +1,158 @@
+{
+  "lastScan": "2026-03-24T09:48:58.227Z",
+  "snapshots": {
+    "PIT@NYM": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "CWS@MIL": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "WSH@CHC": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "MIN@BAL": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "BOS@CIN": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "LAA@HOU": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "DET@SD": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "TB@STL": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "TEX@PHI": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:49.405Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "ARI@LAD": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "CLE@SEA": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "NYY@SF": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "OAK@TOR": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "COL@MIA": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "KC@ATL": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T09:48:58.227Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    }
+  },
+  "scanCount": 1,
+  "rebuilds": [],
+  "savedAt": "2026-03-24T09:48:59.226Z"
+}

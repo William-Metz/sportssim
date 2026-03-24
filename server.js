@@ -138,8 +138,14 @@ try { mlbStatsLineups = require('./services/mlb-stats-lineups'); } catch (e) { c
 let lineupBridge = null;
 try { lineupBridge = require('./services/lineup-bridge'); } catch (e) { console.error('[server] Lineup Bridge not loaded:', e.message); }
 
+let gamedayLineupPipeline = null;
+try { gamedayLineupPipeline = require('./services/gameday-lineup-pipeline'); } catch (e) { console.error('[server] Gameday Lineup Pipeline not loaded:', e.message); }
+
 let gamedayOrchestrator = null;
 try { gamedayOrchestrator = require('./services/gameday-orchestrator'); } catch (e) { console.error('[server] GameDay Orchestrator not loaded:', e.message); }
+
+let morningBriefing = null;
+try { morningBriefing = require('./services/morning-briefing'); } catch (e) { console.error('[server] Morning Briefing not loaded:', e.message); }
 
 let restTankGrader = null;
 try { restTankGrader = require('./services/rest-tank-grader'); } catch (e) { console.error('[server] Rest/Tank Grader not loaded:', e.message); }
@@ -226,7 +232,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '108.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102','mlb-results-grader-v103','detailed-boxscore-grading','f5-f3-f7-grading','k-prop-grading','nrfi-grading','outs-prop-grading','season-pnl-tracker','market-breakdown-analytics','od-eve-validation-v104','live-weather-48h-pull','postponement-risk-assessment','comprehensive-go-nogo-check','espn-schedule-cross-validation','auto-grade-pipeline-v105','closing-line-capture','game-status-monitor','post-game-auto-grading','clv-measurement-pipeline','comprehensive-pnl-dashboard','od-d2-live-validation-v106','espn-pitcher-cross-validation','live-weather-48h-all-venues','postponement-risk-v2','lineup-override-prediction-bridge-v107','od-gameday-auto-lineup-verify','backup-lineup-source-upgrade','mlb-stats-api-lineups-v108','multi-source-lineup-bridge','lineup-source-comparison','gameday-lineup-verification'] });
+  res.json({ status: 'ok', version: '110.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102','mlb-results-grader-v103','detailed-boxscore-grading','f5-f3-f7-grading','k-prop-grading','nrfi-grading','outs-prop-grading','season-pnl-tracker','market-breakdown-analytics','od-eve-validation-v104','live-weather-48h-pull','postponement-risk-assessment','comprehensive-go-nogo-check','espn-schedule-cross-validation','auto-grade-pipeline-v105','closing-line-capture','game-status-monitor','post-game-auto-grading','clv-measurement-pipeline','comprehensive-pnl-dashboard','od-d2-live-validation-v106','espn-pitcher-cross-validation','live-weather-48h-all-venues','postponement-risk-v2','lineup-override-prediction-bridge-v107','od-gameday-auto-lineup-verify','backup-lineup-source-upgrade','mlb-stats-api-lineups-v108','multi-source-lineup-bridge','lineup-source-comparison','gameday-lineup-verification','morning-briefing-v109','cross-sport-daily-portfolio','unified-edge-detection','daily-pnl-integration','gameday-lineup-pipeline-v110','mlb-stats-primary-lineup-source','auto-prediction-rebuild-on-lineup','lineup-readiness-dashboard','multi-source-lineup-monitor'] });
 });
 
 // Deep health check — reports memory, uptime, service availability
@@ -3077,6 +3083,58 @@ app.get('/api/mlb/lineups/bridge/status', (req, res) => {
 app.get('/api/mlb/lineups/bridge/sources', (req, res) => {
   if (!lineupBridge) return res.status(503).json({ error: 'Lineup Bridge not loaded' });
   res.json(lineupBridge.getSourceLog());
+});
+
+// ==================== GAMEDAY LINEUP PIPELINE v110 ====================
+// Real-time multi-source lineup monitoring with prediction rebuilds
+
+app.get('/api/mlb/lineups/pipeline/readiness', async (req, res) => {
+  try {
+    if (!gamedayLineupPipeline) return res.status(503).json({ error: 'Gameday Lineup Pipeline not loaded' });
+    const date = req.query.date || null;
+    const readiness = await gamedayLineupPipeline.getGamedayReadiness(date);
+    res.json(readiness);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/mlb/lineups/pipeline/scan', async (req, res) => {
+  try {
+    if (!gamedayLineupPipeline) return res.status(503).json({ error: 'Gameday Lineup Pipeline not loaded' });
+    const date = req.query.date || null;
+    const result = await gamedayLineupPipeline.scan({ date });
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/mlb/lineups/pipeline/status', (req, res) => {
+  if (!gamedayLineupPipeline) return res.status(503).json({ error: 'Gameday Lineup Pipeline not loaded' });
+  res.json(gamedayLineupPipeline.getQuickStatus());
+});
+
+app.get('/api/mlb/lineups/pipeline/history', (req, res) => {
+  if (!gamedayLineupPipeline) return res.status(503).json({ error: 'Gameday Lineup Pipeline not loaded' });
+  const limit = parseInt(req.query.limit) || 20;
+  res.json(gamedayLineupPipeline.getHistory(limit));
+});
+
+app.post('/api/mlb/lineups/pipeline/start', (req, res) => {
+  if (!gamedayLineupPipeline) return res.status(503).json({ error: 'Gameday Lineup Pipeline not loaded' });
+  res.json(gamedayLineupPipeline.start());
+});
+
+app.post('/api/mlb/lineups/pipeline/stop', (req, res) => {
+  if (!gamedayLineupPipeline) return res.status(503).json({ error: 'Gameday Lineup Pipeline not loaded' });
+  res.json(gamedayLineupPipeline.stop());
+});
+
+// All-games lineup fetch (bridge multi-source)
+app.get('/api/mlb/lineups/all', async (req, res) => {
+  try {
+    if (!lineupBridge) return res.status(503).json({ error: 'Lineup Bridge not loaded' });
+    const date = req.query.date || null;
+    const result = await lineupBridge.fetchAllGames(date);
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // NHL aliases
@@ -10293,6 +10351,39 @@ app.get('/api/line-shop/best/:sport', async (req, res) => {
   }
 });
 
+// ==================== MORNING BRIEFING v109.0 ====================
+// THE ONE ENDPOINT THAT PRINTS MONEY EVERY DAY
+// Hit /api/briefing when you wake up → see every edge across all sports.
+
+app.get('/api/briefing', async (req, res) => {
+  try {
+    if (!morningBriefing) return res.status(503).json({ error: 'Morning Briefing service not loaded' });
+    const briefing = await morningBriefing.buildBriefing({
+      forceRefresh: req.query.refresh === '1' || req.query.refresh === 'true',
+      oddsApiKey: ODDS_API_KEY,
+      bankroll: parseInt(req.query.bankroll) || 1000,
+      kellyFraction: parseFloat(req.query.kelly) || 0.5,
+    });
+    res.json(briefing);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/briefing/quick', (req, res) => {
+  try {
+    if (!morningBriefing) return res.status(503).json({ error: 'Morning Briefing service not loaded' });
+    const cached = morningBriefing.getCached();
+    if (cached) {
+      res.json({ ...cached, cached: true });
+    } else {
+      res.json({ building: false, note: 'No cached briefing available. Hit /api/briefing to build one.' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   const mem = process.memoryUsage();
   console.log(`🎯 SportsSim v103.0.0 running on port ${PORT}`);
@@ -10540,6 +10631,13 @@ app.listen(PORT, '0.0.0.0', () => {
     lineupMonitor.init({ lineupFetcher, mlbModel: mlb });
     lineupMonitor.start();
     console.log('   📋 Lineup monitor: started (scanning every 5 min for lineup drops)');
+  }
+  
+  // Start Gameday Lineup Pipeline v110 — multi-source monitoring for ALL MLB game days
+  if (gamedayLineupPipeline) {
+    gamedayLineupPipeline.init({ mlbModel: mlb, lineupFetcher, lineupBridge, mlbStatsLineups, odPlaybookCache });
+    gamedayLineupPipeline.start();
+    console.log('   🔄 Gameday Lineup Pipeline: started (MLB Stats API + ESPN multi-source)');
   }
   
   // Auto-start OD Lineup Verification Monitor on OD game days (March 26-27)
