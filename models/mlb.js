@@ -38,6 +38,8 @@ let stolenBaseModel = null;
 try { stolenBaseModel = require('../services/stolen-base-model'); } catch (e) { /* no SB model */ }
 let odTeamTendencies = null;
 try { odTeamTendencies = require('../services/od-team-tendencies'); } catch (e) { /* no OD tendencies */ }
+let pitcherBayesian = null;
+try { pitcherBayesian = require('../services/pitcher-bayesian-update'); } catch (e) { /* no pitcher bayesian */ }
 
 // Negative Binomial model — upgrades Poisson for overdispersion in MLB scoring
 let negBinomial = null;
@@ -418,11 +420,20 @@ function calculateRatings() {
 // ==================== PITCHER-ENHANCED PREDICTION ====================
 
 // Resolve pitcher — accepts name string or raw {era, fip, whip} object
+// v127.0: Now checks Bayesian update pipeline first for blended stats
 function resolvePitcher(pitcherInput, teamAbbr) {
   if (!pitcherInput) return null;
   
   // If it's a string name, look up in DB
   if (typeof pitcherInput === 'string') {
+    // v127.0: Check Bayesian pipeline first — has blended actual+projected stats
+    if (pitcherBayesian) {
+      const blended = pitcherBayesian.getBlendedPitcher(pitcherInput);
+      if (blended && blended._isBayesianBlended) {
+        return blended;
+      }
+    }
+    
     // Try exact lookup first (using improved getPitcherByName)
     let p = pitchers.getPitcherByName(pitcherInput);
     if (p) return p;
