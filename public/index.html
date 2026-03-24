@@ -207,6 +207,7 @@ function buildTabs() {
   tabs.push({ id: 'hwe-props', label: '📊 H/W/ER Props' });
   tabs.push({ id: 'nrfi', label: '🚫 NRFI' });
   tabs.push({ id: 'team-totals', label: '🎯 Team TT' });
+  tabs.push({ id: 'bet-timing', label: '⏰ Bet Timing' });
   tabs.push({ id: 'f3-model', label: '🎯 F3 Model' });
   tabs.push({ id: 'f7-model', label: '7️⃣ F7 Model' });
   tabs.push({ id: 'champ-futures', label: '💰 Champ Futures' });
@@ -290,6 +291,7 @@ function showTab(id) {
   else if (id === 'hwe-props') loadHWEPropsTab();
   else if (id === 'nrfi') loadNRFITab();
   else if (id === 'team-totals') loadTeamTotalsTab();
+  else if (id === 'bet-timing') loadBetTimingTab();
   else if (id === 'f3-model') loadF3ModelTab();
   else if (id === 'f7-model') loadF7ModelTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
@@ -13889,6 +13891,156 @@ async function stopAutoGrade() {
     alert('Pipeline stopped');
     loadAutoGradeTab();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ==================== BET TIMING OPTIMIZER TAB ====================
+async function loadBetTimingTab() {
+  const wrap = document.getElementById('content');
+  wrap.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div><p>Loading Bet Timing Optimizer...</p></div>';
+  try {
+    const resp = await fetch('/api/opening-day/bet-timing');
+    const data = await resp.json();
+    
+    let html = `
+      <h2 style="color:#00ff88;margin-bottom:4px">⏰ OD Edge Decay & Bet Timing Optimizer</h2>
+      <p style="color:#888;margin-bottom:16px">Know WHEN to pull the trigger on each play for maximum edge</p>`;
+    
+    // Phase Banner
+    if (data.currentPhase) {
+      const phase = data.currentPhase;
+      const phaseColor = phase.name.includes('Sharp') ? '#ff6b35' : 
+                         phase.name.includes('Opening') ? '#00ff88' :
+                         phase.name.includes('Transition') ? '#ffd700' :
+                         phase.name.includes('Public') ? '#ff4444' : '#00aaff';
+      html += `
+        <div style="background:linear-gradient(135deg, ${phaseColor}22, ${phaseColor}11);border:1px solid ${phaseColor}44;border-radius:12px;padding:20px;margin-bottom:16px">
+          <div style="font-size:24px;font-weight:bold;color:${phaseColor}">${phase.name}</div>
+          <div style="color:#ccc;margin:8px 0">${phase.description}</div>
+          <div style="color:#fff;font-weight:bold;font-size:14px;margin-top:8px">📋 ${phase.strategy}</div>
+        </div>`;
+    }
+    
+    // Countdown
+    if (data.timeToOD1 && data.timeToOD2) {
+      html += `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div style="background:#1a1a2e;border-radius:8px;padding:16px;text-align:center;border:1px solid #333">
+            <div style="color:#888;font-size:12px">OD Day 1 (March 26)</div>
+            <div style="color:#ff6b35;font-size:28px;font-weight:bold">${data.timeToOD1.display}</div>
+            <div style="color:#666;font-size:11px">${data.timeToOD1.window?.name || ''}</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:8px;padding:16px;text-align:center;border:1px solid #333">
+            <div style="color:#888;font-size:12px">OD Day 2 (March 27)</div>
+            <div style="color:#00aaff;font-size:28px;font-weight:bold">${data.timeToOD2.display}</div>
+            <div style="color:#666;font-size:11px">${data.timeToOD2.window?.name || ''}</div>
+          </div>
+        </div>`;
+    }
+    
+    // Strategy Section
+    if (data.strategy) {
+      const s = data.strategy;
+      html += '<div style="background:#1a1a2e;border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid #333">';
+      html += '<h3 style="color:#ffd700;margin-bottom:12px">🎯 Betting Strategy Timeline</h3>';
+      
+      if (s.immediate && s.immediate.length) {
+        html += '<div style="margin-bottom:12px"><strong style="color:#ff4444">🔥 DO NOW:</strong><ul style="margin:4px 0 0 16px;color:#ddd">';
+        s.immediate.forEach(item => html += `<li style="margin-bottom:4px">${item}</li>`);
+        html += '</ul></div>';
+      }
+      if (s.today && s.today.length) {
+        html += '<div style="margin-bottom:12px"><strong style="color:#ff6b35">📅 TODAY:</strong><ul style="margin:4px 0 0 16px;color:#ddd">';
+        s.today.forEach(item => html += `<li style="margin-bottom:4px">${item}</li>`);
+        html += '</ul></div>';
+      }
+      if (s.tomorrow && s.tomorrow.length) {
+        html += '<div style="margin-bottom:12px"><strong style="color:#ffd700">📆 TOMORROW (Game Day Eve):</strong><ul style="margin:4px 0 0 16px;color:#ddd">';
+        s.tomorrow.forEach(item => html += `<li style="margin-bottom:4px">${item}</li>`);
+        html += '</ul></div>';
+      }
+      if (s.gameDay && s.gameDay.length) {
+        html += '<div style="margin-bottom:12px"><strong style="color:#00ff88">⚾ GAME DAY:</strong><ul style="margin:4px 0 0 16px;color:#ddd">';
+        s.gameDay.forEach(item => html += `<li style="margin-bottom:4px">${item}</li>`);
+        html += '</ul></div>';
+      }
+      html += '</div>';
+    }
+    
+    // Market-by-Market Timing Guide
+    if (data.marketTiming) {
+      html += '<div style="background:#1a1a2e;border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid #333">';
+      html += '<h3 style="color:#00ff88;margin-bottom:12px">📊 Market-by-Market Timing Guide</h3>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+      html += '<tr style="border-bottom:1px solid #333"><th style="text-align:left;padding:8px;color:#888">Market</th><th style="color:#888;padding:8px">Optimal Window</th><th style="color:#888;padding:8px">Status</th><th style="text-align:left;padding:8px;color:#888">Advice</th></tr>';
+      
+      const marketNames = {
+        moneyline: '💰 Moneyline', totals: '📊 Totals', f5: '⑤ F5', f3: '③ F3', f7: '⑦ F7',
+        runline: '📐 Run Line', kprop: '🔥 K Props', outsprop: '⏱️ Outs Props', nrfi: '🚫 NRFI', teamtotal: '🎯 Team Total'
+      };
+      
+      for (const [mt, info] of Object.entries(data.marketTiming)) {
+        const statusColor = info.currentStatus === 'OPTIMAL' ? '#00ff88' : 
+                           info.currentStatus === 'EARLY' ? '#ffd700' : 
+                           info.currentStatus === 'LATE' ? '#ff4444' : '#888';
+        html += `<tr style="border-bottom:1px solid #222">
+          <td style="padding:8px;color:#fff">${marketNames[mt] || mt}</td>
+          <td style="padding:8px;color:#00aaff;text-align:center">${info.optimalBetWindow}</td>
+          <td style="padding:8px;text-align:center"><span style="color:${statusColor};font-weight:bold">${info.currentStatus}</span></td>
+          <td style="padding:8px;color:#aaa;font-size:11px">${info.advice}</td>
+        </tr>`;
+      }
+      html += '</table></div>';
+    }
+    
+    // Urgency Tiers
+    if (data.tiers) {
+      const tierConfig = {
+        CRITICAL: { emoji: '🚨', color: '#ff4444', label: 'CRITICAL — Bet NOW' },
+        HIGH: { emoji: '🔥', color: '#ff6b35', label: 'HIGH — Bet Today' },
+        MEDIUM: { emoji: '⚡', color: '#ffd700', label: 'MEDIUM — Scale In' },
+        LOW: { emoji: '📋', color: '#00aaff', label: 'LOW — Wait for Lineups' },
+        MONITOR: { emoji: '👀', color: '#888', label: 'MONITOR — Watch Movement' },
+      };
+      
+      html += '<div style="background:#1a1a2e;border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid #333">';
+      html += '<h3 style="color:#ff6b35;margin-bottom:12px">⏱️ Urgency Tiers</h3>';
+      
+      for (const [tier, config] of Object.entries(tierConfig)) {
+        const items = data.tiers[tier] || [];
+        if (items.length === 0) continue;
+        
+        html += `<div style="margin-bottom:12px;padding:12px;background:${config.color}11;border:1px solid ${config.color}33;border-radius:8px">`;
+        html += `<div style="font-weight:bold;color:${config.color};margin-bottom:8px">${config.emoji} ${config.label} (${items.length})</div>`;
+        
+        for (const item of items.slice(0, 8)) {
+          html += `<div style="display:flex;justify-content:space-between;padding:4px 8px;margin-bottom:2px;background:#00000033;border-radius:4px">
+            <span style="color:#fff">${item.game} — ${item.market}</span>
+            <span style="color:${config.color};font-size:12px">${item.action}</span>
+          </div>`;
+        }
+        if (items.length > 8) html += `<div style="color:#666;font-size:11px;margin-top:4px">...and ${items.length - 8} more</div>`;
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    
+    // Line Movement Analysis
+    if (data.lineMovement && data.lineMovement.bigMoves && data.lineMovement.bigMoves.length > 0) {
+      html += '<div style="background:#1a1a2e;border-radius:8px;padding:16px;margin-bottom:16px;border:1px solid #ff444444">';
+      html += '<h3 style="color:#ff4444;margin-bottom:12px">📈 Significant Line Movement</h3>';
+      for (const move of data.lineMovement.bigMoves) {
+        html += `<div style="padding:8px;margin-bottom:4px;background:#ff444411;border-radius:4px">
+          <strong style="color:#fff">${move.game}</strong>: ${move.direction}
+          <div style="color:#888;font-size:11px">${move.implication}</div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    
+    wrap.innerHTML = html;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:red;padding:20px">Error loading bet timing: ${e.message}</div>`;
+  }
 }
 
 </script>
