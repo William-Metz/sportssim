@@ -95,11 +95,11 @@ const OPENING_DAY_GAMES = [
     broadcast: null,
   },
 
-  // ===== MARCH 27, 2026 — DAY 2 (Friday) =====
+  // ===== MARCH 25, 2026 — OD OPENER (Wednesday) =====
   { 
     date: '2026-03-25', day: 0, away: 'NYY', home: 'SF', time: '8:05 PM ET', // OD OPENER — March 25 per BetMGM/Sportradar
-    confirmedStarters: { away: 'Cam Schlittler', home: 'Logan Webb' },
-    dkLine: { homeML: 142, awayML: -168, total: 7.0 }, // NYY -168, Oracle Park pitcher-friendly
+    confirmedStarters: { away: 'Gerrit Cole', home: 'Logan Webb' }, // OD OPENER — Cole vs Webb
+    dkLine: { homeML: 100, awayML: -120, total: 7.0 }, // NYY -120, SF +100 per BetMGM March 19
     broadcast: null,
   },
   { 

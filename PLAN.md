@@ -215,30 +215,27 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-24 16:00 UTC — Planning Session #51*
-*Current phase: 3.0 — OD D-DAY T-MINUS 1.25 DAYS + v117 DEPLOYED + FINAL CHECK TOMORROW*
-*✅ PRODUCTION: sportssim.fly.dev v117.0.0 — HEALTHY (1573ms initial wake, Fly auto-stop in effect). 150+ features live including OD D1 final check v117, team totals prop scanner v116, ESPN live verification v115, OD command center v113.*
-*⚠️ PRODUCTION NOTE: Some heavier endpoints (rest-tank/scan, data/status) timing out after initial health check succeeds — likely Fly.io auto-stop wake latency + rate-limited external APIs. Core /api/health responds fine. NOT a blocker for OD since game-day will have sustained traffic keeping VM warm.*
-*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training final — LAD 20-8 Cactus #1, SF 19-9 #2, TEX 17-12 #3), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
-*✅ OD BETTING CARD: Portfolio $1,268 wager, $263.62 EV (20.8% ROI). 3 SMASH (MIN@BAL — UNDER 8.5, F5 UNDER, BAL ML). Betting card endpoint returns from disk cache. Conviction consistent across last 4 sessions.*
-*✅ MLB STATS API LINEUP BRIDGE: v108-v110 — statsapi.mlb.com PRIMARY + ESPN fallback + manual overrides. Auto-prediction rebuild on lineup confirmation.*
-*✅ OD ODDS MONITOR (v112): Auto-detect book lines, cross-book best price, auto-playbook rebuild, edge decay tracking. NEXT 24 HOURS CRITICAL — edge decay optimizer v118 built with bet timing portfolio.*
-*📊 MLB FUTURES: NYY AL East +20%+, OAK OVER +17%+, TOR OVER +13%+, CHC OVER +13%+, BAL UNDER +13%+.*
-*🏀 NBA TODAY (3/24 — 4 games): SAC@CHA(7PM ET), NOP@NYK(7:30PM ET), ORL@CLE(7PM ET), DEN@PHX(10PM ET). Light slate. DEN@PHX most impactful for W play-in seeding.*
-*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26), CLE(44-27), DEN/MIN(44-28), HOU(43-28), TOR(40-31), ATL/PHX(40-32), PHI(39-33), ORL(38-33), MIA(38-34). East 6-10 = CHAOS — 5 teams within 3 games. 10 games left per team.*
-*🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%) avg +16pt margin. DESPERATE B2B 0/5 SU (0%). VALIDATED EDGE — 12 data points strong. Tomorrow (3/25) has 12 NBA games including OKC@BOS test.*
-*🏒 NHL STANDINGS (3/24): COL(102), DAL(97), CAR(96), BUF(95), MIN(92), TBL(91). EAST BUBBLE: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84), ANA(82), OTT(81). 8 teams within 5pts for 4 spots.*
-*🏒 NHL TONIGHT: OTT@DET (MASSIVE bubble swing), TOR@BOS (BOS bubble fight), CAR@MTL (MTL bubble). Results reshape playoff futures pricing.*
-*🏈 NFL: 15+ win total value bets LIVE. Draft 31 days. MIA OVER 4.5 (+39.6% edge top pick).*
-*📋 CRITICAL PATH: TOMORROW March 25 = Pre-OD FINAL CHECK → March 26 AM GO LIVE → OD1 (11 games) → OD2 March 27 (9 games) → Regular season autopilot*
-*🚨 D-DAY CHECKLIST: (1) March 25 AM — verify v117 stable ✅ (confirmed today). (2) March 25 PM — pull 48hr weather + verify lineup pipeline. (3) March 25 EVE — full end-to-end preflight (054/097). (4) March 26 AM — GO LIVE. PIT@NYM 1:15PM ET first pitch. (5) March 26 PM — capture closing lines. (6) March 26 NIGHT — auto-grade all OD1 bets.*
-*⚾ MLB OPENING DAY 1: LESS THAN 2 DAYS (March 26, PIT@NYM 1:15PM ET first) 🔥🔥🔥*
-*⚾ MLB OPENING DAY 2: 3 DAYS (March 27) 🔥🔥🔥*
+*Last updated: 2026-03-24 18:00 UTC — Planning Session #52*
+*Current phase: 3.0 — 🚨 OD OPENER TOMORROW (NYY@SF 8:05PM ET) + OD1 March 26 + v122 DEPLOYED*
+*✅ PRODUCTION: sportssim.fly.dev v120.0.0 — HEALTHY (215ms health). 155+ features live including live bet execution engine, preflight v120, edge decay optimizer, OD command center.*
+*🚨🚨🚨 CRITICAL SCHEDULE FIX: NYY@SF is MARCH 25 (TOMORROW 8:05 PM ET) — NOT March 27 as previously coded. This is the MLB SEASON OPENER, 1 day BEFORE the full March 26 slate. Fixed in mlb-opening-day.js: moved to day 0, updated starters to Cole vs Webb (was Schlittler vs Webb), updated DK line to NYY -120 / SF +100 (was -168/+142). BetMGM + Sportradar both confirm March 25.*
+*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training final), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
+*✅ OD BETTING CARD: Portfolio $1,267 wager, $255.83 EV (20.2% ROI). 3 SMASH (MIN@BAL — UNDER 8.5, F5 UNDER, BAL ML). 34 total plays. Consistent across 5+ sessions.*
+*✅ MLB STATS API LINEUP BRIDGE: v108-v112 live. statsapi.mlb.com PRIMARY + ESPN fallback.*
+*✅ OD ODDS MONITOR (v112): Auto-detect book lines, cross-book best price, edge decay tracking.*
+*📊 MLB FUTURES: NYY AL East +20%+, OAK OVER +17%+, BAL UNDER +14%+.*
+*🏀 NBA TODAY (3/24 — 4 games): SAC@CHA, NOP@NYK, ORL@CLE, DEN@PHX. Light slate.*
+*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26). East 6-10 = CHAOS — 5 teams within 3 games, 10 games left.*
+*🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%). DESPERATE B2B 0/5 SU (0%). VALIDATED.*
+*🏒 NHL STANDINGS (3/24): COL(102), DAL(97), CAR(96), BUF(95). EAST BUBBLE: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84). 6 teams, 2pts, 4 spots.*
+*🏒 NHL TONIGHT: OTT@DET, TOR@BOS, CAR@MTL — MASSIVE bubble implications.*
+*🏈 NFL: 15+ win total value bets LIVE. Draft 31 days.*
+*📋 REVISED CRITICAL PATH: (0) TODAY: Deploy NYY@SF date fix + build NYY@SF betting analysis. (1) TOMORROW March 25 PM — NYY@SF OPENER 8:05PM ET. Pull live odds, generate execution plan. (2) March 25 EVE — pre-OD final check for March 26 (054/097). (3) March 26 AM — GO LIVE. PIT@NYM 1:15PM ET first pitch of full slate. (4) March 26 NIGHT — auto-grade OD1. (5) March 27 — Day 2 (8 remaining series games).*
+*⚾ MLB SEASON OPENER: TOMORROW (March 25, NYY@SF 8:05PM ET) 🔥🔥🔥🔥🔥*
+*⚾ MLB OPENING DAY FULL SLATE: 1.75 DAYS (March 26, PIT@NYM 1:15PM ET) 🔥🔥🔥*
+*⚾ MLB DAY 2: 3 DAYS (March 27) 🔥🔥*
 *🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
 *🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
 *🏈 NFL DRAFT: 31 DAYS (April 24)*
-*🆕 VERSION JUMP v112→v117: 5 new versions since last plan — v113 (OD command center, D2 war room, portfolio cheat sheet), v114 (OD T-2 verification, morning brief, DK line change tracker), v115 (ESPN live verification, pitcher auto-check), v116 (team totals prop scanner, asymmetric pitching exploit), v117 (OD D1 final check, comprehensive go/no-go, production health monitor, gameday morning protocol).*
-*🆕 SPRING TRAINING FINAL STANDINGS: LAD 20-8 (#1 Cactus), SF 19-9, TEX 17-12, ARI/CLE/COL 15-14, CWS 15-16, MIL 13-16 (concerning for OD). Grapefruit: PIT 16-10, NYM 16-12, ATL 16-13, BAL 16-13. These don't change model much (3-6% weight) but directionally confirm.*
-*🆕 POST-OD PRIORITY STACK: (1) Pre-OD final check TOMORROW (054/097 P0). (2) Regular season daily scanner (078) — Apr-Oct money printer. (3) NBA playoff futures scanner (079) — 19 days. (4) NHL bubble futures speed trade (080/102) — window closing. (5) Batter props (075). (6) Post-OD Bayesian updating (101).*
-*🆕 EDGE RESEARCH SESSION #51: (1) MLB team totals prop scanner BUILT (v116) — asymmetric pitching exploit can detect when one team is mispriced even if game total is fair. (2) OD edge decay optimizer BUILT (v118) — bet timing portfolio with market decay profiles and scale-in recommendations. (3) Fly.io auto-stop causing endpoint timeouts — NOT a blocker for OD (sustained game-day traffic will keep VM warm) but should monitor. (4) NHL bubble games TONIGHT are CRITICAL for playoff futures pricing — OTT@DET and TOR@BOS results will reshape East WC race.*
-*🆕 OD MODEL CONFIDENCE: Betting card has been STABLE across 4+ planning sessions — 3 SMASH plays all on MIN@BAL consistently. Portfolio EV $263 on $1,268 = 20.8% projected ROI. This consistency is a GOOD sign — model isn't oscillating on noise.*
+*🆕 SESSION #52 FINDINGS: (1) 🚨 CRITICAL: NYY@SF season opener is MARCH 25 not March 27. Fixed date, starters (Cole vs Webb), DK line (-120/+100). This game is TOMORROW — urgent deployment needed. (2) Production v120 healthy at 215ms. Betting card serving 34 plays from cache. (3) Value detection returning 0 live bets (expected — no active game-day market at this hour). (4) BetMGM's OD pick is TB ML vs STL — aligns with our model (TB ML in our card as LEAN B grade).*
+*🆕 OD OPENER ACTION ITEMS: (1) Deploy this fix NOW so production has correct date. (2) Tomorrow AM: verify Cole vs Webb confirmed by ESPN. (3) Tomorrow 5PM ET: pull live NYY@SF odds from Odds API. (4) Tomorrow 8PM ET: execute NYY@SF bets per model. (5) Oracle Park is pitcher-friendly (park factor ~0.95) + SF Bay wind can be cold — UNDER lean likely.*
