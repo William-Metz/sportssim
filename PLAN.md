@@ -206,7 +206,9 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 ---
 
 ## Upcoming Calendar
-- **March 27:** MLB Opening Day 🔥 — model MUST be ready
+- **March 25:** MLB Season Opener (NYY@SF 8:05PM ET) 🔥🔥🔥
+- **March 26:** MLB Opening Day Full Slate (11 games, PIT@NYM 1:15PM ET) 🔥🔥🔥
+- **March 27:** MLB Day 2 (9 games) 🔥
 - **April 12:** NBA Playoffs begin — series pricing = edges
 - **April 19:** NHL Playoffs begin — same opportunity
 - **April 24:** NFL Draft — futures markets move
@@ -215,27 +217,27 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-24 18:00 UTC — Planning Session #52*
-*Current phase: 3.0 — 🚨 OD OPENER TOMORROW (NYY@SF 8:05PM ET) + OD1 March 26 + v122 DEPLOYED*
-*✅ PRODUCTION: sportssim.fly.dev v120.0.0 — HEALTHY (215ms health). 155+ features live including live bet execution engine, preflight v120, edge decay optimizer, OD command center.*
-*🚨🚨🚨 CRITICAL SCHEDULE FIX: NYY@SF is MARCH 25 (TOMORROW 8:05 PM ET) — NOT March 27 as previously coded. This is the MLB SEASON OPENER, 1 day BEFORE the full March 26 slate. Fixed in mlb-opening-day.js: moved to day 0, updated starters to Cole vs Webb (was Schlittler vs Webb), updated DK line to NYY -120 / SF +100 (was -168/+142). BetMGM + Sportradar both confirm March 25.*
-*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training final), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
-*✅ OD BETTING CARD: Portfolio $1,267 wager, $255.83 EV (20.2% ROI). 3 SMASH (MIN@BAL — UNDER 8.5, F5 UNDER, BAL ML). 34 total plays. Consistent across 5+ sessions.*
+*Last updated: 2026-03-24 20:00 UTC — Planning Session #53*
+*Current phase: 3.0 — 🚨 OD OPENER TOMORROW (NYY@SF 8:05PM ET, Fried vs Webb) + OD1 March 26 + v127 DEPLOYED*
+*✅ PRODUCTION: sportssim.fly.dev v127.0.0 — HEALTHY (144ms health). 165+ features live including pitcher Bayesian update, starter auto-sync, live bet execution engine, edge decay optimizer, OD command center.*
+*🚨 PITCHER CORRECTION: NYY opener starter is MAX FRIED (LHP) per v126 auto-sync from MLB Stats API — NOT Gerrit Cole as we coded in session #52. Fried is a LEFTY which changes platoon splits, K projections, and win probability. The v125 opener analysis (Cole deep dive) needs updating for Fried.*
+*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training final week), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
+*✅ OD BETTING CARD: Portfolio $1,267 wager, $255.83 EV (20.2% ROI). 3 SMASH (MIN@BAL — UNDER 8.5, F5 UNDER, BAL ML). 34 total plays for March 26 slate. Consistent across 5+ sessions.*
 *✅ MLB STATS API LINEUP BRIDGE: v108-v112 live. statsapi.mlb.com PRIMARY + ESPN fallback.*
-*✅ OD ODDS MONITOR (v112): Auto-detect book lines, cross-book best price, edge decay tracking.*
-*📊 MLB FUTURES: NYY AL East +20%+, OAK OVER +17%+, BAL UNDER +14%+.*
-*🏀 NBA TODAY (3/24 — 4 games): SAC@CHA, NOP@NYK, ORL@CLE, DEN@PHX. Light slate.*
-*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26). East 6-10 = CHAOS — 5 teams within 3 games, 10 games left.*
+*✅ PITCHER BAYESIAN UPDATE (v127): Live pitcher performance tracking, regression candidate detection, FIP/xFIP calculation, daily pitcher snapshots.*
+*📊 MLB FUTURES: NYY AL East +20%, OAK OVER +18.2%, BAL UNDER +13.7%, CWS OVER +13.1%, CHC OVER +12.8%, TOR OVER +12.8%.*
+*🏀 NBA TONIGHT (3/24 — 4 games): SAC@CHA, NOP@NYK, ORL@CLE, DEN@PHX. Light slate.*
+*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26), CLE(44-27), DEN/MIN(44-28), HOU(43-28). East play-in CHAOS: TOR(40-31), ATL/PHX(40-32), PHI(39-33), ORL(38-33), MIA(38-34). 10 games left per team.*
 *🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%). DESPERATE B2B 0/5 SU (0%). VALIDATED.*
-*🏒 NHL STANDINGS (3/24): COL(102), DAL(97), CAR(96), BUF(95). EAST BUBBLE: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84). 6 teams, 2pts, 4 spots.*
-*🏒 NHL TONIGHT: OTT@DET, TOR@BOS, CAR@MTL — MASSIVE bubble implications.*
-*🏈 NFL: 15+ win total value bets LIVE. Draft 31 days.*
-*📋 REVISED CRITICAL PATH: (0) TODAY: Deploy NYY@SF date fix + build NYY@SF betting analysis. (1) TOMORROW March 25 PM — NYY@SF OPENER 8:05PM ET. Pull live odds, generate execution plan. (2) March 25 EVE — pre-OD final check for March 26 (054/097). (3) March 26 AM — GO LIVE. PIT@NYM 1:15PM ET first pitch of full slate. (4) March 26 NIGHT — auto-grade OD1. (5) March 27 — Day 2 (8 remaining series games).*
-*⚾ MLB SEASON OPENER: TOMORROW (March 25, NYY@SF 8:05PM ET) 🔥🔥🔥🔥🔥*
+*🏒 NHL STANDINGS (3/24): COL(102), DAL(97), CAR(96), BUF(95), MIN(92), TBL(91). EAST BUBBLE: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84), ANA(82). 7 teams, 4pts, 4 spots.*
+*🏒 NHL TONIGHT: OTT@DET, TOR@BOS, CAR@MTL — MASSIVE bubble implications. All 3 feature bubble teams.*
+*🏈 NFL: 15+ win total value bets LIVE (MIA OVER +39.5%, BAL UNDER +23.3%). Draft 31 days.*
+*📋 CRITICAL PATH TO MONEY: (0) TONIGHT: Track NHL bubble games + NBA rest/tank. (1) TOMORROW March 25 AM — Update Fried vs Webb analysis, re-run opener predictions. (2) TOMORROW March 25 5PM ET — Pull live NYY@SF odds, generate execution plan. (3) TOMORROW March 25 8:05PM ET — FIRST PITCH. Execute Fried vs Webb plays. (4) March 25 EVE — Final pre-OD check for March 26 full slate. (5) March 26 AM — GO LIVE. PIT@NYM 1:15PM ET first pitch of full OD slate. (6) March 26-27 NIGHT — Auto-grade results, measure first CLV.*
+*⚾ MLB SEASON OPENER: TOMORROW (March 25, NYY@SF 8:05PM ET, FRIED vs WEBB) 🔥🔥🔥🔥🔥*
 *⚾ MLB OPENING DAY FULL SLATE: 1.75 DAYS (March 26, PIT@NYM 1:15PM ET) 🔥🔥🔥*
 *⚾ MLB DAY 2: 3 DAYS (March 27) 🔥🔥*
 *🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
 *🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
 *🏈 NFL DRAFT: 31 DAYS (April 24)*
-*🆕 SESSION #52 FINDINGS: (1) 🚨 CRITICAL: NYY@SF season opener is MARCH 25 not March 27. Fixed date, starters (Cole vs Webb), DK line (-120/+100). This game is TOMORROW — urgent deployment needed. (2) Production v120 healthy at 215ms. Betting card serving 34 plays from cache. (3) Value detection returning 0 live bets (expected — no active game-day market at this hour). (4) BetMGM's OD pick is TB ML vs STL — aligns with our model (TB ML in our card as LEAN B grade).*
-*🆕 OD OPENER ACTION ITEMS: (1) Deploy this fix NOW so production has correct date. (2) Tomorrow AM: verify Cole vs Webb confirmed by ESPN. (3) Tomorrow 5PM ET: pull live NYY@SF odds from Odds API. (4) Tomorrow 8PM ET: execute NYY@SF bets per model. (5) Oracle Park is pitcher-friendly (park factor ~0.95) + SF Bay wind can be cold — UNDER lean likely.*
+*🆕 SESSION #53 FINDINGS: (1) 🚨 PITCHER CORRECTION: v126 auto-sync changed NYY opener from Cole to Max Fried (LHP). The v125 opener analysis was built for Cole (RHP) — needs full recalculation for Fried's different profile (lefty, different K rate, different platoon implications for SF lineup). (2) Production v127 HEALTHY at 144ms with 165+ features including Bayesian pitcher updating. (3) Value detection returning MLB futures only (expected — no game-day markets at 8PM UTC). (4) NHL bubble unchanged at 7 teams within 4pts — tonight's OTT@DET, TOR@BOS, CAR@MTL could significantly shift bubble. NYI moved to 85pts (up from 83). (5) NBA standings stable — East play-in remains chaotic with 6 teams within 6 games of each other. (6) San Francisco forecast shows ~57°F / cloudy for tomorrow evening — mild conditions, not extreme. Oracle Park 0.93 PF still dominant factor.*
+*🆕 NEW TASK: Task 113 — Re-run NYY@SF opener analysis for Fried vs Webb (CRITICAL P0, blocks tomorrow's bet execution). Fried is LHP → SF's mostly LHH lineup (Pederson, Davis, Flores) faces SAME-SIDE disadvantage. This CHANGES the platoon splits significantly from the Cole analysis.*
