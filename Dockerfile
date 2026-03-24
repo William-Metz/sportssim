@@ -16,4 +16,4 @@ COPY . .
 RUN mkdir -p services/ml-models
 
 EXPOSE 8080
-CMD ["node", "--max-old-space-size=768", "server.js"]
+CMD ["node", "--max-old-space-size=1024", "--expose-gc", "server.js"]
