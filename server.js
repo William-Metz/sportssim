@@ -3512,9 +3512,13 @@ app.get('/api/weather/status', (req, res) => {
   res.json(weather.getStatus());
 });
 
-app.get('/api/weather/:team', async (req, res) => {
+app.get('/api/weather/:team', async (req, res, next) => {
+  // Guard: skip sub-paths that should be handled by later routes
+  const param = req.params.team.toUpperCase();
+  const reservedPaths = ['STATUS', 'GAME', 'OPENING-DAY', 'FORECAST', 'WIND-MODEL'];
+  if (reservedPaths.includes(param)) return next(); // pass to next matching route
   try {
-    const result = await weather.getWeatherForPark(req.params.team.toUpperCase());
+    const result = await weather.getWeatherForPark(param);
     if (result.error) return res.status(400).json(result);
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
