@@ -97,7 +97,7 @@ const OPENING_DAY_GAMES = [
 
   // ===== MARCH 27, 2026 — DAY 2 (Friday) =====
   { 
-    date: '2026-03-27', day: 2, away: 'NYY', home: 'SF', time: '4:35 PM ET',
+    date: '2026-03-25', day: 0, away: 'NYY', home: 'SF', time: '8:05 PM ET', // OD OPENER — March 25 per BetMGM/Sportradar
     confirmedStarters: { away: 'Cam Schlittler', home: 'Logan Webb' },
     dkLine: { homeML: 142, awayML: -168, total: 7.0 }, // NYY -168, Oracle Park pitcher-friendly
     broadcast: null,
