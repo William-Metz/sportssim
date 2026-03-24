@@ -28,6 +28,8 @@ try { statcastService = require('../services/statcast'); } catch (e) { /* no sta
 try { preseasonTuning = require('../services/preseason-tuning'); } catch (e) { /* no preseason tuning */ }
 let lineupFetcher = null;
 try { lineupFetcher = require('../services/lineup-fetcher'); } catch (e) { /* no lineup data */ }
+let lineupBridge = null;
+try { lineupBridge = require('../services/lineup-bridge'); } catch (e) { /* no lineup bridge */ }
 let bullpenQuality = null;
 try { bullpenQuality = require('../services/bullpen-quality'); } catch (e) { /* no bullpen quality data */ }
 let platoonSplitsService = null;
@@ -1923,13 +1925,16 @@ async function asyncPredict(awayAbbr, homeAbbr, opts = {}) {
     );
   }
   
-  // 2. Lineup data
-  if (!opts.lineup && lineupFetcher) {
-    fetchPromises.push(
-      lineupFetcher.getLineupAdjustments(awayAbbr, homeAbbr, gameDate)
-        .then(data => { opts.lineup = data; })
-        .catch(() => { /* lineup data optional */ })
-    );
+  // 2. Lineup data — USE MULTI-SOURCE BRIDGE (MLB Stats API → ESPN → overrides → default)
+  if (!opts.lineup) {
+    const lineupSource = lineupBridge || lineupFetcher;
+    if (lineupSource) {
+      fetchPromises.push(
+        lineupSource.getLineupAdjustments(awayAbbr, homeAbbr, gameDate)
+          .then(data => { opts.lineup = data; })
+          .catch(() => { /* lineup data optional */ })
+      );
+    }
   }
   
   // 3. WEATHER — auto-fetch live weather for the home park
