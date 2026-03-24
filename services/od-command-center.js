@@ -85,8 +85,8 @@ function getCountdown() {
       countdown: `${hoursToOD2}h`,
       hoursAway: hoursToOD2,
     },
-    totalGames: 20,
-    phase: hoursToOD1 <= 0 ? 'LIVE' : hoursToOD1 <= 24 ? 'T-1 FINAL CHECK' : hoursToOD1 <= 48 ? 'T-2 PREP' : 'EARLY PREP',
+    totalGames: 19,
+    phase: hoursToOD1 <= 0 ? 'LIVE' : hoursToOD1 <= 24 ? 'T-1 FINAL CHECK' : hoursToOD1 <= 72 ? 'T-2 PREP' : 'EARLY PREP',
   };
 }
 
@@ -110,7 +110,7 @@ function getSystemHealth() {
   checks.push({
     system: 'OD Schedule',
     status: odGames.length >= 20 ? 'GO' : odGames.length > 0 ? 'WARN' : 'FAIL',
-    detail: `${odGames.length}/20 games loaded`,
+    detail: `${odGames.length}/19 games loaded`,
     critical: true,
   });
   

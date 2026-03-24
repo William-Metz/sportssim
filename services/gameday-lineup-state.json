@@ -1,5 +1,5 @@
 {
-  "lastScan": "2026-03-24T09:48:58.227Z",
+  "lastScan": "2026-03-24T14:02:52.091Z",
   "snapshots": {
     "PIT@NYM": {
       "awayConfirmed": false,
@@ -150,9 +150,109 @@
       "homeBatterCount": 0,
       "awayCatcher": null,
       "homeCatcher": null
+    },
+    "TB@ATL": {
+      "awayConfirmed": false,
+      "homeConfirmed": true,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 9,
+      "awayCatcher": null,
+      "homeCatcher": "Drake Baldwin"
+    },
+    "BOS@MIN": {
+      "awayConfirmed": true,
+      "homeConfirmed": true,
+      "bothConfirmed": true,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 9,
+      "homeBatterCount": 9,
+      "awayCatcher": "Carlos Narváez",
+      "homeCatcher": "Ryan Jeffers"
+    },
+    "KC@TEX": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "NYY@CHC": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "DET@COL": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "CLE@ARI": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "CIN@MIL": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "LAA@LAD": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "???@HOU": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
+    },
+    "???@SF": {
+      "awayConfirmed": false,
+      "homeConfirmed": false,
+      "bothConfirmed": false,
+      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "awayBatterCount": 0,
+      "homeBatterCount": 0,
+      "awayCatcher": null,
+      "homeCatcher": null
     }
   },
   "scanCount": 1,
   "rebuilds": [],
-  "savedAt": "2026-03-24T09:48:59.226Z"
+  "savedAt": "2026-03-24T14:02:53.570Z"
 }
