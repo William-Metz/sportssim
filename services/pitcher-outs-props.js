@@ -16,6 +16,9 @@ const mlbOpeningDay = require('../models/mlb-opening-day');
 // IP_PER_START = total projected IP / ~32 starts (for aces) or ~30 (mid-tier)
 // These are regular season averages — OD premium applied separately
 const PITCHER_IP_PROJECTIONS = {
+  // === OD Day 0 — Season Opener (March 25) ===
+  'Gerrit Cole':        { ipPerStart: 6.25, tier: 1, hand: 'R', team: 'NYY', pitchCount: 100, note: 'NYY ace, workhorse. 200 IP season. Opener energy = long start.' },
+  'Logan Webb':         { ipPerStart: 6.40, tier: 1, hand: 'R', team: 'SF', pitchCount: 98, note: 'SF workhorse, innings eater. Led NL in IP. Home opener at Oracle.' },
   // === OD Day 1 Starters (March 26) ===
   'Paul Skenes':        { ipPerStart: 5.78, tier: 1, hand: 'R', team: 'PIT', pitchCount: 97, note: 'Elite stuff, managed carefully but goes deep' },
   'Freddy Peralta':     { ipPerStart: 5.67, tier: 2, hand: 'R', team: 'NYM', pitchCount: 93, note: 'High K rate, walks limit IP' },

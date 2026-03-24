@@ -11,6 +11,9 @@
 // These are projected K/9 rates — more predictive than raw 2025 stats
 // Format: { k9, xK9 (Savant expected), ip (projected), hand, team }
 const STEAMER_K9_PROJECTIONS = {
+  // === OD Day 0 — Season Opener (March 25) ===
+  'Gerrit Cole':       { k9: 10.60, xK9: 10.80, ip: 200, hand: 'R', team: 'NYY', tier: 1, note: 'NYY ace, elite K machine. 2026 season opener at Oracle Park vs SF.' },
+  'Logan Webb':        { k9: 8.50, xK9: 8.70, ip: 200, hand: 'R', team: 'SF', tier: 1, note: 'SF workhorse, ground ball artist. Lower K rate but elite command. Home opener.' },
   // === OD Day 1 Starters (March 26) ===
   'Paul Skenes':       { k9: 10.99, xK9: 11.20, ip: 185, hand: 'R', team: 'PIT', tier: 1, note: 'Elite stuff, 2nd year breakout candidate' },
   'Freddy Peralta':    { k9: 9.42, xK9: 9.60, ip: 170, hand: 'R', team: 'NYM', tier: 2, note: 'Acquired by NYM, high K rate but walks' },
@@ -140,6 +143,9 @@ const OD_IP_BOOST = 0.3;             // OD starters avg 0.3 more IP (5.8 vs 5.5)
 // DraftKings pitcher K prop lines for Opening Day (as of March 22)
 // Format: { line, overOdds, underOdds }
 const DK_K_PROP_LINES = {
+  // Day 0 — Season Opener (March 25)
+  'Gerrit Cole':       { line: 7.5, overOdds: -120, underOdds: 100 },
+  'Logan Webb':        { line: 5.5, overOdds: -110, underOdds: -110 },
   // Day 1
   'Paul Skenes':       { line: 6.5, overOdds: -130, underOdds: 110 },
   'Freddy Peralta':    { line: 5.5, overOdds: -120, underOdds: 100 },

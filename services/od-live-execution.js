@@ -54,6 +54,11 @@ try { outsProps = require('./pitcher-outs-props'); } catch(e) {}
 try { bullpenQuality = require('./bullpen-quality'); } catch(e) {}
 
 // ==================== OD SCHEDULE ====================
+// DAY 0 = Season Opener (March 25), DAY 1 = Full slate (March 26), DAY 2 = Day 2 games (March 27)
+const OD_DAY0 = [
+  { away: 'NYY', home: 'SF', time: '2026-03-26T00:05:00Z', venue: 'Oracle Park', outdoor: true, opener: true },
+];
+
 const OD_DAY1 = [
   { away: 'PIT', home: 'NYM', time: '2026-03-26T17:10:00Z', venue: 'Citi Field', outdoor: true },
   { away: 'CWS', home: 'MIL', time: '2026-03-26T18:10:00Z', venue: 'American Family Field', outdoor: false },
