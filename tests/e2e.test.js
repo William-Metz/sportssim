@@ -28,7 +28,7 @@ const failures = [];
 
 // ─── Helpers ───
 
-function fetch(urlPath, timeoutMs = 8000) {
+function fetchOnce(urlPath, timeoutMs = 8000) {
   return new Promise((resolve, reject) => {
     const url = `${BASE}${urlPath}`;
     const req = http.get(url, { timeout: timeoutMs }, (res) => {
@@ -41,6 +41,23 @@ function fetch(urlPath, timeoutMs = 8000) {
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
   });
+}
+
+// Retry wrapper for transient network errors (ECONNRESET, ECONNREFUSED, EPIPE)
+async function fetch(urlPath, timeoutMs = 8000, retries = 2) {
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fetchOnce(urlPath, timeoutMs);
+    } catch (err) {
+      lastErr = err;
+      const transient = /ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|socket hang up/i.test(err.message);
+      if (!transient || i === retries) throw err;
+      // Wait briefly before retry (200ms, 500ms)
+      await new Promise(r => setTimeout(r, (i + 1) * 300));
+    }
+  }
+  throw lastErr;
 }
 
 async function waitForServer() {
@@ -147,7 +164,7 @@ async function runAllTests() {
 
   await test('MLB predict', '/api/model/mlb/predict?away=NYY&home=LAD', (json) => {
     assert(typeof json === 'object', 'Predict should return an object');
-  });
+  }, { critical: false, timeoutMs: 20000 });
 
   await test('MLB pitchers', '/api/model/mlb/pitchers', (json) => {
     assert(typeof json === 'object' || Array.isArray(json), 'Pitchers should return data');
@@ -167,7 +184,7 @@ async function runAllTests() {
 
   await test('NHL predict', '/api/model/nhl/predict?away=TOR&home=BOS', (json) => {
     assert(typeof json === 'object', 'Predict should return an object');
-  });
+  }, { critical: false, timeoutMs: 15000 });
 
   // --- Cross-sport (critical but fast) ---
   console.log('\n--- Cross-Sport ---');

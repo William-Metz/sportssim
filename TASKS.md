@@ -228,3 +228,17 @@
 | 091 | **🆕 OD Bet Auto-Grading + CLV Measurement** | ⏳ NEW | P1 | After OD games complete: auto-grade all 37 OD plays + K props + outs props + NRFI picks. Record actual results, compute P&L, measure CLV (our line at bet time vs closing line). First real-money validation of the entire model stack. Build auto-grading pipeline that reads final scores from ESPN API and grades each bet. Task 068 (OD Live Tracker) has basic framework — need to wire to real scores. |
 | 092 | **🆕 NHL Bubble Game Prioritization** | ⏳ NEW | P2 | TODAY (3/24): 8 NHL games with 5 involving bubble teams. OTT@DET (both bubble, OTT on B2B), TOR@BOS (BOS bubble fight), CAR@MTL (MTL bubble), CHI@NYI (NYI bubble, CHI eliminated = motivation mismatch), CBJ@PHI. East bubble now MTL/BOS/PIT(86), CBJ/NYI(85), DET(84) — even TIGHTER than before. Should flag these daily as highest-edge NHL games for the next 3 weeks until bubble resolves. |
 | 093 | **🆕 NBA Rest/Tank Backtest Results Collection** | ✅ DONE | P1 | GRADED v102.0: March 23 results collected from ESPN. 6 games graded. RESTING teams went 3/3 — OKC won by 20, SAS by 25, DET by 3. DESPERATE teams went 0/3 (ORL lost to tanking IND, PHI lost by 20, MIA lost by 25). IND (TANKING) actually WON. Model recalibrated: RESTING adj reduced -1.5 → -0.5 (elite depth), DESPERATE adj reduced 1.0 → 0.3 (effort ≠ talent). Avg baseline error 23.9pts, avg adjusted error 24.0pts — adjustment was net neutral but directional insights are critical for playoff modeling. |
+| 094 | **🚨 Deploy v103-v105 to Production** | ⏳ NEW | P0 | Production is v102 but local is v105. v103 (MLB results grader + box score grading + season P&L tracker), v104 (OD eve validation + live weather 48h + postponement risk + comprehensive GO/NOGO check), v105 (auto-grade pipeline + closing line capture + game monitor + post-game auto-grading + CLV measurement + P&L dashboard). MUST deploy before March 25 final check. This planning commit should trigger GH Actions deploy. |
+| 095 | **🆕 March 24 Rest/Tank Backtest Update** | ⏳ NEW | P1 | March 24 results: OKC(RESTING) 123 PHI 103 (+20), SA(RESTING) 136 MIA 111 (+25), IND(TANKING) 128 ORL(DESPERATE B2B) 126 (+2). CUMULATIVE: RESTING teams 5-0 SU avg +18.4pt margin. DESPERATE B2B teams 0-4 SU. IND(TANKING) has beaten ORL(DESPERATE) TWO GAMES IN A ROW. Key insight: at end of season, top teams have elite depth that negates any rest penalty. DESPERATE adj should be further reduced or removed for B2B situations. Model already recalibrated in v102 but may need additional iteration. |
+| 096 | **🆕 Post-OD Regular Season Automation Priority** | ⏳ NEW | P2 | After OD, daily scanner (task 078) is the #1 priority. Auto-scanner currently exists but needs: (1) generalize beyond OD to all regular season games, (2) daily cron trigger, (3) full signal stack (lineups flow ~2hr pre-game, weather, umpire), (4) auto-grading after each night's games, (5) P&L tracking. This is the money-printing machine for April onward. |
+
+---
+*Last updated: 2026-03-24 06:00 UTC*
+*⚾ MLB OPENING DAY 1: 2 DAYS (March 26) 🔥🔥🔥*
+*⚾ MLB OPENING DAY 2: 3 DAYS (March 27) 🔥🔥🔥*
+*🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
+*🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
+*🏈 NFL DRAFT: 31 DAYS (April 24)*
+*✅ PRODUCTION: v105 deploy triggered — auto-grade pipeline + CLV measurement*
+*🚨 P0: Deploy v105 (094) + Pre-OD final check March 25 eve (054).*
+*📊 REST/TANK BACKTEST: RESTING 5/0 SU, DESPERATE B2B 0/4 SU — elite depth > motivation*

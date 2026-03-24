@@ -1,0 +1,975 @@
+{
+  "timestamp": "2026-03-24T07:08:43.005Z",
+  "daysToOD": 2,
+  "version": "106.0.0",
+  "schedule": {
+    "day1": [
+      {
+        "gameId": "401814693",
+        "date": "2026-03-26T17:15Z",
+        "away": "PIT",
+        "home": "NYM",
+        "awaySP": {
+          "name": "Paul Skenes",
+          "id": "4719507"
+        },
+        "homeSP": {
+          "name": "Freddy Peralta",
+          "id": "39825"
+        },
+        "venue": "Citi Field",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814696",
+        "date": "2026-03-26T18:10Z",
+        "away": "CHW",
+        "home": "MIL",
+        "awaySP": {
+          "name": "Shane Smith",
+          "id": "5201814"
+        },
+        "homeSP": {
+          "name": "Jacob Misiorowski",
+          "id": "5080761"
+        },
+        "venue": "American Family Field",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814698",
+        "date": "2026-03-26T18:20Z",
+        "away": "WSH",
+        "home": "CHC",
+        "awaySP": {
+          "name": "Cade Cavalli",
+          "id": "4308037"
+        },
+        "homeSP": {
+          "name": "Matthew Boyd",
+          "id": "34401"
+        },
+        "venue": "Wrigley Field",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814692",
+        "date": "2026-03-26T19:05Z",
+        "away": "MIN",
+        "home": "BAL",
+        "awaySP": {
+          "name": "Joe Ryan",
+          "id": "42450"
+        },
+        "homeSP": {
+          "name": "Trevor Rogers",
+          "id": "39640"
+        },
+        "venue": "Oriole Park at Camden Yards",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814689",
+        "date": "2026-03-26T20:10Z",
+        "away": "BOS",
+        "home": "CIN",
+        "awaySP": {
+          "name": "Garrett Crochet",
+          "id": "4297835"
+        },
+        "homeSP": {
+          "name": "Andrew Abbott",
+          "id": "4414528"
+        },
+        "venue": "Great American Ball Park",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814695",
+        "date": "2026-03-26T20:10Z",
+        "away": "LAA",
+        "home": "HOU",
+        "awaySP": {
+          "name": "Jose Soriano",
+          "id": "40973"
+        },
+        "homeSP": {
+          "name": "Hunter Brown",
+          "id": "4717803"
+        },
+        "venue": "Daikin Park",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814701",
+        "date": "2026-03-26T20:10Z",
+        "away": "DET",
+        "home": "SD",
+        "awaySP": {
+          "name": "Tarik Skubal",
+          "id": "42409"
+        },
+        "homeSP": {
+          "name": "Nick Pivetta",
+          "id": "36071"
+        },
+        "venue": "Petco Park",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814694",
+        "date": "2026-03-26T20:15Z",
+        "away": "TEX",
+        "home": "PHI",
+        "awaySP": {
+          "name": "Nathan Eovaldi",
+          "id": "31174"
+        },
+        "homeSP": {
+          "name": "Cristopher Sanchez",
+          "id": "42359"
+        },
+        "venue": "Citizens Bank Park",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814697",
+        "date": "2026-03-26T20:15Z",
+        "away": "TB",
+        "home": "STL",
+        "awaySP": {
+          "name": "Drew Rasmussen",
+          "id": "42584"
+        },
+        "homeSP": {
+          "name": "Matthew Liberatore",
+          "id": "41173"
+        },
+        "venue": "Busch Stadium",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814699",
+        "date": "2026-03-27T00:30Z",
+        "away": "ARI",
+        "home": "LAD",
+        "awaySP": {
+          "name": "Zac Gallen",
+          "id": "39910"
+        },
+        "homeSP": {
+          "name": "Yoshinobu Yamamoto",
+          "id": "4872587"
+        },
+        "venue": "Dodger Stadium",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814700",
+        "date": "2026-03-27T02:10Z",
+        "away": "CLE",
+        "home": "SEA",
+        "awaySP": {
+          "name": "Tanner Bibee",
+          "id": "4345278"
+        },
+        "homeSP": {
+          "name": "Logan Gilbert",
+          "id": "41221"
+        },
+        "venue": "T-Mobile Park",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      }
+    ],
+    "day2": [
+      {
+        "gameId": "401814721",
+        "date": "2026-03-27T20:35Z",
+        "away": "NYY",
+        "home": "SF",
+        "awaySP": {
+          "name": "Cam Schlittler",
+          "id": "5134581"
+        },
+        "homeSP": null,
+        "venue": "Oracle Park",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814688",
+        "date": "2026-03-27T23:07Z",
+        "away": "ATH",
+        "home": "TOR",
+        "awaySP": {
+          "name": "Luis Severino",
+          "id": "33263"
+        },
+        "homeSP": {
+          "name": "Kevin Gausman",
+          "id": "32667"
+        },
+        "venue": "Rogers Centre",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814690",
+        "date": "2026-03-27T23:10Z",
+        "away": "COL",
+        "home": "MIA",
+        "awaySP": {
+          "name": "Kyle Freeland",
+          "id": "33839"
+        },
+        "homeSP": {
+          "name": "Sandy Alcantara",
+          "id": "35241"
+        },
+        "venue": "loanDepot park",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814691",
+        "date": "2026-03-27T23:15Z",
+        "away": "KC",
+        "home": "ATL",
+        "awaySP": {
+          "name": "Cole Ragans",
+          "id": "41054"
+        },
+        "homeSP": {
+          "name": "Chris Sale",
+          "id": "30948"
+        },
+        "venue": "Truist Park",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814703",
+        "date": "2026-03-28T00:10Z",
+        "away": "LAA",
+        "home": "HOU",
+        "awaySP": {
+          "name": "Yusei Kikuchi",
+          "id": "41415"
+        },
+        "homeSP": {
+          "name": "Mike Burrows",
+          "id": "4918155"
+        },
+        "venue": "Daikin Park",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814705",
+        "date": "2026-03-28T01:40Z",
+        "away": "CLE",
+        "home": "SEA",
+        "awaySP": {
+          "name": "Gavin Williams",
+          "id": "4345076"
+        },
+        "homeSP": null,
+        "venue": "T-Mobile Park",
+        "indoor": true,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814706",
+        "date": "2026-03-28T01:40Z",
+        "away": "DET",
+        "home": "SD",
+        "awaySP": {
+          "name": "Framber Valdez",
+          "id": "36581"
+        },
+        "homeSP": {
+          "name": "Michael King",
+          "id": "40429"
+        },
+        "venue": "Petco Park",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      },
+      {
+        "gameId": "401814704",
+        "date": "2026-03-28T02:10Z",
+        "away": "ARI",
+        "home": "LAD",
+        "awaySP": {
+          "name": "Ryne Nelson",
+          "id": "4916269"
+        },
+        "homeSP": {
+          "name": "Emmet Sheehan",
+          "id": "4417806"
+        },
+        "venue": "Dodger Stadium",
+        "indoor": false,
+        "status": "STATUS_SCHEDULED"
+      }
+    ]
+  },
+  "pitcherValidation": [
+    {
+      "matchup": "PIT@NYM",
+      "date": "2026-03-26T17:15Z",
+      "venue": "Citi Field",
+      "indoor": false,
+      "away": {
+        "team": "PIT",
+        "espnStarter": "Paul Skenes",
+        "inDB": true,
+        "dbRating": 78
+      },
+      "home": {
+        "team": "NYM",
+        "espnStarter": "Freddy Peralta",
+        "inDB": true,
+        "dbRating": 67
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "CHW@MIL",
+      "date": "2026-03-26T18:10Z",
+      "venue": "American Family Field",
+      "indoor": true,
+      "away": {
+        "team": "CHW",
+        "espnStarter": "Shane Smith",
+        "inDB": true,
+        "dbRating": 48
+      },
+      "home": {
+        "team": "MIL",
+        "espnStarter": "Jacob Misiorowski",
+        "inDB": true,
+        "dbRating": 53
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "WSH@CHC",
+      "date": "2026-03-26T18:20Z",
+      "venue": "Wrigley Field",
+      "indoor": false,
+      "away": {
+        "team": "WSH",
+        "espnStarter": "Cade Cavalli",
+        "inDB": true,
+        "dbRating": 37
+      },
+      "home": {
+        "team": "CHC",
+        "espnStarter": "Matthew Boyd",
+        "inDB": true,
+        "dbRating": 50
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "MIN@BAL",
+      "date": "2026-03-26T19:05Z",
+      "venue": "Oriole Park at Camden Yards",
+      "indoor": false,
+      "away": {
+        "team": "MIN",
+        "espnStarter": "Joe Ryan",
+        "inDB": true,
+        "dbRating": 61
+      },
+      "home": {
+        "team": "BAL",
+        "espnStarter": "Trevor Rogers",
+        "inDB": true,
+        "dbRating": 72
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "BOS@CIN",
+      "date": "2026-03-26T20:10Z",
+      "venue": "Great American Ball Park",
+      "indoor": false,
+      "away": {
+        "team": "BOS",
+        "espnStarter": "Garrett Crochet",
+        "inDB": true,
+        "dbRating": 69
+      },
+      "home": {
+        "team": "CIN",
+        "espnStarter": "Andrew Abbott",
+        "inDB": true,
+        "dbRating": 60
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "LAA@HOU",
+      "date": "2026-03-26T20:10Z",
+      "venue": "Daikin Park",
+      "indoor": true,
+      "away": {
+        "team": "LAA",
+        "espnStarter": "Jose Soriano",
+        "inDB": true,
+        "dbRating": 49
+      },
+      "home": {
+        "team": "HOU",
+        "espnStarter": "Hunter Brown",
+        "inDB": true,
+        "dbRating": 60
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "DET@SD",
+      "date": "2026-03-26T20:10Z",
+      "venue": "Petco Park",
+      "indoor": false,
+      "away": {
+        "team": "DET",
+        "espnStarter": "Tarik Skubal",
+        "inDB": true,
+        "dbRating": 80
+      },
+      "home": {
+        "team": "SD",
+        "espnStarter": "Nick Pivetta",
+        "inDB": true,
+        "dbRating": 69
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "TEX@PHI",
+      "date": "2026-03-26T20:15Z",
+      "venue": "Citizens Bank Park",
+      "indoor": false,
+      "away": {
+        "team": "TEX",
+        "espnStarter": "Nathan Eovaldi",
+        "inDB": true,
+        "dbRating": 63
+      },
+      "home": {
+        "team": "PHI",
+        "espnStarter": "Cristopher Sanchez",
+        "inDB": true,
+        "dbRating": 59
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "TB@STL",
+      "date": "2026-03-26T20:15Z",
+      "venue": "Busch Stadium",
+      "indoor": false,
+      "away": {
+        "team": "TB",
+        "espnStarter": "Drew Rasmussen",
+        "inDB": true,
+        "dbRating": 56
+      },
+      "home": {
+        "team": "STL",
+        "espnStarter": "Matthew Liberatore",
+        "inDB": true,
+        "dbRating": 43
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "ARI@LAD",
+      "date": "2026-03-27T00:30Z",
+      "venue": "Dodger Stadium",
+      "indoor": false,
+      "away": {
+        "team": "ARI",
+        "espnStarter": "Zac Gallen",
+        "inDB": true,
+        "dbRating": 41
+      },
+      "home": {
+        "team": "LAD",
+        "espnStarter": "Yoshinobu Yamamoto",
+        "inDB": true,
+        "dbRating": 76
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "CLE@SEA",
+      "date": "2026-03-27T02:10Z",
+      "venue": "T-Mobile Park",
+      "indoor": true,
+      "away": {
+        "team": "CLE",
+        "espnStarter": "Tanner Bibee",
+        "inDB": true,
+        "dbRating": 68
+      },
+      "home": {
+        "team": "SEA",
+        "espnStarter": "Logan Gilbert",
+        "inDB": true,
+        "dbRating": 71
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "NYY@SF",
+      "date": "2026-03-27T20:35Z",
+      "venue": "Oracle Park",
+      "indoor": false,
+      "away": {
+        "team": "NYY",
+        "espnStarter": "Cam Schlittler",
+        "inDB": true,
+        "dbRating": 46
+      },
+      "home": {
+        "team": "SF",
+        "espnStarter": "TBD",
+        "inDB": false
+      },
+      "alerts": [
+        "❓ SF starter TBD"
+      ],
+      "status": "WARNING"
+    },
+    {
+      "matchup": "ATH@TOR",
+      "date": "2026-03-27T23:07Z",
+      "venue": "Rogers Centre",
+      "indoor": true,
+      "away": {
+        "team": "ATH",
+        "espnStarter": "Luis Severino",
+        "inDB": true,
+        "dbRating": 48
+      },
+      "home": {
+        "team": "TOR",
+        "espnStarter": "Kevin Gausman",
+        "inDB": true,
+        "dbRating": 63
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "COL@MIA",
+      "date": "2026-03-27T23:10Z",
+      "venue": "loanDepot park",
+      "indoor": true,
+      "away": {
+        "team": "COL",
+        "espnStarter": "Kyle Freeland",
+        "inDB": true,
+        "dbRating": 29
+      },
+      "home": {
+        "team": "MIA",
+        "espnStarter": "Sandy Alcantara",
+        "inDB": true,
+        "dbRating": 45
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "KC@ATL",
+      "date": "2026-03-27T23:15Z",
+      "venue": "Truist Park",
+      "indoor": false,
+      "away": {
+        "team": "KC",
+        "espnStarter": "Cole Ragans",
+        "inDB": true,
+        "dbRating": 65
+      },
+      "home": {
+        "team": "ATL",
+        "espnStarter": "Chris Sale",
+        "inDB": true,
+        "dbRating": 77
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "LAA@HOU",
+      "date": "2026-03-28T00:10Z",
+      "venue": "Daikin Park",
+      "indoor": true,
+      "away": {
+        "team": "LAA",
+        "espnStarter": "Yusei Kikuchi",
+        "inDB": true,
+        "dbRating": 55
+      },
+      "home": {
+        "team": "HOU",
+        "espnStarter": "Mike Burrows",
+        "inDB": true,
+        "dbRating": 51
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "CLE@SEA",
+      "date": "2026-03-28T01:40Z",
+      "venue": "T-Mobile Park",
+      "indoor": true,
+      "away": {
+        "team": "CLE",
+        "espnStarter": "Gavin Williams",
+        "inDB": true,
+        "dbRating": 61
+      },
+      "home": {
+        "team": "SEA",
+        "espnStarter": "TBD",
+        "inDB": false
+      },
+      "alerts": [
+        "❓ SEA starter TBD"
+      ],
+      "status": "WARNING"
+    },
+    {
+      "matchup": "DET@SD",
+      "date": "2026-03-28T01:40Z",
+      "venue": "Petco Park",
+      "indoor": false,
+      "away": {
+        "team": "DET",
+        "espnStarter": "Framber Valdez",
+        "inDB": true,
+        "dbRating": 66
+      },
+      "home": {
+        "team": "SD",
+        "espnStarter": "Michael King",
+        "inDB": true,
+        "dbRating": 63
+      },
+      "alerts": [],
+      "status": "OK"
+    },
+    {
+      "matchup": "ARI@LAD",
+      "date": "2026-03-28T02:10Z",
+      "venue": "Dodger Stadium",
+      "indoor": false,
+      "away": {
+        "team": "ARI",
+        "espnStarter": "Ryne Nelson",
+        "inDB": true,
+        "dbRating": 47
+      },
+      "home": {
+        "team": "LAD",
+        "espnStarter": "Emmet Sheehan",
+        "inDB": true,
+        "dbRating": 70
+      },
+      "alerts": [],
+      "status": "OK"
+    }
+  ],
+  "weather": [
+    {
+      "team": "NYM",
+      "park": "Citi Field",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T13:00",
+      "temp_f": 53.8,
+      "humidity": 65,
+      "wind_mph": 9.8,
+      "wind_dir": 217,
+      "wind_gusts": 25.3,
+      "precip_prob": 4,
+      "precip_mm": 0.1,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "MIL",
+      "park": "American Family Field",
+      "retractable": true,
+      "status": "OK",
+      "gameTime": "2026-03-26T14:00",
+      "temp_f": 73.7,
+      "humidity": 55,
+      "wind_mph": 9.4,
+      "wind_dir": 239,
+      "wind_gusts": 19.9,
+      "precip_prob": 11,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "CHC",
+      "park": "Wrigley Field",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T14:00",
+      "temp_f": 72.2,
+      "humidity": 57,
+      "wind_mph": 14.2,
+      "wind_dir": 213,
+      "wind_gusts": 32,
+      "precip_prob": 9,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "BAL",
+      "park": "Camden Yards",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T15:00",
+      "temp_f": 73,
+      "humidity": 38,
+      "wind_mph": 12.3,
+      "wind_dir": 217,
+      "wind_gusts": 19.5,
+      "precip_prob": 7,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "CIN",
+      "park": "GABP",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T16:00",
+      "temp_f": 71.1,
+      "humidity": 78,
+      "wind_mph": 12.4,
+      "wind_dir": 219,
+      "wind_gusts": 30.4,
+      "precip_prob": 11,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "HOU",
+      "dome": true,
+      "status": "DOME"
+    },
+    {
+      "team": "SD",
+      "park": "Petco Park",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T16:00",
+      "temp_f": 78.8,
+      "humidity": 36,
+      "wind_mph": 8.5,
+      "wind_dir": 272,
+      "wind_gusts": 3.6,
+      "precip_prob": 0,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "PHI",
+      "park": "Citizens Bank Park",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T16:00",
+      "temp_f": 70.3,
+      "humidity": 42,
+      "wind_mph": 14.6,
+      "wind_dir": 216,
+      "wind_gusts": 21.7,
+      "precip_prob": 5,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "STL",
+      "park": "Busch Stadium",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-26T16:00",
+      "temp_f": 89.6,
+      "humidity": 34,
+      "wind_mph": 14.5,
+      "wind_dir": 215,
+      "wind_gusts": 28.4,
+      "precip_prob": 8,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1.03,
+        "signals": [
+          "🔥 Hot (89.6°F) — slight over lean"
+        ],
+        "severity": "WARNING"
+      }
+    },
+    {
+      "team": "LAD",
+      "park": "Dodger Stadium",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-27T20:00",
+      "temp_f": 80.7,
+      "humidity": 25,
+      "wind_mph": 10.6,
+      "wind_dir": 248,
+      "wind_gusts": 6.5,
+      "precip_prob": 0,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "SEA",
+      "park": "T-Mobile Park",
+      "retractable": true,
+      "status": "OK",
+      "gameTime": "2026-03-27T22:00",
+      "temp_f": 46.1,
+      "humidity": 62,
+      "wind_mph": 7.5,
+      "wind_dir": 350,
+      "wind_gusts": 20.6,
+      "precip_prob": 0,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 0.96,
+        "signals": [
+          "❄️ Cold (46.1°F) — moderate under lean"
+        ],
+        "severity": "WARNING"
+      }
+    },
+    {
+      "team": "SF",
+      "park": "Oracle Park",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-27T16:00",
+      "temp_f": 72.3,
+      "humidity": 23,
+      "wind_mph": 4.6,
+      "wind_dir": 51,
+      "wind_gusts": 3.4,
+      "precip_prob": 0,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [],
+        "severity": "CLEAR"
+      }
+    },
+    {
+      "team": "TOR",
+      "dome": true,
+      "status": "DOME"
+    },
+    {
+      "team": "MIA",
+      "dome": true,
+      "status": "DOME"
+    },
+    {
+      "team": "ATL",
+      "park": "Truist Park",
+      "retractable": false,
+      "status": "OK",
+      "gameTime": "2026-03-27T19:00",
+      "temp_f": 74.3,
+      "humidity": 57,
+      "wind_mph": 15.1,
+      "wind_dir": 322,
+      "wind_gusts": 19,
+      "precip_prob": 2,
+      "precip_mm": 0,
+      "bettingImpact": {
+        "totalsMult": 1,
+        "signals": [
+          "💨 Strong wind 15.1mph — increased variance"
+        ],
+        "severity": "WARNING"
+      }
+    }
+  ],
+  "summary": {
+    "totalGames": 19,
+    "starterIssues": 2,
+    "weatherAlerts": 3,
+    "criticalAlerts": 0
+  },
+  "alerts": [
+    "❓ SF starter TBD",
+    "❓ SEA starter TBD"
+  ],
+  "goNoGo": "GO",
+  "durationMs": 5320
+}

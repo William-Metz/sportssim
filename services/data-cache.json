@@ -33,11 +33,21 @@
     "BKN": {
       "name": "Brooklyn Nets",
       "w": 17,
-      "l": 54,
-      "ppg": 106.4,
-      "oppg": 115.5,
-      "diff": -9.1,
+      "l": 55,
+      "ppg": 106.3,
+      "oppg": 115.8,
+      "diff": -9.5,
       "l10": "2-8",
+      "source": "espn-live"
+    },
+    "MIL": {
+      "name": "Milwaukee Bucks",
+      "w": 29,
+      "l": 42,
+      "ppg": 110.8,
+      "oppg": 116.4,
+      "diff": -5.6,
+      "l10": "3-7",
       "source": "espn-live"
     },
     "CHI": {
@@ -48,16 +58,6 @@
       "oppg": 120.3,
       "diff": -4.3,
       "l10": "4-6",
-      "source": "espn-live"
-    },
-    "MIL": {
-      "name": "Milwaukee Bucks",
-      "w": 29,
-      "l": 41,
-      "ppg": 111,
-      "oppg": 116.2,
-      "diff": -5.2,
-      "l10": "3-7",
       "source": "espn-live"
     },
     "CHA": {
@@ -100,16 +100,6 @@
       "l10": "5-5",
       "source": "espn-live"
     },
-    "TOR": {
-      "name": "Toronto Raptors",
-      "w": 39,
-      "l": 31,
-      "ppg": 113.8,
-      "oppg": 112.1,
-      "diff": 1.7,
-      "l10": "4-6",
-      "source": "espn-live"
-    },
     "ATL": {
       "name": "Atlanta Hawks",
       "w": 40,
@@ -118,6 +108,16 @@
       "oppg": 116.4,
       "diff": 1.9,
       "l10": "9-1",
+      "source": "espn-live"
+    },
+    "TOR": {
+      "name": "Toronto Raptors",
+      "w": 40,
+      "l": 31,
+      "ppg": 114.2,
+      "oppg": 112.3,
+      "diff": 1.9,
+      "l10": "5-5",
       "source": "espn-live"
     },
     "CLE": {
@@ -183,19 +183,19 @@
     "UTA": {
       "name": "Utah Jazz",
       "w": 21,
-      "l": 50,
-      "ppg": 117.3,
-      "oppg": 124.8,
-      "diff": -7.5,
+      "l": 51,
+      "ppg": 117.4,
+      "oppg": 125.1,
+      "diff": -7.7,
       "l10": "3-7",
       "source": "espn-live"
     },
     "DAL": {
       "name": "Dallas Mavericks",
       "w": 23,
-      "l": 48,
-      "ppg": 113.5,
-      "oppg": 118.7,
+      "l": 49,
+      "ppg": 113.8,
+      "oppg": 119,
       "diff": -5.2,
       "l10": "2-8",
       "source": "espn-live"
@@ -222,32 +222,32 @@
     },
     "GSW": {
       "name": "Golden State Warriors",
-      "w": 33,
+      "w": 34,
       "l": 38,
-      "ppg": 114.7,
-      "oppg": 114.6,
-      "diff": 0.1,
+      "ppg": 115.1,
+      "oppg": 114.9,
+      "diff": 0.2,
       "l10": "2-8",
       "source": "espn-live"
     },
     "POR": {
       "name": "Portland Trail Blazers",
-      "w": 35,
+      "w": 36,
       "l": 37,
-      "ppg": 115.1,
-      "oppg": 117.2,
-      "diff": -2.1,
+      "ppg": 115.3,
+      "oppg": 117,
+      "diff": -1.7,
       "l10": "6-4",
       "source": "espn-live"
     },
     "LAC": {
       "name": "LA Clippers",
-      "w": 35,
+      "w": 36,
       "l": 36,
-      "ppg": 113.5,
-      "oppg": 113,
-      "diff": 0.5,
-      "l10": "5-5",
+      "ppg": 113.8,
+      "oppg": 112.8,
+      "diff": 1,
+      "l10": "6-4",
       "source": "espn-live"
     },
     "PHX": {
@@ -917,8 +917,8 @@
       "w": 20,
       "l": 8,
       "gp": 28,
-      "rsG": 7.25,
-      "raG": 5.82,
+      "rsG": 7.5,
+      "raG": 6.07,
       "diff": 1.43,
       "isSpringTraining": true,
       "source": "espn-live"
@@ -945,14 +945,36 @@
       "isSpringTraining": true,
       "source": "espn-live"
     },
+    "CLE": {
+      "name": "Cleveland Guardians",
+      "w": 15,
+      "l": 14,
+      "gp": 29,
+      "rsG": 6.07,
+      "raG": 5.62,
+      "diff": 0.45,
+      "isSpringTraining": true,
+      "source": "espn-live"
+    },
+    "COL": {
+      "name": "Colorado Rockies",
+      "w": 15,
+      "l": 14,
+      "gp": 29,
+      "rsG": 6.69,
+      "raG": 6.83,
+      "diff": -0.14,
+      "isSpringTraining": true,
+      "source": "espn-live"
+    },
     "ARI": {
       "name": "Arizona Diamondbacks",
       "w": 15,
-      "l": 13,
-      "gp": 28,
-      "rsG": 5.96,
-      "raG": 6.57,
-      "diff": -0.61,
+      "l": 14,
+      "gp": 29,
+      "rsG": 5.76,
+      "raG": 6.59,
+      "diff": -0.83,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -961,20 +983,9 @@
       "w": 16,
       "l": 15,
       "gp": 31,
-      "rsG": 4.55,
-      "raG": 5.77,
+      "rsG": 4.77,
+      "raG": 6,
       "diff": -1.23,
-      "isSpringTraining": true,
-      "source": "espn-live"
-    },
-    "CLE": {
-      "name": "Cleveland Guardians",
-      "w": 14,
-      "l": 14,
-      "gp": 28,
-      "rsG": 6.04,
-      "raG": 5.82,
-      "diff": 0.21,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -986,17 +997,6 @@
       "rsG": 6.23,
       "raG": 6.03,
       "diff": 0.2,
-      "isSpringTraining": true,
-      "source": "espn-live"
-    },
-    "COL": {
-      "name": "Colorado Rockies",
-      "w": 14,
-      "l": 14,
-      "gp": 28,
-      "rsG": 6.71,
-      "raG": 6.89,
-      "diff": -0.18,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -1201,11 +1201,11 @@
     "DET": {
       "name": "Detroit Tigers",
       "w": 8,
-      "l": 12,
-      "gp": 20,
-      "rsG": 6.4,
+      "l": 13,
+      "gp": 21,
+      "rsG": 6.33,
       "raG": 5.95,
-      "diff": 0.45,
+      "diff": 0.38,
       "isSpringTraining": true,
       "source": "espn-live"
     },
@@ -1244,8 +1244,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774322518643,
-    "nhl": 1774322519070,
-    "mlb": 1774322519799
+    "nba": 1774335697130,
+    "nhl": 1774335697438,
+    "mlb": 1774335698096
   }
 }

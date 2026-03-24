@@ -502,8 +502,13 @@
       "mismatchDetected": true,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 99,
+        "homeScore": 134,
+        "margin": 35,
+        "total": 233
+      },
+      "graded": true
     },
     {
       "date": "2026-03-23",
@@ -527,8 +532,13 @@
       "mismatchDetected": false,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 96,
+        "homeScore": 129,
+        "margin": 33,
+        "total": 225
+      },
+      "graded": true
     },
     {
       "date": "2026-03-24",
@@ -879,23 +889,67 @@
       "homeB2B": false,
       "bookSpread": null,
       "score": "124-132"
+    },
+    {
+      "gameKey": "BKN@POR",
+      "date": "2026-03-23",
+      "actualMargin": 35,
+      "actualTotal": 233,
+      "baselineSpread": -8.6,
+      "adjustedSpread": -4.6,
+      "restTankAdj": 4,
+      "baselineError": 43.6,
+      "adjustedError": 39.6,
+      "improvement": 4,
+      "improved": true,
+      "atsResult": "HOME_COVER",
+      "awayMotivation": "TANKING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": true,
+      "mismatchType": null,
+      "awayB2B": true,
+      "homeB2B": true,
+      "bookSpread": null,
+      "score": "99-134"
+    },
+    {
+      "gameKey": "MIL@LAC",
+      "date": "2026-03-23",
+      "actualMargin": 33,
+      "actualTotal": 225,
+      "baselineSpread": -13.3,
+      "adjustedSpread": -12.1,
+      "restTankAdj": 1.2,
+      "baselineError": 46.3,
+      "adjustedError": 45.1,
+      "improvement": 1.2,
+      "improved": true,
+      "atsResult": "HOME_COVER",
+      "awayMotivation": "COMPETING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": false,
+      "mismatchType": null,
+      "awayB2B": true,
+      "homeB2B": true,
+      "bookSpread": null,
+      "score": "96-129"
     }
   ],
   "summary": {
-    "totalGames": 11,
-    "improvedCount": 2,
-    "improvedPct": 18.2,
+    "totalGames": 13,
+    "improvedCount": 4,
+    "improvedPct": 30.8,
     "avgImprovement": null,
     "avgBaselineError": null,
     "avgAdjustedError": null,
     "errorReductionPct": null,
-    "mismatchGames": 8,
-    "mismatchImproved": 2,
-    "mismatchImprovedPct": 25,
+    "mismatchGames": 9,
+    "mismatchImproved": 3,
+    "mismatchImprovedPct": 33.3,
     "mismatchAvgImprovement": null,
-    "b2bGames": 4,
-    "b2bImproved": 2,
-    "b2bImprovedPct": 50,
+    "b2bGames": 6,
+    "b2bImproved": 4,
+    "b2bImprovedPct": 66.7,
     "booksCompared": 6,
     "modelATSHitRate": 0,
     "byMotivation": [
@@ -913,8 +967,8 @@
       },
       {
         "matchup": "TANKING_vs_DESPERATE",
-        "games": 2,
-        "improved": 1,
+        "games": 3,
+        "improved": 2,
         "avgImprovement": null
       },
       {
@@ -930,6 +984,12 @@
         "avgImprovement": null
       },
       {
+        "matchup": "COMPETING_vs_DESPERATE",
+        "games": 1,
+        "improved": 1,
+        "avgImprovement": 1.2
+      },
+      {
         "matchup": "COASTING_vs_COMPETING",
         "games": 1,
         "improved": 0,
@@ -942,5 +1002,5 @@
     ],
     "lastGraded": "2026-03-23"
   },
-  "lastUpdated": "2026-03-24T03:29:47.651Z"
+  "lastUpdated": "2026-03-24T07:01:37.554Z"
 }

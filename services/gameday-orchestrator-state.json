@@ -1,0 +1,14 @@
+{
+  "isRunning": false,
+  "isGameDay": false,
+  "todayDate": "2026-03-24",
+  "gamesFound": 0,
+  "lineupsConfirmed": 0,
+  "lastLineupScan": null,
+  "lastWeatherRefresh": null,
+  "lastPlaybookRebuild": null,
+  "lineupDrops": [],
+  "errors": [],
+  "startedAt": null,
+  "phase": "idle"
+}
