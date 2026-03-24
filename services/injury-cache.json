@@ -42,41 +42,41 @@
       "team": "Brooklyn Nets",
       "injuries": [
         {
+          "player": "Danny Wolf",
+          "position": "F",
+          "status": "Day-To-Day",
+          "detail": "Wolf (ankle) is out for Monday's game against the Trail Blazers, C.J. Holmes of the New York Daily News reports.",
+          "returnDate": "2026-03-24T13:36Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Drake Powell",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Powell won't play in Monday's game versus Portland due to left knee injury management, per C.J. Holmes of the New York Daily News.",
+          "returnDate": "2026-03-24T13:36Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Terance Mann",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Mann will be rested Monday against the Trail Blazers, C.J. Holmes of the New York Daily News reports.",
+          "returnDate": "2026-03-24T13:36Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Noah Clowney",
           "position": "F",
           "status": "Out",
           "detail": "Clowney (wrist) won't play in Monday's game versus Portland, per C.J. Holmes of the New York Daily News.",
           "returnDate": "2026-03-23T19:47Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Terance Mann",
-          "position": "G",
-          "status": "Out",
-          "detail": "Mann will be rested Monday against the Trail Blazers, C.J. Holmes of the New York Daily News reports.",
-          "returnDate": "2026-03-23T19:44Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Drake Powell",
-          "position": "G",
-          "status": "Out",
-          "detail": "Powell won't play in Monday's game versus Portland due to left knee injury management, per C.J. Holmes of the New York Daily News.",
-          "returnDate": "2026-03-23T19:41Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Danny Wolf",
-          "position": "F",
-          "status": "Out",
-          "detail": "Wolf (ankle) is out for Monday's game against the Trail Blazers, C.J. Holmes of the New York Daily News reports.",
-          "returnDate": "2026-03-23T19:41Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -113,8 +113,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 4,
+      "dtdCount": 3,
       "starPlayersOut": []
     },
     "CHA": {
@@ -597,12 +597,12 @@
         {
           "player": "John Collins",
           "position": "F",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Collins (ankle) is out for Monday's game against Milwaukee, Joey Linn of SI.com reports.",
-          "returnDate": "2026-03-24T01:25Z",
+          "returnDate": "2026-03-24T13:36Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Bennedict Mathurin",
@@ -636,8 +636,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 3,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "LAL": {
@@ -840,24 +840,24 @@
       "team": "Milwaukee Bucks",
       "injuries": [
         {
-          "player": "Gary Harris",
-          "position": "G",
-          "status": "Out",
-          "detail": "Harris (groin) has been ruled out for Monday's game against the Clippers, Tomer Azarly of ClutchPoints.com reports.",
-          "returnDate": "2026-03-24T01:13Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Kyle Kuzma",
           "position": "F",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Kuzma (Achilles) is out Monday against the Clippers, Tomer Azarly of ClutchPoints.com reports.",
-          "returnDate": "2026-03-24T01:10Z",
+          "returnDate": "2026-03-24T13:27Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Gary Harris",
+          "position": "G",
+          "status": "Day-To-Day",
+          "detail": "Harris (groin) has been ruled out for Monday's game against the Clippers, Tomer Azarly of ClutchPoints.com reports.",
+          "returnDate": "2026-03-24T13:27Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Kevin Porter Jr.",
@@ -881,8 +881,8 @@
         }
       ],
       "totalImpact": 5,
-      "outCount": 4,
-      "dtdCount": 0,
+      "outCount": 2,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Giannis Antetokounmpo",
@@ -1013,21 +1013,21 @@
       "team": "Orlando Magic",
       "injuries": [
         {
-          "player": "Jonathan Isaac",
+          "player": "Franz Wagner",
           "position": "F",
           "status": "Out",
-          "detail": "Isaac (knee) is out for Tuesday's game against the Cavaliers.",
-          "returnDate": "2026-03-24T04:04Z",
+          "detail": "The Magic recalled Wagner (ankle) from the G League's Osceola Magic after he practiced with the affiliate Monday.",
+          "returnDate": "2026-03-24T14:24Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
         },
         {
-          "player": "Franz Wagner",
+          "player": "Jonathan Isaac",
           "position": "F",
           "status": "Out",
-          "detail": "Wagner (ankle) has been ruled out for Tuesday's game against Cleveland.",
-          "returnDate": "2026-03-24T04:02Z",
+          "detail": "Isaac (knee) is out for Tuesday's game against the Cavaliers.",
+          "returnDate": "2026-03-24T04:04Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1061,16 +1061,6 @@
     "PHI": {
       "team": "Philadelphia 76ers",
       "injuries": [
-        {
-          "player": "Paul George",
-          "position": "F",
-          "status": "Day-To-Day",
-          "detail": "George (suspension) is expected to play Wednesday against the Bulls and shouldn't need a ramp-up period, Austin Krell of OnPattison.com reports.",
-          "returnDate": "2026-03-24T04:09Z",
-          "impact": 3.5,
-          "isOut": false,
-          "isDayToDay": true
-        },
         {
           "player": "Quentin Grimes",
           "position": "G",
@@ -1122,18 +1112,10 @@
           "isDayToDay": false
         }
       ],
-      "totalImpact": 8.55,
+      "totalImpact": 7.5,
       "outCount": 4,
-      "dtdCount": 2,
+      "dtdCount": 1,
       "starPlayersOut": [
-        {
-          "player": "Paul George",
-          "impact": 3.5,
-          "status": "Day-To-Day",
-          "detail": "George (suspension) is expected to play Wednesday against the Bulls and shouldn't need a ramp-up period, Austin Krell of OnPattison.com reports.",
-          "isOut": false,
-          "isDayToDay": true
-        },
         {
           "player": "Joel Embiid",
           "impact": 4.5,
@@ -1225,6 +1207,16 @@
       "team": "Portland Trail Blazers",
       "injuries": [
         {
+          "player": "Robert Williams III",
+          "position": "C",
+          "status": "Day-To-Day",
+          "detail": "Williams (knee) is out for Monday's game against the Nets.",
+          "returnDate": "2026-03-24T13:36Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
           "player": "Jerami Grant",
           "position": "F",
           "status": "Day-To-Day",
@@ -1240,16 +1232,6 @@
           "status": "Out",
           "detail": "Krejci (calf) is out for Monday's game against the Nets.",
           "returnDate": "2026-03-23T20:13Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Robert Williams III",
-          "position": "C",
-          "status": "Out",
-          "detail": "Williams (knee) is out for Monday's game against the Nets.",
-          "returnDate": "2026-03-23T20:11Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -1276,8 +1258,8 @@
         }
       ],
       "totalImpact": 3.5,
-      "outCount": 4,
-      "dtdCount": 1,
+      "outCount": 3,
+      "dtdCount": 2,
       "starPlayersOut": [
         {
           "player": "Damian Lillard",
@@ -1491,12 +1473,12 @@
         {
           "player": "Cody Williams",
           "position": "F",
-          "status": "Out",
+          "status": "Day-To-Day",
           "detail": "Williams (shoulder) has been ruled out for Monday's game against Toronto.",
-          "returnDate": "2026-03-23T23:33Z",
+          "returnDate": "2026-03-24T13:33Z",
           "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
+          "isOut": false,
+          "isDayToDay": true
         },
         {
           "player": "Isaiah Collier",
@@ -1560,8 +1542,8 @@
         }
       ],
       "totalImpact": 3,
-      "outCount": 7,
-      "dtdCount": 0,
+      "outCount": 6,
+      "dtdCount": 1,
       "starPlayersOut": [
         {
           "player": "Lauri Markkanen",
@@ -2399,12 +2381,12 @@
         {
           "player": "Ryan Pulock",
           "position": "D",
-          "status": "Day-To-Day",
-          "detail": "day-to-day",
-          "returnDate": "2026-03-23T04:57Z",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-24T15:28Z",
           "impact": 0,
-          "isOut": false,
-          "isDayToDay": true
+          "isOut": true,
+          "isDayToDay": false
         },
         {
           "player": "Anthony Duclair",
@@ -2458,8 +2440,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
-      "dtdCount": 2,
+      "outCount": 5,
+      "dtdCount": 1,
       "starPlayersOut": []
     },
     "NYR": {
@@ -2633,6 +2615,16 @@
       "team": "Pittsburgh Penguins",
       "injuries": [
         {
+          "player": "Evgeni Malkin",
+          "position": "C",
+          "status": "Out",
+          "detail": "out",
+          "returnDate": "2026-03-24T14:22Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Ryan Shea",
           "position": "D",
           "status": "Day-To-Day",
@@ -2684,7 +2676,7 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 4,
+      "outCount": 5,
       "dtdCount": 1,
       "starPlayersOut": []
     },
@@ -3479,6 +3471,16 @@
       "team": "Boston Red Sox",
       "injuries": [
         {
+          "player": "Triston Casas",
+          "position": "1B",
+          "status": "Out",
+          "detail": "Casas (knee) will continue his progression in Fort Myers for the next couple weeks before getting into extended spring training games, Chris Cotillo of MassLive.com reports.",
+          "returnDate": "2026-03-24T13:01Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Patrick Sandoval",
           "position": "SP",
           "status": "Out",
@@ -3494,16 +3496,6 @@
           "status": "Out",
           "detail": "Crawford (wrist) will throw three innings in a minor-league game in Fort Myers on Monday, MLB.com reports.",
           "returnDate": "2026-03-21T17:08Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
-          "player": "Triston Casas",
-          "position": "1B",
-          "status": "Out",
-          "detail": "Casas (knee) has been cleared to run the bases and slide, MLB.com reports.",
-          "returnDate": "2026-03-21T16:59Z",
           "impact": 0,
           "isOut": true,
           "isDayToDay": false
@@ -5356,6 +5348,16 @@
       "team": "St. Louis Cardinals",
       "injuries": [
         {
+          "player": "Lars Nootbaar",
+          "position": "LF",
+          "status": "Out",
+          "detail": "Cardinals president of baseball operations Chaim Bloom said Monday that Nootbaar (heels) will be evaluated this week for a potential placement on the 60-day injured list, Derrick Goold of the St. Loui",
+          "returnDate": "2026-03-24T14:19Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
+        {
           "player": "Victor Santos",
           "position": "RP",
           "status": "Day-To-Day",
@@ -5396,16 +5398,6 @@
           "isDayToDay": true
         },
         {
-          "player": "Lars Nootbaar",
-          "position": "LF",
-          "status": "Out",
-          "detail": "Nootbaar (heel) will start the 2026 regular season on the injured list, William Ladson of MLB.com reports.",
-          "returnDate": "2026-03-21T14:54Z",
-          "impact": 0,
-          "isOut": true,
-          "isDayToDay": false
-        },
-        {
           "player": "Hunter Dobbins",
           "position": "SP",
           "status": "Out",
@@ -5424,6 +5416,26 @@
     "TB": {
       "team": "Tampa Bay Rays",
       "injuries": [
+        {
+          "player": "Nick Martinez",
+          "position": "SP",
+          "status": "Day-To-Day",
+          "detail": "Martinez finished Grapefruit League play with a 14.49 ERA and 7:6 K:BB over 13.2 innings.",
+          "returnDate": "2026-03-24T15:07Z",
+          "impact": 0,
+          "isOut": false,
+          "isDayToDay": true
+        },
+        {
+          "player": "Ryan Pepiot",
+          "position": "SP",
+          "status": "15-Day-IL",
+          "detail": "Pepiot allowed one unearned run on one hit and two walks in two innings during Friday's Grapefruit League game against Toronto. He struck out two.",
+          "returnDate": "2026-03-24T15:01Z",
+          "impact": 0,
+          "isOut": true,
+          "isDayToDay": false
+        },
         {
           "player": "Gavin Lux",
           "position": "LF",
@@ -5516,8 +5528,8 @@
         }
       ],
       "totalImpact": 0,
-      "outCount": 6,
-      "dtdCount": 3,
+      "outCount": 7,
+      "dtdCount": 4,
       "starPlayersOut": []
     },
     "TEX": {
@@ -5768,8 +5780,8 @@
     }
   },
   "timestamps": {
-    "nba": 1774343091474,
-    "nhl": 1774343092032,
-    "mlb": 1774343093591
+    "nba": 1774367151085,
+    "nhl": 1774367151761,
+    "mlb": 1774367152200
   }
 }

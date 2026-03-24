@@ -1,0 +1,25 @@
+{
+  "games": {
+    "2026-03-23": {
+      "date": "2026-03-23",
+      "status": "graded",
+      "gamesOnSlate": 12,
+      "gamesFinal": 12,
+      "boxScoresFetched": 12,
+      "totalBets": 0,
+      "graded": 0,
+      "ungraded": 0,
+      "record": {
+        "wins": 0,
+        "losses": 0,
+        "pushes": 0
+      },
+      "winRate": 0,
+      "totalStake": 0,
+      "totalProfit": 0,
+      "roi": 0,
+      "plays": []
+    }
+  },
+  "lastUpdate": "2026-03-24T15:46:34.057Z"
+}

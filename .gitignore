@@ -14,3 +14,10 @@ data/
 __pycache__/
 services/daily-card-cache/
 services/daily-nba-cache/
+services/autopilot-state/
+services/grader-cache/
+services/auto-grade-state.json
+services/gameday-lineup-state.json
+services/rest-tank-backtest-data.json
+services/od-line-tracker-data.json
+services/playbook-disk-cache.json

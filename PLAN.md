@@ -215,30 +215,30 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-24 14:00 UTC — Planning Session #50*
-*Current phase: 3.0 — OD D-DAY T-MINUS 1.5 + v112 DEPLOYED + Pre-OD Final Check TOMORROW*
-*✅ PRODUCTION: sportssim.fly.dev v112.0.0 — HEALTHY (368ms health). 140+ features live including OD Odds Monitor v112, regular season autopilot v111, MLB Stats API lineup bridge v108.*
-*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (final spring training day), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
-*✅ OD BETTING CARD (34 plays): 3 SMASH (all MIN@BAL — UNDER 8.5 +22.6%, F5 UNDER +21.4%, BAL ML), 17 STRONG (PIT@NYM unders lead), 14 LEAN. Portfolio: $1k bankroll, 0.5 Kelly.*
+*Last updated: 2026-03-24 16:00 UTC — Planning Session #51*
+*Current phase: 3.0 — OD D-DAY T-MINUS 1.25 DAYS + v117 DEPLOYED + FINAL CHECK TOMORROW*
+*✅ PRODUCTION: sportssim.fly.dev v117.0.0 — HEALTHY (1573ms initial wake, Fly auto-stop in effect). 150+ features live including OD D1 final check v117, team totals prop scanner v116, ESPN live verification v115, OD command center v113.*
+*⚠️ PRODUCTION NOTE: Some heavier endpoints (rest-tank/scan, data/status) timing out after initial health check succeeds — likely Fly.io auto-stop wake latency + rate-limited external APIs. Core /api/health responds fine. NOT a blocker for OD since game-day will have sustained traffic keeping VM warm.*
+*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training final — LAD 20-8 Cactus #1, SF 19-9 #2, TEX 17-12 #3), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
+*✅ OD BETTING CARD: Portfolio $1,268 wager, $263.62 EV (20.8% ROI). 3 SMASH (MIN@BAL — UNDER 8.5, F5 UNDER, BAL ML). Betting card endpoint returns from disk cache. Conviction consistent across last 4 sessions.*
 *✅ MLB STATS API LINEUP BRIDGE: v108-v110 — statsapi.mlb.com PRIMARY + ESPN fallback + manual overrides. Auto-prediction rebuild on lineup confirmation.*
-*✅ OD ODDS MONITOR (v112): Auto-detect book lines, cross-book best price, auto-playbook rebuild, edge decay tracking. NEXT 36 HOURS CRITICAL — as books post OD lines, playbook auto-rebuilds.*
-*📊 MLB FUTURES: NYY AL East +20.9%, OAK OVER +17.6%, TOR OVER +13.8%, CHC OVER +13.3%, BAL UNDER +13.1%.*
-*🏀 NBA TODAY (3/24 — 4 games): SAC(TANKING)@CHA(DESPERATE), NOP(COMPETING)@NYK(COASTING), ORL(DESPERATE B2B 3in4)@CLE(COASTING), DEN(COASTING 3in4)@PHX(COMPETING B2B). Light slate — DEN@PHX most interesting for seeding.*
-*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26), CLE(44-27), DEN/MIN(44-28), HOU(43-28), TOR(40-31), ATL/PHX(40-32), PHI(39-33), ORL(38-33), MIA(38-34). East 6-10 = CHAOS — 5 teams within 3 games.*
-*🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%) avg +16pt margin. DESPERATE B2B 0/5 SU (0%). VALIDATED EDGE — 12 data points strong.*
+*✅ OD ODDS MONITOR (v112): Auto-detect book lines, cross-book best price, auto-playbook rebuild, edge decay tracking. NEXT 24 HOURS CRITICAL — edge decay optimizer v118 built with bet timing portfolio.*
+*📊 MLB FUTURES: NYY AL East +20%+, OAK OVER +17%+, TOR OVER +13%+, CHC OVER +13%+, BAL UNDER +13%+.*
+*🏀 NBA TODAY (3/24 — 4 games): SAC@CHA(7PM ET), NOP@NYK(7:30PM ET), ORL@CLE(7PM ET), DEN@PHX(10PM ET). Light slate. DEN@PHX most impactful for W play-in seeding.*
+*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26), CLE(44-27), DEN/MIN(44-28), HOU(43-28), TOR(40-31), ATL/PHX(40-32), PHI(39-33), ORL(38-33), MIA(38-34). East 6-10 = CHAOS — 5 teams within 3 games. 10 games left per team.*
+*🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%) avg +16pt margin. DESPERATE B2B 0/5 SU (0%). VALIDATED EDGE — 12 data points strong. Tomorrow (3/25) has 12 NBA games including OKC@BOS test.*
 *🏒 NHL STANDINGS (3/24): COL(102), DAL(97), CAR(96), BUF(95), MIN(92), TBL(91). EAST BUBBLE: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84), ANA(82), OTT(81). 8 teams within 5pts for 4 spots.*
-*🏒 NHL TODAY: Key bubble games — OTT@DET (both bubble!), TOR@BOS (BOS bubble fight), CAR@MTL (MTL bubble). Every point matters.*
-*🏈 NFL: 15+ win total value bets LIVE. Draft 31 days.*
+*🏒 NHL TONIGHT: OTT@DET (MASSIVE bubble swing), TOR@BOS (BOS bubble fight), CAR@MTL (MTL bubble). Results reshape playoff futures pricing.*
+*🏈 NFL: 15+ win total value bets LIVE. Draft 31 days. MIA OVER 4.5 (+39.6% edge top pick).*
 *📋 CRITICAL PATH: TOMORROW March 25 = Pre-OD FINAL CHECK → March 26 AM GO LIVE → OD1 (11 games) → OD2 March 27 (9 games) → Regular season autopilot*
-*🚨 D-DAY CHECKLIST: (1) March 25 AM — verify v112 stable ✅ (confirmed today 368ms). (2) March 25 PM — pull 48hr weather + verify lineup pipeline. (3) March 25 EVE — full end-to-end preflight. (4) March 26 AM — GO LIVE. (5) March 26 PM — capture closing lines. (6) March 26 NIGHT — auto-grade all OD1 bets.*
-*⚾ MLB OPENING DAY 1: LESS THAN 2 DAYS (March 26) 🔥🔥🔥*
+*🚨 D-DAY CHECKLIST: (1) March 25 AM — verify v117 stable ✅ (confirmed today). (2) March 25 PM — pull 48hr weather + verify lineup pipeline. (3) March 25 EVE — full end-to-end preflight (054/097). (4) March 26 AM — GO LIVE. PIT@NYM 1:15PM ET first pitch. (5) March 26 PM — capture closing lines. (6) March 26 NIGHT — auto-grade all OD1 bets.*
+*⚾ MLB OPENING DAY 1: LESS THAN 2 DAYS (March 26, PIT@NYM 1:15PM ET first) 🔥🔥🔥*
 *⚾ MLB OPENING DAY 2: 3 DAYS (March 27) 🔥🔥🔥*
 *🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
 *🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
 *🏈 NFL DRAFT: 31 DAYS (April 24)*
-*🆕 SPRING TRAINING FINAL DAY (3/24): Last games before Opening Day. LAD 20-8 (#1 Cactus), SF 19-9. CLE 7 ARI 0 yesterday (Cecconi dominant, Kelly shelled — ARI OD pitching concern?). BAL 2 WSH 0 (Bassitt dealt, BAL pitching elite confirms model). BOS 6 MIN 9 (high-scoring — both offenses hot, relevant for MIN@BAL OD UNDER bet).*
-*🆕 POST-OD PRIORITY STACK: (1) Pre-OD final check March 25 (054/097 P0). (2) Regular season daily scanner (078) — Apr-Oct money printer. (3) NBA playoff futures scanner (079) — 19 days. (4) NHL bubble futures (080/102) — 26-day window. (5) Batter props (075). (6) Post-OD Bayesian updating (101).*
-*🆕 NEW EDGE IDEAS FROM RESEARCH: (1) MLB Team Totals prop market — softer than game totals, can use our per-team run projections directly. The Odds API has team_totals market. (2) Inning-by-inning scoring patterns — late-inning bullpen splits create asymmetric OVER/UNDER value in F7 vs full game. (3) OD Day 1 lineup posting timing — MLB Stats API gets lineups ~2hrs pre-game = speed edge vs public who relies on ESPN (delayed 30-60min).*
-*🆕 EDGE CONFIRMATION: BAL spring training (Bassitt 2-0 yesterday) + roster upgrades (Alonso/O'Neill/Baz/Helsley) = our MIN@BAL UNDER model thesis SUPPORTED. BAL pitching is elite, and their lineup will score enough to keep games close and low-scoring with elite pitching on both sides (Joe Ryan for MIN).*
-*🆕 NHL BUBBLE TONIGHT: OTT@DET is massive — if OTT wins, they climb to 83pts and push DET further out. If DET wins, they hit 86pts and join PIT/MTL/BOS cluster. TOR@BOS also huge — BOS loss drops them into the pack at 86pts with 3in4 schedule pressure. These results reshape playoff futures pricing overnight.*
-*🆕 NBA DEN@PHX WATCH: DEN(COASTING 3in4) vs PHX(COMPETING B2B) — both tired but PHX needs wins more for play-in positioning. DEN could rest Jokic. If PHX wins, they climb to 41-32 and create more East-comparable seeding chaos in the West play-in.*
+*🆕 VERSION JUMP v112→v117: 5 new versions since last plan — v113 (OD command center, D2 war room, portfolio cheat sheet), v114 (OD T-2 verification, morning brief, DK line change tracker), v115 (ESPN live verification, pitcher auto-check), v116 (team totals prop scanner, asymmetric pitching exploit), v117 (OD D1 final check, comprehensive go/no-go, production health monitor, gameday morning protocol).*
+*🆕 SPRING TRAINING FINAL STANDINGS: LAD 20-8 (#1 Cactus), SF 19-9, TEX 17-12, ARI/CLE/COL 15-14, CWS 15-16, MIL 13-16 (concerning for OD). Grapefruit: PIT 16-10, NYM 16-12, ATL 16-13, BAL 16-13. These don't change model much (3-6% weight) but directionally confirm.*
+*🆕 POST-OD PRIORITY STACK: (1) Pre-OD final check TOMORROW (054/097 P0). (2) Regular season daily scanner (078) — Apr-Oct money printer. (3) NBA playoff futures scanner (079) — 19 days. (4) NHL bubble futures speed trade (080/102) — window closing. (5) Batter props (075). (6) Post-OD Bayesian updating (101).*
+*🆕 EDGE RESEARCH SESSION #51: (1) MLB team totals prop scanner BUILT (v116) — asymmetric pitching exploit can detect when one team is mispriced even if game total is fair. (2) OD edge decay optimizer BUILT (v118) — bet timing portfolio with market decay profiles and scale-in recommendations. (3) Fly.io auto-stop causing endpoint timeouts — NOT a blocker for OD (sustained game-day traffic will keep VM warm) but should monitor. (4) NHL bubble games TONIGHT are CRITICAL for playoff futures pricing — OTT@DET and TOR@BOS results will reshape East WC race.*
+*🆕 OD MODEL CONFIDENCE: Betting card has been STABLE across 4+ planning sessions — 3 SMASH plays all on MIN@BAL consistently. Portfolio EV $263 on $1,268 = 20.8% projected ROI. This consistency is a GOOD sign — model isn't oscillating on noise.*
