@@ -30,16 +30,22 @@ let dailyMlbCard = null;
 let pitcherResolver = null;
 let betTracker = null;
 let lineShoppingService = null;
+let lineupBridge = null;
+let mlbStatsLineups = null;
+let autoGrader = null;
 
 try { mlbModel = require('../models/mlb'); } catch(e) {}
 try { mlbSchedule = require('./mlb-schedule'); } catch(e) {}
 try { lineupFetcher = require('./lineup-fetcher'); } catch(e) {}
+try { lineupBridge = require('./lineup-bridge'); } catch(e) {}
+try { mlbStatsLineups = require('./mlb-stats-lineups'); } catch(e) {}
 try { weatherService = require('./weather'); } catch(e) {}
 try { umpireService = require('./umpire-tendencies'); } catch(e) {}
 try { dailyMlbCard = require('./daily-mlb-card'); } catch(e) {}
 try { pitcherResolver = require('./pitcher-resolver'); } catch(e) {}
 try { betTracker = require('./bet-tracker'); } catch(e) {}
 try { lineShoppingService = require('./line-shopping'); } catch(e) {}
+try { autoGrader = require('./auto-grade-pipeline'); } catch(e) {}
 
 // ==================== STATE ====================
 const STATE_DIR = path.join(__dirname, 'autopilot-state');
@@ -174,13 +180,45 @@ function addAlert(type, gameKey, message, severity = 'info') {
 
 // ==================== CORE: INITIALIZE GAMES FROM SCHEDULE ====================
 async function initializeGamesFromSchedule(date) {
-  if (!mlbSchedule) {
-    console.log('[AutoPilot] ⚠️ mlb-schedule service not available');
+  if (!mlbSchedule && !mlbStatsLineups) {
+    console.log('[AutoPilot] ⚠️ No schedule service available');
     return 0;
   }
   
   try {
-    const schedule = await mlbSchedule.getSchedule(date);
+    let schedule = null;
+    
+    // Try ESPN schedule first
+    if (mlbSchedule) {
+      schedule = await mlbSchedule.getSchedule(date).catch(() => null);
+    }
+    
+    // If ESPN returns no games, try MLB Stats API as fallback
+    if ((!schedule || !schedule.games || schedule.games.length === 0) && mlbStatsLineups) {
+      try {
+        const mlbApiResult = await mlbStatsLineups.fetchSchedule(date);
+        const mlbApiGames = mlbApiResult?.games || [];
+        // Filter to regular season games only (gameType 'R'), exclude spring training ('S')
+        const regularGames = mlbApiGames.filter(g => !g.gameType || g.gameType === 'R');
+        if (regularGames.length > 0) {
+          // Convert MLB Stats API format to our format
+          schedule = {
+            games: regularGames.map(g => ({
+              awayTeam: { abbr: g.awayAbbr, name: g.awayTeamName || g.awayAbbr },
+              homeTeam: { abbr: g.homeAbbr, name: g.homeTeamName || g.homeAbbr },
+              date: g.gameDate,
+              status: g.status || 'Scheduled',
+              venue: { name: g.venue || '' },
+              gamePk: g.gamePk,
+            })),
+          };
+          console.log(`[AutoPilot] 📡 MLB Stats API found ${regularGames.length} regular season games for ${date} (ESPN had 0)`);
+        }
+      } catch (e) {
+        console.log(`[AutoPilot] ⚠️ MLB Stats API fallback failed: ${e.message}`);
+      }
+    }
+    
     if (!schedule || !schedule.games || schedule.games.length === 0) {
       state.mode = 'off-day';
       console.log(`[AutoPilot] 📅 No MLB games on ${date} — off-day mode`);
@@ -282,7 +320,7 @@ function mapESPNStatus(espnStatus) {
  * Scan for lineup changes across all pre-game games
  */
 async function scanLineups() {
-  if (!lineupFetcher) return { scanned: 0, changes: 0 };
+  if (!lineupFetcher && !lineupBridge) return { scanned: 0, changes: 0 };
   state.scanCounts.lineups++;
   state.lastLineupScan = new Date().toISOString();
   
@@ -294,7 +332,23 @@ async function scanLineups() {
     scanned++;
     
     try {
-      const lineupData = await lineupFetcher.getLineupAdjustments(game.away, game.home, state.gameDate);
+      // Use lineup-bridge (multi-source: MLB Stats API → ESPN → defaults) if available
+      let lineupData = null;
+      let source = 'unknown';
+      
+      if (lineupBridge) {
+        try {
+          lineupData = await lineupBridge.getLineupAdjustments(game.away, game.home, state.gameDate);
+          source = lineupData?._source || 'lineup-bridge';
+        } catch (e) {
+          // Fall back to plain lineup-fetcher
+        }
+      }
+      
+      if (!lineupData && lineupFetcher) {
+        lineupData = await lineupFetcher.getLineupAdjustments(game.away, game.home, state.gameDate);
+        source = 'espn-lineup-fetcher';
+      }
       
       if (lineupData && lineupData.hasData) {
         const wasConfirmed = game.lineups.confirmed;
@@ -305,6 +359,7 @@ async function scanLineups() {
         game.lineups.home = lineupData.homeLineup || null;
         game.lineups.confirmed = true;
         game.lineups.lastUpdate = new Date().toISOString();
+        game.lineups.source = source;
         
         if (!wasConfirmed && game.lineups.confirmed) {
           changes++;
@@ -1135,6 +1190,102 @@ if (CONFIG.AUTO_START) {
 }
 
 // ==================== EXPORTS ====================
+// ==================== AUTO-BOOT: Start autopilot automatically on server boot ====================
+
+/**
+ * Check if MLB regular season games exist today via MLB Stats API.
+ * If yes, auto-start the autopilot. If not, skip (spring training / off-day).
+ * Also triggers grading of yesterday's completed games.
+ * 
+ * Call this ONCE during server startup (after data loads complete).
+ */
+async function autoBoot() {
+  const today = getTodayDate();
+  console.log(`[AutoPilot] 🔍 Auto-boot check for ${today}...`);
+  
+  try {
+    // Check MLB Stats API for today's games (most reliable source)
+    let hasGames = false;
+    let gameCount = 0;
+    
+    if (mlbStatsLineups) {
+      try {
+        const scheduleResult = await mlbStatsLineups.fetchSchedule(today);
+        const games = scheduleResult?.games || [];
+        // Only count regular season games (gameType 'R'), not spring training ('S')
+        const regularGames = games.filter(g => !g.gameType || g.gameType === 'R');
+        if (regularGames.length > 0) {
+          hasGames = true;
+          gameCount = regularGames.length;
+        }
+      } catch (e) {
+        console.log(`[AutoPilot] ⚠️ MLB Stats API check failed: ${e.message}`);
+      }
+    }
+    
+    // Fallback to ESPN
+    if (!hasGames && mlbSchedule) {
+      try {
+        const schedule = await mlbSchedule.getSchedule(today);
+        if (schedule && schedule.games && schedule.games.length > 0) {
+          hasGames = true;
+          gameCount = schedule.games.length;
+        }
+      } catch (e) {}
+    }
+    
+    // Auto-grade yesterday's games before starting today
+    await autoGradeYesterday().catch(e => 
+      console.log(`[AutoPilot] ⚠️ Yesterday auto-grade failed: ${e.message}`)
+    );
+    
+    if (hasGames) {
+      console.log(`[AutoPilot] ✅ ${gameCount} MLB games found for ${today} — AUTO-STARTING autopilot`);
+      start(today);
+      return { started: true, date: today, games: gameCount };
+    } else {
+      console.log(`[AutoPilot] 📅 No MLB regular season games on ${today} — autopilot stays idle`);
+      state.mode = 'off-day';
+      return { started: false, date: today, reason: 'no_games' };
+    }
+  } catch (e) {
+    console.error(`[AutoPilot] ❌ Auto-boot error: ${e.message}`);
+    return { started: false, error: e.message };
+  }
+}
+
+/**
+ * Auto-grade yesterday's completed games.
+ * Runs bet tracker grading for all bets from previous day.
+ */
+async function autoGradeYesterday() {
+  if (!autoGrader) return { graded: 0, error: 'auto-grader not available' };
+  
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yDate = yesterday.toISOString().split('T')[0];
+  
+  console.log(`[AutoPilot] 📊 Auto-grading yesterday's games (${yDate})...`);
+  
+  try {
+    if (autoGrader.runAutoGrade) {
+      const result = await autoGrader.runAutoGrade(yDate);
+      console.log(`[AutoPilot] ✅ Yesterday graded: ${JSON.stringify(result).substring(0, 200)}`);
+      return result;
+    } else if (autoGrader.gradeDate) {
+      const result = await autoGrader.gradeDate(yDate);
+      console.log(`[AutoPilot] ✅ Yesterday graded: ${JSON.stringify(result)}`);
+      return result;
+    } else {
+      console.log('[AutoPilot] ⚠️ auto-grader has no gradeDate/runAutoGrade function');
+      return { graded: 0, error: 'no_grade_function' };
+    }
+  } catch (e) {
+    console.log(`[AutoPilot] ⚠️ Grade error: ${e.message}`);
+    return { graded: 0, error: e.message };
+  }
+}
+
 module.exports = {
   start,
   stop,
@@ -1150,6 +1301,8 @@ module.exports = {
   scanWeather,
   rebuildBettingCard,
   gradeCompletedGames,
+  autoBoot,
+  autoGradeYesterday,
   TEAM_ABBREVS,
   CONFIG,
 };
