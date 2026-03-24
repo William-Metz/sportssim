@@ -12,7 +12,7 @@
 // Format: { k9, xK9 (Savant expected), ip (projected), hand, team }
 const STEAMER_K9_PROJECTIONS = {
   // === OD Day 0 — Season Opener (March 25) ===
-  'Gerrit Cole':       { k9: 10.60, xK9: 10.80, ip: 200, hand: 'R', team: 'NYY', tier: 1, note: 'NYY ace, elite K machine. 2026 season opener at Oracle Park vs SF.' },
+  'Max Fried':         { k9: 8.80, xK9: 8.95, ip: 185, hand: 'L', team: 'NYY', tier: 1, note: 'NYY OD starter (signed from ATL). LHP, elite ground-ball pitcher. 3.18 ERA, 5.0 WAR. New team penalty applies.' },
   'Logan Webb':        { k9: 8.50, xK9: 8.70, ip: 200, hand: 'R', team: 'SF', tier: 1, note: 'SF workhorse, ground ball artist. Lower K rate but elite command. Home opener.' },
   // === OD Day 1 Starters (March 26) ===
   'Paul Skenes':       { k9: 10.99, xK9: 11.20, ip: 185, hand: 'R', team: 'PIT', tier: 1, note: 'Elite stuff, 2nd year breakout candidate' },
@@ -144,7 +144,7 @@ const OD_IP_BOOST = 0.3;             // OD starters avg 0.3 more IP (5.8 vs 5.5)
 // Format: { line, overOdds, underOdds }
 const DK_K_PROP_LINES = {
   // Day 0 — Season Opener (March 25)
-  'Gerrit Cole':       { line: 7.5, overOdds: -120, underOdds: 100 },
+  'Max Fried':         { line: 5.5, overOdds: -115, underOdds: -105 },
   'Logan Webb':        { line: 5.5, overOdds: -110, underOdds: -110 },
   // Day 1
   'Paul Skenes':       { line: 6.5, overOdds: -130, underOdds: 110 },

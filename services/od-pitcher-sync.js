@@ -61,7 +61,7 @@ const PITCHER_TIERS = {
 
 // Known team ace identifiers for context
 const TEAM_ACES = {
-  NYY: 'Gerrit Cole', BOS: 'Garrett Crochet', TOR: 'Kevin Gausman',
+  NYY: 'Max Fried', BOS: 'Garrett Crochet', TOR: 'Kevin Gausman', // NYY OD starter is Fried per MLB Stats API (Cole is #2)
   BAL: 'Corbin Burnes', TB: 'Drew Rasmussen', CLE: 'Tanner Bibee',
   DET: 'Tarik Skubal', MIN: 'Joe Ryan', CWS: 'Garrett Crochet',
   HOU: 'Framber Valdez', SEA: 'Logan Gilbert', LAA: 'Tyler Anderson',

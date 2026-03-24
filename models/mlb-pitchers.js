@@ -5,6 +5,7 @@
 const PITCHERS = {
   // ==================== AL EAST ====================
   'NYY': [
+    { name: 'Max Fried', team: 'NYY', hand: 'L', era: 3.18, fip: 3.05, xfip: 3.12, whip: 1.08, k9: 8.8, bb9: 2.0, hr9: 0.7, ip: 185, war: 5.0 }, // SIGNED from ATL offseason. NYY OD OPENER per MLB Stats API.
     { name: 'Gerrit Cole', team: 'NYY', hand: 'R', era: 3.41, fip: 3.28, xfip: 3.35, whip: 1.07, k9: 10.6, bb9: 2.1, hr9: 1.0, ip: 200, war: 5.2 },
     { name: 'Carlos Rodon', team: 'NYY', hand: 'L', era: 4.12, fip: 3.88, xfip: 3.95, whip: 1.22, k9: 10.1, bb9: 3.2, hr9: 1.3, ip: 170, war: 2.8 },
     { name: 'Clarke Schmidt', team: 'NYY', hand: 'R', era: 3.78, fip: 3.65, xfip: 3.72, whip: 1.18, k9: 8.8, bb9: 2.5, hr9: 0.9, ip: 150, war: 2.5 },

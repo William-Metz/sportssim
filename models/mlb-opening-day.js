@@ -98,7 +98,7 @@ const OPENING_DAY_GAMES = [
   // ===== MARCH 25, 2026 — OD OPENER (Wednesday) =====
   { 
     date: '2026-03-25', day: 0, away: 'NYY', home: 'SF', time: '8:05 PM ET', // OD OPENER — March 25 per BetMGM/Sportradar
-    confirmedStarters: { away: 'Gerrit Cole', home: 'Logan Webb' }, // OD OPENER — Cole vs Webb
+    confirmedStarters: { away: 'Max Fried', home: 'Logan Webb' }, // OD OPENER — Fried vs Webb per MLB Stats API 3/24
     dkLine: { homeML: 100, awayML: -120, total: 7.0 }, // NYY -120, SF +100 per BetMGM March 19
     broadcast: null,
   },

@@ -2,14 +2,16 @@
  * OD Season Opener Analysis — NYY@SF March 25, 2026 8:05 PM ET
  * =================================================================
  * 
- * THE FIRST GAME OF THE 2026 MLB SEASON. Gerrit Cole vs Logan Webb at Oracle Park.
+ * THE FIRST GAME OF THE 2026 MLB SEASON. Max Fried vs Logan Webb at Oracle Park.
+ * 🚨 CRITICAL UPDATE v126: MLB Stats API confirms Max Fried (LHP) is NYY OD starter, NOT Gerrit Cole.
+ * Fried was signed from ATL in the offseason. This changes platoon splits (LHP vs SF's RHH-heavy lineup).
  * 
  * This service generates a comprehensive betting analysis for the opener:
  * - Full game model prediction (asyncPredict with all signals)
  * - ML, Total, F5, F3, F7, NRFI analysis
- * - Cole K props + Webb K props  
+ * - Fried K props + Webb K props  
  * - Outs props for both pitchers
- * - Catcher framing impact
+ * - Catcher framing impact (Bailey #1 framer helps Webb massively)
  * - Oracle Park weather (March = cold, wind off bay)
  * - Live odds comparison (The Odds API)
  * - Full betting card with conviction scores
@@ -17,7 +19,7 @@
  * ENDPOINTS:
  *   GET /api/od/opener               — Full opener analysis
  *   GET /api/od/opener/quick          — Quick cached summary
- *   GET /api/od/opener/k-props        — K prop analysis for Cole + Webb
+ *   GET /api/od/opener/k-props        — K prop analysis for Fried + Webb
  *   GET /api/od/opener/betting-card   — Actionable betting card
  */
 
@@ -52,28 +54,29 @@ const OPENER = {
   outdoor: true,
   broadcast: 'ESPN',
   starters: {
-    away: { name: 'Gerrit Cole', hand: 'R', era: 3.41, fip: 3.28, k9: 10.6, bb9: 2.1, whip: 1.07, ip: 200, tier: 1 },
+    away: { name: 'Max Fried', hand: 'L', era: 3.18, fip: 3.05, k9: 8.8, bb9: 2.0, whip: 1.08, ip: 185, tier: 1 },
     home: { name: 'Logan Webb', hand: 'R', era: 3.25, fip: 3.12, k9: 8.5, bb9: 1.8, whip: 1.08, ip: 200, tier: 1 },
   },
   dkLine: { homeML: 100, awayML: -120, total: 7.0 },
   notes: [
     'First game of 2026 MLB season',
     'Oracle Park: pitcher-friendly (0.93 park factor), cold March weather, wind off SF Bay',
-    'Cole is the NYY ace — huge opener energy, expects 6+ IP',
+    'Max Fried (LHP) is the NYY OD starter per MLB Stats API — NOT Gerrit Cole',
+    'Fried signed from ATL in offseason — new team penalty applies (4% performance adj)',
     'Webb is SF workhorse — 200 IP last year, elite command, ground ball machine',
-    'Both RHP so no platoon advantage either way',
+    'Fried (LHP) vs SF: SF lineup has Adames, Chapman, Winn, Lee — mostly RHH = slight platoon edge for hitters',
     'OD opener premium: starters go 5.8 IP vs 5.5 regular season',
-    'Rusty bats + cold Oracle Park = UNDER lean',
+    'Rusty bats + cold Oracle Park = UNDER lean, but Fried new-team jitters could push OVER',
   ]
 };
 
-// ==================== COLE + WEBB K/OUTS PROJECTIONS ====================
+// ==================== FRIED + WEBB K/OUTS PROJECTIONS ====================
 const OPENER_K_PROJECTIONS = {
-  'Gerrit Cole': {
-    k9: 10.6, xK9: 10.80, projectedIP: 6.2, hand: 'R', team: 'NYY', tier: 1,
-    note: 'NYY ace, elite K rate. 2025: 200 IP, 3.41 ERA, 10.6 K/9. Opener adrenaline = deeper start.',
-    openerPremium: 1.06, // +6% for OD opener energy
-    projectedKs: null, // calculated below
+  'Max Fried': {
+    k9: 8.8, xK9: 8.95, projectedIP: 6.0, hand: 'L', team: 'NYY', tier: 1,
+    note: 'NYY OD starter (signed from ATL). LHP, 2025: 185 IP, 3.18 ERA, 8.8 K/9. Elite ground ball pitcher. New-team opener jitters possible.',
+    openerPremium: 1.04, // +4% for OD opener (slightly less than Cole — new team adjustment)
+    projectedKs: null,
   },
   'Logan Webb': {
     k9: 8.5, xK9: 8.70, projectedIP: 6.4, hand: 'R', team: 'SF', tier: 1,
@@ -94,10 +97,10 @@ const ORACLE_K_FACTOR = 0.96; // pitcher-friendly but Ks slightly suppressed by 
 
 // ==================== OUTS PROJECTIONS ====================
 const OPENER_OUTS_PROJECTIONS = {
-  'Gerrit Cole': {
-    projectedIP: 6.2, projectedOuts: 18.6, tier: 1,
-    openerPremium: 1.08, // Tier 1 ace + opener = 8% deeper
-    note: 'Cole averages 6.1 IP/start, opener energy pushes to 6.2+',
+  'Max Fried': {
+    projectedIP: 6.0, projectedOuts: 18.0, tier: 1,
+    openerPremium: 1.06, // Tier 1 ace + opener = 6% deeper (slightly less than normal due to new team)
+    note: 'Fried averages 5.8 IP/start, opener energy pushes to 6.0. New team could cap innings slightly.',
   },
   'Logan Webb': {
     projectedIP: 6.4, projectedOuts: 19.2, tier: 1,
@@ -109,13 +112,13 @@ const OPENER_OUTS_PROJECTIONS = {
 // ==================== ANALYSIS FUNCTIONS ====================
 
 /**
- * Calculate K prop projections for Cole and Webb
+ * Calculate K prop projections for Fried and Webb
  */
 function analyzeKProps() {
   const results = {};
   
   for (const [pitcher, proj] of Object.entries(OPENER_K_PROJECTIONS)) {
-    const opponent = pitcher === 'Gerrit Cole' ? 'SF' : 'NYY';
+    const opponent = pitcher === 'Max Fried' ? 'SF' : 'NYY';
     const oppKPct = TEAM_K_PCT[opponent];
     const lgAvgK = 0.225; // league average K%
     const oppKAdj = oppKPct / lgAvgK; // how much more/less this team Ks vs average
@@ -133,8 +136,8 @@ function analyzeKProps() {
     }
     
     // Calculate over/under probabilities for common lines
-    const lines = pitcher === 'Gerrit Cole' 
-      ? [5.5, 6.5, 7.5, 8.5]  // Cole should be 6.5-7.5 range
+    const lines = pitcher === 'Max Fried' 
+      ? [4.5, 5.5, 6.5]  // Fried K/9 = 8.8, lower than Cole — 5.5 range
       : [4.5, 5.5, 6.5];       // Webb lower K rate, 5.5 range
     
     const lineAnalysis = lines.map(line => {
@@ -166,7 +169,7 @@ function analyzeKProps() {
   
   // DK K prop lines (estimated for opener — will be updated with live odds)
   const DK_K_LINES = {
-    'Gerrit Cole': { line: 7.5, overOdds: -120, underOdds: 100 },
+    'Max Fried': { line: 5.5, overOdds: -115, underOdds: -105 },
     'Logan Webb':  { line: 5.5, overOdds: -110, underOdds: -110 },
   };
   
@@ -209,18 +212,19 @@ function analyzeKProps() {
  * Analyze NRFI/YRFI for NYY@SF
  */
 function analyzeNRFI() {
-  // Cole's 1st inning stats: elite — suppresses first inning runs
-  // Webb's 1st inning stats: very good ground ball pitcher
+  // Fried: LHP, elite ground ball pitcher — suppresses 1st inning runs but lower K rate
+  // Webb: RHP, ground ball machine, elite command
   // Oracle Park: pitcher-friendly, cold March weather
+  // KEY: Fried is LHP vs SF's RHH-heavy lineup — slight platoon disadvantage in 1st inning
   
-  const coleK9 = 10.6;
+  const friedK9 = 8.8;
   const webbK9 = 8.5;
   
   // Base expected runs per half-inning (league avg ~0.5)
   const lgAvg1stInningRuns = 0.50;
   
   // Pitcher tier suppression
-  const coleSuppression = 0.82; // Tier 1 ace = 18% suppression
+  const friedSuppression = 0.85; // Tier 1 but LHP vs RHH lineup — slightly less suppression than RHP would get
   const webbSuppression = 0.85; // Tier 1 workhorse = 15% suppression  
   
   // Park factor for 1st inning
@@ -236,8 +240,8 @@ function analyzeNRFI() {
   const expRunsTop1 = lgAvg1stInningRuns * webbSuppression * parkFactor * odPremium * weatherAdj;
   const pScorelessTop1 = poissonCDF(0, expRunsTop1);
   
-  // P(0 runs in bot 1st) — SF batting vs Cole
-  const expRunsBot1 = lgAvg1stInningRuns * coleSuppression * parkFactor * odPremium * weatherAdj;
+  // P(0 runs in bot 1st) — SF batting vs Fried (LHP)
+  const expRunsBot1 = lgAvg1stInningRuns * friedSuppression * parkFactor * odPremium * weatherAdj;
   const pScorelessBot1 = poissonCDF(0, expRunsBot1);
   
   // NRFI = both scoreless
@@ -256,7 +260,8 @@ function analyzeNRFI() {
       pScorelessBot1: Math.round(pScorelessBot1 * 1000) / 10,
     },
     signals: [
-      'Cole K-machine + Webb ground-ball machine = both suppress 1st inning runs',
+      'Fried (LHP) elite ground ball pitcher + Webb ground-ball machine = both suppress 1st inning runs',
+      'Fried vs SF RHH-heavy lineup — slight platoon concern but ground-ball approach neutralizes',
       'Oracle Park: 0.93 park factor, most pitcher-friendly in NL',
       'March weather: cold + marine layer off SF Bay = NRFI boost',
       'Opening Day: rusty bats, aces going 100%, zero bullpen risk in 1st',
@@ -281,14 +286,14 @@ async function fullAnalysis() {
   try {
     if (mlbModel && mlbModel.asyncPredict) {
       const prediction = await mlbModel.asyncPredict('NYY', 'SF', {
-        awayPitcher: 'Gerrit Cole',
+        awayPitcher: 'Max Fried',
         homePitcher: 'Logan Webb',
         isOpeningDay: true,
       });
       analysis.sections.prediction = prediction;
     } else if (mlbModel && mlbModel.predict) {
       const prediction = mlbModel.predict('NYY', 'SF', {
-        awayPitcher: 'Gerrit Cole',
+        awayPitcher: 'Max Fried',
         homePitcher: 'Logan Webb',
         isOpeningDay: true,
       });
@@ -325,7 +330,7 @@ async function fullAnalysis() {
       const pred = analysis.sections.prediction;
       if (pred && pred.awayExpRuns && pred.homeExpRuns) {
         analysis.sections.f5 = {
-          note: 'Both aces — F5 UNDER should be strong with Cole/Webb at Oracle',
+          note: 'Both aces — F5 UNDER should be strong with Fried/Webb at Oracle',
         };
       }
     }
@@ -344,7 +349,7 @@ async function fullAnalysis() {
       f5Factor,
       signal: f5Total < 3.5 ? 'STRONG F5 UNDER' : f5Total < 4.0 ? 'F5 UNDER LEAN' : 'NEUTRAL',
       notes: [
-        'Cole + Webb = two Tier 1 aces dominating F5',
+        'Fried + Webb = two Tier 1 aces dominating F5',
         'Oracle Park 0.93 factor amplifies pitcher dominance',
         'OD starter premium: deeper outings, less bullpen = F5 almost all ace innings',
       ],
@@ -473,7 +478,7 @@ function generateBettingCard(analysis) {
       edge: `${bestEdge.edge > 0 ? '+' : ''}${Math.round(bestEdge.edge * 10) / 10}%`,
       conviction: bestEdge.edge > 5 ? 'STRONG' : bestEdge.edge > 3 ? 'LEAN' : 'SMALL',
       grade: bestEdge.edge > 8 ? 'A' : bestEdge.edge > 5 ? 'B+' : bestEdge.edge > 3 ? 'B' : 'C',
-      notes: 'Cole slight favorite — elite stuff, but Webb at Oracle evens it up',
+      notes: 'Fried slight favorite — elite ground-ball LHP, but Webb at Oracle Park evens it up. New-team jitters could be factor.',
     });
   }
   
@@ -507,7 +512,7 @@ function generateBettingCard(analysis) {
       modelF5Total: f5.f5Total.toFixed(1),
       conviction: f5.f5Total < 3.2 ? 'STRONG' : 'LEAN',
       grade: f5.f5Total < 3.0 ? 'A' : 'B+',
-      notes: 'Cole + Webb dominate first 5 innings. Zero bullpen risk. Oracle suppresses.',
+      notes: 'Fried + Webb dominate first 5 innings. Both ground-ball aces. Oracle suppresses.',
     });
   }
   
@@ -543,14 +548,14 @@ function generateBettingCard(analysis) {
   }
   
   // ===== OUTS PROPS =====
-  if (outsProps['Gerrit Cole']) {
+  if (outsProps['Max Fried']) {
     plays.push({
       market: 'Outs Props',
-      play: `Cole OVER ${outsProps['Gerrit Cole'].projectedLine || 17.5} outs`,
-      modelOuts: outsProps['Gerrit Cole'].projectedOuts.toFixed(1),
+      play: `Fried OVER ${outsProps['Max Fried'].projectedLine || 17.5} outs`,
+      modelOuts: outsProps['Max Fried'].projectedOuts.toFixed(1),
       conviction: 'LEAN',
       grade: 'B',
-      notes: 'OD aces go deeper — Cole projected 6.2 IP (18.6 outs). Opener energy = long start.',
+      notes: 'OD aces go deeper — Fried projected 6.0 IP (18.0 outs). Ground-ball LHP = efficient innings.',
     });
   }
   if (outsProps['Logan Webb']) {
@@ -588,7 +593,7 @@ function generateBettingCard(analysis) {
     game: 'NYY @ SF — 2026 MLB Season Opener',
     date: 'March 25, 2026 — 8:05 PM ET',
     venue: 'Oracle Park, San Francisco',
-    starters: 'Gerrit Cole (NYY) vs Logan Webb (SF)',
+    starters: 'Max Fried (NYY) vs Logan Webb (SF)',
     playCount: plays.length,
     plays: kellySizing,
     portfolio: {
@@ -599,10 +604,10 @@ function generateBettingCard(analysis) {
     },
     topThesis: [
       '🔑 UNDER is the primary thesis — two aces, Oracle Park (0.93 PF), cold March weather, Patrick Bailey elite framing',
-      '🔑 NRFI strong — Cole + Webb suppress 1st inning runs, rusty OD bats',
-      '🔑 Cole K OVER if line is 7.5 or below — 10.6 K/9 vs average-K SF lineup, opener adrenaline',
+      '🔑 NRFI lean — Fried + Webb both ground-ball aces, rusty OD bats, cold Oracle',
+      '🔑 Fried K OVER if line is 5.5 — 8.8 K/9 with opener energy, but lower K rate than Cole',
       '🔑 Webb outs OVER — 200 IP workhorse at home, cool weather = deep start',
-      '⚠️ ML is a coin flip — Cole is slightly better but Webb at home Oracle is legit',
+      '⚠️ ML is tighter now — Fried is elite but new team + LHP vs RHH = less edge than Cole would have',
     ],
   };
 }
@@ -618,7 +623,7 @@ function analyzeOutsProps() {
     const adjustedOuts = adjustedIP * 3;
     
     // Common lines
-    const lines = pitcher === 'Gerrit Cole' ? [16.5, 17.5, 18.5] : [17.5, 18.5, 19.5];
+    const lines = pitcher === 'Max Fried' ? [16.5, 17.5, 18.5] : [17.5, 18.5, 19.5];
     
     const lineAnalysis = lines.map(line => {
       // Use Poisson for outs distribution (roughly)
@@ -639,7 +644,7 @@ function analyzeOutsProps() {
       openerPremium: proj.openerPremium,
       tier: proj.tier,
       lineAnalysis,
-      projectedLine: pitcher === 'Gerrit Cole' ? 17.5 : 18.5,
+      projectedLine: pitcher === 'Max Fried' ? 17.5 : 18.5,
       note: proj.note,
     };
   }
@@ -787,7 +792,7 @@ function getQuickSummary() {
     cached: false,
     game: 'NYY @ SF',
     date: 'March 25, 2026 — 8:05 PM ET',
-    starters: 'Gerrit Cole vs Logan Webb',
+    starters: 'Max Fried vs Logan Webb',
     note: 'Analysis not cached yet — call /api/od/opener to generate',
   };
 }

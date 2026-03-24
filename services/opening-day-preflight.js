@@ -496,7 +496,7 @@ async function checkMLEngine() {
     // Try a test prediction
     try {
       const testPred = await mlBridge.enhancedPredict('NYY', 'BOS', { 
-        awayPitcher: 'Gerrit Cole',
+        awayPitcher: 'Max Fried',
         homePitcher: 'Brayan Bello'
       });
       results.details.testPrediction = {
@@ -611,13 +611,13 @@ function checkStatcast() {
     };
     
     // Check a sample pitcher
-    const coleStats = statcast.getPitcherStats?.('Gerrit Cole') || statcast.lookupPitcher?.('Gerrit Cole');
-    results.details.sampleLookup = coleStats ? { 
-      pitcher: 'Gerrit Cole', 
+    const friedStats = statcast.getPitcherStats?.('Max Fried') || statcast.lookupPitcher?.('Max Fried');
+    results.details.sampleLookup = friedStats ? { 
+      pitcher: 'Max Fried', 
       found: true, 
-      xERA: coleStats.xERA || coleStats.xera,
-      xwOBA: coleStats.xwOBA || coleStats.xwoba
-    } : { pitcher: 'Gerrit Cole', found: false };
+      xERA: friedStats.xERA || friedStats.xera,
+      xwOBA: friedStats.xwOBA || friedStats.xwoba
+    } : { pitcher: 'Max Fried', found: false };
   } catch (e) {
     results.details.error = e.message;
     results.status = 'WARN';
