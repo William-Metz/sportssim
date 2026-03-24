@@ -25,6 +25,7 @@ const STEAMER_K9_PROJECTIONS = {
   'Jose Soriano':      { k9: 8.20, xK9: 8.00, ip: 140, hand: 'R', team: 'LAA', tier: 3, note: 'LAA #1, developing arm' },
   'Hunter Brown':      { k9: 9.50, xK9: 9.30, ip: 175, hand: 'R', team: 'HOU', tier: 2, note: 'HOU OD starter, high velo' },
   'Tarik Skubal':      { k9: 10.94, xK9: 11.10, ip: 200, hand: 'L', team: 'DET', tier: 1, note: 'Cy Young level, elite everything' },
+  'Nick Pivetta':      { k9: 9.20, xK9: 9.00, ip: 175, hand: 'R', team: 'SD', tier: 2, note: '2025 breakout 13-5 2.87 ERA, SD OD Day 1 starter' },
   'Dylan Cease':       { k9: 9.80, xK9: 10.00, ip: 175, hand: 'R', team: 'SD', tier: 2, note: 'High K, high walk — volatile' },
   'Drew Rasmussen':    { k9: 7.60, xK9: 7.40, ip: 155, hand: 'R', team: 'TB', tier: 3, note: 'Ground ball pitcher, low K rate' },
   'Matthew Liberatore':{ k9: 7.20, xK9: 7.00, ip: 130, hand: 'L', team: 'STL', tier: 4, note: 'STL OD starter by default, thin rotation' },
@@ -36,8 +37,7 @@ const STEAMER_K9_PROJECTIONS = {
   'Logan Gilbert':     { k9: 9.50, xK9: 9.30, ip: 195, hand: 'R', team: 'SEA', tier: 1, note: 'SEA ace, elite command' },
 
   // === OD Day 2 Starters (March 27) ===
-  'Gerrit Cole':       { k9: 10.60, xK9: 10.80, ip: 200, hand: 'R', team: 'NYY', tier: 1, note: 'NYY ace, perennial Cy Young' },
-  'Logan Webb':        { k9: 7.20, xK9: 7.00, ip: 195, hand: 'R', team: 'SF', tier: 2, note: 'Ground ball pitcher, low Ks' },
+  'Cam Schlittler':    { k9: 9.00, xK9: 9.20, ip: 60, hand: 'R', team: 'NYY', tier: 4, note: 'NYY rookie prospect, limited MLB experience. OD Day 2 start.' },
   'Luis Severino':     { k9: 6.90, xK9: 6.70, ip: 165, hand: 'R', team: 'OAK', tier: 3, note: 'OAK veteran, declining K rate' },
   'Kevin Gausman':     { k9: 9.80, xK9: 10.00, ip: 185, hand: 'R', team: 'TOR', tier: 2, note: 'TOR ace, splitter specialist' },
   'Kyle Freeland':     { k9: 6.80, xK9: 6.60, ip: 150, hand: 'L', team: 'COL', tier: 4, note: 'Coors Field refugee, ground balls' },
@@ -47,13 +47,12 @@ const STEAMER_K9_PROJECTIONS = {
   'Sonny Gray':        { k9: 9.50, xK9: 9.30, ip: 185, hand: 'R', team: 'BOS', tier: 2, note: 'BOS #2, acquired from STL' },
   'Nick Lodolo':       { k9: 8.80, xK9: 8.60, ip: 160, hand: 'L', team: 'CIN', tier: 2, note: 'CIN Game 2 starter' },
   'Yusei Kikuchi':     { k9: 9.50, xK9: 9.30, ip: 170, hand: 'L', team: 'LAA', tier: 2, note: 'LAA #1, new team' },
-  'Ronel Blanco':      { k9: 9.00, xK9: 8.80, ip: 165, hand: 'R', team: 'HOU', tier: 2, note: 'HOU Game 2 starter, sneaky good' },
+  'Mike Burrows':      { k9: 9.50, xK9: 9.30, ip: 80, hand: 'R', team: 'HOU', tier: 3, note: 'HOU Game 2 starter, young arm from PIT' },
   'Framber Valdez':    { k9: 8.80, xK9: 8.60, ip: 200, hand: 'L', team: 'DET', tier: 1, note: 'DET acquisition, elite durability' },
-  'Yu Darvish':        { k9: 9.20, xK9: 9.00, ip: 160, hand: 'R', team: 'SD', tier: 2, note: 'SD Game 2, veteran arm' },
+  'Michael King':      { k9: 9.50, xK9: 9.30, ip: 165, hand: 'R', team: 'SD', tier: 2, note: 'SD Game 2, high K rate' },
   'Ryne Nelson':       { k9: 7.80, xK9: 7.60, ip: 155, hand: 'R', team: 'ARI', tier: 3, note: 'ARI Game 2, developing' },
-  'Tyler Glasnow':     { k9: 10.50, xK9: 10.70, ip: 170, hand: 'R', team: 'LAD', tier: 1, note: 'LAD Game 2 ace, electric stuff' },
+  'Emmet Sheehan':     { k9: 10.90, xK9: 11.10, ip: 73, hand: 'R', team: 'LAD', tier: 2, note: 'LAD Game 2, 2025 breakout electric stuff, 89 K in 73.1 IP' },
   'Gavin Williams':    { k9: 10.20, xK9: 10.40, ip: 160, hand: 'R', team: 'CLE', tier: 2, note: 'CLE Game 2, high K upside' },
-  'Bryce Miller':      { k9: 8.80, xK9: 8.60, ip: 175, hand: 'R', team: 'SEA', tier: 2, note: 'SEA Game 2, solid' },
 };
 
 // ==================== TEAM BATTING K% ====================
@@ -155,6 +154,7 @@ const DK_K_PROP_LINES = {
   'Jose Soriano':      { line: 4.5, overOdds: -110, underOdds: -110 },
   'Hunter Brown':      { line: 5.5, overOdds: -120, underOdds: 100 },
   'Tarik Skubal':      { line: 7.5, overOdds: -110, underOdds: -110 },
+  'Nick Pivetta':      { line: 6.5, overOdds: -105, underOdds: -115 },
   'Dylan Cease':       { line: 6.5, overOdds: -110, underOdds: -110 },
   'Drew Rasmussen':    { line: 4.5, overOdds: -105, underOdds: -115 },
   'Matthew Liberatore':{ line: 4.5, overOdds: 100, underOdds: -120 },
@@ -165,8 +165,7 @@ const DK_K_PROP_LINES = {
   'Tanner Bibee':      { line: 6.5, overOdds: -110, underOdds: -110 },
   'Logan Gilbert':     { line: 6.5, overOdds: -115, underOdds: -105 },
   // Day 2
-  'Gerrit Cole':       { line: 7.5, overOdds: -110, underOdds: -110 },
-  'Logan Webb':        { line: 4.5, overOdds: -105, underOdds: -115 },
+  'Cam Schlittler':    { line: 4.5, overOdds: -105, underOdds: -115 },
   'Luis Severino':     { line: 3.5, overOdds: -125, underOdds: 105 },
   'Kevin Gausman':     { line: 6.5, overOdds: -110, underOdds: -110 },
   'Kyle Freeland':     { line: 3.5, overOdds: -105, underOdds: -115 },
@@ -176,11 +175,11 @@ const DK_K_PROP_LINES = {
   'Sonny Gray':        { line: 6.5, overOdds: -105, underOdds: -115 },
   'Nick Lodolo':       { line: 5.5, overOdds: -110, underOdds: -110 },
   'Yusei Kikuchi':     { line: 5.5, overOdds: -120, underOdds: 100 },
-  'Ronel Blanco':      { line: 5.5, overOdds: -105, underOdds: -115 },
+  'Mike Burrows':      { line: 4.5, overOdds: -110, underOdds: -110 },
   'Framber Valdez':    { line: 5.5, overOdds: -120, underOdds: 100 },
-  'Yu Darvish':        { line: 5.5, overOdds: -115, underOdds: -105 },
+  'Michael King':      { line: 6.5, overOdds: -110, underOdds: -110 },
   'Ryne Nelson':       { line: 4.5, overOdds: -110, underOdds: -110 },
-  'Tyler Glasnow':     { line: 7.5, overOdds: -105, underOdds: -115 },
+  'Emmet Sheehan':     { line: 6.5, overOdds: -115, underOdds: -105 },
   'Gavin Williams':    { line: 6.5, overOdds: -105, underOdds: -115 },
   'Bryce Miller':      { line: 5.5, overOdds: -110, underOdds: -110 },
 };

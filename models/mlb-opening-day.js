@@ -49,7 +49,7 @@ const OPENING_DAY_GAMES = [
   { 
     date: '2026-03-26', day: 1, away: 'MIN', home: 'BAL', time: '3:05 PM ET',
     confirmedStarters: { away: 'Joe Ryan', home: 'Trevor Rogers' },
-    dkLine: { homeML: -162, awayML: 138, total: 8.5 }, // BAL -162
+    dkLine: { homeML: -154, awayML: 130, total: 8.5 }, // BAL -154, Camden Yards
     broadcast: null,
   },
   { 
@@ -66,7 +66,7 @@ const OPENING_DAY_GAMES = [
   },
   { 
     date: '2026-03-26', day: 1, away: 'DET', home: 'SD', time: '4:10 PM ET',
-    confirmedStarters: { away: 'Tarik Skubal', home: 'Dylan Cease' },
+    confirmedStarters: { away: 'Tarik Skubal', home: 'Nick Pivetta' },
     dkLine: { homeML: 118, awayML: -138, total: 7.0 }, // DET -138, Petco pitcher park + ace duel
     broadcast: null,
   },
@@ -98,7 +98,7 @@ const OPENING_DAY_GAMES = [
   // ===== MARCH 27, 2026 — DAY 2 (Friday) =====
   { 
     date: '2026-03-27', day: 2, away: 'NYY', home: 'SF', time: '4:35 PM ET',
-    confirmedStarters: { away: 'Gerrit Cole', home: 'Logan Webb' },
+    confirmedStarters: { away: 'Cam Schlittler', home: 'TBD' },
     dkLine: { homeML: 142, awayML: -168, total: 7.0 }, // NYY -168, Oracle Park pitcher-friendly
     broadcast: null,
   },
@@ -123,28 +123,28 @@ const OPENING_DAY_GAMES = [
   // Day 2 series continuations (Game 2 starters)
   { 
     date: '2026-03-27', day: 2, away: 'LAA', home: 'HOU', time: '8:10 PM ET',
-    confirmedStarters: { away: 'Yusei Kikuchi', home: 'Ronel Blanco' },
+    confirmedStarters: { away: 'Yusei Kikuchi', home: 'Mike Burrows' },
     dkLine: { homeML: -145, awayML: 122, total: 8.0 }, // HOU home fav, Minute Maid dome
     broadcast: 'Apple TV',
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'DET', home: 'SD', time: '9:40 PM ET',
-    confirmedStarters: { away: 'Framber Valdez', home: 'Yu Darvish' },
+    confirmedStarters: { away: 'Framber Valdez', home: 'Michael King' },
     dkLine: { homeML: 128, awayML: -150, total: 7.0 }, // DET fav (Valdez ace), Petco pitchers park
     broadcast: null,
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'ARI', home: 'LAD', time: '10:10 PM ET',
-    confirmedStarters: { away: 'Ryne Nelson', home: 'Tyler Glasnow' },
-    dkLine: { homeML: -225, awayML: 188, total: 8.0 }, // LAD heavy fav, Glasnow ace at home
+    confirmedStarters: { away: 'Ryne Nelson', home: 'Emmet Sheehan' },
+    dkLine: { homeML: -225, awayML: 188, total: 8.0 }, // LAD heavy fav, Sheehan at home
     broadcast: null,
     isGame2: true,
   },
   { 
     date: '2026-03-27', day: 2, away: 'CLE', home: 'SEA', time: '10:10 PM ET',
-    confirmedStarters: { away: 'Gavin Williams', home: 'Bryce Miller' },
+    confirmedStarters: { away: 'Gavin Williams', home: 'TBD' },
     dkLine: { homeML: -185, awayML: 156, total: 7.0 }, // SEA home fav, T-Mobile pitcher park
     broadcast: 'Apple TV',
     isGame2: true,

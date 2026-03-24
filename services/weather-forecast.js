@@ -32,23 +32,22 @@ const OPENING_DAY_SCHEDULE = {
     { away: 'MIN', home: 'BAL', time: '15:05', timeET: '3:05 PM ET', matchup: 'Ryan vs Rogers' },
     { away: 'BOS', home: 'CIN', time: '16:10', timeET: '4:10 PM ET', matchup: 'Crochet vs Abbott' },
     { away: 'LAA', home: 'HOU', time: '16:10', timeET: '4:10 PM ET', matchup: 'Soriano vs Brown' },
-    { away: 'DET', home: 'SD',  time: '16:10', timeET: '4:10 PM ET', matchup: 'Skubal vs Cease' },
+    { away: 'DET', home: 'SD',  time: '16:10', timeET: '4:10 PM ET', matchup: 'Skubal vs Pivetta' },
     { away: 'TB',  home: 'STL', time: '16:15', timeET: '4:15 PM ET', matchup: 'Rasmussen vs Liberatore' },
     { away: 'TEX', home: 'PHI', time: '16:05', timeET: '4:05 PM ET', matchup: 'Eovaldi vs Sanchez' },
     { away: 'ARI', home: 'LAD', time: '20:30', timeET: '8:30 PM ET', matchup: 'Gallen vs Yamamoto' },
     { away: 'CLE', home: 'SEA', time: '22:10', timeET: '10:10 PM ET', matchup: 'Bibee vs Gilbert' },
   ],
   '2026-03-27': [
-    { away: 'NYY', home: 'SF',  time: '16:35', timeET: '4:35 PM ET', matchup: 'Cole vs Webb' },
+    { away: 'NYY', home: 'SF',  time: '16:35', timeET: '4:35 PM ET', matchup: 'Schlittler vs TBD' },
     { away: 'OAK', home: 'TOR', time: '19:07', timeET: '7:07 PM ET', matchup: 'Severino vs Gausman' },
     { away: 'COL', home: 'MIA', time: '19:10', timeET: '7:10 PM ET', matchup: 'Freeland vs Alcantara' },
     { away: 'KC',  home: 'ATL', time: '19:15', timeET: '7:15 PM ET', matchup: 'Ragans vs Sale' },
     // Game 2s of Day 1 series
-    { away: 'BOS', home: 'CIN', time: '16:10', timeET: '4:10 PM ET', matchup: 'Gray vs Lodolo', isGame2: true },
-    { away: 'LAA', home: 'HOU', time: '20:10', timeET: '8:10 PM ET', matchup: 'Kikuchi vs TBD', isGame2: true },
-    { away: 'DET', home: 'SD',  time: '21:40', timeET: '9:40 PM ET', matchup: 'Valdez vs TBD', isGame2: true },
-    { away: 'ARI', home: 'LAD', time: '22:10', timeET: '10:10 PM ET', matchup: 'Nelson vs TBD', isGame2: true },
-    { away: 'CLE', home: 'SEA', time: '22:10', timeET: '10:10 PM ET', matchup: 'TBD vs TBD', isGame2: true },
+    { away: 'LAA', home: 'HOU', time: '20:10', timeET: '8:10 PM ET', matchup: 'Kikuchi vs Burrows', isGame2: true },
+    { away: 'CLE', home: 'SEA', time: '22:10', timeET: '10:10 PM ET', matchup: 'Williams vs TBD', isGame2: true },
+    { away: 'DET', home: 'SD',  time: '21:40', timeET: '9:40 PM ET', matchup: 'Valdez vs King', isGame2: true },
+    { away: 'ARI', home: 'LAD', time: '22:10', timeET: '10:10 PM ET', matchup: 'Nelson vs Sheehan', isGame2: true },
   ]
 };
 

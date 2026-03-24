@@ -31,6 +31,7 @@ const PITCHER_IP_PROJECTIONS = {
   'Hunter Brown':       { ipPerStart: 5.83, tier: 2, hand: 'R', team: 'HOU', pitchCount: 95, note: 'HOU will extend him, dome protects' },
   'Tarik Skubal':       { ipPerStart: 6.25, tier: 1, hand: 'L', team: 'DET', pitchCount: 100, note: 'Cy Young level, goes 6+ regularly' },
   'Dylan Cease':        { ipPerStart: 5.50, tier: 2, hand: 'R', team: 'SD', pitchCount: 93, note: 'High K but walks inflate pitch count' },
+  'Nick Pivetta':       { ipPerStart: 5.83, tier: 2, hand: 'R', team: 'SD', pitchCount: 95, note: 'SD OD Day 1 starter, 2025 breakout, efficient' },
   'Drew Rasmussen':     { ipPerStart: 5.50, tier: 3, hand: 'R', team: 'TB', pitchCount: 90, note: 'Efficient, ground balls = quick outs' },
   'Matthew Liberatore': { ipPerStart: 5.00, tier: 4, hand: 'L', team: 'STL', pitchCount: 85, note: 'Short leash, STL bullpen better' },
   'Nathan Eovaldi':     { ipPerStart: 6.00, tier: 2, hand: 'R', team: 'TEX', pitchCount: 96, note: 'Workhorse, goes deep regularly' },
@@ -41,7 +42,7 @@ const PITCHER_IP_PROJECTIONS = {
   'Logan Gilbert':      { ipPerStart: 6.50, tier: 1, hand: 'R', team: 'SEA', pitchCount: 100, note: 'Workhorse, elite command = deep' },
 
   // === OD Day 2 Starters (March 27) ===
-  'Gerrit Cole':        { ipPerStart: 6.25, tier: 1, hand: 'R', team: 'NYY', pitchCount: 100, note: 'NYY ace, perennial 6+ IP' },
+  'Cam Schlittler':     { ipPerStart: 4.50, tier: 4, hand: 'R', team: 'NYY', pitchCount: 80, note: 'NYY rookie, short leash, OD Day 2 start' },
   'Logan Webb':         { ipPerStart: 6.50, tier: 2, hand: 'R', team: 'SF', pitchCount: 100, note: 'Innings eater, ground ball machine' },
   'Luis Severino':      { ipPerStart: 5.50, tier: 3, hand: 'R', team: 'OAK', pitchCount: 90, note: 'Declining, OAK may limit' },
   'Kevin Gausman':      { ipPerStart: 6.17, tier: 2, hand: 'R', team: 'TOR', pitchCount: 97, note: 'TOR ace, goes deep' },
@@ -52,13 +53,13 @@ const PITCHER_IP_PROJECTIONS = {
   'Sonny Gray':         { ipPerStart: 5.83, tier: 2, hand: 'R', team: 'BOS', pitchCount: 95, note: 'BOS #2, steady deep outings' },
   'Nick Lodolo':        { ipPerStart: 5.33, tier: 2, hand: 'L', team: 'CIN', pitchCount: 90, note: 'CIN Game 2, solid' },
   'Yusei Kikuchi':      { ipPerStart: 5.67, tier: 2, hand: 'L', team: 'LAA', pitchCount: 93, note: 'New team, high K rate helps pace' },
-  'Ronel Blanco':       { ipPerStart: 5.50, tier: 2, hand: 'R', team: 'HOU', pitchCount: 92, note: 'HOU Game 2, efficient' },
+  'Mike Burrows':       { ipPerStart: 5.00, tier: 3, hand: 'R', team: 'HOU', pitchCount: 88, note: 'HOU Game 2, young arm, short leash' },
   'Framber Valdez':     { ipPerStart: 6.67, tier: 1, hand: 'L', team: 'DET', pitchCount: 102, note: 'Innings eater, elite durability' },
-  'Yu Darvish':         { ipPerStart: 5.33, tier: 2, hand: 'R', team: 'SD', pitchCount: 90, note: 'Returning from injury, managed' },
+  'Michael King':       { ipPerStart: 5.50, tier: 2, hand: 'R', team: 'SD', pitchCount: 95, note: 'SD Game 2, solid innings eater' },
   'Ryne Nelson':        { ipPerStart: 5.17, tier: 3, hand: 'R', team: 'ARI', pitchCount: 88, note: 'ARI Game 2, developing' },
   'Tyler Glasnow':      { ipPerStart: 6.00, tier: 1, hand: 'R', team: 'LAD', pitchCount: 97, note: 'LAD Game 2, electric stuff' },
   'Gavin Williams':     { ipPerStart: 5.33, tier: 2, hand: 'R', team: 'CLE', pitchCount: 90, note: 'CLE Game 2, pitch count watch' },
-  'Bryce Miller':       { ipPerStart: 5.83, tier: 2, hand: 'R', team: 'SEA', pitchCount: 95, note: 'SEA Game 2, efficient' },
+  'Emmet Sheehan':      { ipPerStart: 5.00, tier: 2, hand: 'R', team: 'LAD', pitchCount: 90, note: 'LAD Game 2, 2025 breakout, electric stuff' },
 };
 
 // ==================== TEAM CONTACT RATES ====================
@@ -98,6 +99,7 @@ const DK_OUTS_LINES = {
   'Hunter Brown':       { line: 16.5, overOdds: -115, underOdds: -110 },
   'Tarik Skubal':       { line: 18.5, overOdds: -105, underOdds: -120 },
   'Dylan Cease':        { line: 16.5, overOdds: -110, underOdds: -115 },
+  'Nick Pivetta':       { line: 17.5, overOdds: -115, underOdds: -110 },
   'Drew Rasmussen':     { line: 15.5, overOdds: -115, underOdds: -110 },
   'Matthew Liberatore': { line: 13.5, overOdds: -115, underOdds: -110 },
   'Nathan Eovaldi':     { line: 17.5, overOdds: -115, underOdds: -110 },
@@ -107,7 +109,7 @@ const DK_OUTS_LINES = {
   'Tanner Bibee':       { line: 17.5, overOdds: -115, underOdds: -110 },
   'Logan Gilbert':      { line: 18.5, overOdds: -115, underOdds: -110 },
   // Day 2
-  'Gerrit Cole':        { line: 18.5, overOdds: -110, underOdds: -115 },
+  'Cam Schlittler':     { line: 12.5, overOdds: -110, underOdds: -115 },
   'Logan Webb':         { line: 18.5, overOdds: -115, underOdds: -110 },
   'Luis Severino':      { line: 15.5, overOdds: -110, underOdds: -115 },
   'Kevin Gausman':      { line: 17.5, overOdds: -115, underOdds: -110 },
@@ -118,11 +120,11 @@ const DK_OUTS_LINES = {
   'Sonny Gray':         { line: 16.5, overOdds: -115, underOdds: -110 },
   'Nick Lodolo':        { line: 15.5, overOdds: -110, underOdds: -115 },
   'Yusei Kikuchi':      { line: 16.5, overOdds: -110, underOdds: -115 },
-  'Ronel Blanco':       { line: 15.5, overOdds: -115, underOdds: -110 },
+  'Mike Burrows':       { line: 13.5, overOdds: -110, underOdds: -115 },
   'Framber Valdez':     { line: 19.5, overOdds: -105, underOdds: -120 },
-  'Yu Darvish':         { line: 15.5, overOdds: -115, underOdds: -110 },
+  'Michael King':       { line: 16.5, overOdds: -115, underOdds: -110 },
   'Ryne Nelson':        { line: 14.5, overOdds: -110, underOdds: -115 },
-  'Tyler Glasnow':      { line: 17.5, overOdds: -110, underOdds: -115 },
+  'Emmet Sheehan':      { line: 15.5, overOdds: -110, underOdds: -115 },
   'Gavin Williams':     { line: 15.5, overOdds: -115, underOdds: -110 },
   'Bryce Miller':       { line: 16.5, overOdds: -115, underOdds: -110 },
 };

@@ -287,13 +287,15 @@ function scanF3Value(mlb, games, opts = {}) {
         if (!lineData) continue;
         
         // Check if model strongly favors under (F3 UNDER is the primary edge)
+        // Compute edge vs assumed -110 standard juice (52.38% implied prob)
+        const STANDARD_BOOK_PROB = 0.5238;
         if (lineData.under > 0.55) {
           gameResult.valueBets.push({
             type: 'F3 UNDER',
             line,
             modelProb: lineData.under,
             modelML: lineData.underML,
-            edge: null, // Will be filled with live odds
+            edge: +((lineData.under - STANDARD_BOOK_PROB) * 100).toFixed(1),
             direction: 'UNDER',
             confidence: lineData.under > 0.65 ? 'HIGH' : lineData.under > 0.58 ? 'MEDIUM' : 'LOW',
           });
@@ -304,7 +306,7 @@ function scanF3Value(mlb, games, opts = {}) {
             line,
             modelProb: lineData.over,
             modelML: lineData.overML,
-            edge: null,
+            edge: +((lineData.over - STANDARD_BOOK_PROB) * 100).toFixed(1),
             direction: 'OVER',
             confidence: lineData.over > 0.65 ? 'HIGH' : lineData.over > 0.58 ? 'MEDIUM' : 'LOW',
           });

@@ -10,6 +10,7 @@ const PITCHERS = {
     { name: 'Clarke Schmidt', team: 'NYY', hand: 'R', era: 3.78, fip: 3.65, xfip: 3.72, whip: 1.18, k9: 8.8, bb9: 2.5, hr9: 0.9, ip: 150, war: 2.5 },
     { name: 'Marcus Stroman', team: 'NYY', hand: 'R', era: 4.25, fip: 4.10, xfip: 4.15, whip: 1.28, k9: 7.2, bb9: 2.8, hr9: 1.0, ip: 155, war: 1.8 },
     { name: 'Luis Gil', team: 'NYY', hand: 'R', era: 3.50, fip: 3.42, xfip: 3.55, whip: 1.15, k9: 11.2, bb9: 3.8, hr9: 0.9, ip: 145, war: 3.0 },
+    { name: 'Cam Schlittler', team: 'NYY', hand: 'R', era: 4.50, fip: 4.20, xfip: 4.30, whip: 1.25, k9: 9.0, bb9: 3.5, hr9: 1.0, ip: 60, war: 0.5 }, // Rookie prospect, limited MLB experience. OD Day 2 starter.
   ],
   'BAL': [
     { name: 'Corbin Burnes', team: 'BAL', hand: 'R', era: 3.15, fip: 3.05, xfip: 3.12, whip: 1.08, k9: 9.8, bb9: 2.0, hr9: 0.8, ip: 200, war: 5.5 },
@@ -87,6 +88,7 @@ const PITCHERS = {
     { name: 'Ronel Blanco', team: 'HOU', hand: 'R', era: 3.55, fip: 3.42, xfip: 3.50, whip: 1.10, k9: 9.0, bb9: 2.5, hr9: 0.8, ip: 160, war: 3.2 },
     { name: 'Spencer Arrighetti', team: 'HOU', hand: 'R', era: 4.22, fip: 4.05, xfip: 4.12, whip: 1.25, k9: 10.2, bb9: 3.5, hr9: 1.1, ip: 150, war: 1.8 },
     { name: 'Justin Verlander', team: 'HOU', hand: 'R', era: 4.05, fip: 3.88, xfip: 3.95, whip: 1.18, k9: 8.5, bb9: 2.2, hr9: 1.2, ip: 155, war: 2.2 },
+    { name: 'Mike Burrows', team: 'HOU', hand: 'R', era: 4.30, fip: 4.00, xfip: 4.10, whip: 1.22, k9: 9.5, bb9: 3.2, hr9: 1.0, ip: 80, war: 1.0 }, // Young arm acquired from PIT, back-end starter. OD Day 2 start.
   ],
   'SEA': [
     { name: 'Logan Gilbert', team: 'SEA', hand: 'R', era: 3.22, fip: 3.10, xfip: 3.18, whip: 1.05, k9: 9.5, bb9: 1.8, hr9: 0.9, ip: 195, war: 5.0 },
@@ -206,6 +208,7 @@ const PITCHERS = {
     { name: 'Bobby Miller', team: 'LAD', hand: 'R', era: 4.05, fip: 3.88, xfip: 3.95, whip: 1.20, k9: 9.0, bb9: 3.0, hr9: 1.1, ip: 150, war: 2.0 },
     { name: 'Walker Buehler', team: 'LAD', hand: 'R', era: 3.88, fip: 3.72, xfip: 3.80, whip: 1.15, k9: 9.5, bb9: 2.5, hr9: 1.0, ip: 155, war: 2.8 },
     { name: 'Shohei Ohtani', team: 'LAD', hand: 'L', era: 2.87, fip: 1.89, xfip: 2.50, whip: 1.04, k9: 11.87, bb9: 1.72, hr9: 0.57, ip: 47, war: 2.5 },
+    { name: 'Emmet Sheehan', team: 'LAD', hand: 'R', era: 2.82, fip: 3.15, xfip: 3.25, whip: 0.97, k9: 10.9, bb9: 2.5, hr9: 0.8, ip: 73, war: 2.0 }, // 2025 breakout: 6-3, 2.82 ERA, 89 K in 73.1 IP. Electric stuff. WS contributor.
   ],
   'SD': [
     { name: 'Dylan Cease', team: 'SD', hand: 'R', era: 3.45, fip: 3.32, xfip: 3.40, whip: 1.12, k9: 10.5, bb9: 3.0, hr9: 0.8, ip: 185, war: 4.0 },
@@ -213,6 +216,7 @@ const PITCHERS = {
     { name: 'Joe Musgrove', team: 'SD', hand: 'R', era: 3.42, fip: 3.28, xfip: 3.35, whip: 1.08, k9: 9.0, bb9: 2.0, hr9: 0.8, ip: 170, war: 3.8 },
     { name: 'Michael King', team: 'SD', hand: 'R', era: 3.55, fip: 3.42, xfip: 3.50, whip: 1.12, k9: 9.5, bb9: 2.5, hr9: 0.9, ip: 165, war: 3.2 },
     { name: 'Matt Waldron', team: 'SD', hand: 'R', era: 4.12, fip: 3.95, xfip: 4.02, whip: 1.22, k9: 8.0, bb9: 2.5, hr9: 1.0, ip: 155, war: 2.0 },
+    { name: 'Nick Pivetta', team: 'SD', hand: 'R', era: 2.87, fip: 3.10, xfip: 3.20, whip: 0.985, k9: 9.2, bb9: 2.3, hr9: 0.9, ip: 175, war: 5.3 }, // 2025 breakout: 13-5, 2.87 ERA, 0.985 WHIP. Elite. Signed SD offseason.
   ],
   'ARI': [
     { name: 'Zac Gallen', team: 'ARI', hand: 'R', era: 4.83, fip: 4.50, xfip: 4.35, whip: 1.26, k9: 8.2, bb9: 3.1, hr9: 1.5, ip: 192, war: 1.5 }, // 2025 regression: 13-15, 4.83 ERA in 33 starts. FIP 4.50 suggests it's real.
