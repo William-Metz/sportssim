@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦞 OD Live Execution — SportsSim</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 12px; }
+  .header { text-align: center; padding: 16px 0 8px; }
+  .header h1 { font-size: 1.5rem; color: #ff6b35; }
+  .header .subtitle { color: #888; font-size: 0.85rem; margin-top: 4px; }
+  .status-bar { display: flex; justify-content: space-around; padding: 12px; background: #1a1a1a; border-radius: 8px; margin: 8px 0; }
+  .status-item { text-align: center; }
+  .status-item .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+  .status-item .value { font-size: 1.1rem; font-weight: bold; margin-top: 2px; }
+  .status-item .value.green { color: #4caf50; }
+  .status-item .value.yellow { color: #ffc107; }
+  .status-item .value.red { color: #f44336; }
+  
+  .section { margin: 12px 0; }
+  .section-title { font-size: 1rem; font-weight: bold; color: #ff6b35; padding: 8px 0 4px; border-bottom: 1px solid #333; }
+  
+  .play-card { background: #1a1a1a; border-radius: 8px; padding: 12px; margin: 8px 0; border-left: 4px solid #333; }
+  .play-card.smash { border-left-color: #f44336; background: #1a1010; }
+  .play-card.strong { border-left-color: #ff9800; background: #1a1510; }
+  .play-card.play { border-left-color: #4caf50; }
+  .play-card.lean { border-left-color: #666; }
+  
+  .play-header { display: flex; justify-content: space-between; align-items: center; }
+  .play-game { font-weight: bold; font-size: 1rem; }
+  .play-conviction { font-size: 0.75rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; }
+  .play-conviction.smash { background: #f44336; color: white; }
+  .play-conviction.strong { background: #ff9800; color: white; }
+  .play-conviction.play { background: #4caf50; color: white; }
+  .play-conviction.lean { background: #666; color: white; }
+  
+  .play-details { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; font-size: 0.85rem; }
+  .play-details .detail { }
+  .play-details .detail-label { color: #888; font-size: 0.7rem; }
+  .play-details .detail-value { font-weight: bold; }
+  
+  .play-action { margin-top: 8px; padding: 8px; background: #222; border-radius: 4px; font-size: 0.85rem; }
+  .play-action .book { color: #4caf50; font-weight: bold; }
+  .play-action .bet-size { color: #ffc107; }
+  
+  .game-row { background: #1a1a1a; border-radius: 6px; padding: 10px; margin: 6px 0; display: flex; justify-content: space-between; align-items: center; }
+  .game-row .teams { font-weight: bold; }
+  .game-row .status { font-size: 0.8rem; color: #888; }
+  .game-row .odds-info { font-size: 0.8rem; text-align: right; }
+  
+  .btn { display: inline-block; padding: 10px 20px; background: #ff6b35; color: white; border: none; border-radius: 6px; font-size: 0.9rem; font-weight: bold; cursor: pointer; margin: 4px; }
+  .btn:hover { background: #ff8a5c; }
+  .btn.secondary { background: #333; }
+  .btn.secondary:hover { background: #444; }
+  
+  .controls { text-align: center; margin: 12px 0; }
+  
+  .loading { text-align: center; padding: 40px; color: #888; }
+  .loading .spinner { display: inline-block; width: 30px; height: 30px; border: 3px solid #333; border-top: 3px solid #ff6b35; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  .edge-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: bold; }
+  .edge-badge.positive { background: #1b5e20; color: #4caf50; }
+  .edge-badge.negative { background: #4a1111; color: #f44336; }
+  
+  .no-data { text-align: center; padding: 20px; color: #666; font-style: italic; }
+  
+  .refresh-info { text-align: center; font-size: 0.75rem; color: #666; margin: 4px 0; }
+  
+  .day-toggle { display: flex; justify-content: center; gap: 8px; margin: 8px 0; }
+  .day-toggle .btn.active { background: #ff6b35; }
+  .day-toggle .btn:not(.active) { background: #333; }
+  
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0; }
+  .summary-cell { text-align: center; background: #1a1a1a; border-radius: 6px; padding: 8px; }
+  .summary-cell .num { font-size: 1.5rem; font-weight: bold; }
+  .summary-cell .lbl { font-size: 0.65rem; color: #888; text-transform: uppercase; }
+  .summary-cell.smash .num { color: #f44336; }
+  .summary-cell.strong .num { color: #ff9800; }
+  .summary-cell.play .num { color: #4caf50; }
+  .summary-cell.lean .num { color: #888; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🦞 OD Live Execution</h1>
+  <div class="subtitle">Real-Time Edge Detection & Bet Sizing</div>
+</div>
+
+<div class="day-toggle">
+  <button class="btn active" onclick="switchDay(1)">Day 1 — Mar 26</button>
+  <button class="btn" onclick="switchDay(2)">Day 2 — Mar 27</button>
+</div>
+
+<div class="controls">
+  <button class="btn" onclick="refresh()">🔄 Refresh Live Data</button>
+  <button class="btn secondary" onclick="loadQuick()">⚡ Quick Status</button>
+</div>
+
+<div class="refresh-info" id="refreshInfo">Not loaded yet</div>
+
+<div class="status-bar" id="statusBar">
+  <div class="status-item"><div class="label">Status</div><div class="value" id="statusVal">—</div></div>
+  <div class="status-item"><div class="label">Games</div><div class="value" id="gamesVal">—</div></div>
+  <div class="status-item"><div class="label">Live Odds</div><div class="value" id="oddsVal">—</div></div>
+  <div class="status-item"><div class="label">Plays</div><div class="value" id="playsVal">—</div></div>
+</div>
+
+<div class="summary-grid" id="summaryGrid" style="display:none;">
+  <div class="summary-cell smash"><div class="num" id="smashCount">0</div><div class="lbl">SMASH</div></div>
+  <div class="summary-cell strong"><div class="num" id="strongCount">0</div><div class="lbl">STRONG</div></div>
+  <div class="summary-cell play"><div class="num" id="playCount">0</div><div class="lbl">PLAY</div></div>
+  <div class="summary-cell lean"><div class="num" id="leanCount">0</div><div class="lbl">LEAN</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title">🎯 Action Board</div>
+  <div id="actionBoard"><div class="no-data">Hit "Refresh Live Data" to load</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title">📊 All Games</div>
+  <div id="gamesGrid"><div class="no-data">—</div></div>
+</div>
+
+<script>
+let currentDay = 1;
+let currentData = null;
+
+function switchDay(day) {
+  currentDay = day;
+  document.querySelectorAll('.day-toggle .btn').forEach((b, i) => {
+    b.classList.toggle('active', i === day - 1);
+  });
+  refresh();
+}
+
+async function refresh() {
+  document.getElementById('actionBoard').innerHTML = '<div class="loading"><div class="spinner"></div><br>Loading live data...</div>';
+  document.getElementById('gamesGrid').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  
+  try {
+    const res = await fetch(`/api/od/live-execution?day=${currentDay}`);
+    const data = await res.json();
+    currentData = data;
+    renderPlan(data);
+  } catch(e) {
+    document.getElementById('actionBoard').innerHTML = `<div class="no-data">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadQuick() {
+  try {
+    const res = await fetch('/api/od/live-execution/quick');
+    const data = await res.json();
+    if (data.status === 'NO_DATA') {
+      alert('No cached data. Hit "Refresh Live Data" first.');
+    } else {
+      renderQuickStatus(data);
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function renderPlan(data) {
+  // Status bar
+  document.getElementById('statusVal').textContent = data.oddsStatus?.includes('✅') ? 'LIVE' : 'LIMITED';
+  document.getElementById('statusVal').className = 'value ' + (data.oddsStatus?.includes('✅') ? 'green' : 'yellow');
+  document.getElementById('gamesVal').textContent = data.summary.totalGames;
+  document.getElementById('gamesVal').className = 'value green';
+  document.getElementById('oddsVal').textContent = data.summary.gamesWithOdds;
+  document.getElementById('oddsVal').className = 'value ' + (data.summary.gamesWithOdds > 0 ? 'green' : 'red');
+  document.getElementById('playsVal').textContent = data.summary.totalPlays;
+  document.getElementById('playsVal').className = 'value ' + (data.summary.totalPlays > 0 ? 'green' : 'yellow');
+  
+  // Summary grid
+  document.getElementById('summaryGrid').style.display = 'grid';
+  document.getElementById('smashCount').textContent = data.summary.smashPlays;
+  document.getElementById('strongCount').textContent = data.summary.strongPlays;
+  document.getElementById('playCount').textContent = data.summary.playPlays;
+  document.getElementById('leanCount').textContent = data.summary.leanPlays;
+  
+  // Refresh info
+  document.getElementById('refreshInfo').textContent = `Last refresh: ${new Date(data.generatedAt).toLocaleTimeString()} | API Quota: ${data.apiQuota?.remaining || '?'} remaining`;
+  
+  // Action board
+  const ab = data.actionBoard;
+  let html = '';
+  
+  const allPlays = [...(ab.smash||[]), ...(ab.strong||[]), ...(ab.play||[]), ...(ab.lean||[])];
+  
+  if (allPlays.length === 0) {
+    html = '<div class="no-data">No +EV plays found (odds may not be posted yet)</div>';
+  }
+  
+  for (const play of allPlays) {
+    const conv = play.conviction.toLowerCase();
+    html += `
+      <div class="play-card ${conv}">
+        <div class="play-header">
+          <span class="play-game">${play.market} — ${play.side}</span>
+          <span class="play-conviction ${conv}">${play.conviction}</span>
+        </div>
+        <div class="play-details">
+          <div class="detail"><div class="detail-label">Game</div><div class="detail-value">${play.gameKey}</div></div>
+          <div class="detail"><div class="detail-label">Edge</div><div class="detail-value"><span class="edge-badge positive">+${play.edge}%</span></div></div>
+          <div class="detail"><div class="detail-label">Odds</div><div class="detail-value">${play.odds > 0 ? '+' : ''}${play.odds}</div></div>
+          <div class="detail"><div class="detail-label">Model vs Market</div><div class="detail-value">${play.modelProb || play.modelTotal || '—'}% vs ${play.impliedProb || play.lineTotal || '—'}%</div></div>
+        </div>
+        <div class="play-action">
+          📍 Best at: <span class="book">${play.bestBook || 'Best available'}</span>
+          ${play.kelly ? ` | 💰 Size: <span class="bet-size">${play.kelly.suggestedBankrollPct}% bankroll</span>` : ''}
+          ${play.timing ? ` | ⏰ ${play.timing}` : ''}
+        </div>
+      </div>
+    `;
+  }
+  
+  document.getElementById('actionBoard').innerHTML = html;
+  
+  // Games grid
+  let gamesHtml = '';
+  for (const game of (data.games || [])) {
+    const hasOdds = game.odds !== null;
+    const hasPred = game.prediction !== null;
+    const playCount = game.plays?.length || 0;
+    
+    gamesHtml += `
+      <div class="game-row">
+        <div>
+          <div class="teams">${game.gameKey}</div>
+          <div class="status">${game.venue} | ${Math.round(game.hoursToGame)}h to first pitch</div>
+          ${game.signals?.length ? `<div style="font-size:0.75rem;margin-top:4px">${game.signals.join(' ')}</div>` : ''}
+        </div>
+        <div class="odds-info">
+          ${hasOdds ? `<div>ML: ${game.odds.mlHome > 0 ? '+' : ''}${game.odds.mlHome} / ${game.odds.mlAway > 0 ? '+' : ''}${game.odds.mlAway}</div>` : '<div style="color:#f44336">No odds</div>'}
+          ${hasOdds && game.odds.totalPts ? `<div>O/U: ${game.odds.totalPts}</div>` : ''}
+          ${hasPred ? `<div style="color:#4caf50">Model: ${Math.round((game.prediction.homeWinPct || 0.5) * 100)}% home</div>` : ''}
+          ${playCount > 0 ? `<div style="color:#ff6b35;font-weight:bold">${playCount} play${playCount > 1 ? 's' : ''}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+  
+  document.getElementById('gamesGrid').innerHTML = gamesHtml || '<div class="no-data">No games</div>';
+}
+
+function renderQuickStatus(data) {
+  document.getElementById('statusVal').textContent = data.status;
+  document.getElementById('statusVal').className = 'value ' + (data.status === 'FRESH' ? 'green' : 'yellow');
+  document.getElementById('refreshInfo').textContent = `Cached: ${data.ageMinutes}min old | ${data.lastRefresh}`;
+  
+  if (data.summary) {
+    document.getElementById('gamesVal').textContent = data.summary.totalGames;
+    document.getElementById('playsVal').textContent = data.summary.totalPlays;
+    document.getElementById('summaryGrid').style.display = 'grid';
+    document.getElementById('smashCount').textContent = data.summary.smashPlays;
+    document.getElementById('strongCount').textContent = data.summary.strongPlays;
+    document.getElementById('playCount').textContent = data.summary.playPlays;
+    document.getElementById('leanCount').textContent = data.summary.leanPlays;
+  }
+  
+  if (data.topPlays && data.topPlays.length > 0) {
+    let html = '';
+    for (const p of data.topPlays) {
+      html += `<div class="play-card ${p.conviction?.toLowerCase() || 'play'}">
+        <div class="play-header">
+          <span class="play-game">${p.market} ${p.side}</span>
+          <span class="play-conviction ${p.conviction?.toLowerCase() || 'play'}">${p.conviction}</span>
+        </div>
+        <div style="margin-top:4px;font-size:0.85rem">Edge: +${p.edge}% | ${p.bestBook || 'best available'} @ ${p.odds > 0 ? '+' : ''}${p.odds}</div>
+      </div>`;
+    }
+    document.getElementById('actionBoard').innerHTML = html;
+  }
+}
+</script>
+</body>
+</html>

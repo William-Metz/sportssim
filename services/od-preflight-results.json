@@ -1,0 +1,200 @@
+{
+  "title": "🟢 OD T-1 Pre-Flight: GO",
+  "timestamp": "2026-03-24T16:31:01.454Z",
+  "durationMs": 1750,
+  "overallStatus": "GO",
+  "summary": {
+    "pass": 7,
+    "warn": 2,
+    "fail": 0,
+    "total": 9
+  },
+  "criticalIssues": [],
+  "warnings": [
+    {
+      "name": "Pitcher Database",
+      "details": [
+        "ℹ️ PIT: Jared Jones — uses team avg (normal for preseason)",
+        "ℹ️ NYM: Kodai Senga — uses team avg (normal for preseason)",
+        "ℹ️ CWS: Garrett Crochet — uses team avg (normal for preseason)",
+        "ℹ️ MIL: Freddy Peralta — uses team avg (normal for preseason)",
+        "ℹ️ WSH: Patrick Corbin — uses team avg (normal for preseason)",
+        "ℹ️ CHC: Shota Imanaga — uses team avg (normal for preseason)",
+        "ℹ️ MIN: Pablo Lopez — uses team avg (normal for preseason)",
+        "ℹ️ BAL: Corbin Burnes — uses team avg (normal for preseason)",
+        "ℹ️ BOS: Brayan Bello — uses team avg (normal for preseason)",
+        "ℹ️ CIN: Hunter Greene — uses team avg (normal for preseason)",
+        "ℹ️ ARI: Zac Gallen — uses team avg (normal for preseason)",
+        "ℹ️ LAD: Yoshinobu Yamamoto — uses team avg (normal for preseason)",
+        "ℹ️ KC: Cole Ragans — uses team avg (normal for preseason)",
+        "ℹ️ ATL: Chris Sale — uses team avg (normal for preseason)",
+        "ℹ️ OAK: JP Sears — uses team avg (normal for preseason)",
+        "ℹ️ TOR: Kevin Gausman — uses team avg (normal for preseason)",
+        "ℹ️ PHI: Zack Wheeler — uses team avg (normal for preseason)",
+        "ℹ️ TB: Zach Eflin — uses team avg (normal for preseason)",
+        "ℹ️ SF: Logan Webb — uses team avg (normal for preseason)",
+        "ℹ️ HOU: Framber Valdez — uses team avg (normal for preseason)",
+        "ℹ️ CLE: Tanner Bibee — uses team avg (normal for preseason)",
+        "ℹ️ SEA: George Kirby — uses team avg (normal for preseason)",
+        "Summary: 0 pitchers with individual data, 22 using team averages",
+        "Note: Model works with team-level power ratings + park factors. Individual pitcher data is a bonus signal."
+      ]
+    },
+    {
+      "name": "Odds API",
+      "details": [
+        "⚠️ ODDS_API_KEY not set locally (set on Fly.io)",
+        "Note: API key is set in production (Fly.io env var)",
+        "✅ Live Execution odds fetcher available"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "Model Engine",
+      "status": "PASS",
+      "details": [
+        "✅ MLB model loaded",
+        "✅ PIT@NYM: 59% home win",
+        "✅ CWS@MIL: 57% home win",
+        "✅ WSH@CHC: 66% home win",
+        "✅ MIN@BAL: 57% home win",
+        "✅ BOS@CIN: 47% home win",
+        "✅ ARI@LAD: 63% home win",
+        "✅ KC@ATL: 54% home win",
+        "✅ OAK@TOR: 67% home win",
+        "✅ PHI@TB: 46% home win",
+        "✅ SF@HOU: 50% home win",
+        "✅ CLE@SEA: 62% home win",
+        "Summary: 11/11 games predicted successfully"
+      ],
+      "critical": true,
+      "passed": 11,
+      "total": 11
+    },
+    {
+      "name": "Pitcher Database",
+      "status": "WARN",
+      "details": [
+        "ℹ️ PIT: Jared Jones — uses team avg (normal for preseason)",
+        "ℹ️ NYM: Kodai Senga — uses team avg (normal for preseason)",
+        "ℹ️ CWS: Garrett Crochet — uses team avg (normal for preseason)",
+        "ℹ️ MIL: Freddy Peralta — uses team avg (normal for preseason)",
+        "ℹ️ WSH: Patrick Corbin — uses team avg (normal for preseason)",
+        "ℹ️ CHC: Shota Imanaga — uses team avg (normal for preseason)",
+        "ℹ️ MIN: Pablo Lopez — uses team avg (normal for preseason)",
+        "ℹ️ BAL: Corbin Burnes — uses team avg (normal for preseason)",
+        "ℹ️ BOS: Brayan Bello — uses team avg (normal for preseason)",
+        "ℹ️ CIN: Hunter Greene — uses team avg (normal for preseason)",
+        "ℹ️ ARI: Zac Gallen — uses team avg (normal for preseason)",
+        "ℹ️ LAD: Yoshinobu Yamamoto — uses team avg (normal for preseason)",
+        "ℹ️ KC: Cole Ragans — uses team avg (normal for preseason)",
+        "ℹ️ ATL: Chris Sale — uses team avg (normal for preseason)",
+        "ℹ️ OAK: JP Sears — uses team avg (normal for preseason)",
+        "ℹ️ TOR: Kevin Gausman — uses team avg (normal for preseason)",
+        "ℹ️ PHI: Zack Wheeler — uses team avg (normal for preseason)",
+        "ℹ️ TB: Zach Eflin — uses team avg (normal for preseason)",
+        "ℹ️ SF: Logan Webb — uses team avg (normal for preseason)",
+        "ℹ️ HOU: Framber Valdez — uses team avg (normal for preseason)",
+        "ℹ️ CLE: Tanner Bibee — uses team avg (normal for preseason)",
+        "ℹ️ SEA: George Kirby — uses team avg (normal for preseason)",
+        "Summary: 0 pitchers with individual data, 22 using team averages",
+        "Note: Model works with team-level power ratings + park factors. Individual pitcher data is a bonus signal."
+      ],
+      "critical": false,
+      "found": 0,
+      "missing": 22
+    },
+    {
+      "name": "Sub-Models",
+      "status": "PASS",
+      "details": [
+        "✅ F3 (First 3 Innings) loaded",
+        "✅ F7 (Bullpen Chaos Eliminator) loaded",
+        "✅ NRFI loaded",
+        "✅ K-Props loaded",
+        "✅ Outs Props loaded",
+        "✅ Bullpen Quality loaded",
+        "✅ Platoon Splits loaded",
+        "✅ Catcher Framing loaded",
+        "✅ Edge Decay Optimizer loaded",
+        "  └ shouldBetNow() available",
+        "✅ Live Execution Engine loaded",
+        "  └ generateExecutionPlan() available",
+        "Summary: 10/10 sub-models loaded"
+      ],
+      "critical": false,
+      "loaded": 10,
+      "total": 10
+    },
+    {
+      "name": "Weather Pipeline",
+      "status": "PASS",
+      "details": [
+        "✅ Weather service loaded",
+        "✅ getWeatherForPark() available",
+        "✅ Weather forecast service loaded",
+        "Note: Weather data fetched at runtime via Open-Meteo API (no key needed)"
+      ],
+      "critical": false
+    },
+    {
+      "name": "Lineup Pipeline",
+      "status": "PASS",
+      "details": [
+        "✅ Lineup Bridge (multi-source) loaded",
+        "  └ getLineupAdjustments() available",
+        "Note: Lineups published ~2-4h before game time. Model works without them (uses team avg)."
+      ],
+      "critical": true
+    },
+    {
+      "name": "Odds API",
+      "status": "WARN",
+      "details": [
+        "⚠️ ODDS_API_KEY not set locally (set on Fly.io)",
+        "Note: API key is set in production (Fly.io env var)",
+        "✅ Live Execution odds fetcher available"
+      ],
+      "critical": true
+    },
+    {
+      "name": "Auto Systems",
+      "status": "PASS",
+      "details": [
+        "✅ Auto-Scanner loaded",
+        "✅ Auto-Grade Pipeline loaded",
+        "✅ Bet Tracker loaded",
+        "✅ Playbook Cache loaded",
+        "Summary: 4/4 auto-systems loaded"
+      ],
+      "critical": false
+    },
+    {
+      "name": "Disk & Memory",
+      "status": "PASS",
+      "details": [
+        "Heap: 24MB used",
+        "RSS: 114MB",
+        "✅ Memory usage healthy",
+        "✅ Cache directory writable"
+      ],
+      "critical": false
+    },
+    {
+      "name": "Umpire Tendencies",
+      "status": "PASS",
+      "details": [
+        "✅ Umpire service loaded",
+        "  └ fetchTodaysAssignments() available",
+        "  └ getUmpire() available"
+      ],
+      "critical": false
+    }
+  ],
+  "recommendations": [
+    "✅ All systems nominal. Ready for Opening Day.",
+    "📋 Run /api/od/live-execution when odds drop for live edge detection.",
+    "🌅 Morning of game day: check /api/opening-day/morning-brief for final brief."
+  ]
+}
