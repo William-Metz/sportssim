@@ -1,5 +1,5 @@
 {
-  "lastScan": "2026-03-24T14:02:52.091Z",
+  "lastScan": "2026-03-24T15:03:35.160Z",
   "snapshots": {
     "PIT@NYM": {
       "awayConfirmed": false,
@@ -152,20 +152,20 @@
       "homeCatcher": null
     },
     "TB@ATL": {
-      "awayConfirmed": false,
+      "awayConfirmed": true,
       "homeConfirmed": true,
-      "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
-      "awayBatterCount": 0,
+      "bothConfirmed": true,
+      "lastChecked": "2026-03-24T15:03:35.160Z",
+      "awayBatterCount": 9,
       "homeBatterCount": 9,
-      "awayCatcher": null,
+      "awayCatcher": "Hunter Feduccia",
       "homeCatcher": "Drake Baldwin"
     },
     "BOS@MIN": {
       "awayConfirmed": true,
       "homeConfirmed": true,
       "bothConfirmed": true,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 9,
       "homeBatterCount": 9,
       "awayCatcher": "Carlos Narváez",
@@ -173,19 +173,19 @@
     },
     "KC@TEX": {
       "awayConfirmed": false,
-      "homeConfirmed": false,
+      "homeConfirmed": true,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
-      "homeBatterCount": 0,
+      "homeBatterCount": 9,
       "awayCatcher": null,
-      "homeCatcher": null
+      "homeCatcher": "Kyle Higashioka"
     },
     "NYY@CHC": {
       "awayConfirmed": false,
       "homeConfirmed": false,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
       "homeBatterCount": 0,
       "awayCatcher": null,
@@ -193,19 +193,19 @@
     },
     "DET@COL": {
       "awayConfirmed": false,
-      "homeConfirmed": false,
+      "homeConfirmed": true,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
-      "homeBatterCount": 0,
+      "homeBatterCount": 9,
       "awayCatcher": null,
-      "homeCatcher": null
+      "homeCatcher": "Brett Sullivan"
     },
     "CLE@ARI": {
       "awayConfirmed": false,
       "homeConfirmed": false,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
       "homeBatterCount": 0,
       "awayCatcher": null,
@@ -215,7 +215,7 @@
       "awayConfirmed": false,
       "homeConfirmed": false,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
       "homeBatterCount": 0,
       "awayCatcher": null,
@@ -225,7 +225,7 @@
       "awayConfirmed": false,
       "homeConfirmed": false,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
       "homeBatterCount": 0,
       "awayCatcher": null,
@@ -235,7 +235,7 @@
       "awayConfirmed": false,
       "homeConfirmed": false,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
       "homeBatterCount": 0,
       "awayCatcher": null,
@@ -245,7 +245,7 @@
       "awayConfirmed": false,
       "homeConfirmed": false,
       "bothConfirmed": false,
-      "lastChecked": "2026-03-24T14:02:52.091Z",
+      "lastChecked": "2026-03-24T15:03:35.160Z",
       "awayBatterCount": 0,
       "homeBatterCount": 0,
       "awayCatcher": null,
@@ -253,6 +253,16 @@
     }
   },
   "scanCount": 1,
-  "rebuilds": [],
-  "savedAt": "2026-03-24T14:02:53.570Z"
+  "rebuilds": [
+    {
+      "time": "2026-03-24T15:03:35.160Z",
+      "reason": "3 new lineup(s) confirmed",
+      "games": [
+        "TB@ATL",
+        "KC@TEX",
+        "DET@COL"
+      ]
+    }
+  ],
+  "savedAt": "2026-03-24T15:03:36.300Z"
 }
