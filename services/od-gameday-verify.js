@@ -15,34 +15,26 @@
 const https = require('https');
 const http = require('http');
 
-// ==================== OPENING DAY SCHEDULE ====================
-const OD_DAY1_GAMES = [
-  // March 26 games (11 games)
-  { away: 'PIT', home: 'NYM', time: '12:10 ET', confirmedPitchers: { away: 'Paul Skenes', home: 'Freddy Peralta' } },
-  { away: 'CWS', home: 'MIL', time: '12:10 ET', confirmedPitchers: { away: 'Drew Smith', home: 'Tobias Myers' } },
-  { away: 'WSH', home: 'CHC', time: '1:20 ET', confirmedPitchers: { away: 'Jake Irvin', home: 'Matthew Boyd' } },
-  { away: 'STL', home: 'CLE', time: '4:10 ET', confirmedPitchers: { away: 'Sonny Gray', home: 'Tanner Bibee' } },
-  { away: 'MIN', home: 'BAL', time: '3:05 ET', confirmedPitchers: { away: 'Joe Ryan', home: 'Chris Rogers' } },
-  { away: 'BOS', home: 'TOR', time: '3:07 ET', confirmedPitchers: { away: 'Garrett Crochet', home: 'Bowden Francis' } },
-  { away: 'NYY', home: 'MIL', time: '4:10 ET', confirmedPitchers: { away: 'Gerrit Cole', home: 'Freddy Peralta' } },
-  { away: 'CIN', home: 'COL', time: '4:10 ET', confirmedPitchers: { away: 'Hunter Greene', home: 'Cal Quantrill' } },
-  { away: 'TEX', home: 'HOU', time: '4:10 ET', confirmedPitchers: { away: 'Nathan Eovaldi', home: 'Framber Valdez' } },
-  { away: 'KC', home: 'ATL', time: '7:20 ET', confirmedPitchers: { away: 'Cole Ragans', home: 'Chris Sale' } },
-  { away: 'DET', home: 'SD', time: '10:10 ET', confirmedPitchers: { away: 'Tarik Skubal', home: 'Dylan Cease' } },
-];
+// ==================== OPENING DAY SCHEDULE (DYNAMIC) ====================
+// Import from authoritative source to avoid stale hardcoded data
+let mlbOpeningDay = null;
+try { mlbOpeningDay = require('../models/mlb-opening-day'); } catch(e) {}
 
-const OD_DAY2_GAMES = [
-  // March 27 games (9 games)
-  { away: 'TB', home: 'STL', time: '1:45 ET', confirmedPitchers: { away: 'Zack Littell', home: 'Andre Pallante' } },
-  { away: 'SF', home: 'PHI', time: '3:05 ET', confirmedPitchers: { away: 'Logan Webb', home: 'Aaron Nola' } },
-  { away: 'MIA', home: 'TOR', time: '3:07 ET', confirmedPitchers: { away: 'Sandy Alcantara', home: 'Kevin Gausman' } },
-  { away: 'SEA', home: 'CLE', time: '6:10 ET', confirmedPitchers: { away: 'Logan Gilbert', home: 'Gavin Williams' } },
-  { away: 'LAA', home: 'CHC', time: '7:40 ET', confirmedPitchers: { away: 'Yusei Kikuchi', home: 'Shota Imanaga' } },
-  { away: 'OAK', home: 'TEX', time: '8:05 ET', confirmedPitchers: { away: 'Severino', home: 'Jacob deGrom' } },
-  { away: 'ARI', home: 'LAD', time: '10:10 ET', confirmedPitchers: { away: 'Ryne Nelson', home: 'Tyler Glasnow' } },
-  { away: 'COL', home: 'SF', time: '10:15 ET', confirmedPitchers: { away: 'Ryan Feltner', home: 'Robbie Ray' } },
-  { away: 'NYM', home: 'HOU', time: '8:10 ET', confirmedPitchers: { away: 'Kodai Senga', home: 'Hunter Brown' } },
-];
+// Build OD_DAY1_GAMES and OD_DAY2_GAMES dynamically from the main schedule
+function buildODGames(day) {
+  if (!mlbOpeningDay || !mlbOpeningDay.OPENING_DAY_GAMES) return [];
+  return mlbOpeningDay.OPENING_DAY_GAMES
+    .filter(g => g.day === day)
+    .map(g => ({
+      away: g.away,
+      home: g.home,
+      time: g.time || 'TBD',
+      confirmedPitchers: g.confirmedStarters || { away: 'TBD', home: 'TBD' },
+    }));
+}
+
+const OD_DAY1_GAMES = buildODGames(1);
+const OD_DAY2_GAMES = buildODGames(2);
 
 // ==================== LIVE DATA CHECKS ====================
 

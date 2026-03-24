@@ -40,7 +40,7 @@ try { mlbModel = require('../models/mlb'); } catch(e) {}
 try { bullpenQuality = require('./bullpen-quality'); } catch(e) {}
 try { weatherService = require('./weather-forecast'); } catch(e) {}
 try { platoonSplits = require('./platoon-splits'); } catch(e) {}
-try { openingDay = require('./mlb-opening-day'); } catch(e) {}
+try { openingDay = require('../models/mlb-opening-day'); } catch(e) {}
 
 // ==================== BULLPEN ERA SHIFTS (2025→2026) ====================
 // From bullpen-quality.js — teams with biggest bullpen quality changes
@@ -79,70 +79,46 @@ const BULLPEN_ERA_SHIFTS = {
 };
 
 // ==================== OPENING DAY SCHEDULE ====================
-const OD_SCHEDULE = [
-  // Day 1: March 26
-  { away: 'PIT', home: 'NYM', day: 1 },
-  { away: 'CWS', home: 'MIL', day: 1 },
-  { away: 'WSH', home: 'CHC', day: 1 },
-  { away: 'STL', home: 'CIN', day: 1 },
-  { away: 'TB', home: 'STL', day: 1 },
-  { away: 'KC', home: 'ATL', day: 1 },
-  { away: 'BOS', home: 'CIN', day: 1 },
-  { away: 'NYY', home: 'MIL', day: 1 },
-  { away: 'MIN', home: 'BAL', day: 1 },
-  { away: 'DET', home: 'SD', day: 1 },
-  { away: 'ARI', home: 'LAD', day: 1 },
-  // Day 2: March 27
-  { away: 'PHI', home: 'TOR', day: 2 },
-  { away: 'TEX', home: 'ATL', day: 2 },
-  { away: 'HOU', home: 'CHC', day: 2 },
-  { away: 'CLE', home: 'SEA', day: 2 },
-  { away: 'COL', home: 'LAA', day: 2 },
-  { away: 'MIA', home: 'NYY', day: 2 },
-  { away: 'OAK', home: 'SF', day: 2 },
-  { away: 'TB', home: 'BAL', day: 2 },
-  { away: 'DET', home: 'SD', day: 2 },
-];
+// DYNAMIC: imported from authoritative models/mlb-opening-day.js to avoid stale data
+function getODSchedule() {
+  if (openingDay && openingDay.OPENING_DAY_GAMES) {
+    return openingDay.OPENING_DAY_GAMES.map(g => ({
+      away: g.away, home: g.home, day: g.day,
+    }));
+  }
+  // Fallback if import failed — should not happen in production
+  console.warn('[F7] WARNING: mlb-opening-day.js not loaded, using empty schedule');
+  return [];
+}
 
-// ==================== OD STARTING PITCHERS ====================
-const OD_STARTERS = {
-  // Day 1
-  'PIT_away_1': 'Paul Skenes',
-  'NYM_home_1': 'David Peterson',
-  'CWS_away_1': 'Garrett Crochet',
-  'MIL_home_1': 'Tobias Myers',
-  'WSH_away_1': 'Jake Irvin',
-  'CHC_home_1': 'Matthew Boyd',
-  'STL_away_1': 'Sonny Gray',
-  'CIN_home_1': 'Hunter Greene',
-  'TB_away_1': 'Zack Littell',
-  'KC_away_1': 'Cole Ragans',
-  'ATL_home_1': 'Chris Sale',
-  'BOS_away_1': 'Lucas Giolito',
-  'NYY_away_1': 'Gerrit Cole',
-  'MIN_away_1': 'Joe Ryan',
-  'BAL_home_1': 'Corbin Burnes',
-  'DET_away_1': 'Tarik Skubal',
-  'SD_home_1': 'Dylan Cease',
-  'ARI_away_1': 'Ryne Nelson',
-  'LAD_home_1': 'Tyler Glasnow',
-  // Day 2
-  'PHI_away_2': 'Zack Wheeler',
-  'TOR_home_2': 'Kevin Gausman',
-  'TEX_away_2': 'Jacob deGrom',
-  'HOU_away_2': 'Framber Valdez',
-  'CLE_away_2': 'Tanner Bibee',
-  'SEA_home_2': 'Logan Gilbert',
-  'COL_away_2': 'Ryan Feltner',
-  'LAA_home_2': 'Yusei Kikuchi',
-  'MIA_away_2': 'Jesus Luzardo',
-  'OAK_away_2': 'JP Sears',
-  'SF_home_2': 'Logan Webb',
-  'DET_away_2': 'Casey Mize',
-  'SD_home_2': 'Yu Darvish',
-  'TB_away_2': 'Shane Baz',
-  'BAL_home_2': 'Dean Kremer',
-};
+// DYNAMIC: get starter name from the authoritative OD schedule
+function getODStarter(teamAbbr, homeOrAway, day) {
+  if (openingDay && openingDay.OPENING_DAY_GAMES) {
+    const game = openingDay.OPENING_DAY_GAMES.find(g => {
+      if (g.day !== day) return false;
+      return homeOrAway === 'away' ? g.away === teamAbbr : g.home === teamAbbr;
+    });
+    if (game && game.confirmedStarters) {
+      return game.confirmedStarters[homeOrAway] || null;
+    }
+  }
+  return null;
+}
+
+// Backward-compatible aliases (used by scanODGames and getStatus)
+const OD_SCHEDULE = getODSchedule();
+const OD_STARTERS = (() => {
+  const starters = {};
+  if (openingDay && openingDay.OPENING_DAY_GAMES) {
+    openingDay.OPENING_DAY_GAMES.forEach(g => {
+      if (g.confirmedStarters) {
+        if (g.confirmedStarters.away) starters[`${g.away}_away_${g.day}`] = g.confirmedStarters.away;
+        if (g.confirmedStarters.home) starters[`${g.home}_home_${g.day}`] = g.confirmedStarters.home;
+      }
+    });
+  }
+  return starters;
+})();
 
 /**
  * Get pitcher info from DB

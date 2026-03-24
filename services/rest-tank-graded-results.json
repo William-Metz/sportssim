@@ -1,0 +1,181 @@
+{
+  "generatedAt": "2026-03-24T03:06:42.073Z",
+  "summary": {
+    "date": "2026-03-23",
+    "gamesGraded": 6,
+    "adjustmentHelped": 3,
+    "adjustmentHurt": 3,
+    "helpRate": 50,
+    "avgBaselineError": 23.9,
+    "avgAdjustedError": 24,
+    "avgImprovement": -0.1,
+    "verdict": "ADJUSTMENT HURTS"
+  },
+  "games": [
+    {
+      "matchup": "LAL@DET",
+      "awayMotivation": "COASTING",
+      "homeMotivation": "RESTING",
+      "b2b": {
+        "away": false,
+        "home": false
+      },
+      "score": "110-113",
+      "winner": "DET",
+      "actualMargin": 3,
+      "baselineSpread": -5.4,
+      "adjustedSpread": -4.4,
+      "baselineError": 8.4,
+      "adjustedError": 7.4,
+      "improvement": 1,
+      "adjustmentHelped": true,
+      "status": "GRADED"
+    },
+    {
+      "matchup": "IND@ORL",
+      "awayMotivation": "TANKING",
+      "homeMotivation": "DESPERATE",
+      "b2b": {
+        "away": true,
+        "home": false
+      },
+      "score": "128-126",
+      "winner": "IND",
+      "actualMargin": -2,
+      "baselineSpread": -18.2,
+      "adjustedSpread": -21.7,
+      "baselineError": 16.2,
+      "adjustedError": 19.7,
+      "improvement": -3.5,
+      "adjustmentHelped": false,
+      "status": "GRADED"
+    },
+    {
+      "matchup": "OKC@PHI",
+      "awayMotivation": "RESTING",
+      "homeMotivation": "DESPERATE",
+      "b2b": {
+        "away": false,
+        "home": true
+      },
+      "score": "123-103",
+      "winner": "OKC",
+      "actualMargin": -20,
+      "baselineSpread": 15.6,
+      "adjustedSpread": 13.1,
+      "baselineError": 35.6,
+      "adjustedError": 33.1,
+      "improvement": 2.5,
+      "adjustmentHelped": true,
+      "status": "GRADED"
+    },
+    {
+      "matchup": "SA@MIA",
+      "awayMotivation": "RESTING",
+      "homeMotivation": "DESPERATE",
+      "b2b": {
+        "away": true,
+        "home": true
+      },
+      "score": "136-111",
+      "winner": "SA",
+      "actualMargin": -25,
+      "baselineSpread": 2.6,
+      "adjustedSpread": 0.1,
+      "baselineError": 27.6,
+      "adjustedError": 25.1,
+      "improvement": 2.5,
+      "adjustmentHelped": true,
+      "status": "GRADED"
+    },
+    {
+      "matchup": "MEM@ATL",
+      "awayMotivation": "REBUILDING",
+      "homeMotivation": "COMPETING",
+      "b2b": {
+        "away": false,
+        "home": false
+      },
+      "score": "107-146",
+      "winner": "ATL",
+      "actualMargin": 39,
+      "baselineSpread": -15.1,
+      "adjustedSpread": -17.1,
+      "baselineError": 54.1,
+      "adjustedError": 56.1,
+      "improvement": -2,
+      "adjustmentHelped": false,
+      "status": "GRADED"
+    },
+    {
+      "matchup": "HOU@CHI",
+      "awayMotivation": "COASTING",
+      "homeMotivation": "COMPETING",
+      "b2b": {
+        "away": false,
+        "home": false
+      },
+      "score": "124-132",
+      "winner": "CHI",
+      "actualMargin": 8,
+      "baselineSpread": 6.6,
+      "adjustedSpread": 5.6,
+      "baselineError": 1.4,
+      "adjustedError": 2.4,
+      "improvement": -1,
+      "adjustmentHelped": false,
+      "status": "GRADED"
+    }
+  ],
+  "byMotivation": {
+    "COASTING": {
+      "games": 2,
+      "totalImprovement": 0,
+      "helped": 0
+    },
+    "RESTING": {
+      "games": 3,
+      "totalImprovement": 0,
+      "helped": 0
+    },
+    "TANKING": {
+      "games": 1,
+      "totalImprovement": 0,
+      "helped": 0
+    },
+    "DESPERATE": {
+      "games": 3,
+      "totalImprovement": 0,
+      "helped": 0
+    },
+    "REBUILDING": {
+      "games": 1,
+      "totalImprovement": 0,
+      "helped": 0
+    },
+    "COMPETING": {
+      "games": 2,
+      "totalImprovement": 0,
+      "helped": 0
+    }
+  },
+  "insights": [
+    {
+      "type": "RESTING",
+      "finding": "RESTING teams went 3/3 (100% win rate)",
+      "detail": "DET: WON by 3, OKC: WON by 20, SA: WON by 25",
+      "implication": "Elite teams too deep — RESTING adj should be SMALLER (reduce penalty)"
+    },
+    {
+      "type": "TANKING",
+      "finding": "TANKING teams: IND WON by 2",
+      "implication": "Tanking teams occasionally win — model correctly applies modest penalty"
+    },
+    {
+      "type": "DESPERATE",
+      "finding": "DESPERATE teams went 0/3",
+      "detail": "ORL: LOST by 2, PHI: LOST by 20, MIA: LOST by 25",
+      "implication": "DESPERATE adj may be too generous — effort alone doesn't win games"
+    }
+  ]
+}

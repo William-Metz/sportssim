@@ -177,6 +177,7 @@ function buildTabs() {
     tabs.push({ id: 'futures', label: '🏆 MLB Futures' });
     tabs.push({ id: 'f5-unders', label: '⚾ F5 Unders' });
     tabs.push({ id: 'lineups', label: '📋 Lineups' });
+    tabs.push({ id: 'lineup-verify', label: '🔍 OD Lineup Verify' });
   }
   if (currentSport === 'nba' || currentSport === 'all') {
     tabs.push({ id: 'playoffs', label: '🏆 Playoffs' });
@@ -257,6 +258,7 @@ function showTab(id) {
   else if (id === 'champ-futures') loadChampFuturesTab();
   else if (id === 'f5-unders') loadF5UndersTab();
   else if (id === 'lineups') loadLineupsTab();
+  else if (id === 'lineup-verify') loadLineupVerifyTab();
   else if (id === 'daily-slate') loadDailySlateTab();
   else if (id === 'mlb-daily-card') loadMLBDailyCardTab();
   else if (id === 'season-autopilot') loadSeasonAutopilotTab();

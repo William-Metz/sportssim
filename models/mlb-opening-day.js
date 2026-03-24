@@ -77,7 +77,7 @@ const OPENING_DAY_GAMES = [
     broadcast: null,
   },
   { 
-    date: '2026-03-26', day: 1, away: 'TEX', home: 'PHI', time: '4:05 PM ET',
+    date: '2026-03-26', day: 1, away: 'TEX', home: 'PHI', time: '4:15 PM ET',
     confirmedStarters: { away: 'Nathan Eovaldi', home: 'Cristopher Sanchez' },
     dkLine: { homeML: -154, awayML: 130, total: 8.5 }, // PHI -154, CBP hitter park
     broadcast: null,
@@ -98,7 +98,7 @@ const OPENING_DAY_GAMES = [
   // ===== MARCH 27, 2026 — DAY 2 (Friday) =====
   { 
     date: '2026-03-27', day: 2, away: 'NYY', home: 'SF', time: '4:35 PM ET',
-    confirmedStarters: { away: 'Cam Schlittler', home: 'TBD' },
+    confirmedStarters: { away: 'Cam Schlittler', home: 'Logan Webb' },
     dkLine: { homeML: 142, awayML: -168, total: 7.0 }, // NYY -168, Oracle Park pitcher-friendly
     broadcast: null,
   },
@@ -143,8 +143,8 @@ const OPENING_DAY_GAMES = [
     isGame2: true,
   },
   { 
-    date: '2026-03-27', day: 2, away: 'CLE', home: 'SEA', time: '10:10 PM ET',
-    confirmedStarters: { away: 'Gavin Williams', home: 'TBD' },
+    date: '2026-03-27', day: 2, away: 'CLE', home: 'SEA', time: '9:40 PM ET',
+    confirmedStarters: { away: 'Gavin Williams', home: 'Luis Castillo' },
     dkLine: { homeML: -185, awayML: 156, total: 7.0 }, // SEA home fav, T-Mobile pitcher park
     broadcast: 'Apple TV',
     isGame2: true,

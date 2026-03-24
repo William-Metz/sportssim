@@ -130,6 +130,14 @@ let odGamedayVerify = null;
 try { odGamedayVerify = require('./services/od-gameday-verify'); } catch (e) { console.error('[server] OD Gameday Verify not loaded:', e.message); }
 let odPitcherSync = null;
 try { odPitcherSync = require('./services/od-pitcher-sync'); } catch (e) { console.error('[server] OD Pitcher Sync not loaded:', e.message); }
+let odLineupVerify = null;
+try { odLineupVerify = require('./services/od-lineup-verify'); } catch (e) { console.error('[server] OD Lineup Verify not loaded:', e.message); }
+
+let gamedayOrchestrator = null;
+try { gamedayOrchestrator = require('./services/gameday-orchestrator'); } catch (e) { console.error('[server] GameDay Orchestrator not loaded:', e.message); }
+
+let restTankGrader = null;
+try { restTankGrader = require('./services/rest-tank-grader'); } catch (e) { console.error('[server] Rest/Tank Grader not loaded:', e.message); }
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -199,7 +207,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '100.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100'] });
+  res.json({ status: 'ok', version: '102.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102'] });
 });
 
 // Deep health check — reports memory, uptime, service availability
@@ -221,7 +229,7 @@ app.get('/api/health/deep', (req, res) => {
   const loadedCount = Object.values(services).filter(Boolean).length;
   res.json({
     status: 'ok',
-    version: '100.0.0',
+    version: '101.0.0',
     uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`,
     uptimeSeconds: Math.round(uptime),
     memory: {
@@ -5011,6 +5019,64 @@ app.get('/api/nba/rest-tank/backtest/results', (req, res) => {
   res.json(restTankBacktest.getAllGraded());
 });
 
+// ==================== REST/TANK GRADER (v102) ====================
+
+app.get('/api/nba/rest-tank/grader', async (req, res) => {
+  if (!restTankGrader) return res.status(503).json({ error: 'Rest/tank grader not loaded' });
+  try {
+    const result = await restTankGrader.gradeResults();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/nba/rest-tank/grader/latest', (req, res) => {
+  if (!restTankGrader) return res.status(503).json({ error: 'Rest/tank grader not loaded' });
+  const latest = restTankGrader.getLatestResults();
+  if (!latest) return res.json({ message: 'No graded results yet — hit /api/nba/rest-tank/grader to generate' });
+  res.json(latest);
+});
+
+// ==================== GAME DAY ORCHESTRATOR (v102) ====================
+
+app.get('/api/gameday/status', (req, res) => {
+  if (!gamedayOrchestrator) return res.status(503).json({ error: 'GameDay orchestrator not loaded' });
+  res.json(gamedayOrchestrator.getStatus());
+});
+
+app.get('/api/gameday/war-room', async (req, res) => {
+  if (!gamedayOrchestrator) return res.status(503).json({ error: 'GameDay orchestrator not loaded' });
+  try {
+    const warRoom = await gamedayOrchestrator.getWarRoom();
+    res.json(warRoom);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/gameday/start', (req, res) => {
+  if (!gamedayOrchestrator) return res.status(503).json({ error: 'GameDay orchestrator not loaded' });
+  gamedayOrchestrator.startPreGamePolling();
+  res.json({ status: 'Pre-game polling started manually' });
+});
+
+app.post('/api/gameday/stop', (req, res) => {
+  if (!gamedayOrchestrator) return res.status(503).json({ error: 'GameDay orchestrator not loaded' });
+  gamedayOrchestrator.stopAll();
+  res.json({ status: 'All game-day services stopped' });
+});
+
+app.post('/api/gameday/rebuild-playbook', async (req, res) => {
+  if (!gamedayOrchestrator) return res.status(503).json({ error: 'GameDay orchestrator not loaded' });
+  try {
+    await gamedayOrchestrator.triggerPlaybookRebuild('manual');
+    res.json({ status: 'Playbook rebuild triggered' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Get NBA prediction with full rest/tank situational analysis
 app.get('/api/nba/smart-predict/:away/:home', async (req, res) => {
   try {
@@ -9444,6 +9510,108 @@ app.get('/api/opening-day/pitcher-sync/status', (req, res) => {
   }
 });
 
+// ===== OD LINEUP VERIFICATION PIPELINE v101.0 =====
+
+// Full OD lineup verification — checks all games for both Day 1 and Day 2
+app.get('/api/opening-day/lineup-verify', async (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    const dayNum = parseInt(req.query.day) || 1;
+    const result = await odLineupVerify.verifyODLineups(dayNum);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Quick cached verification status
+app.get('/api/opening-day/lineup-verify/cached', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    const cached = odLineupVerify.getCachedVerification();
+    res.json(cached || { status: 'no_cache', note: 'Run /api/opening-day/lineup-verify first' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Run full pipeline test
+app.get('/api/opening-day/lineup-verify/test', async (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    const result = await odLineupVerify.runPipelineTest();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Manual lineup override — set
+app.post('/api/opening-day/lineup-override', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    const { gameKey, side, batters, catcher } = req.body;
+    if (!gameKey || !side || !batters) return res.status(400).json({ error: 'Missing gameKey, side, or batters' });
+    const result = odLineupVerify.setLineupOverride(gameKey, side, batters, catcher);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Manual lineup override — clear
+app.delete('/api/opening-day/lineup-override', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    const { gameKey, side } = req.body || req.query;
+    if (!gameKey) return res.status(400).json({ error: 'Missing gameKey' });
+    const result = odLineupVerify.clearLineupOverride(gameKey, side);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// List all overrides
+app.get('/api/opening-day/lineup-override/list', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    res.json(odLineupVerify.loadOverrides());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Start/stop lineup monitor
+app.post('/api/opening-day/lineup-monitor/start', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    const dayNum = parseInt(req.body?.day || req.query?.day) || 1;
+    const result = odLineupVerify.startMonitor(dayNum);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/opening-day/lineup-monitor/stop', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    res.json(odLineupVerify.stopMonitor());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/opening-day/lineup-monitor/status', (req, res) => {
+  try {
+    if (!odLineupVerify) return res.status(503).json({ error: 'OD Lineup Verify service not loaded' });
+    res.json(odLineupVerify.getMonitorStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===== PRE-OD LIVE VALIDATION v89.0 =====
 // THE comprehensive pre-Opening Day validation endpoint.
 // Runs ALL checks in parallel: pitcher sync, weather, model dry-run, odds, lineup pipeline.
@@ -9791,7 +9959,7 @@ app.get('/api/line-shop/best/:sport', async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   const mem = process.memoryUsage();
-  console.log(`🎯 SportsSim v100.0.0 running on port ${PORT}`);
+  console.log(`🎯 SportsSim v102.0.0 running on port ${PORT}`);
   console.log(`   Memory: RSS ${Math.round(mem.rss / 1024 / 1024)}MB, Heap ${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB`);
   console.log(`   Odds API: ${ODDS_API_KEY ? 'configured' : 'NOT SET (set ODDS_API_KEY env var)'}`);
   console.log(`   NBA teams: ${Object.keys(nba.getTeams()).length}`);
@@ -9939,6 +10107,22 @@ app.listen(PORT, '0.0.0.0', () => {
       }).catch(e => {
         console.log('   ⚠️ OD Playbook pre-build failed:', e.message);
       });
+    }
+    
+    // Initialize Game Day Orchestrator
+    if (gamedayOrchestrator) {
+      try {
+        gamedayOrchestrator.init({
+          lineupFetcher,
+          lineupMonitor,
+          weatherForecast: weather,
+          odPlaybookCache,
+          odModel: mlbOpeningDay,
+        });
+        console.log('   🎮 GameDay Orchestrator initialized — auto-detecting game days');
+      } catch (e) {
+        console.log('   ⚠️ GameDay Orchestrator init failed:', e.message);
+      }
     }
     
     } catch (e) {

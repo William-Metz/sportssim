@@ -215,24 +215,24 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-23 22:00 UTC — Planning Session #43*
-*Current phase: 3.0 — OD D-Day Countdown + Regular Season Prep + Multi-Sport Edge Expansion*
-*✅ PRODUCTION HEALTHY: sportssim.fly.dev v95.0.0 — 512MB VM stable, all core endpoints responding (v96/v97 pushed but deploy didn't trigger — this push should fix)*
-*✅ ALL OD BUGS SQUASHED: Betting card returns instantly (disk cache), preflight defaults to LITE, NBA daily card has ESPN fallback*
-*✅ NEW v93-v97: F3 First-3-Innings (v93), Pitcher HWE Props (v95 — hits/walks/ER Poisson with Statcast xBA/xERA), NBA Period Markets (v96 — quarter/half scoring model), Integration wiring (v97)*
-*✅ OD BETTING CARD LIVE: 36 plays — 5 SMASH (A/A+, 83 conviction), 17 STRONG, 14 LEAN. Returning from disk cache instantly.*
+*Last updated: 2026-03-24 02:00 UTC — Planning Session #44*
+*Current phase: 3.0 — OD D-Day FINAL COUNTDOWN + Regular Season Prep + Multi-Sport Edge Expansion*
+*✅ PRODUCTION HEALTHY: sportssim.fly.dev v100.0.0 — 1GB VM stable, all core endpoints responding (health 266ms, summary 567ms, betting card ~9s from cache)*
+*✅ ALL SYSTEMS GO: v100 deployed with OD starter sync, F3 edge fix, NRFI filter fix, staggered startup, OOM fix*
+*✅ DATA FEEDS FRESH: NBA (21min, ESPN), MLB (21min, ESPN spring training), NHL (21min, NHL API). All rolling stats + injuries updating.*
+*✅ OD BETTING CARD LIVE: 37 plays — 3 SMASH (A/A+, 83 conviction), STRONG+LEAN. Returning from disk cache.*
 *🔥 TOP SMASH #1: MIN@BAL UNDER 8.5 (Ryan vs Rogers, 22.6% edge, 83 conviction, $17.27 EV).*
-*🔥 TOP SMASH #2: MIN@BAL F5 UNDER 4.5 (20.9% edge, 83 conviction).*
-*🔥 TOP SMASH #3: DET@SD F5 UNDER 4.5 (Skubal vs Cease, 19.7% edge, 81 conviction).*
+*🔥 TOP SMASH #2: MIN@BAL F5 UNDER 4.5 (22% edge, 83 conviction).*
+*🔥 TOP SMASH #3: MIN@BAL ML (BAL favored, multi-signal agreement).*
 *🔥 K PROPS: 35 picks, 22 high confidence. Misiorowski OVER 5.5 (+23.6%), Boyd OVER 4.5 (+16.4%), Crochet OVER 7.5 (+15.4%).*
 *🔥 OUTS PROPS: 40 picks, 23 HIGH confidence. ALL OVERS (OD premium). Peralta OVER 15.5 (+18.8%).*
 *🔥 NRFI: 4 NRFI picks (DET@SD 57.7%, KC@ATL 57.3%), 2 YRFI picks (WSH@CHC 56.7%).*
-*📊 VALUE BETS: 33 active value bets. MLB: NYY AL East +22.2%, OAK OVER +17.9%, BAL UNDER +13.7%, CHC OVER +13.6%. NFL: MIA OVER 4.5 (+39.5%), TEN UNDER 6.5 (+26%), BAL UNDER 11.5 (+23.3%).*
-*🏀 NBA (3/23): OKC 56-15, SAS 53-18, DET 51-19. 10 games TONIGHT — massive rest/tank mismatches. IND(TANKING B2B -4.0)@ORL(DESPERATE +1.7) = 5.7pt swing. SAS(RESTING B2B -4.8)@MIA(DESPERATE 0) = 4.8pt. TOR(COASTING)@UTA(TANKING B2B -4.3) = 4.3pt. OKC(RESTING -2.5)@PHI(DESPERATE B2B 0). GSW(DESPERATE 5g/7d)@DAL(REBUILDING B2B -3.0). Rest/tank model LIVE and detecting all edges.*
-*🏒 NHL (3/23): COL(100), DAL(97), CAR/BUF(94), MIN(92). EAST BUBBLE UNCHANGED: PIT/MTL/BOS(86), CBJ(85), DET(84), NYI(83). 6 teams within 3pts for 4 spots = MASSIVE mispricing in playoff series futures.*
-*🏈 NFL: 15 win total value bets LIVE. MIA OVER 4.5, TEN UNDER 6.5, BAL UNDER 11.5, SEA OVER 10.5 all HIGH confidence. Draft 32 days.*
-*📋 CRITICAL PATH: Pre-OD final check March 25 eve → GO LIVE March 26 AM → Regular season autopilot → NBA playoff futures scan*
-*🚨 DEPLOY GAP: v96 (NBA period markets) and v97 (HWE+period integration) pushed to GitHub but Fly.io deploy didn't trigger. This planning commit should trigger deploy → production goes to v97.*
+*📊 VALUE BETS: 33 active value bets. MLB futures: NYY AL East +21.7%, OAK OVER +18.2%, BAL UNDER +14.2%, CHC OVER +13.8%. NFL: MIA OVER 4.5 (+39.5%), TEN UNDER 6.5 (+26%), BAL UNDER 11.5 (+23.3%).*
+*🏀 NBA (3/24): OKC 57-15 (#1), SAS 53-18, DET 51-19, BOS 47-24, NYK 47-25, LAL 46-25. TODAY: 4 games — SAC@CHA, NOP@NYK, ORL@CLE, DEN@PHX. DEN@PHX is HUGE — both fighting for playoff positioning (DEN 44-28, PHX 40-32). ORL@CLE seeding implications (CLE 44-27, ORL 38-32+). East 6-8 seed chaos: TOR(39-31), ATL(39-32), PHI(39-32) — volatile = mispriced futures.*
+*🏒 NHL (3/24): COL(102), DAL(97), CAR(96), BUF(95), MIN(92), TBL(91). EAST BUBBLE EVOLVED: MTL/BOS(86), PIT(86), CBJ(85), NYI(85), DET(84). 8 NHL games TODAY including BUBBLE CRITICAL: TOR@BOS (BOS bubble fight), OTT@DET (both bubble), CHI@NYI (NYI bubble desperate). CAR@MTL (MTL bubble but CAR locked). MASSIVE mispricing in playoff series futures.*
+*🏈 NFL: 15+ win total value bets LIVE. MIA OVER 4.5, TEN UNDER 6.5, BAL UNDER 11.5, SEA OVER 10.5 all HIGH confidence. Draft 31 days.*
+*📋 CRITICAL PATH: TOMORROW March 25 eve = Pre-OD FINAL CHECK → GO LIVE March 26 AM → OD1 (11 games) → OD2 March 27 (9 games) → Regular season autopilot*
+*🚨 D-DAY CHECKLIST: (1) March 25 AM — pull final weather forecasts for all 20 OD venues. (2) March 25 PM — verify lineup data pipeline is flowing. (3) March 25 EVE — run full end-to-end preflight. (4) March 26 AM — GO LIVE with real lineups + umpire data.*
 *⚾ MLB OPENING DAY 1: 2 DAYS (March 26) 🔥🔥🔥*
 *⚾ MLB OPENING DAY 2: 3 DAYS (March 27) 🔥🔥🔥*
 *🏀 NBA PLAYOFFS: 19 DAYS (April 12)*

@@ -28,7 +28,17 @@
         "margin": 16,
         "total": 240
       },
-      "graded": true
+      "graded": true,
+      "grade": {
+        "actualMargin": 16,
+        "baselineError": 28,
+        "adjustedError": 30,
+        "improvement": -2,
+        "restTankHelped": false,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-22",
@@ -58,7 +68,17 @@
         "margin": 4,
         "total": 248
       },
-      "graded": true
+      "graded": true,
+      "grade": {
+        "actualMargin": 4,
+        "baselineError": 2.8,
+        "adjustedError": 3.1,
+        "improvement": -0.3,
+        "restTankHelped": false,
+        "homeWin": true,
+        "modelCorrectWinner": false,
+        "baselineCorrectWinner": false
+      }
     },
     {
       "date": "2026-03-22",
@@ -82,8 +102,23 @@
       "mismatchDetected": true,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 113,
+        "homeScore": 145,
+        "margin": 32,
+        "total": 258
+      },
+      "graded": false,
+      "grade": {
+        "actualMargin": 32,
+        "baselineError": 52.1,
+        "adjustedError": 47.8,
+        "improvement": 4.3,
+        "restTankHelped": true,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-22",
@@ -113,7 +148,17 @@
         "margin": -10,
         "total": 194
       },
-      "graded": true
+      "graded": true,
+      "grade": {
+        "actualMargin": -10,
+        "baselineError": 1.8,
+        "adjustedError": 1.5,
+        "improvement": 0.3,
+        "restTankHelped": true,
+        "homeWin": false,
+        "modelCorrectWinner": false,
+        "baselineCorrectWinner": false
+      }
     },
     {
       "date": "2026-03-22",
@@ -143,7 +188,17 @@
         "margin": 22,
         "total": 218
       },
-      "graded": true
+      "graded": true,
+      "grade": {
+        "actualMargin": 22,
+        "baselineError": 23,
+        "adjustedError": 20,
+        "improvement": 3,
+        "restTankHelped": true,
+        "homeWin": true,
+        "modelCorrectWinner": false,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-23",
@@ -167,8 +222,23 @@
       "mismatchDetected": false,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 110,
+        "homeScore": 113,
+        "margin": 3,
+        "total": 223
+      },
+      "graded": true,
+      "grade": {
+        "actualMargin": 3,
+        "baselineError": 8.4,
+        "adjustedError": 9.1,
+        "improvement": -0.7,
+        "restTankHelped": false,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-23",
@@ -192,8 +262,23 @@
       "mismatchDetected": true,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 128,
+        "homeScore": 126,
+        "margin": -2,
+        "total": 254
+      },
+      "graded": true,
+      "grade": {
+        "actualMargin": -2,
+        "baselineError": 16.2,
+        "adjustedError": 10.5,
+        "improvement": 5.7,
+        "restTankHelped": true,
+        "homeWin": false,
+        "modelCorrectWinner": false,
+        "baselineCorrectWinner": false
+      }
     },
     {
       "date": "2026-03-23",
@@ -217,8 +302,23 @@
       "mismatchDetected": true,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 123,
+        "homeScore": 103,
+        "margin": -20,
+        "total": 226
+      },
+      "graded": true,
+      "grade": {
+        "actualMargin": -20,
+        "baselineError": 35.6,
+        "adjustedError": 38.1,
+        "improvement": -2.5,
+        "restTankHelped": false,
+        "homeWin": false,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-23",
@@ -242,8 +342,23 @@
       "mismatchDetected": true,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 136,
+        "homeScore": 111,
+        "margin": -25,
+        "total": 247
+      },
+      "graded": false,
+      "grade": {
+        "actualMargin": -25,
+        "baselineError": 27.6,
+        "adjustedError": 32.4,
+        "improvement": -4.8,
+        "restTankHelped": false,
+        "homeWin": false,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-23",
@@ -267,8 +382,23 @@
       "mismatchDetected": true,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 107,
+        "homeScore": 146,
+        "margin": 39,
+        "total": 253
+      },
+      "graded": true,
+      "grade": {
+        "actualMargin": 39,
+        "baselineError": 54.1,
+        "adjustedError": 53.6,
+        "improvement": 0.5,
+        "restTankHelped": true,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      }
     },
     {
       "date": "2026-03-23",
@@ -292,8 +422,13 @@
       "mismatchDetected": false,
       "mismatchType": null,
       "bookSpread": null,
-      "result": null,
-      "graded": false
+      "result": {
+        "awayScore": 124,
+        "homeScore": 132,
+        "margin": 8,
+        "total": 256
+      },
+      "graded": true
     },
     {
       "date": "2026-03-23",
@@ -394,88 +529,348 @@
       "bookSpread": null,
       "result": null,
       "graded": false
+    },
+    {
+      "date": "2026-03-24",
+      "gameKey": "SAC@CHA",
+      "away": "SAC",
+      "home": "CHA",
+      "gameTime": "2026-03-24T23:00Z",
+      "baselineSpread": -19,
+      "baselineHomeWinProb": 94.9,
+      "baselineTotalPoints": null,
+      "restTankAdj": 3.3,
+      "adjustedSpread": -15.7,
+      "awayMotivation": "TANKING",
+      "homeMotivation": "DESPERATE",
+      "awayMotivationAdj": -2.5,
+      "homeMotivationAdj": 0.3,
+      "awayRestAdj": 0.5,
+      "homeRestAdj": 1,
+      "awayB2B": false,
+      "homeB2B": false,
+      "mismatchDetected": true,
+      "mismatchType": null,
+      "bookSpread": null,
+      "result": null,
+      "graded": false
+    },
+    {
+      "date": "2026-03-24",
+      "gameKey": "NOP@NYK",
+      "away": "NOP",
+      "home": "NYK",
+      "gameTime": "2026-03-24T23:30Z",
+      "baselineSpread": -13.6,
+      "baselineHomeWinProb": 89,
+      "baselineTotalPoints": null,
+      "restTankAdj": -0.2,
+      "adjustedSpread": -13.8,
+      "awayMotivation": "COMPETING",
+      "homeMotivation": "COASTING",
+      "awayMotivationAdj": 0,
+      "homeMotivationAdj": -0.5,
+      "awayRestAdj": 0.2,
+      "homeRestAdj": 0.5,
+      "awayB2B": false,
+      "homeB2B": false,
+      "mismatchDetected": false,
+      "mismatchType": null,
+      "bookSpread": null,
+      "result": null,
+      "graded": false
+    },
+    {
+      "date": "2026-03-24",
+      "gameKey": "ORL@CLE",
+      "away": "ORL",
+      "home": "CLE",
+      "gameTime": "2026-03-25T00:00Z",
+      "baselineSpread": -3.5,
+      "baselineHomeWinProb": 63.1,
+      "baselineTotalPoints": null,
+      "restTankAdj": 2,
+      "adjustedSpread": -1.5,
+      "awayMotivation": "DESPERATE",
+      "homeMotivation": "COASTING",
+      "awayMotivationAdj": 0.3,
+      "homeMotivationAdj": -0.5,
+      "awayRestAdj": -1.8,
+      "homeRestAdj": 1,
+      "awayB2B": true,
+      "homeB2B": false,
+      "mismatchDetected": true,
+      "mismatchType": null,
+      "bookSpread": null,
+      "result": null,
+      "graded": false
+    },
+    {
+      "date": "2026-03-24",
+      "gameKey": "DEN@PHX",
+      "away": "DEN",
+      "home": "PHX",
+      "gameTime": "2026-03-25T03:00Z",
+      "baselineSpread": 1.2,
+      "baselineHomeWinProb": 45.4,
+      "baselineTotalPoints": null,
+      "restTankAdj": 0,
+      "adjustedSpread": 1.2,
+      "awayMotivation": "COASTING",
+      "homeMotivation": "COMPETING",
+      "awayMotivationAdj": -0.5,
+      "homeMotivationAdj": 0.5,
+      "awayRestAdj": -0.8,
+      "homeRestAdj": -1.8,
+      "awayB2B": false,
+      "homeB2B": true,
+      "mismatchDetected": false,
+      "mismatchType": null,
+      "bookSpread": null,
+      "result": null,
+      "graded": false
     }
   ],
   "graded": [
     {
-      "gameKey": "POR@DEN",
+      "gameKey": "WAS@NYK",
       "date": "2026-03-22",
-      "actualMargin": 16,
-      "actualTotal": 240,
-      "baselineSpread": -12,
-      "adjustedSpread": -14,
-      "restTankAdj": -2,
-      "baselineError": 28,
-      "adjustedError": 30,
-      "improvement": -2,
-      "improved": false,
-      "atsResult": "HOME_COVER",
-      "awayMotivation": "DESPERATE",
+      "result": {
+        "awayScore": 113,
+        "homeScore": 145,
+        "margin": 32,
+        "total": 258
+      },
+      "grade": {
+        "actualMargin": 32,
+        "baselineError": 52.1,
+        "adjustedError": 47.8,
+        "improvement": 4.3,
+        "restTankHelped": true,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      },
+      "awayMotivation": "TANKING",
       "homeMotivation": "COASTING",
-      "mismatchDetected": true,
-      "mismatchType": null,
-      "awayB2B": true,
-      "homeB2B": true,
-      "bookSpread": null,
-      "score": "112-128"
+      "mismatchDetected": true
     },
     {
-      "gameKey": "BKN@SAC",
-      "date": "2026-03-22",
-      "actualMargin": 4,
-      "actualTotal": 248,
-      "baselineSpread": 1.2,
-      "adjustedSpread": 0.9,
-      "restTankAdj": -0.3,
-      "baselineError": 2.8,
-      "adjustedError": 3.1,
-      "improvement": -0.3,
+      "gameKey": "LAL@DET",
+      "date": "2026-03-23",
+      "result": {
+        "awayScore": 110,
+        "homeScore": 113,
+        "margin": 3,
+        "total": 223
+      },
+      "grade": {
+        "actualMargin": 3,
+        "baselineError": 8.4,
+        "adjustedError": 9.1,
+        "improvement": -0.7,
+        "restTankHelped": false,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      },
+      "awayMotivation": "COASTING",
+      "homeMotivation": "RESTING",
+      "mismatchDetected": false
+    },
+    {
+      "gameKey": "IND@ORL",
+      "date": "2026-03-23",
+      "result": {
+        "awayScore": 128,
+        "homeScore": 126,
+        "margin": -2,
+        "total": 254
+      },
+      "grade": {
+        "actualMargin": -2,
+        "baselineError": 16.2,
+        "adjustedError": 10.5,
+        "improvement": 5.7,
+        "restTankHelped": true,
+        "homeWin": false,
+        "modelCorrectWinner": false,
+        "baselineCorrectWinner": false
+      },
+      "awayMotivation": "TANKING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": true
+    },
+    {
+      "gameKey": "OKC@PHI",
+      "date": "2026-03-23",
+      "result": {
+        "awayScore": 123,
+        "homeScore": 103,
+        "margin": -20,
+        "total": 226
+      },
+      "grade": {
+        "actualMargin": -20,
+        "baselineError": 35.6,
+        "adjustedError": 38.1,
+        "improvement": -2.5,
+        "restTankHelped": false,
+        "homeWin": false,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      },
+      "awayMotivation": "RESTING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": true
+    },
+    {
+      "gameKey": "SAS@MIA",
+      "date": "2026-03-23",
+      "result": {
+        "awayScore": 136,
+        "homeScore": 111,
+        "margin": -25,
+        "total": 247
+      },
+      "grade": {
+        "actualMargin": -25,
+        "baselineError": 27.6,
+        "adjustedError": 32.4,
+        "improvement": -4.8,
+        "restTankHelped": false,
+        "homeWin": false,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      },
+      "awayMotivation": "RESTING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": true
+    },
+    {
+      "gameKey": "MEM@ATL",
+      "date": "2026-03-23",
+      "result": {
+        "awayScore": 107,
+        "homeScore": 146,
+        "margin": 39,
+        "total": 253
+      },
+      "grade": {
+        "actualMargin": 39,
+        "baselineError": 54.1,
+        "adjustedError": 53.6,
+        "improvement": 0.5,
+        "restTankHelped": true,
+        "homeWin": true,
+        "modelCorrectWinner": true,
+        "baselineCorrectWinner": true
+      },
+      "awayMotivation": "REBUILDING",
+      "homeMotivation": "COMPETING",
+      "mismatchDetected": true
+    },
+    {
+      "gameKey": "LAL@DET",
+      "date": "2026-03-23",
+      "actualMargin": 3,
+      "actualTotal": 223,
+      "baselineSpread": -5.4,
+      "adjustedSpread": -6.1,
+      "restTankAdj": -0.7,
+      "baselineError": 8.4,
+      "adjustedError": 9.1,
+      "improvement": -0.7,
       "improved": false,
       "atsResult": "HOME_COVER",
-      "awayMotivation": "TANKING",
-      "homeMotivation": "TANKING",
+      "awayMotivation": "COASTING",
+      "homeMotivation": "RESTING",
       "mismatchDetected": false,
       "mismatchType": null,
       "awayB2B": false,
       "homeB2B": false,
       "bookSpread": null,
-      "score": "122-126"
+      "score": "110-113"
     },
     {
-      "gameKey": "MIN@BOS",
-      "date": "2026-03-22",
-      "actualMargin": -10,
-      "actualTotal": 194,
-      "baselineSpread": -11.8,
-      "adjustedSpread": -11.5,
-      "restTankAdj": 0.3,
-      "baselineError": 1.8,
-      "adjustedError": 1.5,
-      "improvement": 0.3,
+      "gameKey": "IND@ORL",
+      "date": "2026-03-23",
+      "actualMargin": -2,
+      "actualTotal": 254,
+      "baselineSpread": -18.2,
+      "adjustedSpread": -12.5,
+      "restTankAdj": 5.7,
+      "baselineError": 16.2,
+      "adjustedError": 10.5,
+      "improvement": 5.7,
       "improved": true,
       "atsResult": "HOME_COVER",
-      "awayMotivation": "COASTING",
-      "homeMotivation": "COASTING",
-      "mismatchDetected": false,
+      "awayMotivation": "TANKING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": true,
       "mismatchType": null,
       "awayB2B": true,
-      "homeB2B": true,
+      "homeB2B": false,
       "bookSpread": null,
-      "score": "102-92"
+      "score": "128-126"
     },
     {
-      "gameKey": "TOR@PHX",
-      "date": "2026-03-22",
-      "actualMargin": 22,
-      "actualTotal": 218,
-      "baselineSpread": -1,
-      "adjustedSpread": 2,
-      "restTankAdj": 3,
-      "baselineError": 23,
-      "adjustedError": 20,
-      "improvement": 3,
+      "gameKey": "OKC@PHI",
+      "date": "2026-03-23",
+      "actualMargin": -20,
+      "actualTotal": 226,
+      "baselineSpread": 15.6,
+      "adjustedSpread": 18.1,
+      "restTankAdj": 2.5,
+      "baselineError": 35.6,
+      "adjustedError": 38.1,
+      "improvement": -2.5,
+      "improved": false,
+      "atsResult": "AWAY_COVER",
+      "awayMotivation": "RESTING",
+      "homeMotivation": "DESPERATE",
+      "mismatchDetected": true,
+      "mismatchType": null,
+      "awayB2B": false,
+      "homeB2B": true,
+      "bookSpread": null,
+      "score": "123-103"
+    },
+    {
+      "gameKey": "MEM@ATL",
+      "date": "2026-03-23",
+      "actualMargin": 39,
+      "actualTotal": 253,
+      "baselineSpread": -15.1,
+      "adjustedSpread": -14.6,
+      "restTankAdj": 0.5,
+      "baselineError": 54.1,
+      "adjustedError": 53.6,
+      "improvement": 0.5,
       "improved": true,
       "atsResult": "HOME_COVER",
+      "awayMotivation": "REBUILDING",
+      "homeMotivation": "COMPETING",
+      "mismatchDetected": true,
+      "mismatchType": null,
+      "awayB2B": false,
+      "homeB2B": true,
+      "bookSpread": null,
+      "score": "107-146"
+    },
+    {
+      "gameKey": "HOU@CHI",
+      "date": "2026-03-23",
+      "actualMargin": 8,
+      "actualTotal": 256,
+      "baselineSpread": 6.6,
+      "adjustedSpread": 9.9,
+      "restTankAdj": 3.3,
+      "baselineError": 1.4,
+      "adjustedError": 1.9,
+      "improvement": -0.5,
+      "improved": false,
+      "atsResult": "AWAY_COVER",
       "awayMotivation": "COASTING",
       "homeMotivation": "COMPETING",
       "mismatchDetected": false,
@@ -483,56 +878,69 @@
       "awayB2B": true,
       "homeB2B": false,
       "bookSpread": null,
-      "score": "98-120"
+      "score": "124-132"
     }
   ],
   "summary": {
-    "totalGames": 4,
+    "totalGames": 11,
     "improvedCount": 2,
-    "improvedPct": 50,
-    "avgImprovement": 0.25,
-    "avgBaselineError": 13.9,
-    "avgAdjustedError": 13.7,
-    "errorReductionPct": 1.8,
-    "mismatchGames": 1,
-    "mismatchImproved": 0,
-    "mismatchImprovedPct": 0,
-    "mismatchAvgImprovement": -2,
-    "b2bGames": 3,
+    "improvedPct": 18.2,
+    "avgImprovement": null,
+    "avgBaselineError": null,
+    "avgAdjustedError": null,
+    "errorReductionPct": null,
+    "mismatchGames": 8,
+    "mismatchImproved": 2,
+    "mismatchImprovedPct": 25,
+    "mismatchAvgImprovement": null,
+    "b2bGames": 4,
     "b2bImproved": 2,
-    "b2bImprovedPct": 66.7,
-    "booksCompared": 0,
-    "modelATSHitRate": null,
+    "b2bImprovedPct": 50,
+    "booksCompared": 6,
+    "modelATSHitRate": 0,
     "byMotivation": [
+      {
+        "matchup": "TANKING_vs_COASTING",
+        "games": 1,
+        "improved": 0,
+        "avgImprovement": null
+      },
+      {
+        "matchup": "COASTING_vs_RESTING",
+        "games": 2,
+        "improved": 0,
+        "avgImprovement": null
+      },
+      {
+        "matchup": "TANKING_vs_DESPERATE",
+        "games": 2,
+        "improved": 1,
+        "avgImprovement": null
+      },
+      {
+        "matchup": "RESTING_vs_DESPERATE",
+        "games": 3,
+        "improved": 0,
+        "avgImprovement": null
+      },
+      {
+        "matchup": "REBUILDING_vs_COMPETING",
+        "games": 2,
+        "improved": 1,
+        "avgImprovement": null
+      },
       {
         "matchup": "COASTING_vs_COMPETING",
         "games": 1,
-        "improved": 1,
-        "avgImprovement": 3
-      },
-      {
-        "matchup": "COASTING_vs_COASTING",
-        "games": 1,
-        "improved": 1,
-        "avgImprovement": 0.3
-      },
-      {
-        "matchup": "TANKING_vs_TANKING",
-        "games": 1,
         "improved": 0,
-        "avgImprovement": -0.3
-      },
-      {
-        "matchup": "DESPERATE_vs_COASTING",
-        "games": 1,
-        "improved": 0,
-        "avgImprovement": -2
+        "avgImprovement": -0.5
       }
     ],
     "dates": [
-      "2026-03-22"
+      "2026-03-22",
+      "2026-03-23"
     ],
-    "lastGraded": "2026-03-22"
+    "lastGraded": "2026-03-23"
   },
-  "lastUpdated": "2026-03-23T15:23:23.473Z"
+  "lastUpdated": "2026-03-24T03:21:59.741Z"
 }
