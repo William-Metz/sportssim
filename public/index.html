@@ -219,6 +219,8 @@ function buildTabs() {
   tabs.push({ id: 'od-validate', label: '✅ OD Readiness' });
   tabs.push({ id: 'od-lines', label: '📈 OD Lines' });
   tabs.push({ id: 'live-tracker', label: '🔴 Live Tracker' });
+  tabs.push({ id: 'pnl', label: '💰 P&L Tracker' });
+  tabs.push({ id: 'auto-grade', label: '🎯 Auto-Grade' });
   tabsEl.innerHTML = tabs.map(t =>
     `<button class="tab ${t.id === currentTab ? 'active' : ''}" data-tab="${t.id}" onclick="showTab('${t.id}')">${t.label}</button>`
   ).join('');
@@ -289,10 +291,12 @@ function showTab(id) {
   else if (id === 'f3-model') loadF3ModelTab();
   else if (id === 'f7-model') loadF7ModelTab();
   else if (id === 'live-tracker') loadLiveTrackerTab();
+  else if (id === 'pnl') loadPnLTab();
   else if (id === 'od-lines') loadODLinesTab();
   else if (id === 'line-shop') loadLineShopTab();
   else if (id === 'nhl-bubble') loadNHLBubbleTab();
   else if (id === 'nhl-daily') loadNHLDailyTab();
+  else if (id === 'auto-grade') loadAutoGradeTab();
 }
 
 // ==================== DAILY PICKS ENGINE ====================
@@ -13345,6 +13349,415 @@ async function loadNHLDailyTab() {
   } catch(e) {
     wrap.innerHTML = `<div class="card" style="padding:20px"><p style="color:#e74c3c">Error loading NHL daily card: ${e.message}</p><button onclick="loadNHLDailyTab()" style="margin-top:12px;padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">🔄 Retry</button></div>`;
   }
+}
+
+// ==================== P&L TRACKER TAB (v103.0) ====================
+async function loadPnLTab() {
+  const wrap = document.getElementById('tab-content');
+  wrap.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading P&L Tracker...</p></div>';
+  
+  try {
+    const [seasonRes, marketsRes] = await Promise.all([
+      fetch(`${API}/api/mlb/grade/season`).then(r => r.json()).catch(e => null),
+      fetch(`${API}/api/mlb/grade/markets`).then(r => r.json()).catch(e => null),
+    ]);
+    
+    let html = `<h2>💰 Season P&L Tracker</h2>`;
+    
+    // Hero banner
+    const s = seasonRes || {};
+    const profit = s.totalProfit || 0;
+    const profitColor = profit >= 0 ? '#4ecdc4' : '#e94560';
+    const roi = s.seasonROI || 0;
+    
+    html += `<div style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);border-radius:16px;padding:24px;margin-bottom:20px;border:2px solid ${profitColor};">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+        <div>
+          <div style="font-size:24px;font-weight:900;color:${profitColor};">💰 SPORTSSIM SEASON P&L</div>
+          <div style="color:#ccc;margin-top:4px;">${s.totalDates || 0} days graded | ${(s.totalRecord?.wins || 0) + (s.totalRecord?.losses || 0) + (s.totalRecord?.pushes || 0)} total bets</div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="text-align:center;background:rgba(0,0,0,0.3);border-radius:10px;padding:12px 16px;">
+            <div style="font-size:28px;font-weight:900;color:${profitColor};">$${profit.toFixed(2)}</div>
+            <div style="font-size:11px;color:#aaa;">Total P&L</div>
+          </div>
+          <div style="text-align:center;background:rgba(0,0,0,0.3);border-radius:10px;padding:12px 16px;">
+            <div style="font-size:28px;font-weight:900;color:${roi >= 0 ? '#4ecdc4' : '#e94560'};">${roi > 0 ? '+' : ''}${roi}%</div>
+            <div style="font-size:11px;color:#aaa;">ROI</div>
+          </div>
+          <div style="text-align:center;background:rgba(0,0,0,0.3);border-radius:10px;padding:12px 16px;">
+            <div style="font-size:28px;font-weight:900;color:#ffd700;">${s.totalRecord?.wins || 0}-${s.totalRecord?.losses || 0}-${s.totalRecord?.pushes || 0}</div>
+            <div style="font-size:11px;color:#aaa;">Record</div>
+          </div>
+          <div style="text-align:center;background:rgba(0,0,0,0.3);border-radius:10px;padding:12px 16px;">
+            <div style="font-size:28px;font-weight:900;color:#45b7d1;">${s.winRate || 0}%</div>
+            <div style="font-size:11px;color:#aaa;">Win Rate</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    
+    // Grade buttons
+    html += `<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+      <button onclick="gradeOD(1)" style="padding:10px 20px;background:#e94560;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🎯 Grade OD Day 1</button>
+      <button onclick="gradeOD(2)" style="padding:10px 20px;background:#e94560;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:700;">🎯 Grade OD Day 2</button>
+      <button onclick="gradeToday()" style="padding:10px 20px;background:#4ecdc4;color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:700;">📊 Grade Today</button>
+      <button onclick="loadPnLTab()" style="padding:10px 20px;background:#333;color:white;border:none;border-radius:8px;cursor:pointer;">🔄 Refresh</button>
+    </div>`;
+    html += `<div id="grade-result" style="margin-bottom:20px;"></div>`;
+    
+    // Market breakdown
+    if (marketsRes && Array.isArray(marketsRes) && marketsRes.length > 0) {
+      html += `<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:20px;">
+        <h3 style="margin:0 0 12px 0;color:#ffd700;">📊 P&L by Market Type</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1px solid #333;">
+            <th style="text-align:left;padding:8px;color:#aaa;">Market</th>
+            <th style="text-align:center;padding:8px;color:#aaa;">Bets</th>
+            <th style="text-align:center;padding:8px;color:#aaa;">Record</th>
+            <th style="text-align:center;padding:8px;color:#aaa;">Win %</th>
+            <th style="text-align:right;padding:8px;color:#aaa;">P&L</th>
+            <th style="text-align:right;padding:8px;color:#aaa;">ROI</th>
+          </tr></thead>
+          <tbody>`;
+      
+      const marketLabels = {
+        moneyline: '💰 Moneyline', total: '📊 Totals O/U', runline: '📏 Run Line',
+        f5_total: '5️⃣ F5 Total', f5_ml: '5️⃣ F5 ML', f3_total: '3️⃣ F3 Total',
+        f7_total: '7️⃣ F7 Total', nrfi: '🚫 NRFI/YRFI', k_prop: '⚡ K Props',
+        outs_prop: '⏱️ Outs Props', hits_allowed: '🏏 Hits Allowed', walks: '🚶 Walks',
+        earned_runs: '💥 Earned Runs',
+      };
+      
+      for (const m of marketsRes) {
+        const pColor = m.totalProfit >= 0 ? '#4ecdc4' : '#e94560';
+        const rColor = m.roi >= 0 ? '#4ecdc4' : '#e94560';
+        html += `<tr style="border-bottom:1px solid #222;">
+          <td style="padding:8px;color:#fff;">${marketLabels[m.market] || m.market}</td>
+          <td style="text-align:center;padding:8px;color:#ccc;">${m.bets}</td>
+          <td style="text-align:center;padding:8px;color:#ccc;">${m.wins}-${m.losses}-${m.pushes}</td>
+          <td style="text-align:center;padding:8px;color:#ccc;">${m.winRate}%</td>
+          <td style="text-align:right;padding:8px;color:${pColor};font-weight:700;">$${m.totalProfit.toFixed(2)}</td>
+          <td style="text-align:right;padding:8px;color:${rColor};font-weight:700;">${m.roi > 0 ? '+' : ''}${m.roi}%</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+    
+    // Daily P&L chart
+    if (s.daily && s.daily.length > 0) {
+      html += `<div style="background:rgba(255,255,255,0.05);border-radius:12px;padding:16px;margin-bottom:20px;">
+        <h3 style="margin:0 0 12px 0;color:#4ecdc4;">📈 Daily P&L</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1px solid #333;">
+            <th style="text-align:left;padding:8px;color:#aaa;">Date</th>
+            <th style="text-align:center;padding:8px;color:#aaa;">Bets</th>
+            <th style="text-align:center;padding:8px;color:#aaa;">Record</th>
+            <th style="text-align:right;padding:8px;color:#aaa;">Profit</th>
+            <th style="text-align:right;padding:8px;color:#aaa;">ROI</th>
+            <th style="text-align:right;padding:8px;color:#aaa;">Cum P&L</th>
+          </tr></thead>
+          <tbody>`;
+      
+      for (const d of s.daily) {
+        const pColor = d.profit >= 0 ? '#4ecdc4' : '#e94560';
+        const cColor = d.cumProfit >= 0 ? '#4ecdc4' : '#e94560';
+        html += `<tr style="border-bottom:1px solid #222;">
+          <td style="padding:8px;color:#fff;">${d.date}</td>
+          <td style="text-align:center;padding:8px;color:#ccc;">${d.bets}</td>
+          <td style="text-align:center;padding:8px;color:#ccc;">${d.record}</td>
+          <td style="text-align:right;padding:8px;color:${pColor};font-weight:700;">$${d.profit.toFixed(2)}</td>
+          <td style="text-align:right;padding:8px;color:${pColor};">${d.roi > 0 ? '+' : ''}${d.roi}%</td>
+          <td style="text-align:right;padding:8px;color:${cColor};font-weight:900;">$${d.cumProfit.toFixed(2)}</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+    
+    // No data yet message
+    if (!s.totalDates || s.totalDates === 0) {
+      html += `<div style="background:rgba(255,215,0,0.1);border-radius:12px;padding:24px;text-align:center;border:1px dashed #ffd700;">
+        <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+        <div style="font-size:18px;color:#ffd700;font-weight:700;">No Games Graded Yet</div>
+        <div style="color:#ccc;margin-top:8px;">
+          Opening Day is March 26! After games complete, hit "Grade OD Day 1" to see results.<br>
+          The grader will pull ESPN box scores, grade ALL bet types (ML, totals, F5, K props, NRFI, outs), and calculate P&L.
+        </div>
+      </div>`;
+    }
+    
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = `<div class="card" style="padding:20px"><p style="color:#e74c3c">Error loading P&L tracker: ${e.message}</p><button onclick="loadPnLTab()" style="margin-top:12px;padding:8px 16px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer">🔄 Retry</button></div>`;
+  }
+}
+
+async function gradeOD(day) {
+  const el = document.getElementById('grade-result');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div><p>Grading Opening Day ' + day + '... fetching box scores from ESPN...</p></div>';
+  try {
+    const res = await fetch(`${API}/api/mlb/grade/opening-day?day=${day}`);
+    const data = await res.json();
+    if (data.error) {
+      el.innerHTML = `<div style="color:#f39c12;padding:12px;">⚠️ ${data.error}</div>`;
+      return;
+    }
+    const pColor = (data.totalProfit || 0) >= 0 ? '#4ecdc4' : '#e94560';
+    el.innerHTML = `<div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:16px;border-left:4px solid ${pColor};">
+      <div style="font-size:18px;font-weight:700;color:${pColor};">OD Day ${day}: ${data.record?.wins || 0}W-${data.record?.losses || 0}L-${data.record?.pushes || 0} | $${(data.totalProfit || 0).toFixed(2)} P&L (${data.roi || 0}% ROI)</div>
+      <div style="color:#ccc;margin-top:4px;">${data.graded || 0} bets graded out of ${data.totalBets || 0} | ${data.gamesFinal || 0}/${data.gamesOnSlate || 0} games final</div>
+      ${data.status === 'no_final_games' ? '<div style="color:#f39c12;margin-top:8px;">⏳ No final games yet — games haven\'t completed. Try again after games finish.</div>' : ''}
+    </div>`;
+    // Refresh the full tab after grading
+    setTimeout(() => loadPnLTab(), 1000);
+  } catch(e) {
+    el.innerHTML = `<div style="color:#e74c3c;padding:12px;">Error: ${e.message}</div>`;
+  }
+}
+
+async function gradeToday() {
+  const el = document.getElementById('grade-result');
+  const today = new Date().toISOString().split('T')[0];
+  el.innerHTML = '<div class="loading"><div class="spinner"></div><p>Grading today\'s games...</p></div>';
+  try {
+    const res = await fetch(`${API}/api/mlb/grade/daily?date=${today}`);
+    const data = await res.json();
+    if (data.error) {
+      el.innerHTML = `<div style="color:#f39c12;padding:12px;">⚠️ ${data.error}</div>`;
+      return;
+    }
+    const pColor = (data.totalProfit || 0) >= 0 ? '#4ecdc4' : '#e94560';
+    el.innerHTML = `<div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:16px;border-left:4px solid ${pColor};">
+      <div style="font-size:18px;font-weight:700;color:${pColor};">${today}: ${data.record?.wins || 0}W-${data.record?.losses || 0}L-${data.record?.pushes || 0} | $${(data.totalProfit || 0).toFixed(2)} P&L (${data.roi || 0}% ROI)</div>
+      <div style="color:#ccc;margin-top:4px;">${data.graded || 0} bets graded | ${data.gamesFinal || 0}/${data.gamesOnSlate || 0} games final</div>
+    </div>`;
+    setTimeout(() => loadPnLTab(), 1000);
+  } catch(e) {
+    el.innerHTML = `<div style="color:#e74c3c;padding:12px;">Error: ${e.message}</div>`;
+  }
+}
+    el.innerHTML = `<div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:16px;border-left:4px solid ${pColor};">
+      <div style="font-size:18px;font-weight:700;color:${pColor};">${today}: ${data.record?.wins || 0}W-${data.record?.losses || 0}L-${data.record?.pushes || 0} | $${(data.totalProfit || 0).toFixed(2)} P&L (${data.roi || 0}% ROI)</div>
+      <div style="color:#ccc;margin-top:4px;">${data.graded || 0} bets graded | ${data.gamesFinal || 0}/${data.gamesOnSlate || 0} games final</div>
+    </div>`;
+    setTimeout(() => loadPnLTab(), 1000);
+  } catch(e) {
+    el.innerHTML = `<div style="color:#e74c3c;padding:12px;">Error: ${e.message}</div>`;
+  }
+}
+
+// ==================== AUTO-GRADE PIPELINE TAB (v105) ====================
+async function loadAutoGradeTab() {
+  const el = document.getElementById('content');
+  el.innerHTML = '<div style="padding:20px;color:#ccc;">Loading auto-grade pipeline...</div>';
+  
+  try {
+    const [statusRes, reportRes] = await Promise.all([
+      fetch('/api/auto-grade/status').then(r => r.json()).catch(() => null),
+      fetch('/api/auto-grade/report').then(r => r.json()).catch(() => null),
+    ]);
+    
+    let html = '<div style="padding:0 8px;">';
+    
+    // Pipeline status header
+    const status = statusRes || {};
+    const phaseColors = {
+      'idle': '#6b7280', 'pre-game': '#eab308', 'closing-capture': '#f97316',
+      'live': '#22c55e', 'post-game-wait': '#8b5cf6', 'grading': '#3b82f6', 'complete': '#10b981',
+    };
+    const phaseColor = phaseColors[status.phase] || '#6b7280';
+    
+    html += `<div class="card" style="border-left:4px solid ${phaseColor}">`;
+    html += `<h2>🎯 Auto-Grade Pipeline</h2>`;
+    html += `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0">`;
+    html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">`;
+    html += `<div style="font-size:12px;color:var(--text3)">Phase</div>`;
+    html += `<div style="font-size:20px;font-weight:700;color:${phaseColor}">${(status.phase || 'idle').toUpperCase()}</div>`;
+    html += `</div>`;
+    html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">`;
+    html += `<div style="font-size:12px;color:var(--text3)">Games</div>`;
+    html += `<div style="font-size:20px;font-weight:700;color:var(--text1)">${status.gamesComplete || 0}/${status.gamesTotal || 0}</div>`;
+    html += `<div style="font-size:11px;color:var(--text3)">${status.gamesInProgress || 0} in progress</div>`;
+    html += `</div>`;
+    html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">`;
+    html += `<div style="font-size:12px;color:var(--text3)">Closing Lines</div>`;
+    html += `<div style="font-size:20px;font-weight:700;color:#f59e0b">${status.closingLinesCaptures || 0}</div>`;
+    html += `</div>`;
+    html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;flex:1;min-width:120px;text-align:center">`;
+    html += `<div style="font-size:12px;color:var(--text3)">Date</div>`;
+    html += `<div style="font-size:16px;font-weight:700;color:var(--text1)">${status.targetDate || 'N/A'}</div>`;
+    html += `</div>`;
+    html += `</div>`;
+    
+    // Controls
+    html += `<div style="display:flex;gap:8px;margin:12px 0">`;
+    html += `<button onclick="startAutoGrade()" style="background:#22c55e;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600">▶ Start Pipeline</button>`;
+    html += `<button onclick="forceAutoGrade()" style="background:#3b82f6;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600">⚡ Force Grade Now</button>`;
+    html += `<button onclick="captureClosingNow()" style="background:#f59e0b;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600">📊 Capture Closing Lines</button>`;
+    html += `<button onclick="stopAutoGrade()" style="background:#ef4444;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600">⏹ Stop</button>`;
+    html += `</div>`;
+    html += `</div>`;
+    
+    // Report section
+    const report = reportRes || {};
+    if (report.summary) {
+      const s = report.summary;
+      const pnlColor = s.pnl >= 0 ? '#22c55e' : '#ef4444';
+      
+      html += `<div class="card" style="border-left:4px solid ${pnlColor}">`;
+      html += `<h2>💰 Grading Results — ${report.date || 'N/A'}</h2>`;
+      html += `<div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0">`;
+      
+      html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:16px;flex:1;min-width:140px;text-align:center">`;
+      html += `<div style="font-size:32px;font-weight:900;color:${pnlColor}">$${s.pnl}</div>`;
+      html += `<div style="font-size:12px;color:var(--text3)">P&L</div>`;
+      html += `</div>`;
+      
+      html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:16px;flex:1;min-width:140px;text-align:center">`;
+      html += `<div style="font-size:32px;font-weight:900;color:var(--text1)">${s.wins}W-${s.losses}L</div>`;
+      html += `<div style="font-size:12px;color:var(--text3)">${s.pushes} pushes | ${s.winRate}% win rate</div>`;
+      html += `</div>`;
+      
+      html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:16px;flex:1;min-width:140px;text-align:center">`;
+      html += `<div style="font-size:32px;font-weight:900;color:${s.roi >= 0 ? '#22c55e' : '#ef4444'}">${s.roi}%</div>`;
+      html += `<div style="font-size:12px;color:var(--text3)">ROI on $${s.totalStaked} wagered</div>`;
+      html += `</div>`;
+      
+      html += `</div>`;
+      
+      // Market breakdown
+      if (s.byMarket && Object.keys(s.byMarket).length > 0) {
+        html += `<h3 style="margin-top:16px;color:var(--text2)">📊 By Market</h3>`;
+        html += `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px">`;
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.1)">`;
+        html += `<th style="text-align:left;padding:8px;color:var(--text3)">Market</th>`;
+        html += `<th style="text-align:center;padding:8px;color:var(--text3)">Bets</th>`;
+        html += `<th style="text-align:center;padding:8px;color:var(--text3)">W-L</th>`;
+        html += `<th style="text-align:center;padding:8px;color:var(--text3)">Win%</th>`;
+        html += `<th style="text-align:right;padding:8px;color:var(--text3)">P&L</th>`;
+        html += `<th style="text-align:right;padding:8px;color:var(--text3)">ROI</th>`;
+        html += `</tr>`;
+        
+        for (const [market, m] of Object.entries(s.byMarket)) {
+          const mColor = m.pnl >= 0 ? '#22c55e' : '#ef4444';
+          html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">`;
+          html += `<td style="padding:8px;font-weight:600">${market}</td>`;
+          html += `<td style="padding:8px;text-align:center">${m.total}</td>`;
+          html += `<td style="padding:8px;text-align:center">${m.wins}-${m.losses}</td>`;
+          html += `<td style="padding:8px;text-align:center;color:${m.winRate > 52 ? '#22c55e' : '#f59e0b'}">${m.winRate}%</td>`;
+          html += `<td style="padding:8px;text-align:right;color:${mColor};font-weight:700">$${m.pnl}</td>`;
+          html += `<td style="padding:8px;text-align:right;color:${mColor}">${m.roi}%</td>`;
+          html += `</tr>`;
+        }
+        html += `</table></div>`;
+      }
+      
+      html += `</div>`;
+    } else {
+      html += `<div class="card"><h2>📋 No Grading Report Yet</h2>`;
+      html += `<p style="color:var(--text3)">Pipeline will auto-grade after all games complete. Use "Force Grade Now" to grade manually.</p>`;
+      html += `</div>`;
+    }
+    
+    // Game statuses
+    const gameStatuses = report.gameStatuses || {};
+    if (Object.keys(gameStatuses).length > 0) {
+      html += `<div class="card"><h2>🏟️ Game Statuses</h2>`;
+      html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:12px">`;
+      
+      for (const [key, g] of Object.entries(gameStatuses)) {
+        const statusColor = g.isFinal ? '#22c55e' : g.isLive ? '#f59e0b' : '#6b7280';
+        const statusText = g.isFinal ? 'FINAL' : g.isLive ? `LIVE ${g.inningDetail}` : 'PENDING';
+        html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;border-left:3px solid ${statusColor}">`;
+        html += `<div style="font-size:14px;font-weight:700">${g.awayTeam} ${g.awayScore || 0} @ ${g.homeTeam} ${g.homeScore || 0}</div>`;
+        html += `<div style="font-size:11px;color:${statusColor};margin-top:4px">${statusText}</div>`;
+        html += `</div>`;
+      }
+      
+      html += `</div></div>`;
+    }
+    
+    // CLV section
+    if (report.sections?.clv?.report) {
+      const clv = report.sections.clv.report;
+      html += `<div class="card"><h2>📈 CLV Analysis</h2>`;
+      html += `<p style="color:var(--text2);font-size:13px;margin:8px 0">${clv.insight || 'Awaiting data...'}</p>`;
+      if (clv.summary) {
+        const avgColor = clv.summary.avgCLV > 0 ? '#22c55e' : clv.summary.avgCLV < 0 ? '#ef4444' : '#f59e0b';
+        html += `<div style="display:flex;gap:12px;flex-wrap:wrap">`;
+        html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;text-align:center">`;
+        html += `<div style="font-size:24px;font-weight:900;color:${avgColor}">${clv.summary.avgCLV > 0 ? '+' : ''}${clv.summary.avgCLV}</div>`;
+        html += `<div style="font-size:11px;color:var(--text3)">Avg CLV</div></div>`;
+        html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;text-align:center">`;
+        html += `<div style="font-size:24px;font-weight:900;color:var(--text1)">${clv.summary.posRate}%</div>`;
+        html += `<div style="font-size:11px;color:var(--text3)">Beat Rate</div></div>`;
+        html += `<div style="background:rgba(0,0,0,0.3);border-radius:8px;padding:12px;text-align:center">`;
+        html += `<div style="font-size:24px;font-weight:900;color:var(--text1)">${clv.summary.total}</div>`;
+        html += `<div style="font-size:11px;color:var(--text3)">Picks Tracked</div></div>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    
+    // Errors
+    if (status.recentErrors && status.recentErrors.length > 0) {
+      html += `<div class="card"><h2>⚠️ Recent Errors</h2>`;
+      for (const err of status.recentErrors) {
+        html += `<div style="background:rgba(239,68,68,0.1);border-radius:6px;padding:8px;margin:4px 0;font-size:12px">`;
+        html += `<span style="color:var(--text3)">${err.time}</span> <span style="color:#ef4444">${err.error}</span>`;
+        html += `</div>`;
+      }
+      html += `</div>`;
+    }
+    
+    html += '</div>';
+    el.innerHTML = html;
+    
+  } catch(e) {
+    el.innerHTML = `<div style="color:#e74c3c;padding:12px;">Error loading auto-grade tab: ${e.message}</div>`;
+  }
+}
+
+async function startAutoGrade() {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const isOD = today === '2026-03-26' || today === '2026-03-27';
+    const res = await fetch('/api/auto-grade/start', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ date: today, isOD, odDay: today === '2026-03-26' ? 1 : (today === '2026-03-27' ? 2 : null) }),
+    }).then(r => r.json());
+    alert(`Pipeline started: ${JSON.stringify(res)}`);
+    loadAutoGradeTab();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function forceAutoGrade() {
+  try {
+    const date = prompt('Grade date (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+    if (!date) return;
+    const res = await fetch('/api/auto-grade/force', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ date }),
+    }).then(r => r.json());
+    alert(`Grading complete: ${res.summary?.totalBets || 0} bets, $${res.summary?.pnl || 0} P&L`);
+    loadAutoGradeTab();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function captureClosingNow() {
+  try {
+    const res = await fetch('/api/auto-grade/closing-lines', { method: 'POST' }).then(r => r.json());
+    alert(`Closing lines captured: ML ${res.ml?.captured || 0} games, Props ${res.props?.captured || 0}`);
+    loadAutoGradeTab();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function stopAutoGrade() {
+  try {
+    await fetch('/api/auto-grade/stop', { method: 'POST' }).then(r => r.json());
+    alert('Pipeline stopped');
+    loadAutoGradeTab();
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
 </script>

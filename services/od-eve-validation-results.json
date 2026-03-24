@@ -1,0 +1,279 @@
+{
+  "timestamp": "2026-03-24T04:49:16.357Z",
+  "countdown": {
+    "odDay1": "2026-03-26T17:15:00.000Z",
+    "odDay2": "2026-03-27T23:07:00.000Z",
+    "hoursUntilFirstPitch": 60,
+    "display": "2d 12h until first pitch",
+    "isGameDay": false,
+    "isEve": false
+  },
+  "overallStatus": "GO",
+  "checks": {
+    "predictions": {
+      "name": "OD Predictions",
+      "status": "PASS",
+      "details": [
+        "Schedule: 19 games",
+        "Predictions: 19/19 PASS, 0 FAIL"
+      ],
+      "errors": []
+    },
+    "pitcherDB": {
+      "name": "Pitcher Database",
+      "status": "PASS",
+      "details": [
+        "Found: 38 starters in DB",
+        "✅ All 38 OD starters confirmed in pitcher database"
+      ],
+      "errors": []
+    },
+    "weather": {
+      "name": "Weather Forecasts",
+      "status": "PASS",
+      "details": [
+        "Weather data: 13/13 outdoor parks"
+      ],
+      "alerts": [
+        "💨 Wrigley: Wind OUT 16 mph SSW — OVER signal"
+      ],
+      "forecasts": [
+        {
+          "team": "NYM",
+          "park": "Citi Field",
+          "city": "New York",
+          "temp": "57°F",
+          "wind": "14 mph",
+          "precip": "5%",
+          "retractable": false
+        },
+        {
+          "team": "MIL",
+          "park": "American Family Field",
+          "city": "Milwaukee",
+          "temp": "73°F",
+          "wind": "10 mph",
+          "precip": "13%",
+          "retractable": true
+        },
+        {
+          "team": "CHC",
+          "park": "Wrigley Field",
+          "city": "Chicago",
+          "temp": "71°F",
+          "wind": "16 mph",
+          "precip": "9%",
+          "retractable": false
+        },
+        {
+          "team": "BAL",
+          "park": "Camden Yards",
+          "city": "Baltimore",
+          "temp": "72°F",
+          "wind": "13 mph",
+          "precip": "4%",
+          "retractable": false
+        },
+        {
+          "team": "CIN",
+          "park": "Great American Ball Park",
+          "city": "Cincinnati",
+          "temp": "72°F",
+          "wind": "13 mph",
+          "precip": "12%",
+          "retractable": false
+        },
+        {
+          "team": "STL",
+          "park": "Busch Stadium",
+          "city": "St. Louis",
+          "temp": "88°F",
+          "wind": "15 mph",
+          "precip": "11%",
+          "retractable": false
+        },
+        {
+          "team": "PHI",
+          "park": "Citizens Bank Park",
+          "city": "Philadelphia",
+          "temp": "69°F",
+          "wind": "15 mph",
+          "precip": "3%",
+          "retractable": false
+        },
+        {
+          "team": "LAD",
+          "park": "Dodger Stadium",
+          "city": "Los Angeles",
+          "temp": "84°F",
+          "wind": "10 mph",
+          "precip": "N/A",
+          "retractable": false
+        },
+        {
+          "team": "SEA",
+          "park": "T-Mobile Park",
+          "city": "Seattle",
+          "temp": "52°F",
+          "wind": "4 mph",
+          "precip": "9%",
+          "retractable": true
+        },
+        {
+          "team": "SF",
+          "park": "Oracle Park",
+          "city": "San Francisco",
+          "temp": "64°F",
+          "wind": "6 mph",
+          "precip": "N/A",
+          "retractable": false
+        },
+        {
+          "team": "ATL",
+          "park": "Truist Park",
+          "city": "Atlanta",
+          "temp": "75°F",
+          "wind": "11 mph",
+          "precip": "2%",
+          "retractable": false
+        },
+        {
+          "team": "SD",
+          "park": "Petco Park",
+          "city": "San Diego",
+          "temp": "74°F",
+          "wind": "4 mph",
+          "precip": "N/A",
+          "retractable": false
+        },
+        {
+          "team": "CLE",
+          "park": "Progressive Field",
+          "city": "Cleveland",
+          "temp": "59°F",
+          "wind": "18 mph",
+          "precip": "50%",
+          "retractable": false
+        }
+      ]
+    },
+    "bettingCard": {
+      "name": "OD Betting Card",
+      "status": "WARN",
+      "details": [
+        "No cached playbook — will build on first request"
+      ],
+      "errors": []
+    },
+    "propModels": {
+      "name": "Prop Models",
+      "status": "PASS",
+      "details": [
+        "✅ K Props: loaded",
+        "✅ Outs Props: loaded",
+        "✅ NRFI: loaded",
+        "✅ F3 Model: loaded",
+        "✅ F7 Model: loaded",
+        "✅ Platoon Splits: loaded",
+        "✅ Catcher Framing: loaded",
+        "✅ Bullpen Quality: loaded",
+        "✅ Stolen Base Model: loaded"
+      ],
+      "errors": []
+    },
+    "sgpBuilder": {
+      "name": "SGP Builder",
+      "status": "PASS",
+      "details": [
+        "✅ SGP builder loaded"
+      ]
+    },
+    "orchestrator": {
+      "name": "Gameday Orchestrator",
+      "status": "PASS",
+      "details": [
+        "✅ Orchestrator loaded"
+      ]
+    },
+    "lineupPipeline": {
+      "name": "Lineup Verification",
+      "status": "PASS",
+      "details": [
+        "✅ Lineup verify module loaded",
+        "Manual overrides: 0 games"
+      ]
+    },
+    "resultsGrader": {
+      "name": "Results Grader",
+      "status": "PASS",
+      "details": [
+        "✅ MLB Results Grader loaded — ready for post-game grading"
+      ]
+    },
+    "espnSchedule": {
+      "name": "ESPN Schedule Sync",
+      "status": "PASS",
+      "details": [
+        "ESPN Day 1: 11 games",
+        "ESPN Day 2: 8 games",
+        "ESPN confirmed pitchers: 0/11 Day 1 games"
+      ],
+      "mismatches": []
+    },
+    "dataFreshness": {
+      "name": "Data Freshness",
+      "status": "PASS",
+      "details": [
+        "NBA: 30 teams, 87min ago",
+        "NHL: 32 teams, 87min ago",
+        "MLB: 30 teams, 87min ago",
+        "Statcast: 853 pitchers, 651 batters"
+      ],
+      "staleData": []
+    },
+    "diskCache": {
+      "name": "Disk Cache",
+      "status": "WARN",
+      "details": [
+        "No disk cache — first deploy will need warm-up time"
+      ]
+    }
+  },
+  "weatherAlerts": [
+    "💨 Wrigley: Wind OUT 16 mph SSW — OVER signal"
+  ],
+  "actionItems": [
+    {
+      "priority": "P2",
+      "action": "💾 Rebuild playbook disk cache for instant OD responses"
+    },
+    {
+      "priority": "P2",
+      "action": "⏳ ESPN pitchers not confirmed yet — will be posted ~24h before games. Re-run validation on March 25 evening."
+    },
+    {
+      "priority": "INFO",
+      "action": "📋 March 25 PM: Re-run this validation after ESPN posts probables"
+    },
+    {
+      "priority": "INFO",
+      "action": "📋 March 26 AM: Verify gameday orchestrator auto-starts"
+    },
+    {
+      "priority": "INFO",
+      "action": "📋 March 26 T-3h: Check lineup drops flowing into model"
+    },
+    {
+      "priority": "INFO",
+      "action": "📋 March 26 Post-game: Hit /api/mlb/results/grade/od/1 to grade Day 1 bets"
+    }
+  ],
+  "summary": {
+    "totalChecks": 12,
+    "pass": 10,
+    "warn": 2,
+    "fail": 0,
+    "duration": "8412ms",
+    "verdict": "🟢 ALL SYSTEMS GO — Ready to print money on Opening Day"
+  }
+}

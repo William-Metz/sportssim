@@ -185,6 +185,18 @@ async function checkGameDay() {
     if (!lineupPollTimer) {
       startPreGamePolling();
     }
+    // Start auto-grade pipeline when live
+    try {
+      const autoGrade = require('./auto-grade-pipeline');
+      const today = new Date().toISOString().split('T')[0];
+      const isOD1 = today === OD_DAY1_DATE;
+      const isOD2 = today === OD_DAY2_DATE;
+      autoGrade.startPipeline(today, {
+        isOD: isOD1 || isOD2,
+        odDay: isOD1 ? 1 : (isOD2 ? 2 : null),
+        oddsApiKey: process.env.ODDS_API_KEY || '',
+      });
+    } catch (e) { /* auto-grade not available */ }
   }
   
   saveState();

@@ -1,0 +1,271 @@
+{
+  "espnId": "401833325",
+  "isFinal": true,
+  "home": {
+    "abbr": "PHI",
+    "score": 0
+  },
+  "away": {
+    "abbr": "TB",
+    "score": 7
+  },
+  "totalRuns": 7,
+  "margin": -7,
+  "linescore": {
+    "away": [
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 4
+      },
+      {
+        "runs": 1
+      },
+      {
+        "runs": 2
+      },
+      {
+        "runs": 0
+      }
+    ],
+    "home": [
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      },
+      {
+        "runs": 0
+      }
+    ]
+  },
+  "periods": {
+    "f1": {
+      "away": 0,
+      "home": 0,
+      "total": 0,
+      "nrfi": true
+    },
+    "f3": {
+      "away": 0,
+      "home": 0,
+      "total": 0
+    },
+    "f5": {
+      "away": 0,
+      "home": 0,
+      "total": 0,
+      "f5Winner": "tie"
+    },
+    "f7": {
+      "away": 5,
+      "home": 0,
+      "total": 5
+    }
+  },
+  "pitchers": [
+    {
+      "name": "Steven Matz",
+      "team": "TB",
+      "athleteId": "33106",
+      "isStarter": true,
+      "ip": 5,
+      "strikeouts": 4,
+      "hitsAllowed": 4,
+      "walks": 1,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 15
+    },
+    {
+      "name": "Bryan Baker",
+      "team": "TB",
+      "athleteId": "40884",
+      "isStarter": false,
+      "ip": 1,
+      "strikeouts": 1,
+      "hitsAllowed": 1,
+      "walks": 0,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 3
+    },
+    {
+      "name": "Yoendrys Gomez",
+      "team": "TB",
+      "athleteId": "42898",
+      "isStarter": false,
+      "ip": 1,
+      "strikeouts": 2,
+      "hitsAllowed": 0,
+      "walks": 0,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 3
+    },
+    {
+      "name": "Hunter Bigge",
+      "team": "TB",
+      "athleteId": "4987389",
+      "isStarter": false,
+      "ip": 0.2,
+      "strikeouts": 2,
+      "hitsAllowed": 0,
+      "walks": 1,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 2
+    },
+    {
+      "name": "Noah Beal",
+      "team": "TB",
+      "athleteId": "5339670",
+      "isStarter": false,
+      "ip": 1.1,
+      "strikeouts": 2,
+      "hitsAllowed": 0,
+      "walks": 1,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 4
+    },
+    {
+      "name": "Jesus Luzardo",
+      "team": "PHI",
+      "athleteId": "39667",
+      "isStarter": true,
+      "ip": 5,
+      "strikeouts": 6,
+      "hitsAllowed": 7,
+      "walks": 2,
+      "earnedRuns": 2,
+      "runsAllowed": 2,
+      "homeRunsAllowed": 1,
+      "outsRecorded": 15
+    },
+    {
+      "name": "Jonathan Bowlan",
+      "team": "PHI",
+      "athleteId": "41344",
+      "isStarter": false,
+      "ip": 1,
+      "strikeouts": 1,
+      "hitsAllowed": 2,
+      "walks": 1,
+      "earnedRuns": 2,
+      "runsAllowed": 2,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 3
+    },
+    {
+      "name": "Jose Alvarado",
+      "team": "PHI",
+      "athleteId": "36063",
+      "isStarter": false,
+      "ip": 1,
+      "strikeouts": 0,
+      "hitsAllowed": 1,
+      "walks": 1,
+      "earnedRuns": 1,
+      "runsAllowed": 1,
+      "homeRunsAllowed": 1,
+      "outsRecorded": 3
+    },
+    {
+      "name": "Brad Keller",
+      "team": "PHI",
+      "athleteId": "35292",
+      "isStarter": false,
+      "ip": 1,
+      "strikeouts": 0,
+      "hitsAllowed": 1,
+      "walks": 2,
+      "earnedRuns": 2,
+      "runsAllowed": 2,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 3
+    },
+    {
+      "name": "Jhoan Duran",
+      "team": "PHI",
+      "athleteId": "41109",
+      "isStarter": false,
+      "ip": 1,
+      "strikeouts": 1,
+      "hitsAllowed": 0,
+      "walks": 1,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 3
+    }
+  ],
+  "starters": [
+    {
+      "name": "Steven Matz",
+      "team": "TB",
+      "athleteId": "33106",
+      "isStarter": true,
+      "ip": 5,
+      "strikeouts": 4,
+      "hitsAllowed": 4,
+      "walks": 1,
+      "earnedRuns": 0,
+      "runsAllowed": 0,
+      "homeRunsAllowed": 0,
+      "outsRecorded": 15
+    },
+    {
+      "name": "Jesus Luzardo",
+      "team": "PHI",
+      "athleteId": "39667",
+      "isStarter": true,
+      "ip": 5,
+      "strikeouts": 6,
+      "hitsAllowed": 7,
+      "walks": 2,
+      "earnedRuns": 2,
+      "runsAllowed": 2,
+      "homeRunsAllowed": 1,
+      "outsRecorded": 15
+    }
+  ],
+  "fetchedAt": "2026-03-24T03:30:00.205Z"
+}

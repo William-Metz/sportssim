@@ -396,9 +396,11 @@ async function main() {
   
   test('fly.toml has 512MB+ memory', () => {
     const content = fs.readFileSync('./fly.toml', 'utf8');
-    const memMatch = content.match(/memory\s*=\s*['"]*(\d+)/);
+    const memMatch = content.match(/memory\s*=\s*['"]*(\d+)\s*(gb|mb)?/i);
     if (!memMatch) return 'No memory setting found';
-    return parseInt(memMatch[1]) >= 512 ? true : `Only ${memMatch[1]}MB`;
+    let memMB = parseInt(memMatch[1]);
+    if (memMatch[2] && memMatch[2].toLowerCase() === 'gb') memMB *= 1024;
+    return memMB >= 512 ? true : `Only ${memMB}MB`;
   });
   
   test('Dockerfile exists', () => {
