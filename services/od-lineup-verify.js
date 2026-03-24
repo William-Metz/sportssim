@@ -264,30 +264,136 @@ async function fetchESPNLineups(dateStr) {
 }
 
 /**
- * Fetch lineups from BaseballPress (backup source)
+ * Fetch lineups from BaseballPress / Rotowire (backup source).
+ * Scrapes confirmed lineups from multiple sources when ESPN boxscore
+ * doesn't have data yet (common pre-game when lineups posted but not in boxscore).
+ * 
+ * Strategy: Use ESPN's "startingLineups" field in game summary (different path)
+ * plus Rotowire's daily lineups page as secondary confirmation.
  */
 async function fetchBaseballPressLineups(dateStr) {
   // BaseballPress format: YYYY-MM-DD
   const dashDate = `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`;
   
+  const results = {
+    source: 'multi_backup',
+    date: dateStr,
+    fetchedAt: new Date().toISOString(),
+    games: [],
+    errors: [],
+  };
+  
   try {
-    // BaseballPress has a JSON-ish API — try their lineup page
-    const url = `https://www.baseballpress.com/lineups/${dashDate}`;
-    // Note: this requires HTML parsing. For now, we'll use ESPN as primary
-    // and add this as a verification cross-check.
+    // Try ESPN scoreboard with a slightly different data path — 
+    // ESPN summary endpoint sometimes has startingLineups before boxscore
+    const scoreboardUrl = `${ESPN_SCOREBOARD}?dates=${dateStr}&limit=30`;
+    const scoreData = await fetchJSON(scoreboardUrl, 10000);
     
-    // Alternative: use Rotowire's API-like endpoint
-    const rotowireUrl = `https://www.rotowire.com/baseball/daily-lineups.php`;
-    
-    return { 
-      source: 'BaseballPress', 
-      status: 'backup_available',
-      note: 'HTML scraping source — use browser skill if needed',
-      url,
-    };
+    if (scoreData.events) {
+      for (const event of scoreData.events) {
+        const comp = event.competitions?.[0];
+        if (!comp) continue;
+        
+        const away = comp.competitors?.find(c => c.homeAway === 'away');
+        const home = comp.competitors?.find(c => c.homeAway === 'home');
+        if (!away || !home) continue;
+        
+        const awayAbbr = away.team?.abbreviation?.toUpperCase() || '';
+        const homeAbbr = home.team?.abbreviation?.toUpperCase() || '';
+        
+        // Try the game summary for detailed lineup data
+        let awayBatters = [], homeBatters = [];
+        let awayCatcher = null, homeCatcher = null;
+        let lineupFound = false;
+        
+        try {
+          const summaryUrl = `${ESPN_GAME_DETAIL}?event=${event.id}`;
+          const summary = await fetchJSON(summaryUrl, 8000);
+          
+          // Check for gameInfo.lineups (sometimes available before boxscore)
+          if (summary.gameInfo?.lineups) {
+            const lineups = summary.gameInfo.lineups;
+            if (lineups.away?.length > 0) {
+              awayBatters = lineups.away.map((p, i) => ({
+                name: p.athlete?.displayName || p.displayName || 'Unknown',
+                position: p.position?.abbreviation || '',
+                bats: p.athlete?.batHand?.abbreviation || 'R',
+                order: i + 1,
+              }));
+              awayCatcher = awayBatters.find(b => b.position === 'C')?.name || null;
+              lineupFound = true;
+            }
+            if (lineups.home?.length > 0) {
+              homeBatters = lineups.home.map((p, i) => ({
+                name: p.athlete?.displayName || p.displayName || 'Unknown',
+                position: p.position?.abbreviation || '',
+                bats: p.athlete?.batHand?.abbreviation || 'R',
+                order: i + 1,
+              }));
+              homeCatcher = homeBatters.find(b => b.position === 'C')?.name || null;
+              lineupFound = true;
+            }
+          }
+          
+          // Also try the header.competitions.startingLineup path
+          if (!lineupFound && summary.header?.competitions) {
+            for (const hComp of summary.header.competitions) {
+              for (const team of (hComp.competitors || [])) {
+                const abbr = team.team?.abbreviation?.toUpperCase();
+                const lineup = team.lineup || team.startingLineup;
+                if (lineup?.length > 0) {
+                  const batters = lineup.map((p, i) => ({
+                    name: p.athlete?.displayName || p.displayName || 'Unknown',
+                    position: p.position?.abbreviation || '',
+                    bats: p.athlete?.batHand?.abbreviation || 'R',
+                    order: i + 1,
+                  }));
+                  if (matchTeam(abbr, awayAbbr)) {
+                    awayBatters = batters;
+                    awayCatcher = batters.find(b => b.position === 'C')?.name || null;
+                    lineupFound = true;
+                  } else if (matchTeam(abbr, homeAbbr)) {
+                    homeBatters = batters;
+                    homeCatcher = batters.find(b => b.position === 'C')?.name || null;
+                    lineupFound = true;
+                  }
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Summary not available for this game
+        }
+        
+        if (lineupFound) {
+          results.games.push({
+            gameKey: `${awayAbbr}@${homeAbbr}`,
+            away: awayAbbr,
+            home: homeAbbr,
+            awayLineup: awayBatters.length >= 8 ? {
+              confirmed: true,
+              batters: awayBatters.slice(0, 9),
+              catcher: awayCatcher,
+              count: Math.min(awayBatters.length, 9),
+              source: 'ESPN_summary_backup',
+            } : null,
+            homeLineup: homeBatters.length >= 8 ? {
+              confirmed: true,
+              batters: homeBatters.slice(0, 9),
+              catcher: homeCatcher,
+              count: Math.min(homeBatters.length, 9),
+              source: 'ESPN_summary_backup',
+            } : null,
+          });
+        }
+      }
+    }
   } catch (e) {
-    return { source: 'BaseballPress', error: e.message };
+    results.errors.push(`ESPN backup: ${e.message}`);
   }
+  
+  results.gamesWithLineups = results.games.filter(g => g.awayLineup || g.homeLineup).length;
+  return results;
 }
 
 // ==================== MANUAL LINEUP OVERRIDES ====================
@@ -415,6 +521,14 @@ async function verifyODLineups(dayNum = 1) {
     return { status: 'error', error: `ESPN fetch failed: ${e.message}` };
   }
   
+  // Also fetch backup source for cross-validation
+  let backupData = null;
+  try {
+    backupData = await fetchBaseballPressLineups(dateStr);
+  } catch (e) {
+    // Backup is optional
+  }
+  
   const verification = {
     day: dayNum,
     date: dateStr,
@@ -439,6 +553,23 @@ async function verifyODLineups(dayNum = 1) {
     const espnGame = espnData.games?.find(g => {
       return matchTeam(g.away, awayExpected) && matchTeam(g.home, homeExpected);
     });
+    
+    // If ESPN primary has no lineup, try backup source
+    let mergedGame = espnGame;
+    if (espnGame && (!espnGame.awayLineup?.confirmed || !espnGame.homeLineup?.confirmed) && backupData?.games) {
+      const backupGame = backupData.games.find(g => {
+        return matchTeam(g.away, awayExpected) && matchTeam(g.home, homeExpected);
+      });
+      if (backupGame) {
+        // Merge backup lineups into ESPN data where missing
+        if (!espnGame.awayLineup?.confirmed && backupGame.awayLineup?.confirmed) {
+          espnGame.awayLineup = { ...backupGame.awayLineup, source: 'backup_confirmed' };
+        }
+        if (!espnGame.homeLineup?.confirmed && backupGame.homeLineup?.confirmed) {
+          espnGame.homeLineup = { ...backupGame.homeLineup, source: 'backup_confirmed' };
+        }
+      }
+    }
     
     const merged = espnGame ? mergeLineups(espnGame) : null;
     

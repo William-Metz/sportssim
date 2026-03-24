@@ -188,6 +188,7 @@ function processGame(game, liveOdds, nameMap, minEdge, bankroll, kellyFraction, 
       const predictOpts = {
         awayPitcher: game.awayStarter?.name,
         homePitcher: game.homeStarter?.name,
+        gameDate: game.date || '2026-03-26', // CRITICAL: pass actual game date so OW unders apply
       };
       
       // Inject pre-fetched weather

@@ -517,6 +517,9 @@ async function getLineupAdjustments(awayAbbr, homeAbbr, dateStr = null) {
   const lineups = await fetchLineups(dateStr);
   
   if (!lineups || !lineups.games) {
+    // Even with no ESPN data, check for manual overrides
+    const overrideResult = applyOverrides(null, awayAbbr, homeAbbr);
+    if (overrideResult) return overrideResult;
     return { awayRunAdj: 0, homeRunAdj: 0, hasData: false };
   }
   
@@ -524,6 +527,10 @@ async function getLineupAdjustments(awayAbbr, homeAbbr, dateStr = null) {
   const game = lineups.games.find(g => 
     g.awayTeam === awayAbbr && g.homeTeam === homeAbbr
   );
+  
+  // Check for manual overrides (from od-lineup-verify.js override system)
+  const overrideResult = applyOverrides(game, awayAbbr, homeAbbr);
+  if (overrideResult) return overrideResult;
   
   if (!game) {
     return { awayRunAdj: 0, homeRunAdj: 0, hasData: false };
@@ -556,6 +563,130 @@ async function getLineupAdjustments(awayAbbr, homeAbbr, dateStr = null) {
   };
 }
 
+// ==================== OVERRIDE INTEGRATION ====================
+// Reads lineup overrides from od-lineup-verify.js override file.
+// This is the CRITICAL bridge between the manual override system
+// and the prediction pipeline. Without this, game-day overrides
+// would not flow into asyncPredict() → predict().
+
+const OVERRIDE_FILE_PATH = path.join(__dirname, 'lineup-overrides.json');
+
+function loadLineupOverrides() {
+  try {
+    if (fs.existsSync(OVERRIDE_FILE_PATH)) {
+      return JSON.parse(fs.readFileSync(OVERRIDE_FILE_PATH, 'utf8'));
+    }
+  } catch (e) { /* no overrides */ }
+  return {};
+}
+
+/**
+ * Apply manual lineup overrides to a game's prediction adjustments.
+ * Returns a full adjustment result if overrides exist, or null to fall through.
+ * 
+ * Override format (from od-lineup-verify.js):
+ * { "DET@SD": { "away": { confirmed: true, batters: [...], catcher: "..." }, "home": {...} } }
+ */
+function applyOverrides(game, awayAbbr, homeAbbr) {
+  const overrides = loadLineupOverrides();
+  if (!overrides || Object.keys(overrides).length === 0) return null;
+  
+  // Try multiple key formats
+  const keys = [
+    `${awayAbbr}@${homeAbbr}`,
+    `${awayAbbr}@${homeAbbr}`.toUpperCase(),
+  ];
+  
+  let override = null;
+  for (const key of keys) {
+    if (overrides[key]) { override = overrides[key]; break; }
+  }
+  
+  if (!override) return null;
+  
+  const hasAwayOverride = !!(override.away?.confirmed);
+  const hasHomeOverride = !!(override.home?.confirmed);
+  
+  if (!hasAwayOverride && !hasHomeOverride) return null;
+  
+  console.log(`[Lineups] 🔄 Applying manual overrides for ${awayAbbr}@${homeAbbr} (away: ${hasAwayOverride ? 'YES' : 'no'}, home: ${hasHomeOverride ? 'YES' : 'no'})`);
+  
+  // Build lineup objects from override data, calculate adjustments
+  const awayLineupData = hasAwayOverride ? buildLineupFromOverride(override.away, awayAbbr) : 
+                          (game?.awayLineup || null);
+  const homeLineupData = hasHomeOverride ? buildLineupFromOverride(override.home, homeAbbr) :
+                          (game?.homeLineup || null);
+  
+  // Calculate adjustments using existing functions
+  const awayAdj = calculateLineupAdjustment(awayLineupData, awayAbbr, null);
+  const homeAdj = calculateLineupAdjustment(homeLineupData, homeAbbr, null);
+  const awayCatcherFrame = getCatcherFramingImpact(awayLineupData);
+  const homeCatcherFrame = getCatcherFramingImpact(homeLineupData);
+  
+  const awayRunAdj = (awayAdj?.runAdjustment || 0) + (homeCatcherFrame?.runsPerGame || 0);
+  const homeRunAdj = (homeAdj?.runAdjustment || 0) + (awayCatcherFrame?.runsPerGame || 0);
+  
+  return {
+    awayRunAdj: +awayRunAdj.toFixed(3),
+    homeRunAdj: +homeRunAdj.toFixed(3),
+    hasData: true,
+    source: 'manual_override',
+    awayLineup: awayLineupData ? {
+      confirmed: true,
+      source: hasAwayOverride ? 'manual_override' : 'ESPN',
+      battingOrder: (awayLineupData.batters || []).map(b => ({
+        name: b.name, position: b.position, bats: b.bats, order: b.order,
+        isStar: !!STAR_PLAYERS[b.name], impact: STAR_PLAYERS[b.name]?.impact || 0,
+      })),
+      catcher: awayLineupData.catcher,
+      starsInLineup: (awayLineupData.batters || []).filter(b => STAR_PLAYERS[b.name]).length,
+      adjustment: awayAdj,
+      catcherFraming: awayCatcherFrame,
+    } : null,
+    homeLineup: homeLineupData ? {
+      confirmed: true,
+      source: hasHomeOverride ? 'manual_override' : 'ESPN',
+      battingOrder: (homeLineupData.batters || []).map(b => ({
+        name: b.name, position: b.position, bats: b.bats, order: b.order,
+        isStar: !!STAR_PLAYERS[b.name], impact: STAR_PLAYERS[b.name]?.impact || 0,
+      })),
+      catcher: homeLineupData.catcher,
+      starsInLineup: (homeLineupData.batters || []).filter(b => STAR_PLAYERS[b.name]).length,
+      adjustment: homeAdj,
+      catcherFraming: homeCatcherFrame,
+    } : null,
+    details: {
+      awayStars: (awayLineupData?.batters || []).filter(b => STAR_PLAYERS[b.name]).length,
+      homeStars: (homeLineupData?.batters || []).filter(b => STAR_PLAYERS[b.name]).length,
+      awayCatcher: awayCatcherFrame || null,
+      homeCatcher: homeCatcherFrame || null,
+      overrideApplied: { away: hasAwayOverride, home: hasHomeOverride },
+    },
+  };
+}
+
+/**
+ * Build a lineup data structure from an override entry.
+ */
+function buildLineupFromOverride(overrideData, teamAbbr) {
+  if (!overrideData || !overrideData.batters) return null;
+  
+  return {
+    confirmed: true,
+    batters: overrideData.batters.map((b, i) => ({
+      name: b.name,
+      position: b.position || '',
+      bats: b.bats || 'R',
+      order: b.order || i + 1,
+    })),
+    catcher: overrideData.catcher ? { 
+      name: overrideData.catcher, 
+      framingData: CATCHER_FRAMING[overrideData.catcher] || null 
+    } : null,
+    teamAbbr,
+  };
+}
+
 // ==================== CACHE ====================
 
 function loadCache() {
@@ -577,14 +708,18 @@ function saveCache(data) {
 
 function getStatus() {
   const cache = loadCache();
+  const overrides = loadLineupOverrides();
   return {
     service: 'lineup-fetcher',
-    version: '1.0',
+    version: '2.0',
     cacheFile: CACHE_FILE,
     cacheFresh: cache ? (Date.now() - (cache.timestamp || 0)) < CACHE_TTL : false,
     lastFetch: cache?.data?.fetchedAt || null,
     starPlayersTracked: Object.keys(STAR_PLAYERS).length,
     catchersTracked: Object.keys(CATCHER_FRAMING).length,
+    overridesActive: Object.keys(overrides).length,
+    overrideGames: Object.keys(overrides),
+    note: 'v2.0: Manual overrides from od-lineup-verify now flow into asyncPredict predictions',
   };
 }
 
@@ -594,6 +729,9 @@ module.exports = {
   calculateLineupAdjustment,
   getCatcherFramingImpact,
   getCatcherFramingAdjustment,
+  applyOverrides,
+  loadLineupOverrides,
+  buildLineupFromOverride,
   getStatus,
   STAR_PLAYERS,
   CATCHER_FRAMING,
