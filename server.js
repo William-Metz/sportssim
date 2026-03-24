@@ -155,6 +155,8 @@ let autoGradePipeline = null;
 try { autoGradePipeline = require('./services/auto-grade-pipeline'); } catch (e) { console.error('[server] Auto-Grade Pipeline not loaded:', e.message); }
 let odLiveOdds = null;
 try { odLiveOdds = require('./services/od-live-odds'); } catch (e) { console.error('[server] OD Live Odds not loaded:', e.message); }
+let odOddsMonitor = null;
+try { odOddsMonitor = require('./services/od-odds-monitor'); } catch (e) { console.error('[server] OD Odds Monitor not loaded:', e.message); }
 // odWarRoom re-assigned to sync version (original async version loaded at line 115)
 try { odWarRoom = require('./services/od-war-room-sync'); } catch (e) { /* keep original war room */ }
 let odFinalValidator = null;
@@ -232,7 +234,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '111.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102','mlb-results-grader-v103','detailed-boxscore-grading','f5-f3-f7-grading','k-prop-grading','nrfi-grading','outs-prop-grading','season-pnl-tracker','market-breakdown-analytics','od-eve-validation-v104','live-weather-48h-pull','postponement-risk-assessment','comprehensive-go-nogo-check','espn-schedule-cross-validation','auto-grade-pipeline-v105','closing-line-capture','game-status-monitor','post-game-auto-grading','clv-measurement-pipeline','comprehensive-pnl-dashboard','od-d2-live-validation-v106','espn-pitcher-cross-validation','live-weather-48h-all-venues','postponement-risk-v2','lineup-override-prediction-bridge-v107','od-gameday-auto-lineup-verify','backup-lineup-source-upgrade','mlb-stats-api-lineups-v108','multi-source-lineup-bridge','lineup-source-comparison','gameday-lineup-verification','morning-briefing-v109','cross-sport-daily-portfolio','unified-edge-detection','daily-pnl-integration','gameday-lineup-pipeline-v110','mlb-stats-primary-lineup-source','auto-prediction-rebuild-on-lineup','lineup-readiness-dashboard','multi-source-lineup-monitor','regular-season-autoboot-v111','autopilot-lineup-bridge-integration','auto-grade-yesterday-on-boot','mlb-stats-schedule-fallback'] });
+  res.json({ status: 'ok', version: '112.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102','mlb-results-grader-v103','detailed-boxscore-grading','f5-f3-f7-grading','k-prop-grading','nrfi-grading','outs-prop-grading','season-pnl-tracker','market-breakdown-analytics','od-eve-validation-v104','live-weather-48h-pull','postponement-risk-assessment','comprehensive-go-nogo-check','espn-schedule-cross-validation','auto-grade-pipeline-v105','closing-line-capture','game-status-monitor','post-game-auto-grading','clv-measurement-pipeline','comprehensive-pnl-dashboard','od-d2-live-validation-v106','espn-pitcher-cross-validation','live-weather-48h-all-venues','postponement-risk-v2','lineup-override-prediction-bridge-v107','od-gameday-auto-lineup-verify','backup-lineup-source-upgrade','mlb-stats-api-lineups-v108','multi-source-lineup-bridge','lineup-source-comparison','gameday-lineup-verification','morning-briefing-v109','cross-sport-daily-portfolio','unified-edge-detection','daily-pnl-integration','gameday-lineup-pipeline-v110','mlb-stats-primary-lineup-source','auto-prediction-rebuild-on-lineup','lineup-readiness-dashboard','multi-source-lineup-monitor','regular-season-autoboot-v111','autopilot-lineup-bridge-integration','auto-grade-yesterday-on-boot','mlb-stats-schedule-fallback','od-odds-monitor-v112','live-line-detection','auto-playbook-rebuild','cross-book-best-price','edge-decay-tracking'] });
 });
 
 // Deep health check — reports memory, uptime, service availability
@@ -7551,6 +7553,66 @@ app.post('/api/opening-day/k-props/refresh', async (req, res) => {
   }
 });
 
+// ===== OD ODDS MONITOR v112.0 =====
+// Detects when books post MLB OD lines and auto-triggers playbook rebuild
+
+app.get('/api/opening-day/odds-monitor/status', (req, res) => {
+  try {
+    if (!odOddsMonitor) return res.status(503).json({ error: 'OD Odds Monitor not loaded' });
+    res.json(odOddsMonitor.getStatus());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/opening-day/odds-monitor/comparison', (req, res) => {
+  try {
+    if (!odOddsMonitor) return res.status(503).json({ error: 'OD Odds Monitor not loaded' });
+    res.json(odOddsMonitor.getOddsComparison());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/opening-day/odds-monitor/alerts', (req, res) => {
+  try {
+    if (!odOddsMonitor) return res.status(503).json({ error: 'OD Odds Monitor not loaded' });
+    res.json({ alerts: odOddsMonitor.getAlerts() });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/opening-day/odds-monitor/poll', async (req, res) => {
+  try {
+    if (!odOddsMonitor) return res.status(503).json({ error: 'OD Odds Monitor not loaded' });
+    const result = await odOddsMonitor.poll();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/opening-day/odds-monitor/start', (req, res) => {
+  try {
+    if (!odOddsMonitor) return res.status(503).json({ error: 'OD Odds Monitor not loaded' });
+    odOddsMonitor.start();
+    res.json({ status: 'started', message: 'OD Odds Monitor now polling every 15 min' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/opening-day/odds-monitor/stop', (req, res) => {
+  try {
+    if (!odOddsMonitor) return res.status(503).json({ error: 'OD Odds Monitor not loaded' });
+    odOddsMonitor.stop();
+    res.json({ status: 'stopped' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===== PITCHER OUTS RECORDED PROPS v76.0 =====
 // Opening Day aces go deeper → OVER on outs recorded
 
@@ -10579,6 +10641,24 @@ app.listen(PORT, '0.0.0.0', () => {
       }).catch(e => {
         console.log('   ⚠️ Regular Season Autopilot auto-boot failed:', e.message);
       });
+    }
+
+    // Auto-start OD Odds Monitor — detects when books post OD lines
+    if (odOddsMonitor) {
+      try {
+        const now = new Date();
+        const odDay1 = new Date('2026-03-26T17:15:00Z');
+        const hoursUntilOD = (odDay1 - now) / (1000 * 60 * 60);
+        // Run monitor if OD is within 72 hours (March 23-26)
+        if (hoursUntilOD > 0 && hoursUntilOD <= 72) {
+          odOddsMonitor.start();
+          console.log(`   📡 OD Odds Monitor AUTO-STARTED — ${hoursUntilOD.toFixed(0)}h until first pitch, polling every 15 min for live lines`);
+        } else {
+          console.log(`   📡 OD Odds Monitor: standby (${hoursUntilOD.toFixed(0)}h until OD)`);
+        }
+      } catch(e) {
+        console.log('   ⚠️ OD Odds Monitor auto-start failed:', e.message);
+      }
     }
     
     } catch (e) {
