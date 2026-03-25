@@ -102,6 +102,14 @@ const OPENING_DAY_GAMES = [
     dkLine: { homeML: 100, awayML: -120, total: 7.0 }, // NYY -120, SF +100 per BetMGM March 19
     broadcast: null,
   },
+
+  // ===== MARCH 27, 2026 — DAY 2 =====
+  {
+    date: '2026-03-27', day: 2, away: 'NYY', home: 'SF', time: '4:35 PM ET', // NYY@SF game 3 per ESPN 3/24
+    confirmedStarters: { away: 'TBD', home: 'TBD' }, // Game 3 starters TBD — likely Rodon vs Snell/Harrison
+    dkLine: { homeML: 110, awayML: -130, total: 7.5 }, // Estimated — will update with live lines
+    broadcast: null,
+  },
   { 
     date: '2026-03-27', day: 2, away: 'OAK', home: 'TOR', time: '7:07 PM ET',
     confirmedStarters: { away: 'Luis Severino', home: 'Kevin Gausman' },

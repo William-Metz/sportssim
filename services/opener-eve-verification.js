@@ -230,10 +230,12 @@ async function verifyOpener() {
     overallStatus: 'CHECKING'
   };
   
-  // Run all checks in parallel
-  const [weatherResult, mlbApiResult] = await Promise.allSettled([
+  // Run all checks in parallel (weather, MLB API, live odds)
+  const oddsApiKey = process.env.ODDS_API_KEY || '';
+  const [weatherResult, mlbApiResult, oddsResult] = await Promise.allSettled([
     fetchWeather(ORACLE_PARK.lat, ORACLE_PARK.lon, gameDate),
-    fetchMLBStatsAPI(gameDate)
+    fetchMLBStatsAPI(gameDate),
+    fetchLiveOdds('baseball_mlb', oddsApiKey)
   ]);
   
   // === WEATHER CHECK ===
@@ -351,6 +353,85 @@ async function verifyOpener() {
     results.checks.starters = { status: 'FAIL', detail: `MLB API error: ${mlbApiResult.reason?.message}` };
   }
   
+  // === LIVE ODDS CHECK ===
+  if (oddsResult.status === 'fulfilled' && oddsResult.value.games) {
+    const oddsData = oddsResult.value;
+    // Find NYY@SF game
+    const nyyGame = oddsData.games.find(g => {
+      const home = (g.home_team || '').toLowerCase();
+      const away = (g.away_team || '').toLowerCase();
+      return (home.includes('giants') || home.includes('san francisco')) &&
+             (away.includes('yankees') || away.includes('new york yankees'));
+    });
+    
+    if (nyyGame) {
+      const bookLines = {};
+      for (const bm of (nyyGame.bookmakers || [])) {
+        const bookName = bm.key;
+        const lines = {};
+        for (const market of (bm.markets || [])) {
+          if (market.key === 'h2h') {
+            for (const outcome of market.outcomes) {
+              if (outcome.name === nyyGame.away_team) lines.awayML = outcome.price;
+              if (outcome.name === nyyGame.home_team) lines.homeML = outcome.price;
+            }
+          }
+          if (market.key === 'totals') {
+            for (const outcome of market.outcomes) {
+              if (outcome.name === 'Over') { lines.total = outcome.point; lines.overOdds = outcome.price; }
+              if (outcome.name === 'Under') { lines.underOdds = outcome.price; }
+            }
+          }
+          if (market.key === 'spreads') {
+            for (const outcome of market.outcomes) {
+              if (outcome.name === nyyGame.away_team) { lines.awaySpread = outcome.point; lines.awaySpreadOdds = outcome.price; }
+              if (outcome.name === nyyGame.home_team) { lines.homeSpread = outcome.point; lines.homeSpreadOdds = outcome.price; }
+            }
+          }
+        }
+        bookLines[bookName] = lines;
+      }
+      
+      // Find best lines across books
+      const allBooks = Object.entries(bookLines);
+      const bestAwayML = allBooks.reduce((best, [bk, l]) => l.awayML && l.awayML > (best.price || -999) ? { book: bk, price: l.awayML } : best, {});
+      const bestHomeML = allBooks.reduce((best, [bk, l]) => l.homeML && l.homeML > (best.price || -999) ? { book: bk, price: l.homeML } : best, {});
+      const bestOver = allBooks.reduce((best, [bk, l]) => l.overOdds && l.overOdds > (best.price || -999) ? { book: bk, price: l.overOdds, total: l.total } : best, {});
+      const bestUnder = allBooks.reduce((best, [bk, l]) => l.underOdds && l.underOdds > (best.price || -999) ? { book: bk, price: l.underOdds, total: l.total } : best, {});
+      
+      results.liveOdds = {
+        status: '✅ LIVE',
+        gameId: nyyGame.id,
+        commenceTime: nyyGame.commence_time,
+        bookLines,
+        bestLines: {
+          awayML: bestAwayML,
+          homeML: bestHomeML,
+          over: bestOver,
+          under: bestUnder
+        },
+        lineMovement: {
+          awayMLvsStatic: bestAwayML.price ? `${bestAwayML.price > 0 ? '+' : ''}${bestAwayML.price} (was -120)` : 'N/A',
+          homeMLvsStatic: bestHomeML.price ? `${bestHomeML.price > 0 ? '+' : ''}${bestHomeML.price} (was +100)` : 'N/A',
+          totalVsStatic: bestOver.total ? `${bestOver.total} (was 7.0)` : 'N/A'
+        },
+        quotaRemaining: oddsData.quotaRemaining,
+        quotaUsed: oddsData.quotaUsed
+      };
+      
+      results.checks.odds = { status: 'PASS', detail: `Live odds from ${allBooks.length} books. Best NYY ML: ${bestAwayML.price || 'N/A'} (${bestAwayML.book || 'N/A'})` };
+    } else {
+      results.liveOdds = { status: '⏳ NOT YET POSTED', note: 'NYY@SF odds not found — may not be posted yet, or game is under a different sport key' };
+      results.checks.odds = { status: 'WARN', detail: 'NYY@SF game not found in Odds API — lines may not be posted yet' };
+    }
+  } else if (oddsResult.status === 'fulfilled' && oddsResult.value.error) {
+    results.liveOdds = { status: '⚠️ API ERROR', error: oddsResult.value.error };
+    results.checks.odds = { status: 'WARN', detail: `Odds API: ${oddsResult.value.error}` };
+  } else {
+    results.liveOdds = { status: '❌ FAILED', error: oddsResult.reason?.message };
+    results.checks.odds = { status: 'FAIL', detail: `Odds API error: ${oddsResult.reason?.message}` };
+  }
+  
   // === MODEL PREDICTION ===
   try {
     const mlb = require('../models/mlb');
@@ -427,10 +508,24 @@ function buildExecutionPlan(results) {
   
   if (!pred) return { status: 'Model not loaded', plays: [] };
   
+  // Use LIVE odds when available, fall back to static
+  let dkLine = { awayML: -120, homeML: 100, total: 7.0 }; // Static fallback
+  let oddsSource = 'static (March 19)';
+  
+  if (results.liveOdds && results.liveOdds.bookLines) {
+    // Prefer DraftKings, then FanDuel, then any book
+    const dk = results.liveOdds.bookLines['draftkings'] || results.liveOdds.bookLines['fanduel'] || Object.values(results.liveOdds.bookLines)[0];
+    if (dk && dk.awayML) {
+      dkLine.awayML = dk.awayML;
+      dkLine.homeML = dk.homeML;
+      if (dk.total) dkLine.total = dk.total;
+      oddsSource = 'LIVE (The Odds API)';
+    }
+  }
+  
   // Moneyline analysis
   const nyyWinProb = pred.awayWinProb || 0.60;
   const sfWinProb = pred.homeWinProb || 0.40;
-  const dkLine = { awayML: -120, homeML: 100, total: 7.0 }; // From model
   const impliedAway = dkLine.awayML < 0 ? Math.abs(dkLine.awayML) / (Math.abs(dkLine.awayML) + 100) : 100 / (dkLine.awayML + 100);
   const impliedHome = dkLine.homeML < 0 ? Math.abs(dkLine.homeML) / (Math.abs(dkLine.homeML) + 100) : 100 / (dkLine.homeML + 100);
   
@@ -531,6 +626,8 @@ function buildExecutionPlan(results) {
   return {
     status: 'READY',
     matchup: 'NYY @ SF',
+    oddsSource,
+    lines: dkLine,
     totalPlays: plays.length,
     plays,
     portfolio: {

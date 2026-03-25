@@ -281,7 +281,7 @@ function extractBookLine(bk, homeTeam) {
 // ==================== HEALTH ====================
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '127.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102','mlb-results-grader-v103','detailed-boxscore-grading','f5-f3-f7-grading','k-prop-grading','nrfi-grading','outs-prop-grading','season-pnl-tracker','market-breakdown-analytics','od-eve-validation-v104','live-weather-48h-pull','postponement-risk-assessment','comprehensive-go-nogo-check','espn-schedule-cross-validation','auto-grade-pipeline-v105','closing-line-capture','game-status-monitor','post-game-auto-grading','clv-measurement-pipeline','comprehensive-pnl-dashboard','od-d2-live-validation-v106','espn-pitcher-cross-validation','live-weather-48h-all-venues','postponement-risk-v2','lineup-override-prediction-bridge-v107','od-gameday-auto-lineup-verify','backup-lineup-source-upgrade','mlb-stats-api-lineups-v108','multi-source-lineup-bridge','lineup-source-comparison','gameday-lineup-verification','morning-briefing-v109','cross-sport-daily-portfolio','unified-edge-detection','daily-pnl-integration','gameday-lineup-pipeline-v110','mlb-stats-primary-lineup-source','auto-prediction-rebuild-on-lineup','lineup-readiness-dashboard','multi-source-lineup-monitor','regular-season-autoboot-v111','autopilot-lineup-bridge-integration','auto-grade-yesterday-on-boot','mlb-stats-schedule-fallback','od-odds-monitor-v112','live-line-detection','auto-playbook-rebuild','cross-book-best-price','edge-decay-tracking','od-command-center-v113','d2-war-room','system-health-dashboard','portfolio-cheat-sheet','action-items-engine','spring-training-data-update-march24','od-t2-verification-v114','od-morning-brief-v114','od-line-change-tracker-v114','dk-line-refresh-march24','live-espn-dk-lines','espn-live-verification-v115','od-pitcher-auto-check','od-line-auto-check','team-totals-prop-scanner-v116','per-team-run-projection-value','asymmetric-pitching-exploit','live-team-total-odds','od-d1-final-check-v117','comprehensive-go-nogo-v117','live-mlb-schedule-verify','production-health-monitor','gameday-morning-protocol','edge-decay-optimizer-v118','bet-timing-portfolio','market-decay-profiles','optimal-bet-window','edge-extinction-tracking','scale-in-recommendations','live-bet-execution-v120','live-edge-monitoring','kelly-portfolio-sizing','real-time-odds-comparison','execution-action-board','edge-movement-tracker','pre-od-final-validation-v121','comprehensive-go-nogo-gate','service-health-matrix','prediction-accuracy-check','weather-forecast-verification','od-warmup-v122','oom-protected-startup','timeout-protected-phases','memory-pressure-awareness','deploy-fix-v123','od-d0-live-odds-validation','od-quick-card-v124','od-morning-protocol-v124','fast-sync-predictions','live-odds-caching','game-day-action-items','od-opener-analysis-v125','nyy-sf-betting-card','opener-k-props','opener-nrfi','opener-outs-props','cole-vs-webb-deep-dive','mlb-starter-auto-sync-v126','fried-vs-webb-correction','mlb-stats-api-starter-validation','real-time-probable-pitcher-sync','pitcher-bayesian-update-v127','pitcher-performance-tracking','regression-candidate-detection','bayesian-stat-blending','pitcher-gamelog-ingestion','fip-xfip-live-calculation','daily-pitcher-snapshots'] });
+  res.json({ status: 'ok', version: '128.0.0', timestamp: new Date().toISOString(), sports: ['nba','mlb','nhl','nfl','ncaab'], features: ['live-data','pitcher-model','poisson-totals','neg-binomial-totals','matchup-analysis','opening-day','weather-integration','player-props','polymarket-scanner','polymarket-value-bridge','cross-market-arbitrage','futures-value-scanner','bet-tracker','auto-grading','clv-tracking','rest-travel','monte-carlo-sim','bullpen-fatigue','espn-confirmed-starters','mlb-schedule','spring-training-signals','opening-day-command-center','umpire-tendencies','probability-calibration','sgp-correlation-engine','unified-signal-engine','alt-lines-scanner','arbitrage-scanner','poisson-win-prob','nba-spread-calibration','mlb-backtest-v2-point-in-time','mlb-calibration-v3','playoff-series-pricing','championship-simulator','statcast-integration','ml-engine-v2-statcast','historical-data-expansion','ml-value-detection','ml-daily-picks','preseason-tuning','roster-change-impact','new-team-pitcher-penalty','opening-day-starter-premium','overdispersion-modeling','live-lineup-fetcher','catcher-framing','savant-catcher-framing-v2','xgboost-lightgbm-ensemble','season-simulator','futures-dashboard','bayesian-calibration','nba-rest-tank-model','nba-motivation-mismatch','nba-auto-b2b-detection','opening-week-unders','cold-weather-park-analysis','season-sim-calibration-v2','fangraphs-validated-projections','fangraphs-rs-ra-blend','org-dysfunction-penalty','preseason-edge-discount','mc-uncertainty-perturbation','championship-futures-scanner','multi-sport-futures-value','live-futures-odds','playoff-preview-scanner','f5-opening-week-unders-scan','lineup-pipeline-wired','daily-action-slate','cross-sport-portfolio','unified-bet-grading','consensus-engine','multi-model-agreement','conviction-betting','daily-nba-card-v90','nba-rest-tank-conviction','nba-mismatch-spotlight','nba-daily-kelly-portfolio','non-blocking-od-endpoints-v91','auto-warm-cache','preflight-lite','disk-cache-persistence-v92','cold-start-fix','f3-first-3-innings-model-v93','ftto-advantage','f3-value-scanner','od-betting-card-fix-v94','nrfi-f3-wiring-fix','pitcher-hwe-props-v95','hits-allowed-model','walks-model','earned-runs-model','statcast-xba-xera-integration','soft-market-props','nba-period-markets-v96','quarter-scoring-model','half-scoring-model','team-quarter-profiles','motivation-quarter-impact','structural-edge-scanner','period-value-detection','f7-bullpen-chaos-eliminator-v98','daily-nhl-card-v98','nhl-goalie-mismatch-daily','nhl-bubble-daily','nhl-b2b-detection','staggered-startup-v99','1gb-vm-oom-fix','od-starter-sync-v100','f3-edge-fix-v100','nrfi-medium-confidence-v100','od-lineup-verify-v101','lineup-override-system','lineup-gameday-monitor','rest-tank-backtest-v102','gameday-orchestrator-v102','rest-tank-grader-v102','mlb-results-grader-v103','detailed-boxscore-grading','f5-f3-f7-grading','k-prop-grading','nrfi-grading','outs-prop-grading','season-pnl-tracker','market-breakdown-analytics','od-eve-validation-v104','live-weather-48h-pull','postponement-risk-assessment','comprehensive-go-nogo-check','espn-schedule-cross-validation','auto-grade-pipeline-v105','closing-line-capture','game-status-monitor','post-game-auto-grading','clv-measurement-pipeline','comprehensive-pnl-dashboard','od-d2-live-validation-v106','espn-pitcher-cross-validation','live-weather-48h-all-venues','postponement-risk-v2','lineup-override-prediction-bridge-v107','od-gameday-auto-lineup-verify','backup-lineup-source-upgrade','mlb-stats-api-lineups-v108','multi-source-lineup-bridge','lineup-source-comparison','gameday-lineup-verification','morning-briefing-v109','cross-sport-daily-portfolio','unified-edge-detection','daily-pnl-integration','gameday-lineup-pipeline-v110','mlb-stats-primary-lineup-source','auto-prediction-rebuild-on-lineup','lineup-readiness-dashboard','multi-source-lineup-monitor','regular-season-autoboot-v111','autopilot-lineup-bridge-integration','auto-grade-yesterday-on-boot','mlb-stats-schedule-fallback','od-odds-monitor-v112','live-line-detection','auto-playbook-rebuild','cross-book-best-price','edge-decay-tracking','od-command-center-v113','d2-war-room','system-health-dashboard','portfolio-cheat-sheet','action-items-engine','spring-training-data-update-march24','od-t2-verification-v114','od-morning-brief-v114','od-line-change-tracker-v114','dk-line-refresh-march24','live-espn-dk-lines','espn-live-verification-v115','od-pitcher-auto-check','od-line-auto-check','team-totals-prop-scanner-v116','per-team-run-projection-value','asymmetric-pitching-exploit','live-team-total-odds','od-d1-final-check-v117','comprehensive-go-nogo-v117','live-mlb-schedule-verify','production-health-monitor','gameday-morning-protocol','edge-decay-optimizer-v118','bet-timing-portfolio','market-decay-profiles','optimal-bet-window','edge-extinction-tracking','scale-in-recommendations','live-bet-execution-v120','live-edge-monitoring','kelly-portfolio-sizing','real-time-odds-comparison','execution-action-board','edge-movement-tracker','pre-od-final-validation-v121','comprehensive-go-nogo-gate','service-health-matrix','prediction-accuracy-check','weather-forecast-verification','od-warmup-v122','oom-protected-startup','timeout-protected-phases','memory-pressure-awareness','deploy-fix-v123','od-d0-live-odds-validation','od-quick-card-v124','od-morning-protocol-v124','fast-sync-predictions','live-odds-caching','game-day-action-items','od-opener-analysis-v125','nyy-sf-betting-card','opener-k-props','opener-nrfi','opener-outs-props','cole-vs-webb-deep-dive','mlb-starter-auto-sync-v126','fried-vs-webb-correction','mlb-stats-api-starter-validation','real-time-probable-pitcher-sync','pitcher-bayesian-update-v127','pitcher-performance-tracking','regression-candidate-detection','bayesian-stat-blending','pitcher-gamelog-ingestion','fip-xfip-live-calculation','daily-pitcher-snapshots','opener-eve-verification-v128','t-24-weather-check','t-24-starter-verification','t-24-odds-verification','live-oracle-park-weather','day1-slate-weather-verification','opener-execution-timeline'] });
 });
 
 // Deep health check — reports memory, uptime, service availability
@@ -299,6 +299,7 @@ app.get('/api/health/deep', (req, res) => {
     dailyMlbCard: !!dailyMlbCard, dailyNbaCard: !!dailyNbaCard, dailyNhlCard: !!dailyNhlCard,
     batterProps: !!batterProps, nbaPeriodMarkets: !!nbaPeriodMarkets,
     regularSeasonAutopilot: !!regularSeasonAutopilot,
+    openerEveVerification: !!openerEveVerification,
     pitcherBayesian: !!pitcherBayesian,
   };
   const loadedCount = Object.values(services).filter(Boolean).length;
@@ -8549,6 +8550,104 @@ app.get('/api/od/opener/nrfi', (req, res) => {
   try {
     if (!odOpenerAnalysis) return res.status(503).json({ error: 'Opener Analysis not loaded' });
     res.json(odOpenerAnalysis.analyzeNRFI());
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ==================== OPENER EVE VERIFICATION — T-24 Hour Comprehensive Check ====================
+
+// Full verification suite for the opener (weather + starters + odds + model + execution plan)
+app.get('/api/opener-eve/verify', async (req, res) => {
+  try {
+    if (!openerEveVerification) return res.status(503).json({ error: 'Opener Eve Verification not loaded' });
+    const result = await openerEveVerification.verifyOpener();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Detailed weather for Oracle Park
+app.get('/api/opener-eve/weather', async (req, res) => {
+  try {
+    if (!openerEveVerification) return res.status(503).json({ error: 'Opener Eve Verification not loaded' });
+    const weather = await openerEveVerification.fetchWeather(
+      openerEveVerification.ORACLE_PARK.lat,
+      openerEveVerification.ORACLE_PARK.lon,
+      '2026-03-25'
+    );
+    const windImpact = openerEveVerification.getOracleWindImpact(
+      weather.hourly?.wind_direction_10m?.[20] || 270,
+      weather.hourly?.wind_speed_10m?.[20] || 10
+    );
+    const tempImpact = openerEveVerification.getTempImpact(
+      weather.hourly?.temperature_2m?.[20] || 55
+    );
+    res.json({
+      park: openerEveVerification.ORACLE_PARK,
+      raw: weather,
+      windImpact,
+      tempImpact,
+      hoursToFirstPitch: openerEveVerification.getHoursToFirstPitch()
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Live odds from all books for the opener
+app.get('/api/opener-eve/odds', async (req, res) => {
+  try {
+    if (!openerEveVerification) return res.status(503).json({ error: 'Opener Eve Verification not loaded' });
+    // Pull from the full verification
+    const result = await openerEveVerification.verifyOpener();
+    res.json({
+      odds: result.liveOdds || null,
+      checks: result.checks?.odds || null,
+      model: result.modelPrediction || null,
+      executionPlan: result.executionPlan || null
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Final execution plan with timing
+app.get('/api/opener-eve/execution', async (req, res) => {
+  try {
+    if (!openerEveVerification) return res.status(503).json({ error: 'Opener Eve Verification not loaded' });
+    const result = await openerEveVerification.verifyOpener();
+    res.json({
+      executionPlan: result.executionPlan,
+      hoursToFirstPitch: openerEveVerification.getHoursToFirstPitch(),
+      overallStatus: result.overallStatus,
+      checksummary: result.checksummary
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Game day action timeline
+app.get('/api/opener-eve/timeline', (req, res) => {
+  try {
+    if (!openerEveVerification) return res.status(503).json({ error: 'Opener Eve Verification not loaded' });
+    res.json({
+      timeline: openerEveVerification.getGameDayTimeline(),
+      hoursToFirstPitch: openerEveVerification.getHoursToFirstPitch()
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Day 1 (March 26) full slate verification
+app.get('/api/od/d1-eve', async (req, res) => {
+  try {
+    if (!openerEveVerification) return res.status(503).json({ error: 'Opener Eve Verification not loaded' });
+    const result = await openerEveVerification.verifyDay1Slate();
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

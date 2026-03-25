@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚾ NYY @ SF — Season Opener Command Center</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 12px; max-width: 800px; margin: 0 auto; }
+  
+  .hero { background: linear-gradient(135deg, #003087 0%, #1e1e3f 50%, #fd5a1e 100%); padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 16px; }
+  .hero h1 { font-size: 28px; margin-bottom: 4px; }
+  .hero .matchup { font-size: 20px; opacity: 0.9; }
+  .hero .countdown { font-size: 36px; font-weight: 800; margin: 12px 0; color: #00ff88; }
+  .hero .time { font-size: 14px; opacity: 0.7; }
+  
+  .status-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .status-chip { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .status-pass { background: #1a3a1a; color: #00ff88; border: 1px solid #00ff8844; }
+  .status-warn { background: #3a3a1a; color: #ffcc00; border: 1px solid #ffcc0044; }
+  .status-fail { background: #3a1a1a; color: #ff4444; border: 1px solid #ff444444; }
+  .status-loading { background: #1a1a3a; color: #4488ff; border: 1px solid #4488ff44; }
+  
+  .card { background: #141414; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  .card h2 { font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .icon { font-size: 20px; }
+  
+  .weather-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .weather-stat { background: #1a1a1a; padding: 10px; border-radius: 8px; text-align: center; }
+  .weather-stat .value { font-size: 24px; font-weight: 700; color: #fff; }
+  .weather-stat .label { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+  
+  .play-card { background: #1a1a1a; border-left: 4px solid #00ff88; padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 8px; }
+  .play-card.high { border-left-color: #00ff88; }
+  .play-card.medium { border-left-color: #ffcc00; }
+  .play-card.low { border-left-color: #666; }
+  .play-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .play-name { font-weight: 700; font-size: 15px; }
+  .play-edge { font-weight: 800; color: #00ff88; }
+  .play-signal { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+  .play-timing { font-size: 11px; color: #4488ff; margin-top: 4px; }
+  
+  .odds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .odds-book { background: #1a1a1a; padding: 8px 12px; border-radius: 8px; }
+  .odds-book .book-name { font-size: 11px; opacity: 0.6; text-transform: uppercase; }
+  .odds-book .book-lines { font-size: 14px; font-weight: 600; margin-top: 2px; }
+  
+  .portfolio { background: linear-gradient(135deg, #0a2a0a, #1a3a1a); border: 1px solid #00ff8844; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+  .portfolio h2 { color: #00ff88; margin-bottom: 10px; }
+  .portfolio-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+  .portfolio-stat { text-align: center; }
+  .portfolio-stat .value { font-size: 28px; font-weight: 800; color: #00ff88; }
+  .portfolio-stat .label { font-size: 11px; opacity: 0.6; }
+  
+  .timeline { list-style: none; }
+  .timeline li { padding: 8px 0; border-bottom: 1px solid #1a1a1a; display: flex; gap: 12px; }
+  .timeline li:last-child { border-bottom: none; }
+  .timeline .time-label { font-weight: 600; color: #4488ff; min-width: 90px; font-size: 13px; }
+  .timeline .action-text { font-size: 13px; }
+  
+  .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .check-item { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 8px; background: #1a1a1a; border-radius: 6px; }
+  .check-status { font-size: 16px; }
+  
+  .refresh-btn { position: fixed; bottom: 16px; right: 16px; background: #003087; border: none; color: white; padding: 12px 20px; border-radius: 24px; font-weight: 700; cursor: pointer; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 100; }
+  .refresh-btn:active { transform: scale(0.95); }
+  
+  .loading { text-align: center; padding: 40px; }
+  .loading .spinner { font-size: 40px; animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  
+  .insights-list { list-style: none; }
+  .insights-list li { padding: 4px 0; font-size: 13px; opacity: 0.8; }
+  .insights-list li::before { content: '→ '; color: #4488ff; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>⚾ MLB Season Opener</h1>
+  <div class="matchup">NYY Yankees @ SF Giants</div>
+  <div class="countdown" id="countdown">Loading...</div>
+  <div class="time">Max Fried vs Logan Webb — Oracle Park</div>
+  <div class="time">March 25, 2026 — 8:05 PM ET / 5:05 PM PT</div>
+</div>
+
+<div class="status-bar" id="statusBar">
+  <span class="status-chip status-loading">⏳ Loading verification...</span>
+</div>
+
+<div id="content">
+  <div class="loading">
+    <div class="spinner">⚾</div>
+    <p style="margin-top:12px">Running T-24 verification...</p>
+  </div>
+</div>
+
+<button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+
+<script>
+let data = null;
+
+function updateCountdown() {
+  const firstPitch = new Date('2026-03-26T00:05:00Z');
+  const now = new Date();
+  const diff = firstPitch - now;
+  if (diff <= 0) { document.getElementById('countdown').textContent = '⚾ GAME TIME'; return; }
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  document.getElementById('countdown').textContent = `T-${h}h ${m}m ${s}s`;
+}
+setInterval(updateCountdown, 1000);
+updateCountdown();
+
+async function loadData() {
+  try {
+    const res = await fetch('/api/opener-eve/verify');
+    data = await res.json();
+    render(data);
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<div class="card"><h2>❌ Error</h2><p>${e.message}</p><p>Make sure the server is running and the opener-eve endpoints are deployed.</p></div>`;
+  }
+}
+
+function render(d) {
+  // Status bar
+  const statusBar = document.getElementById('statusBar');
+  const checks = d.checks || {};
+  statusBar.innerHTML = Object.entries(checks).map(([k, v]) => {
+    const cls = v.status === 'PASS' ? 'status-pass' : v.status === 'WARN' ? 'status-warn' : 'status-fail';
+    const icon = v.status === 'PASS' ? '✅' : v.status === 'WARN' ? '⚠️' : '❌';
+    return `<span class="status-chip ${cls}">${icon} ${k}</span>`;
+  }).join('');
+
+  let html = '';
+
+  // System checks
+  html += `<div class="card"><h2><span class="icon">🔍</span> System Checks — ${d.overallStatus || 'Unknown'}</h2>`;
+  html += `<div class="checks-grid">`;
+  for (const [k, v] of Object.entries(checks)) {
+    const icon = v.status === 'PASS' ? '✅' : v.status === 'WARN' ? '⚠️' : '❌';
+    html += `<div class="check-item"><span class="check-status">${icon}</span> <span>${k}: ${v.detail || ''}</span></div>`;
+  }
+  html += `</div></div>`;
+
+  // Weather
+  if (d.weatherReport) {
+    const w = d.weatherReport;
+    html += `<div class="card"><h2><span class="icon">🌡️</span> Oracle Park Weather — ${w.status}</h2>`;
+    html += `<div class="weather-grid">`;
+    html += `<div class="weather-stat"><div class="value">${w.firstPitchTemp || w.avgGameTemp || '?'}°F</div><div class="label">First Pitch Temp</div></div>`;
+    html += `<div class="weather-stat"><div class="value">${w.wind?.avgSpeed || '?'} mph</div><div class="label">${w.wind?.compass || ''} Wind</div></div>`;
+    html += `<div class="weather-stat"><div class="value">${w.maxPrecipProb || 0}%</div><div class="label">Rain Probability</div></div>`;
+    html += `</div>`;
+    html += `<div style="margin-top:10px;font-size:13px">`;
+    html += `<div>📊 Run Multiplier: <strong>${w.combinedRunMultiplier}</strong></div>`;
+    html += `<div>${w.bettingSignal || ''}</div>`;
+    if (w.modelAdjustment) {
+      html += `<div>Model Total: ${w.modelAdjustment.rawTotal} → Weather-Adj: <strong>${w.modelAdjustment.weatherAdjustedTotal}</strong></div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  // Live Odds
+  if (d.liveOdds) {
+    html += `<div class="card"><h2><span class="icon">💰</span> Live Odds — ${d.liveOdds.status}</h2>`;
+    if (d.liveOdds.bookLines) {
+      html += `<div class="odds-grid">`;
+      for (const [book, lines] of Object.entries(d.liveOdds.bookLines)) {
+        html += `<div class="odds-book">`;
+        html += `<div class="book-name">${book}</div>`;
+        html += `<div class="book-lines">`;
+        if (lines.awayML) html += `NYY ${lines.awayML > 0 ? '+' : ''}${lines.awayML} / SF ${lines.homeML > 0 ? '+' : ''}${lines.homeML}`;
+        if (lines.total) html += ` | O/U ${lines.total}`;
+        html += `</div></div>`;
+      }
+      html += `</div>`;
+      if (d.liveOdds.bestLines) {
+        const best = d.liveOdds.bestLines;
+        html += `<div style="margin-top:8px;font-size:12px;color:#00ff88">`;
+        html += `Best NYY ML: ${best.awayML?.price || 'N/A'} (${best.awayML?.book || '?'}) | `;
+        html += `Best SF ML: ${best.homeML?.price || 'N/A'} (${best.homeML?.book || '?'})`;
+        html += `</div>`;
+      }
+      if (d.liveOdds.lineMovement) {
+        html += `<div style="margin-top:4px;font-size:12px;opacity:0.7">`;
+        html += `Line Movement: NYY ${d.liveOdds.lineMovement.awayMLvsStatic} | SF ${d.liveOdds.lineMovement.homeMLvsStatic} | Total ${d.liveOdds.lineMovement.totalVsStatic}`;
+        html += `</div>`;
+      }
+    } else {
+      html += `<p>${d.liveOdds.note || d.liveOdds.error || 'No odds data'}</p>`;
+    }
+    html += `</div>`;
+  }
+
+  // Model Prediction
+  if (d.modelPrediction) {
+    const p = d.modelPrediction;
+    html += `<div class="card"><h2><span class="icon">🧠</span> Model Prediction</h2>`;
+    html += `<div style="display:flex;gap:20px;margin-bottom:10px">`;
+    html += `<div><span style="font-size:24px;font-weight:800">${((p.awayWinProb||0)*100).toFixed(0)}%</span> <span style="opacity:0.6">NYY</span></div>`;
+    html += `<div><span style="font-size:24px;font-weight:800">${((p.homeWinProb||0)*100).toFixed(0)}%</span> <span style="opacity:0.6">SF</span></div>`;
+    html += `<div><span style="font-size:24px;font-weight:800">${p.expectedTotal || '?'}</span> <span style="opacity:0.6">Total</span></div>`;
+    html += `</div>`;
+    if (p.keyInsights) {
+      html += `<ul class="insights-list">`;
+      p.keyInsights.forEach(i => html += `<li>${i}</li>`);
+      html += `</ul>`;
+    }
+    html += `</div>`;
+  }
+
+  // Starter Verification
+  if (d.starterVerification) {
+    const sv = d.starterVerification;
+    html += `<div class="card"><h2><span class="icon">⚾</span> Starter Verification — ${sv.status}</h2>`;
+    html += `<div style="font-size:14px">`;
+    html += `<div>MLB Stats API: <strong>${sv.mlbStatsAPI?.away || 'TBD'}</strong> vs <strong>${sv.mlbStatsAPI?.home || 'TBD'}</strong></div>`;
+    html += `<div>Our Model: <strong>${sv.ourModel?.away}</strong> vs <strong>${sv.ourModel?.home}</strong></div>`;
+    html += `<div>Game Status: ${sv.gameStatus || 'Scheduled'}</div>`;
+    html += `</div></div>`;
+  }
+
+  // Execution Plan / Plays
+  if (d.executionPlan && d.executionPlan.plays) {
+    const ep = d.executionPlan;
+    
+    // Portfolio summary
+    html += `<div class="portfolio"><h2>💰 Opener Portfolio (${ep.oddsSource || 'static'})</h2>`;
+    html += `<div class="portfolio-stats">`;
+    html += `<div class="portfolio-stat"><div class="value">${ep.totalPlays}</div><div class="label">Plays</div></div>`;
+    html += `<div class="portfolio-stat"><div class="value">$${ep.portfolio?.on1000Bankroll || 0}</div><div class="label">On $1K Bankroll</div></div>`;
+    html += `<div class="portfolio-stat"><div class="value">$${ep.portfolio?.expectedEV || 0}</div><div class="label">Expected EV</div></div>`;
+    html += `<div class="portfolio-stat"><div class="value">${ep.portfolio?.riskLevel || '?'}</div><div class="label">Risk Level</div></div>`;
+    html += `</div></div>`;
+
+    // Individual plays
+    html += `<div class="card"><h2><span class="icon">🎯</span> Execution Plays</h2>`;
+    ep.plays.forEach(play => {
+      const cls = play.confidence === 'HIGH' ? 'high' : play.confidence === 'MEDIUM' ? 'medium' : 'low';
+      html += `<div class="play-card ${cls}">`;
+      html += `<div class="play-header"><span class="play-name">${play.play}</span>`;
+      if (play.edge) html += `<span class="play-edge">+${play.edge}% edge</span>`;
+      html += `</div>`;
+      html += `<div style="font-size:12px;margin-top:2px">`;
+      html += `<span style="background:${cls==='high'?'#0a3a0a':cls==='medium'?'#3a3a0a':'#2a2a2a'};padding:2px 8px;border-radius:10px">${play.confidence}</span>`;
+      html += ` Kelly: ${(play.kellyFraction * 100).toFixed(1)}%`;
+      html += `</div>`;
+      html += `<div class="play-signal">${play.signal || ''}</div>`;
+      html += `<div class="play-timing">⏰ ${play.timing || ''}</div>`;
+      html += `</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Lineup Status
+  if (d.lineupStatus) {
+    html += `<div class="card"><h2><span class="icon">📋</span> Lineup Status — ${d.lineupStatus.status}</h2>`;
+    html += `<div style="font-size:13px">${d.lineupStatus.detail || ''}</div>`;
+    html += `<div style="font-size:12px;opacity:0.6;margin-top:4px">${d.lineupStatus.note || ''}</div>`;
+    html += `</div>`;
+  }
+
+  // Timeline
+  if (d.executionPlan?.timeline) {
+    html += `<div class="card"><h2><span class="icon">📅</span> Game Day Timeline</h2>`;
+    html += `<ul class="timeline">`;
+    d.executionPlan.timeline.forEach(t => {
+      html += `<li><span class="time-label">${t.time}</span><span class="action-text">${t.action}</span></li>`;
+    });
+    html += `</ul></div>`;
+  }
+
+  // Last updated
+  html += `<div style="text-align:center;font-size:11px;opacity:0.4;padding:20px 0 60px">`;
+  html += `Last updated: ${new Date(d.timestamp).toLocaleString()} | SportsSim v128.0`;
+  html += `</div>`;
+
+  document.getElementById('content').innerHTML = html;
+}
+
+// Auto-refresh every 5 minutes
+setInterval(loadData, 5 * 60 * 1000);
+loadData();
+</script>
+</body>
+</html>
