@@ -217,27 +217,31 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 
 ---
 
-*Last updated: 2026-03-24 20:00 UTC — Planning Session #53*
-*Current phase: 3.0 — 🚨 OD OPENER TOMORROW (NYY@SF 8:05PM ET, Fried vs Webb) + OD1 March 26 + v127 DEPLOYED*
-*✅ PRODUCTION: sportssim.fly.dev v127.0.0 — HEALTHY (144ms health). 165+ features live including pitcher Bayesian update, starter auto-sync, live bet execution engine, edge decay optimizer, OD command center.*
-*🚨 PITCHER CORRECTION: NYY opener starter is MAX FRIED (LHP) per v126 auto-sync from MLB Stats API — NOT Gerrit Cole as we coded in session #52. Fried is a LEFTY which changes platoon splits, K projections, and win probability. The v125 opener analysis (Cole deep dive) needs updating for Fried.*
-*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1), MLB 30 teams (spring training final week), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
-*✅ OD BETTING CARD: Portfolio $1,267 wager, $255.83 EV (20.2% ROI). 3 SMASH (MIN@BAL — UNDER 8.5, F5 UNDER, BAL ML). 34 total plays for March 26 slate. Consistent across 5+ sessions.*
-*✅ MLB STATS API LINEUP BRIDGE: v108-v112 live. statsapi.mlb.com PRIMARY + ESPN fallback.*
-*✅ PITCHER BAYESIAN UPDATE (v127): Live pitcher performance tracking, regression candidate detection, FIP/xFIP calculation, daily pitcher snapshots.*
-*📊 MLB FUTURES: NYY AL East +20%, OAK OVER +18.2%, BAL UNDER +13.7%, CWS OVER +13.1%, CHC OVER +12.8%, TOR OVER +12.8%.*
-*🏀 NBA TONIGHT (3/24 — 4 games): SAC@CHA, NOP@NYK, ORL@CLE, DEN@PHX. Light slate.*
-*🏀 NBA STANDINGS (3/24): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26), CLE(44-27), DEN/MIN(44-28), HOU(43-28). East play-in CHAOS: TOR(40-31), ATL/PHX(40-32), PHI(39-33), ORL(38-33), MIA(38-34). 10 games left per team.*
+*Last updated: 2026-03-25 06:00 UTC — Planning Session #55*
+*Current phase: 3.0 — 🚨🚨🚨 IT'S GAME DAY — NYY@SF TONIGHT 8:05PM ET (Fried vs Webb) 🚨🚨🚨*
+*✅ PRODUCTION: sportssim.fly.dev v128.0.0 — HEALTHY (163ms health). 170+ features live including opener-eve-verification, t-24 weather/starter/odds checks, opener execution timeline.*
+*✅ OPENER ANALYSIS REBUILT: v128 has Fried vs Webb analysis cached and ready. UNDER is #1 thesis — two ground-ball aces (Fried 51.9% GB, Webb 50.5%), Oracle 0.93 PF, cold March, Bailey #1 framing. Portfolio: $300 wager, $27.68 EV (9.2% avg edge).*
+*🚨 CRITICAL: ODDS API QUOTA EXHAUSTED — used: 500/500, remaining: 0. CANNOT pull live odds for tonight's opener or tomorrow's OD slate until quota resets. This BLOCKS the live execution engine. Need to check when quota resets (likely monthly or daily) and conserve remaining calls.*
+*✅ DATA FEEDS: NBA 30 teams (OKC 57-15 #1, 8min fresh), MLB 30 teams (ST final), NHL 32 teams (COL 102pts #1). Auto-refresh active.*
+*✅ OD BETTING CARD (March 26): Portfolio $1,267 wager, $255.83 EV (20.2% ROI). 3 SMASH (MIN@BAL). 34 total plays. STABLE across 5+ sessions.*
+*📊 MLB FUTURES: NYY AL East +21.4%, OAK OVER +18.4%, BAL UNDER +13.4%, TOR OVER +13%, COL UNDER +12.8%.*
+*🏀 NBA TODAY (3/25 — 12 games): ATL@DET, LAL@IND, CHI(B2B)@PHI(DESPERATE), OKC(RESTING)@BOS, MIA(DESPERATE)@CLE, SA@MEM, DAL@DEN, HOU@MIN + 4 more. KEY GAME: OKC@BOS tests the RESTING model (8-0 streak?).*
+*🏀 NBA STANDINGS (3/25): OKC(57-15), SAS(54-18), DET(52-19), BOS(47-24), NYK(47-25), LAL(46-26), CLE(45-27), DEN/MIN(44-28), HOU(43-28). East play-in CHAOS: TOR(40-31), ATL(40-32), PHX(40-32), PHI(39-33), ORL(38-33), MIA(38-34). 10 games left per team.*
 *🏀 REST/TANK CUMULATIVE: RESTING 7/7 SU (100%). DESPERATE B2B 0/5 SU (0%). VALIDATED.*
-*🏒 NHL STANDINGS (3/24): COL(102), DAL(97), CAR(96), BUF(95), MIN(92), TBL(91). EAST BUBBLE: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84), ANA(82). 7 teams, 4pts, 4 spots.*
-*🏒 NHL TONIGHT: OTT@DET, TOR@BOS, CAR@MTL — MASSIVE bubble implications. All 3 feature bubble teams.*
-*🏈 NFL: 15+ win total value bets LIVE (MIA OVER +39.5%, BAL UNDER +23.3%). Draft 31 days.*
-*📋 CRITICAL PATH TO MONEY: (0) TONIGHT: Track NHL bubble games + NBA rest/tank. (1) TOMORROW March 25 AM — Update Fried vs Webb analysis, re-run opener predictions. (2) TOMORROW March 25 5PM ET — Pull live NYY@SF odds, generate execution plan. (3) TOMORROW March 25 8:05PM ET — FIRST PITCH. Execute Fried vs Webb plays. (4) March 25 EVE — Final pre-OD check for March 26 full slate. (5) March 26 AM — GO LIVE. PIT@NYM 1:15PM ET first pitch of full OD slate. (6) March 26-27 NIGHT — Auto-grade results, measure first CLV.*
-*⚾ MLB SEASON OPENER: TOMORROW (March 25, NYY@SF 8:05PM ET, FRIED vs WEBB) 🔥🔥🔥🔥🔥*
-*⚾ MLB OPENING DAY FULL SLATE: 1.75 DAYS (March 26, PIT@NYM 1:15PM ET) 🔥🔥🔥*
-*⚾ MLB DAY 2: 3 DAYS (March 27) 🔥🔥*
-*🏀 NBA PLAYOFFS: 19 DAYS (April 12)*
-*🏒 NHL PLAYOFFS: 26 DAYS (April 19)*
-*🏈 NFL DRAFT: 31 DAYS (April 24)*
-*🆕 SESSION #53 FINDINGS: (1) 🚨 PITCHER CORRECTION: v126 auto-sync changed NYY opener from Cole to Max Fried (LHP). The v125 opener analysis was built for Cole (RHP) — needs full recalculation for Fried's different profile (lefty, different K rate, different platoon implications for SF lineup). (2) Production v127 HEALTHY at 144ms with 165+ features including Bayesian pitcher updating. (3) Value detection returning MLB futures only (expected — no game-day markets at 8PM UTC). (4) NHL bubble unchanged at 7 teams within 4pts — tonight's OTT@DET, TOR@BOS, CAR@MTL could significantly shift bubble. NYI moved to 85pts (up from 83). (5) NBA standings stable — East play-in remains chaotic with 6 teams within 6 games of each other. (6) San Francisco forecast shows ~57°F / cloudy for tomorrow evening — mild conditions, not extreme. Oracle Park 0.93 PF still dominant factor.*
-*🆕 NEW TASK: Task 113 — Re-run NYY@SF opener analysis for Fried vs Webb (CRITICAL P0, blocks tomorrow's bet execution). Fried is LHP → SF's mostly LHH lineup (Pederson, Davis, Flores) faces SAME-SIDE disadvantage. This CHANGES the platoon splits significantly from the Cole analysis.*
+*🏒 NHL STANDINGS (3/25): COL(102), DAL(97), CAR(96), BUF(95), MIN(92), TBL(91). EAST BUBBLE UNCHANGED: MTL/BOS/PIT(86), CBJ/NYI(85), DET(84), OTT(83), ANA(82). 7 teams, 4pts, 4 spots.*
+*🏈 NFL: 15+ win total value bets LIVE. Draft 30 days.*
+*📋 CRITICAL PATH TO MONEY — TODAY:*
+*  (1) 🚨 ODDS API QUOTA — Check reset timing. If daily reset, we're fine by afternoon. If monthly, need fallback plan (manual odds entry, alternative odds source).*
+*  (2) AFTERNOON — Pull live NYY@SF odds (if quota allows), generate execution plan.*
+*  (3) 8:05PM ET — FIRST PITCH. Execute Fried vs Webb plays (UNDER, F5 UNDER, NRFI, Webb Outs OVER). Skip ML — it's a coin flip.*
+*  (4) TONIGHT — Track NBA 12-game slate, especially OKC@BOS rest/tank validation.*
+*  (5) March 25 LATE — Pre-OD final check for March 26 full slate (need odds quota for this!).*
+*  (6) March 26 AM — GO LIVE on full OD slate. PIT@NYM 1:15PM ET first pitch.*
+*⚾ MLB SEASON OPENER: TODAY (March 25, NYY@SF 8:05PM ET, FRIED vs WEBB) 🔥🔥🔥🔥🔥*
+*⚾ MLB OPENING DAY FULL SLATE: TOMORROW (March 26, PIT@NYM 1:15PM ET) 🔥🔥🔥*
+*⚾ MLB DAY 2: 2 DAYS (March 27) 🔥🔥*
+*🏀 NBA PLAYOFFS: 18 DAYS (April 12)*
+*🏒 NHL PLAYOFFS: 25 DAYS (April 19)*
+*🏈 NFL DRAFT: 30 DAYS (April 24)*
+*🆕 SESSION #55 FINDINGS: (1) 🚨🚨 ODDS API QUOTA EXHAUSTED (500/500 used, 0 remaining) — this blocks live execution engine for tonight's opener AND tomorrow's full OD slate. Critical to resolve ASAP. Task 114 created. (2) Production v128 HEALTHY at 163ms with 170+ features. Opener analysis already rebuilt for Fried vs Webb and cached. (3) Live execution engine for March 26 shows 11 games with predictions but 0 with live odds (quota depleted). (4) NBA has 12 games today with good rest/tank data — OKC(RESTING)@BOS, CHI(B2B)@PHI(DESPERATE), MIA(DESPERATE)@CLE, LAL@IND(TANKING). (5) NHL standings unchanged — bubble still 7 teams within 4pts. (6) Opener thesis is strong: UNDER #1 play, two ground-ball aces at Oracle Park (0.93 PF), cold March, Bailey #1 framing. Portfolio $300, EV $27.68.*
+*🆕 NEW TASK: Task 114 — ODDS API QUOTA CRISIS (P0). Investigate when The Odds API quota resets (daily? monthly?). If monthly, need fallback: (a) Manual odds entry from DK/FD websites, (b) Alternative free odds source, (c) OddsJam or similar API. Without odds data, we cannot execute the live execution engine or generate real value bets.*
