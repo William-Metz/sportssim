@@ -3,6 +3,7 @@ name: Test & Deploy to Fly.io
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
