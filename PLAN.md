@@ -3,154 +3,131 @@
 ## Mission
 Build the ultimate +EV sports betting platform across ALL sports, ALL markets. Find every edge. Make maximum money.
 
-## Platform Status: MASSIVE 🚀
-- **114 service modules** | **85,000+ lines of code** | **11,800-line server.js**
-- Live data from ESPN, NHL API, MLB Statcast
-- Multi-sport models: NBA, MLB, NHL, NCAA
-- Deployed to sportssim.fly.dev
-- GitHub: William-Metz/sportssim
+## Current Status (April 14, 2026)
+- **Version:** v128 (128 feature releases in 26 days)
+- **Commits:** 146+ since project start
+- **Production:** ✅ LIVE at sportssim.fly.dev (512MB VM, healthy)
+- **Services:** 40+ live services (models, scrapers, scanners, dashboards)
+- **Live Data:** ESPN (NBA/MLB), NHL API, Statcast, DailyFaceoff, Open-Meteo, Odds API
+- **Phase:** 3.5 — Advanced Models + Automation
 
 ---
 
-## Sports Coverage (Priority Order)
+## 🔥 CRITICAL CALENDAR — What's Happening NOW
 
-### ⚾ MLB (OPENING DAY MARCH 27 — 6 DAYS! 🔥🔥🔥)
-**Status: BATTLE-READY**
-- 162-game season = massive sample size = model heaven
-- Built: Pitcher model (150+ pitchers), park factors (30 parks), Poisson totals, NRFI, F3/F7 inning models
-- Built: Batter props, platoon splits, bullpen quality, catcher framing, stolen base model
-- Built: Umpire tendencies, weather integration, Statcast integration
-- Built: Opening Day command center (20+ od-* services), lineup pipeline, pitcher resolver
-- Built: Opening week unders model, Opening Day live execution system
-- Focus: ML, totals, F5, run line (+/-1.5), player props, NRFI
-- **EDGE: Opening Day is historically the best day for models — max uncertainty in market**
+### TODAY — April 14, 2026
+- **NBA Play-In Tournament STARTS TODAY** 🏀
+  - West 7v8: PHX Suns (-3.5) vs POR Trail Blazers (+130) — 10pm ET
+  - West 9v10: LAC Clippers vs GSW Warriors — 10pm ET
+  - East 7v8: ORL Magic (-1.5) vs PHI 76ers (+102) — **Tomorrow** (Apr 15)
+  - East 9v10: CHA Hornets vs MIA Heat — **Tomorrow** (Apr 15)
+- **MLB Regular Season** — ~2.5 weeks in, daily games
+- **NHL Regular Season** — Final week, playoffs April 19
 
-### 🏀 NBA (Regular season ending, PLAYOFFS APRIL 12)
-**Status: PRODUCTION**
-- Built: Power ratings (Pythagorean + luck + rolling), period markets, rest/tank model
-- Built: Playoff series scanner, seeding simulator, rest-tank grader + backtest
-- Built: Daily NBA card generator, historical games database
-- **Current standings** (from live data): OKC #1 (62-16), SAS #2 (60-19), DEN #3 (51-28)
-- East: DET #1 (57-22), BOS #2 (53-25), NYK #3 (51-28), CLE #4 (50-29)
-- KEY INJURIES: Lakers missing Luka Doncic + Austin Reaves
-- **EDGE: Playoff series pricing historically inefficient. Unders in low-total first-round games hit 56.4% (totals ≤218)**
+### This Week
+- **Apr 14-17:** NBA Play-In Tournament (6 games)
+- **Apr 18:** NBA Playoffs Round 1 begins
+- **Apr 19:** NHL Playoffs Round 1 begins
+- **Apr 24:** NFL Draft
 
-### 🏒 NHL (Regular season ending, PLAYOFFS APRIL 19)
-**Status: PRODUCTION**
-- Built: Pythagorean + goalie adjustments, bubble scanner, goalie starters
-- Built: Playoff series model, daily NHL card generator
-- Focus: Puck line (+/-1.5), totals, goalie starter edges
-- **EDGE: Goalie backup starts massively swing lines — our goalie model catches these**
+### Upcoming
+- **May-June:** NBA/NHL Conference Finals → Finals
+- **Late June:** MLB All-Star break approaching
+- **September:** NFL kickoff
 
-### 🏈 NFL (Off-season — prep for September)
-**Status: BACKLOG**
-- NFL Draft April 24 — futures markets will move
-- Need: Win totals futures model, draft impact model
-- Season starts September — plenty of time to build
+---
 
-### 🏀 NCAA (March Madness)
-**Status: BUILT**
-- Built: Bracket engine, live scoring, tournament scanner
-- Useful for future March Madness and conference tournaments
+## Sports Coverage (Priority Order for April 2026)
+
+### 🏀 NBA (PLAY-IN TODAY → PLAYOFFS SATURDAY)
+**STATUS: Model LIVE, scanner LIVE, predictions LIVE**
+- Play-In games are historically UNDERPRICED for upsets
+- Playoff series pricing = biggest inefficiency in NBA betting
+- Key edges: rest days matter less (both teams resting), home court worth 2-3pts
+- Our model: 71% ML accuracy, Totals +27.3% ROI (backtest)
+- ATS still needs work (-3.8% ROI) — spreads are sharper
+- Futures bridge model: seeding sim → championship odds → market comparison
+- **TONIGHT'S PLAY:** PHX vs POR — Suns favored but Blazers 14-10 since Feb 22
+- **KEY INSIGHT from research:** Fade Game 1 overreactions, watch line movement for sharp money, unders profitable in playoffs (pace slows), bench depth shrinks
+
+### ⚾ MLB (SEASON UNDERWAY — 2.5 WEEKS IN)
+**STATUS: Full model suite LIVE — pitcher matchups, Statcast, weather, park factors, platoons, framing**
+- Model backtest: 71% ML accuracy, 30.2% ROI, 42.3% ROI on 10%+ edges
+- 167 pitchers in database, 853 Statcast pitchers, 651 batters
+- Opening Day analysis deployed and executed (Fried vs Webb opener)
+- Live auto-grading pipeline running
+- Futures active: NYY AL East +21.3%, OAK OVER +18.7%, BAL UNDER +14.2%
+- **NOW NEEDED:** Early season regression detection — which teams are over/under-performing Pythagorean expectations? Small sample = big edges
+
+### 🏒 NHL (PLAYOFFS START APRIL 19 — 5 DAYS)
+**STATUS: Model LIVE with goalie starters, playoff dashboard built**
+- Colorado Avalanche 52-16 (dominant, #1 seed)
+- Goalie starter auto-detection via DailyFaceoff
+- Playoff series model + bubble watch dashboard built
+- **CRITICAL GAP:** NHL backtest still shows 0 games — need validation data
+- **EDGE:** Playoff underdogs historically profitable in NHL (parity sport)
+
+### 🏈 NFL (DRAFT APRIL 24 — 10 DAYS)
+**STATUS: Win totals futures model LIVE**
+- 32 teams modeled, 30 value bets found
+- MIA OVER 4.5 (+39.6% edge), BAL UNDER 11.5 (+24.4%), SEA OVER 10.5 (+22.7%)
+- Draft will move lines significantly — early mover advantage NOW
+- **NEEDED:** Post-draft adjustments module (picks affect win totals)
 
 ### 📊 Prediction Markets
-**Status: BUILT**
-- Built: Kalshi scanner, Polymarket scanner + value detection
-- Built: Team totals scanner
-- **EDGE: Wide bid-ask spreads = edge for patient players**
+**STATUS: Kalshi scanner LIVE, Polymarket bridge LIVE**
+- 119 Kalshi value bets identified, 90 high confidence
+- Kalshi expanding into football props/sides/totals (CFTC filing)
+- **EDGE:** Wide bid-ask spreads on Kalshi = patient player advantage
+
+### ⚽ Soccer / 🥊 UFC / 🎾 Tennis
+**STATUS: Not yet built — backlog**
 
 ---
 
-## Architecture
+## Architecture (BUILT)
 
-### Core Engine
-1. **Universal Model Framework** — Sport-agnostic rating system + sport-specific features ✅
-2. **Odds Aggregator** — Real-time from The Odds API (50+ books) ✅
-3. **Value Engine** — Model vs. book, edge calculation, confidence scoring ✅
-4. **Bankroll Optimizer** — Kelly Criterion, portfolio-level risk management ✅
-5. **Backtest Suite** — Historical validation per sport per market ✅
-6. **Dashboard** — Multi-sport, real-time, deployed ✅
-7. **Alert System** — Daily cards, morning briefings, auto-scanner ✅
-8. **Line Movement Tracker** — Steam moves, RLM, stale lines ✅
-9. **Arbitrage Scanner** — Cross-book edge detection ✅
-10. **SGP Engine** — Same-game parlay correlation ✅
-11. **Season Simulator** — Full Monte Carlo season projection ✅
-12. **Auto-Grade Pipeline** — Results grading + CLV tracking ✅
+### Core Engine ✅
+1. **Universal Model Framework** — Sport-agnostic Pythagorean rating + sport-specific features
+2. **Odds Aggregator** — Real-time from DraftKings, FanDuel, BetMGM, Caesars, Pinnacle via The Odds API
+3. **Value Engine** — Model vs. book comparison, edge calculation, conviction scoring (0-100)
+4. **Bankroll Optimizer** — Kelly Criterion with same-game correlation, full/half/quarter sizing
+5. **Backtest Suite** — NBA 176 games, MLB 200 games (NHL needs expansion)
+6. **Dashboard** — Multi-sport with 20+ tabs (dark theme, real-time)
+7. **Alert System** — Auto-scanner with watchdog, value detection pipeline
+8. **Live Data Service** — ESPN + NHL API + Statcast + DailyFaceoff + Open-Meteo
 
-### Model Stack (114 Services)
-
-**Core Models:**
-- Pythagorean ratings (NBA, MLB, NHL)
-- Poisson/Negative Binomial totals
-- Monte Carlo game simulation
-- Kelly Criterion portfolio optimization
-- Consensus engine (multi-model weighting)
-- Calibration service
-
-**MLB Specific (30+ services):**
-- Starting pitcher model (150+ pitchers, composite ratings)
-- Park factors (30 parks)
-- Batter props (hits, HRs, RBIs)
-- Pitcher K props, HWE props, outs props
-- Platoon splits (L/R matchups)
-- Bullpen quality ratings
-- Catcher framing impact
-- Stolen base model
-- Umpire tendencies
-- NRFI (No Run First Inning)
-- F3 model (First 3 innings)
-- F7 model (First 7 innings)
-- Weather integration (wind, temp, humidity)
-- Statcast integration
-- Negative binomial scoring model
-- Opening Day command center (20+ od-* services)
-
-**NBA Specific (10+ services):**
-- Period markets (quarters/halves)
-- Playoff series scanner
-- Seeding simulator + futures bridge
-- Rest/tank model + grader + backtest
-- Historical games database
-
-**NHL Specific (5+ services):**
-- Bubble scanner (playoff bubble teams)
-- Goalie starters tracker
-- Playoff series model
-
-**Cross-Sport:**
-- Auto-scanner (every 30 min)
-- Daily picks generator
-- Morning briefing
-- Line movement tracker
-- Line shopping (best price across books)
-- Arbitrage scanner
-- SGP engine (same-game parlays)
-- Futures scanner
-- Alt-lines optimizer
-- Bet tracker + auto-grade pipeline
-- CLV tracker
-- ML bridge (machine learning integration)
-- Lineup fetcher + monitor + bridge
-- Season simulator
-- Regular season autopilot
-- Gameday autopilot + orchestrator
-
-**Prediction Markets:**
-- Kalshi scanner
-- Polymarket + Polymarket value detector
-- Team totals scanner
+### Model Features (ALL BUILT)
+- Pythagorean power ratings (all sports)
+- Rolling L10 stats from live APIs
+- Injury impact adjustments (star player ratings)
+- Rest/tank/motivation model (NBA)
+- Starting pitcher matchups + Statcast xERA/xwOBA (MLB)
+- Park factors, weather, umpire tendencies (MLB)
+- Platoon splits (Savant L/R wOBA data) (MLB)
+- Catcher framing (58 Savant catchers) (MLB)
+- Stolen base revolution model (MLB)
+- Goalie starter detection + backup impact (NHL)
+- Negative binomial scoring distributions (MLB F5, run lines)
+- Opening week unders adjustment (MLB)
+- Season simulator (10K Monte Carlo, win totals futures)
+- Seeding simulator → futures bridge (NBA)
+- Playoff series pricing model (NHL)
+- Edge decay optimizer (bet timing)
+- Live bet execution engine
+- CLV tracking + auto-grading
+- Conviction scoring engine (0-100, A+ to F grades)
 
 ### Tech Stack
-- **Frontend:** Professional dashboard (dark theme, real-time updates)
-- **Backend:** Node.js/Express API (11,800-line server.js)
-- **Services:** 114 modules (85,000+ lines)
-- **Database:** SQLite with JSON caches
+- **Frontend:** Professional dashboard (dark theme, 20+ tabs, real-time)
+- **Backend:** Node.js/Express API (v128, 42KB server.js)
+- **Database:** SQLite + JSON caches
+- **Services:** 40+ service modules in /services/
 - **Odds:** The Odds API (50+ books)
-- **Stats:** ESPN API, MLB Statcast, NHL API, NCAA
-- **Hosting:** Fly.io at sportssim.fly.dev
-- **Repo:** github.com/William-Metz/sportssim
-- **CI/CD:** GitHub Actions, auto-deploy
-- **Monitoring:** Grafana dashboard, Healthchecks.io
+- **Stats:** ESPN, NHL API, Baseball Savant (Statcast), DailyFaceoff, Open-Meteo
+- **Hosting:** Fly.io 512MB VM at sportssim.fly.dev
+- **Repo:** github.com/William-Metz/sportssim (146+ commits)
+- **CI/CD:** GitHub Actions auto-deploy on push
 
 ---
 
@@ -159,136 +136,124 @@ Build the ultimate +EV sports betting platform across ALL sports, ALL markets. F
 ### Phase 1: Foundation ✅ COMPLETE
 - [x] Project structure + Express backend
 - [x] NBA power rating model
-- [x] MLB power rating model  
-- [x] NHL power rating model
+- [x] MLB power rating model (pitching + park factors)
 - [x] The Odds API integration (all sports)
 - [x] Value detection engine (universal)
 - [x] Dashboard MVP (multi-sport)
-- [x] Deploy to Fly.io
-- [x] Live data feeds (ESPN, NHL API)
+- [x] Deploy to sportssim.fly.dev
+- [x] NBA backtest (176 games)
+- [x] MLB Opening Day projections
 
-### Phase 2: Depth ✅ MOSTLY COMPLETE
-- [x] Rolling stats for all sports
-- [x] Injury scraping (all leagues)
-- [x] Totals model (Poisson + Neg Binomial)
-- [x] Player props framework (multiple sports)
+### Phase 2: Depth ✅ COMPLETE
+- [x] NHL model (Pythagorean + goalie adjustments)
+- [x] Rolling stats for all sports (ESPN/NHL live APIs)
+- [x] Injury scraping (all leagues, ESPN data)
+- [x] Totals model (Negative Binomial, all sports)
+- [x] Player props framework
 - [x] Kelly Criterion multi-sport portfolio optimizer
 - [x] Line movement tracking + sharp money detection
-- [x] MLB: starting pitcher impact model
-- [x] MLB: park factor adjustments
-- [x] MLB: weather integration
-- [ ] Historical closing line database (partial — CLV tracker built)
+- [x] MLB starting pitcher impact model (167 pitchers)
+- [x] MLB park factor adjustments (30 parks)
+- [x] MLB weather integration (Open-Meteo live)
+- [x] Platoon splits (Savant data)
+- [x] Catcher framing (Savant data)
+- [x] Stolen base model
+- [x] Opening week unders model
 
-### Phase 3: Advanced Models ✅ MOSTLY COMPLETE
-- [x] NCAA bracket engine + tournament scanner
-- [x] Kalshi scanner
-- [x] Same-game parlay correlation engine (SGP)
-- [x] Arbitrage scanner (cross-book)
-- [x] Polymarket scanner + value detection
-- [x] Season simulator (Monte Carlo)
-- [x] NBA playoff series model
-- [x] NHL playoff series model
-- [ ] NFL model (off-season, September target)
-- [ ] Soccer model (EPL/Champions League)
-- [ ] UFC/MMA model
-- [ ] Tennis model
+### Phase 3: Advanced Models 🔄 IN PROGRESS (75%)
+- [x] NFL win totals futures model (32 teams, 30 value bets)
+- [x] Kalshi scanner (119 value bets, 90 high confidence)
+- [x] NHL playoff series model + dashboard
+- [x] NBA seeding sim → futures bridge
+- [x] Conviction scoring engine
+- [x] Edge decay optimizer
+- [x] Statcast ML integration (853 pitchers, 651 batters)
+- [x] Polymarket value bridge
+- [ ] Soccer model (EPL/Champions League) — backlog
+- [ ] UFC/MMA model — backlog
+- [ ] Tennis model — backlog
+- [ ] Same-game parlay correlation engine — backlog
+- [ ] Arbitrage scanner (cross-book) — backlog
 
-### Phase 4: Automation & Alerts ✅ MOSTLY COMPLETE
-- [x] Auto-scan on game days (auto-scanner)
-- [x] Daily card generators (NBA, MLB, NHL)
-- [x] Morning briefing system
-- [x] Bet tracker + auto-grading
-- [x] CLV tracking
-- [x] Gameday autopilot + orchestrator
-- [x] Regular season autopilot
-- [ ] Push alerts to Telegram/WhatsApp (service exists, needs integration)
-- [ ] Daily P&L automated report
-- [ ] Weekly strategy digest
+### Phase 4: Automation & Alerts 🔄 IN PROGRESS (60%)
+- [x] Auto-scan on active hours (scanner + watchdog)
+- [x] CLV tracking + auto-grading pipeline
+- [x] Live bet execution engine
+- [x] OD Playbook with conviction grades
+- [ ] Push alerts for +EV > 5% (Telegram/WhatsApp) — NOT DONE
+- [ ] Bet tracker with full P&L reporting — PARTIAL
+- [ ] Daily automated P&L report — NOT DONE
+- [ ] Weekly strategy digest — NOT DONE
 
-### Phase 5: Edge Maximization 🔄 IN PROGRESS
-- [x] ML bridge (model integration)
-- [x] Line shopping across books
-- [x] Alt-line optimizer
-- [x] Futures value tracker
-- [x] Consensus engine (multi-model weighting)
-- [x] Calibration service
-- [ ] Full ML ensemble training
-- [ ] Market efficiency map (which books are softest by sport?)
-- [ ] Live in-game models
-- [ ] Bankroll growth projections dashboard
-- [ ] Model self-improvement loop (auto-retrain)
+### Phase 5: Edge Maximization 🔄 IN PROGRESS (30%)
+- [x] Statcast ML ensemble
+- [x] Edge decay optimizer
+- [x] Prop market scanner (K props, player props)
+- [ ] Market efficiency map (which books are softest?) — NOT DONE
+- [ ] Live in-game models — NOT DONE
+- [ ] Alternate line optimizer — PARTIAL
+- [ ] Model self-improvement loop — NOT DONE
 
 ---
 
-## Upcoming Calendar & Strategy
+## Key Metrics (Current)
 
-### 🔥 MARCH 27: MLB Opening Day (6 DAYS)
-- Opening Day command center is READY (20+ od-* services)
-- Gameday pipeline: pitcher sync → lineup verify → live odds → execution
-- Pre-game validation chain: preflight → eve validation → morning protocol → live
-- Best edge day of the MLB season — max market uncertainty
-- **Action items:** Final validation pass, verify all pitcher data current, test full pipeline end-to-end
+### NBA
+| Metric | Value | Target |
+|--------|-------|--------|
+| ML Accuracy | 71% | >65% ✅ |
+| ATS | 50.4% (-3.8% ROI) | >53% ❌ |
+| Totals | 66.7% (+27.3% ROI) | >55% ✅✅ |
+| Backtest Games | 176 | 500+ |
 
-### 🏀 APRIL 12: NBA Playoffs Begin
-- Playoff series scanner ready
-- **Key insight (VSiN):** Unders in first-round games with totals ≤218 hit at 56.4%
-- **Key insight:** Series pricing historically inefficient — model vs. market series prices
-- Rest/tank patterns will shift — everyone plays now
-- Lakers injury situation (Luka/Reaves) creates massive value opportunities
+### MLB
+| Metric | Value | Target |
+|--------|-------|--------|
+| ML Accuracy | 71% | >60% ✅✅ |
+| Overall ROI | 30.2% | >10% ✅✅ |
+| 10%+ Edge ROI | 42.3% | >20% ✅✅ |
+| Totals ROI | 11.9% | >5% ✅ |
 
-### 🏒 APRIL 19: NHL Playoffs Begin
-- Playoff series model ready
-- Bubble scanner tracking teams on the edge
-- Goalie starter tracking critical — backup vs starter swings are the #1 edge
-
-### 🏈 APRIL 24: NFL Draft
-- Futures markets (win totals, division odds) will move heavily
-- Build futures impact model before draft
-
-### MAY-JUNE: NBA/NHL Finals + MLB Regular Season
-- MLBautopilot should be fully autonomous by then
-- Playoff models in production
-
-### SEPTEMBER: NFL Kickoff
-- Full NFL model needed by August
-- Rest/travel/weather models translate from other sports
+### NHL
+| Metric | Value | Target |
+|--------|-------|--------|
+| Backtest Games | 0 | 200+ ❌ |
+| Model | Live | ✅ |
+| Goalie Integration | Live | ✅ |
 
 ---
 
-## Key Metrics to Track
-- **ROI** per sport, per market type, per edge tier
-- **CLV** — are we beating the closing line?
-- **Calibration** — model probabilities match reality?
-- **Bankroll growth** — compound returns
-- **Edge decay** — how fast do our edges close?
-- **Service uptime** — all 114 services operational?
-- **Data freshness** — live feeds updating?
+## Immediate Priorities (April 14-24)
 
-## Research Findings (March 21, 2026)
+### 🔴 P0 — Do Today
+1. **NBA Play-In edges** — PHX vs POR tonight, model predictions vs DK lines
+2. **MLB daily value scan** — games today, auto-scanner should catch edges
+3. **NHL playoff prep** — 5 days to validate model before real money
 
-### NBA Playoff Betting Edges
-- **Under trend:** First-round games with totals ≤218, Under is 84-65-5 (56.4%)
-- **Over trend:** Games with totals >218, Over is 76-66-2 (53.5%)
-- **Series pricing:** Historically inefficient — favorites often overpriced
-- **Play-in games:** High variance, public overreacts to seeding
-- **Injury impact:** Lakers without Luka/Reaves creates massive series pricing edge
+### 🟡 P1 — This Week
+4. **NBA Playoff series pricing model** — Series bets are where the REAL money is
+5. **NHL backtest** — MUST validate before playoffs April 19
+6. **MLB early season regression** — Which teams are over/under-performing?
+7. **Push alerts** — Telegram/WhatsApp for high-value edges (still not wired!)
 
-### MLB Opening Day Edges
-- Maximum market uncertainty = maximum model edge
-- Starting pitcher confirmation is the #1 variable (our pitcher resolver handles this)
-- Weather on Opening Day matters more than usual (cold weather parks, wind)
-- NRFI is historically profitable on Opening Day (pitchers sharp, hitters rusty)
-- Opening week unders model shows early-season scoring is suppressed
-
-### New Data Sources to Explore
-- **OddsJam:** Arbitrage finder with real-time price comparison (7-day free trial)
-- **Sportradar:** Comprehensive real-time data (expensive but powerful)
-- **oddsapiR (GitHub):** R package for odds data, could bridge to our ML pipeline
-- **Opta AI:** MLB props (free trial available per VSiN)
+### 🟢 P2 — Next 10 Days
+8. **NFL Draft adjustments** — Post-draft win total recalculations
+9. **NBA Round 1 analysis** — Matchup-specific edges for each series
+10. **Bet tracker P&L** — Need to know if we're actually making money
 
 ---
 
-*Last updated: 2026-03-21*
-*Current phase: 4-5 (Automation + Edge Maximization)*
-*URGENT: MLB Opening Day in 6 days*
-*NEXT: NBA Playoffs in 22 days*
+## Session Cadence
+- **Auto:** Scanner runs every 30min on game days
+- **Every 2 hours:** Planning review — assess progress, reprioritize
+- **Daily:** Check all sports for today's edges
+- **Weekly:** Full performance review, model accuracy audit
+
+---
+
+*Last updated: 2026-04-14*
+*Current version: v128*
+*Current phase: 3.5 — Advanced Models + Automation*
+*🏀 NBA PLAY-IN STARTS TODAY*
+*🏒 NHL PLAYOFFS IN 5 DAYS*
+*🏈 NFL DRAFT IN 10 DAYS*
